@@ -1,0 +1,27 @@
+.participants-categories-container {
+    margin-bottom: 20px;
+    width: 100%;
+  }
+  
+  .participants-categories-container h3 {
+    margin-bottom: 10px;
+  }
+
+  .participants-categories-container ul {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+  }
+  
+  .participants-categories-container li {
+    padding: 1px 0;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .scroll-container {
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+  }

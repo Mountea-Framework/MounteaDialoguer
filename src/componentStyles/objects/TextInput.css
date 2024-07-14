@@ -1,0 +1,69 @@
+.text-input-container {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  align-content: center;
+  justify-content: center;
+}
+
+.text-input-container input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 0px solid #555;
+  border-radius: 5px;
+  background-color: #4a4a4a;
+  color: #fff;
+  text-align: center;
+  transition: border 1s ease;
+  outline: none;
+}
+
+input:read-only {
+  cursor: not-allowed;
+  border: none;
+}
+
+input:not(:read-only):hover {
+  box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.2);
+  background-color: #fff;
+  color: #555;
+}
+
+.text-input-container input.highlight {
+  animation: highlightFade 1s ease-in-out;
+}
+
+@keyframes highlightFade {
+  0% {
+    border: 1px solid #555;
+  }
+  25% {
+    border: 1px solid red;
+  }
+  50% {
+    border: 1px solid #555;
+  }
+  75% {
+    border: 1px solid red;
+  }
+  100% {
+    border: 1px solid #555;
+  }
+}
+
+.text-input-container input.highlight {
+  animation: highlightFade 1s ease-in-out;
+}
+
+.text-input-container input:read-only {
+  background-color: #888;
+  cursor: not-allowed;
+}
+
+.text-input-container input:focus {
+  border: 1px solid white; /* Thinner and white border on focus */
+  outline: none;
+}

@@ -1,0 +1,13 @@
+.project-list-item {
+    padding: 10px;
+    cursor: pointer;
+    font-size: small;
+    background-color: transparent;
+  }
+  
+  .project-list-item.selected {
+    background-color: #555;
+    color: #fff;
+    border-radius: 5px;
+  }
+  

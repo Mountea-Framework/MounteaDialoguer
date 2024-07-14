@@ -1,0 +1,60 @@
+.button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.custom-button {
+  padding: 10px 20px;
+  margin: 20px 0;
+  border: none;
+  border-radius: 5px;
+  background-color: #555;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.custom-button:hover:not(:disabled) {
+  background-color: #fff;
+  color: #555;
+  box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+.custom-button:disabled {
+  background-color: #999;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.circle-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #555;
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.circle-button:hover:not(:disabled) {
+  background-color: #fff;
+  color: #555;
+  box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+.circle-button:active {
+  background-color: #666;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.circle-button:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+  box-shadow: none;
+}

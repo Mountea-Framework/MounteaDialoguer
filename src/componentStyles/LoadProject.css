@@ -1,0 +1,48 @@
+.new-project-page {
+    background-color: #3a3a3a;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+  }
+  
+  .project-list {
+    background-color: #eee;
+    padding: 10px;
+    border-radius: 5px;
+    color: #000;
+    max-height: 150px;
+    overflow-y: auto;
+    justify-content: left;
+  }
+  
+  .project-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .project-list li {
+    padding: 5px;
+    border-bottom: 1px solid #ccc;
+  }
+  
+  .project-list li:last-child {
+    border-bottom: none;
+  }
+
+  .file-drop-area {
+    border: 2px dashed #555;
+    border-radius: 5px;
+    padding: 20px;
+    margin-top: 20px;
+    cursor: pointer;
+  }
+  
+  .file-drop-area input[type="file"] {
+    display: none;
+  }
+  
+  .file-drop-area p {
+    margin: 0;
+    color: #aaa;
+  }
