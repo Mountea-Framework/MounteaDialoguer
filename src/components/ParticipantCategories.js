@@ -7,15 +7,27 @@ import ScrollList from "./objects/ScrollList";
 
 import "../componentStyles/ParticipantCategories.css";
 
-function ParticipantsCategories({ categories, onUpdate }) {
+function ParticipantsCategories({ categories = [], onUpdate }) {
   const [categoryList, setCategoryList] = useState(categories);
+  const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
 
   useEffect(() => {
     const initialCategories = [
       { name: "Player", parent: "" },
       { name: "NPC", parent: "" },
     ];
-    initialCategories.forEach((category) => addUnique(category));
+
+    const uniqueCategories = initialCategories.filter((category) => {
+      return !categoryList.some(
+        (cat) => cat.name === category.name && cat.parent === category.parent
+      );
+    });
+
+    if (uniqueCategories.length > 0) {
+      const updatedCategories = [...categoryList, ...uniqueCategories];
+      setCategoryList(updatedCategories);
+      onUpdate(updatedCategories);
+    }
   }, []);
 
   const addUnique = (newCategory) => {
@@ -59,8 +71,6 @@ function ParticipantsCategories({ categories, onUpdate }) {
       : category.name,
   }));
 
-  const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
-
   return (
     <div className="participants-categories-container">
       <h3>Participants Categories</h3>
@@ -77,7 +87,7 @@ function ParticipantsCategories({ categories, onUpdate }) {
           value={newCategory.parent}
           onChange={handleInputChange}
           options={categoryOptions}
-          placeholder="Parent Category"
+          placeholder="select parent category"
         />
         <Button
           className="circle-button"

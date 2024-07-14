@@ -58,7 +58,7 @@ function DialogueParticipants({
           value={newParticipant.category}
           onChange={handleInputChange}
           options={categoryOptions}
-          placeholder="Category"
+          placeholder="select category"
         />
         <Button
           className="circle-button"
