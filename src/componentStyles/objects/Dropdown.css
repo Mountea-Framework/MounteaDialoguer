@@ -9,23 +9,18 @@
   width: 100%;
   padding: 10px;
   margin: 10px 0;
-  border: 0px solid #555;
   border-radius: 5px;
-  background-color: #4a4a4a;
-  color: #ffffff;
   text-align: left;
-  transition: border 1s ease, box-shadow 0.3s ease;
   cursor: pointer;
 }
 
 .dropdown::after {
-  content: '▼';
+  content: "▼";
   position: absolute;
-  right: 20px; /* Same padding as text */
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
-  pointer-events: none; /* Ensure the arrow doesn't block clicks */
-  color: #ffffff; /* Same color as text */
+  pointer-events: none;
 }
 
 .dropdown:focus {
@@ -33,12 +28,9 @@
 }
 
 .dropdown:disabled {
-  background-color: #888;
   cursor: not-allowed;
 }
 
 .dropdown:not(:disabled):hover {
   box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.2);
-  background-color: #fff;
-  color: #555;
 }

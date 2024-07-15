@@ -2,9 +2,14 @@ import React from "react";
 
 import "../../componentStyles/objects/ScrollListItem.css";
 
-function ScrollListItem({ item, onSelect }) {
+function ScrollListItem({ item, onSelect, className, classState }) {
   return (
-    <li className="scroll-list-item" onClick={() => onSelect(item)}>
+    <li
+      className={`${classState ? classState : "primary"} ${
+        className ? className : "scroll-list-item"
+      }`}
+      onClick={() => onSelect(item)}
+    >
       {item}
     </li>
   );

@@ -10,7 +10,6 @@
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
 }
 
 .custom-button:hover:not(:disabled) {
@@ -19,6 +18,7 @@
 
 .custom-button:disabled {
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .circle-button {

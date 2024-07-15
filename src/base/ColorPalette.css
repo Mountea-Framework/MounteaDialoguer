@@ -1,16 +1,18 @@
+/* ColorPalette.css */
 :root {
     /* Background */
-    --background: #181818;
-    --background-disabled: #181818;
+    --background-primary: #181818;
+    --background-secondary: #1e1e1e;
+    --background-tertiary: #252525;
+    --background-disabled: #3c3b3b;
 
     /* Normal State */
     --primary-normal: #1A1A1A;
     --secondary-normal: #252525;
     --tertiary-normal: #303030;
-    
 
     /* Hovered State */
-    --primary-hovered: #333333;
+    --primary-hovered: #F39237;
     --secondary-hovered: #3D3D3D;
     --tertiary-hovered: #474747;
 
@@ -34,4 +36,17 @@
     --primary-text: #FFFFFF;
     --secondary-text: #E0E0E0;
     --tertiary-text: #B0B0B0;
+
+    /* Text Hovered, Active, Focus States */
+    --primary-text-hovered: #000000;
+    --secondary-text-hovered: #1A1A1A;
+    --tertiary-text-hovered: #303030;
+
+    --primary-text-active: #000000;
+    --secondary-text-active: #1A1A1A;
+    --tertiary-text-active: #303030;
+
+    --primary-text-focus: #000000;
+    --secondary-text-focus: #1A1A1A;
+    --tertiary-text-focus: #303030;
 }

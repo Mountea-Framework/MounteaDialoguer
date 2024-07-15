@@ -19,6 +19,7 @@
 
 input:read-only {
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 input:hover:not(:read-only) {

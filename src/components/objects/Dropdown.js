@@ -2,14 +2,14 @@ import React from "react";
 
 import "../../componentStyles/objects/Dropdown.css";
 
-function Dropdown({ name, value, onChange, options, placeholder }) {
+function Dropdown({ name, value, onChange, options, placeholder, className, classState }) {
   return (
     <div className="dropdown-container">
       <select
         name={name}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
-        className="dropdown"
+        className ={`${classState ? classState : 'primary'} ${className ? className : "dropdown"}`}
       >
         <option value="" >
           {placeholder}

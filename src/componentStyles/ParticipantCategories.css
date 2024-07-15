@@ -15,13 +15,12 @@
   
   .participants-categories-container li {
     padding: 1px 0;
-    border-bottom: 1px solid #ddd;
+    border: 1px solid transparent;
   }
   
   .scroll-container {
     max-height: 200px;
     overflow-y: auto;
     width: 100%;
-    background-color: #f0f0f0;
     border-radius: 5px;
   }

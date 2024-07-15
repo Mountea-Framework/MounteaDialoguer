@@ -3,11 +3,10 @@
     cursor: pointer;
     font-size: small;
     background-color: transparent;
+    border: 1px solid transparent;
   }
   
   .project-list-item.selected {
-    background-color: #555;
-    color: #fff;
     border-radius: 5px;
   }
   

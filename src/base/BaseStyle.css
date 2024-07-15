@@ -5,7 +5,7 @@
 }
 
 .background {
-    background-color: var(--background);
+    background-color: var(--background-primary);
     color: var(--primary-text);
     transition: background-color var(--transition-duration) var(--transition-easing), color var(--transition-duration) var(--transition-easing);
 }
@@ -24,19 +24,19 @@
 
 .primary:hover {
     background-color: var(--primary-hovered);
-    color: var(--primary-text);
+    color: var(--primary-text-hovered);
     border-color: var(--secondary-hovered);
 }
 
 .primary:active {
     background-color: var(--primary-active);
-    color: var(--primary-text);
+    color: var(--primary-text-active);
     border-color: var(--secondary-active);
 }
 
 .primary:focus {
     background-color: var(--primary-focus);
-    color: var(--primary-text);
+    color: var(--primary-text-focus);
     border-color: var(--secondary-focus);
 }
 
@@ -55,19 +55,19 @@
 
 .secondary:hover {
     background-color: var(--secondary-hovered);
-    color: var(--primary-text);
+    color: var(--secondary-text-hovered);
     border-color: var(--tertiary-hovered);
 }
 
 .secondary:active {
     background-color: var(--secondary-active);
-    color: var(--primary-text);
+    color: var(--secondary-text-active);
     border-color: var(--tertiary-active);
 }
 
 .secondary:focus {
     background-color: var(--secondary-focus);
-    color: var(--primary-text);
+    color: var(--secondary-text-focus);
     border-color: var(--tertiary-focus);
 }
 
@@ -86,19 +86,19 @@
 
 .tertiary:hover {
     background-color: var(--tertiary-hovered);
-    color: var(--primary-text);
+    color: var(--tertiary-text-hovered);
     border-color: var(--primary-hovered);
 }
 
 .tertiary:active {
     background-color: var(--tertiary-active);
-    color: var(--primary-text);
+    color: var(--tertiary-text-active);
     border-color: var(--primary-active);
 }
 
 .tertiary:focus {
     background-color: var(--tertiary-focus);
-    color: var(--primary-text);
+    color: var(--tertiary-text-focus);
     border-color: var(--primary-focus);
 }
 
@@ -118,4 +118,68 @@
 
 .tertiary-text {
     color: var(--tertiary-text);
+}
+
+/* Placeholder text colors */
+input::placeholder, textarea::placeholder {
+    color: var(--primary-text);
+    transition: color var(--transition-duration) var(--transition-easing);
+}
+
+input.primary::placeholder:hover, textarea.primary::placeholder:hover {
+    color: var(--primary-text-hovered);
+}
+
+input.primary::placeholder:active, textarea.primary::placeholder:active {
+    color: var(--primary-text-active);
+}
+
+input.primary::placeholder:focus, textarea.primary::placeholder:focus {
+    color: var(--primary-text-focus);
+}
+
+input.primary::placeholder:disabled, textarea.primary::placeholder:disabled {
+    color: var(--tertiary-disabled);
+}
+
+input.secondary::placeholder, textarea.secondary::placeholder {
+    color: var(--primary-text);
+    transition: color var(--transition-duration) var(--transition-easing);
+}
+
+input.secondary::placeholder:hover, textarea.secondary::placeholder:hover {
+    color: var(--secondary-text-hovered);
+}
+
+input.secondary::placeholder:active, textarea.secondary::placeholder:active {
+    color: var(--secondary-text-active);
+}
+
+input.secondary::placeholder:focus, textarea.secondary::placeholder:focus {
+    color: var(--secondary-text-focus);
+}
+
+input.secondary::placeholder:disabled, textarea.secondary::placeholder:disabled {
+    color: var(--primary-disabled);
+}
+
+input.tertiary::placeholder, textarea.tertiary::placeholder {
+    color: var(--primary-text);
+    transition: color var(--transition-duration) var(--transition-easing);
+}
+
+input.tertiary::placeholder:hover, textarea.tertiary::placeholder:hover {
+    color: var(--tertiary-text-hovered);
+}
+
+input.tertiary::placeholder:active, textarea.tertiary::placeholder:active {
+    color: var(--tertiary-text-active);
+}
+
+input.tertiary::placeholder:focus, textarea.tertiary::placeholder:focus {
+    color: var(--tertiary-text-focus);
+}
+
+input.tertiary::placeholder:disabled, textarea.tertiary::placeholder:disabled {
+    color: var(--primary-disabled);
 }

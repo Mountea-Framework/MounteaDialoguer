@@ -1,7 +1,7 @@
 .landing-page-wrapper {
     border-radius: 10px;
-    padding: 50px;
-    background-color: #3a3a3a;
+    padding: 30px;
+    background-color: var(--background-secondary);
     margin: 10px;
     height: min(800px, 75%);
     width: min(1000px, 75%);

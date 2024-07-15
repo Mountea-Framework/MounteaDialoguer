@@ -1,17 +1,16 @@
 .scroll-list {
   padding: 5px;
   border-radius: 5px;
-  color: #fff;
   min-height: 150px;
   height: min(350px, 70%);
   overflow-y: auto;
   padding-right: 10px;
-  background-color: #999;
   display: flex;
   justify-content: flex-start;
   align-items: stretch;
   flex-direction: column;
   flex-wrap: nowrap;
+  pointer-events: none;
 }
 
 .scroll-list ul {
@@ -32,10 +31,9 @@
 }
 
 .scroll-list::-webkit-scrollbar-thumb {
-  background: #555;
   border-radius: 5px;
 }
 
 .scroll-list::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  border-radius: 5px;
 }
