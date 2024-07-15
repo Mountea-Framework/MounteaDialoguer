@@ -2,7 +2,7 @@ import React from "react";
 
 import "../../componentStyles/objects/TextInput.css";
 
-function TextInput({ placeholder, value, onChange, name, highlight, onClick, readOnly }) {
+function TextInput({ placeholder, value, onChange, name, onClick, readOnly, classState, classText }) {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     onChange(name, value);
@@ -16,7 +16,7 @@ function TextInput({ placeholder, value, onChange, name, highlight, onClick, rea
           value={value}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={highlight ? 'highlight' : ''}
+          className={`${classState ? classState : 'primary'} ${classText ? classText : 'primary-text'}`}
           onClick={onClick}
           readOnly={readOnly}
         />

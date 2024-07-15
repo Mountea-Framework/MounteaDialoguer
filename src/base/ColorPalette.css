@@ -1,0 +1,37 @@
+:root {
+    /* Background */
+    --background: #181818;
+    --background-disabled: #181818;
+
+    /* Normal State */
+    --primary-normal: #1A1A1A;
+    --secondary-normal: #252525;
+    --tertiary-normal: #303030;
+    
+
+    /* Hovered State */
+    --primary-hovered: #333333;
+    --secondary-hovered: #3D3D3D;
+    --tertiary-hovered: #474747;
+
+    /* Active State */
+    --primary-active: #4D4D4D;
+    --secondary-active: #575757;
+    --tertiary-active: #616161;
+
+    /* In Focus State */
+    --primary-focus: #666666;
+    --secondary-focus: #707070;
+    --tertiary-focus: #7A7A7A;
+
+    /* Disabled State */
+    --primary-disabled: #888888;
+    --secondary-disabled: #929292;
+    --tertiary-disabled: #9C9C9C;
+    --background-disabled: #686868;
+
+    /* Text Colors */
+    --primary-text: #FFFFFF;
+    --secondary-text: #E0E0E0;
+    --tertiary-text: #B0B0B0;
+}
