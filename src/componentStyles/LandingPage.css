@@ -1,9 +1,28 @@
 .landing-page-wrapper {
-    border-radius: 10px;
-    padding: 30px;
-    background-color: var(--background-secondary);
-    margin: 10px;
-    height: min(800px, 75%);
-    width: min(1000px, 75%);
-  }
-  
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  border-radius: 10px;
+  padding: 30px;
+  background-color: var(--background-secondary);
+  height: min(800px, 75%);
+  width: min(1000px, 75%);
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-content: space-between;
+  gap: 10px;
+}
+
+.landing-page-button-container {
+  padding-top: 20px;
+  min-width: 200px;
+}
+
+.landing-page-button {
+  min-width: 150px;
+}
+
+hr {
+  margin-left: 0;
+  margin-right: 0;
+}

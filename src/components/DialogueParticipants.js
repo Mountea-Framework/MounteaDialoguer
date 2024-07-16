@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
 import Dropdown from "./objects/Dropdown";
@@ -44,7 +45,7 @@ function DialogueParticipants({
 
   return (
     <div className="dialogue-participants-container">
-      <h3>Dialogue Participants</h3>
+      <Title level="3" children="Dialogue Participants" className="tertiary-headign"/>
       <div className="input-button-row">
         <TextInput
           placeholder="New Participant"

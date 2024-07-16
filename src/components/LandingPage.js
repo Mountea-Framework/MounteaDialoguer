@@ -48,14 +48,14 @@ function LandingPage() {
   };
 
   return (
-    <div className="landing-page-wrapper no-selection">
+    <div className="landing-page-wrapper no-selection background-secondary">
       {page === "newProject" && (
         <>
           <NewProject
             onContinue={handleContinue}
             onNewProjectClick={handleNewProjectClick}
           />
-          <hr />
+          <hr/>
           <LoadProject
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}

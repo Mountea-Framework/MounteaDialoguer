@@ -2,19 +2,14 @@ import React from "react";
 
 import "../../componentStyles/objects/Button.css";
 
-function Button({ onClick, children, disabled, className, style, classState }) {
-  const buttonStyle = {
-    margin: "20px 0",
-    ...style,
-  };
+function Button({ onClick, children, disabled, className, classState, containerClassName }) {
 
   return (
-    <div className={`button-container ${className || ""}`}>
+    <div className={`button-container ${containerClassName ? containerClassName : ""}`}>
       <button
-        className={`${classState ? classState : 'primary'} ${className ? className : "custom-button"}`}
+        className={`${classState ? classState : "primary"} ${className ? className : "custom-button"}`}
         onClick={onClick}
         disabled={disabled}
-        style={buttonStyle}
       >
         {children}
       </button>

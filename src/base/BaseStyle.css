@@ -1,13 +1,26 @@
-/* BaseStyle.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
 :root {
     --transition-duration: 0.3s;
     --transition-easing: ease-in-out;
 }
 
-.background {
+.background-primary {
     background-color: var(--background-primary);
     color: var(--primary-text);
     transition: background-color var(--transition-duration) var(--transition-easing), color var(--transition-duration) var(--transition-easing);
+}
+
+.background-secondary {
+    background-color: var(--background-secondary);
+    color: var(--secondary-text);
+    transition: color var(--transition-duration) var(--transition-easing);
+}
+
+.background-tertiary {
+    background-color: var(--background-tertiary);
+    color: var(--tertiary-text);
+    transition: color var(--transition-duration) var(--transition-easing);
 }
 
 .background:disabled {
@@ -16,6 +29,7 @@
 }
 
 .primary {
+    font-family: Poppins, Segoe UI, sans-serif;
     background-color: var(--primary-normal);
     color: var(--primary-text);
     border: 1px solid var(--secondary-normal);
@@ -25,19 +39,21 @@
 .primary:hover {
     background-color: var(--primary-hovered);
     color: var(--primary-text-hovered);
-    border-color: var(--secondary-hovered);
+    border-color: var(--primary-hovered);
+    font-weight: 600;
 }
 
 .primary:active {
     background-color: var(--primary-active);
     color: var(--primary-text-active);
-    border-color: var(--secondary-active);
+    border-color: var(--secondary-active);    
 }
 
 .primary:focus {
     background-color: var(--primary-focus);
     color: var(--primary-text-focus);
-    border-color: var(--secondary-focus);
+    border-color: var(--primary-focus);
+    font-weight: 600;
 }
 
 .primary:disabled {
@@ -47,6 +63,7 @@
 }
 
 .secondary {
+    font-family: Poppins, Segoe UI, sans-serif;
     background-color: var(--secondary-normal);
     color: var(--primary-text);
     border: 1px solid var(--tertiary-normal);
@@ -78,6 +95,7 @@
 }
 
 .tertiary {
+    font-family: Poppins, Segoe UI, sans-serif;
     background-color: var(--tertiary-normal);
     color: var(--primary-text);
     border: 1px solid var(--primary-normal);
@@ -108,6 +126,37 @@
     border-color: var(--primary-disabled);
 }
 
+.primary-headign {
+    color: var(--primary-text);
+    font-weight: 1200;
+    text-transform: uppercase;
+    text-align: center;
+    background-color: transparent;
+    border: 1px solid transparent;
+    pointer-events: none;
+}
+
+.secondary-headign {
+    color: var(--secondary-text);
+    font-weight: 900;
+    text-transform: uppercase;
+    text-align: center;
+    background-color: transparent;
+    border: 1px solid transparent;
+    pointer-events: none;
+}
+
+.tertiary-headign {
+    color: var(--tertiary-text);
+    font-weight: 600;
+    text-transform: none;
+    text-align: left;
+    background-color: transparent;
+    border: 1px solid transparent;
+    pointer-events: none;
+}
+
+/* Texts */
 .primary-text {
     color: var(--primary-text);
 }
@@ -123,63 +172,18 @@
 /* Placeholder text colors */
 input::placeholder, textarea::placeholder {
     color: var(--primary-text);
+    opacity: 0.5;
     transition: color var(--transition-duration) var(--transition-easing);
-}
-
-input.primary::placeholder:hover, textarea.primary::placeholder:hover {
-    color: var(--primary-text-hovered);
-}
-
-input.primary::placeholder:active, textarea.primary::placeholder:active {
-    color: var(--primary-text-active);
-}
-
-input.primary::placeholder:focus, textarea.primary::placeholder:focus {
-    color: var(--primary-text-focus);
-}
-
-input.primary::placeholder:disabled, textarea.primary::placeholder:disabled {
-    color: var(--tertiary-disabled);
 }
 
 input.secondary::placeholder, textarea.secondary::placeholder {
-    color: var(--primary-text);
+    color: var(--secondary-text);
+    opacity: 0.5;
     transition: color var(--transition-duration) var(--transition-easing);
-}
-
-input.secondary::placeholder:hover, textarea.secondary::placeholder:hover {
-    color: var(--secondary-text-hovered);
-}
-
-input.secondary::placeholder:active, textarea.secondary::placeholder:active {
-    color: var(--secondary-text-active);
-}
-
-input.secondary::placeholder:focus, textarea.secondary::placeholder:focus {
-    color: var(--secondary-text-focus);
-}
-
-input.secondary::placeholder:disabled, textarea.secondary::placeholder:disabled {
-    color: var(--primary-disabled);
 }
 
 input.tertiary::placeholder, textarea.tertiary::placeholder {
-    color: var(--primary-text);
+    color: var(--tertiary-text);
+    opacity: 0.5;
     transition: color var(--transition-duration) var(--transition-easing);
-}
-
-input.tertiary::placeholder:hover, textarea.tertiary::placeholder:hover {
-    color: var(--tertiary-text-hovered);
-}
-
-input.tertiary::placeholder:active, textarea.tertiary::placeholder:active {
-    color: var(--tertiary-text-active);
-}
-
-input.tertiary::placeholder:focus, textarea.tertiary::placeholder:focus {
-    color: var(--tertiary-text-focus);
-}
-
-input.tertiary::placeholder:disabled, textarea.tertiary::placeholder:disabled {
-    color: var(--primary-disabled);
 }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 
+import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
 import useAutoSave from "../hooks/useAutoSave";
 import ParticipantCategories from "./ParticipantCategories";
-import DialogueParticipants from "./DialogueParticipants";
+import DialogueParticipants from "./DialogueParticipants"
 
 import "../componentStyles/NewProjectDetails.css";
 
@@ -39,7 +40,7 @@ function NewProjectDetails({
 
   return (
     <div className="new-project-details">
-      <h2 className="section-title">New project details</h2>
+      <Title level="2" children="New Project details" className="secondary-headign"/>
       <TextInput title="Dialogue Name" value={data.name} readOnly />
       <div className="scrollable-sections">
         <ParticipantCategories

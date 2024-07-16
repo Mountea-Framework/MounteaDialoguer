@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
 
@@ -29,7 +30,7 @@ function NewProject({ onContinue, onNewProjectClick }) {
 
   return (
     <div>
-      <h2 className="section-title">New project</h2>
+      <Title level="2" children="New Project" className="secondary-headign"/>
       <TextInput
         title="Dialogue Name"
         placeholder="New project name"
@@ -41,7 +42,9 @@ function NewProject({ onContinue, onNewProjectClick }) {
       />
       <Button
         onClick={handleContinueClick}
-        disabled={dialogueName.length === 0}
+        disabled={dialogueName.length === 0}        
+        containerClassName={"landing-page-button-container"}
+        className={"custom-button landing-page-button"}
       >
         create project
       </Button>

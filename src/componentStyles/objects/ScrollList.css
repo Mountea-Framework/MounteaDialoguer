@@ -2,15 +2,15 @@
   padding: 5px;
   border-radius: 5px;
   min-height: 150px;
-  height: min(350px, 70%);
-  overflow-y: auto;
-  padding-right: 10px;
+  height: min(min(300px, 50%), auto);
+  overflow-y: scroll;
   display: flex;
   justify-content: flex-start;
   align-items: stretch;
   flex-direction: column;
   flex-wrap: nowrap;
-  pointer-events: none;
+
+  pointer-events: none; /* However, I wamt child elements to consume pointer events... */
 }
 
 .scroll-list ul {

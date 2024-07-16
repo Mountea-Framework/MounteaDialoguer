@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
 import Button from "./objects/Button";
 
@@ -38,7 +39,7 @@ function LoadProject({ selectedProject, onSelectProject }) {
 
   return (
     <div>
-      <h2 className="section-title">Load project</h2>
+      <Title level="2" children="Load Project" className="secondary-headign"/>
       <ScrollList
         selectedProject={selectedProject}
         onSelectProject={onSelectProject}
@@ -52,12 +53,14 @@ function LoadProject({ selectedProject, onSelectProject }) {
         {file ? (
           <p>{file.name}</p>
         ) : (
-          <p>Drag and drop a .mnteadlg file here or click to select</p>
+          <p className="primary-text">Drag and drop a .mnteadlg file here or click to select</p>
         )}
       </div>
       <Button
         onClick={handleContinueClick}
         disabled={!selectedProject}
+        containerClassName={"landing-page-button-container"}
+        className={"custom-button landing-page-button"}
       >
         load project
       </Button>

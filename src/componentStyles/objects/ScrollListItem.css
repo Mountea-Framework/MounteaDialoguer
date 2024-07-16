@@ -2,8 +2,11 @@
     padding: 10px;
     cursor: pointer;
     font-size: small;
+    border-radius: 5px;
     background-color: transparent;
     border: 1px solid transparent;
+
+    pointer-events: all;
   }
   
   .project-list-item.selected {

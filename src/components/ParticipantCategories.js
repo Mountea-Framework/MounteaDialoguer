@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 
+import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
 import Dropdown from "./objects/Dropdown";
@@ -73,7 +74,7 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
 
   return (
     <div className="participants-categories-container">
-      <h3>Participants Categories</h3>
+      <Title level="3" children="Participants Categories" className="tertiary-headign"/>
       <div className="input-button-row">
         <TextInput
           placeholder="New Category"
