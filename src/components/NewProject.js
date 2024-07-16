@@ -30,7 +30,7 @@ function NewProject({ onContinue, onNewProjectClick }) {
 
   return (
     <div>
-      <Title level="2" children="New Project" className="secondary-headign"/>
+      <Title level="2" children="New Project" className="secondary-headign" />
       <TextInput
         title="Dialogue Name"
         placeholder="New project name"
@@ -42,7 +42,7 @@ function NewProject({ onContinue, onNewProjectClick }) {
       />
       <Button
         onClick={handleContinueClick}
-        disabled={dialogueName.length === 0}        
+        disabled={dialogueName.length === 0}
         containerClassName={"landing-page-button-container"}
         className={"custom-button landing-page-button"}
       >

@@ -1,189 +1,208 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
 
 :root {
-    --transition-duration: 0.3s;
-    --transition-easing: ease-in-out;
+  --transition-duration: 0.3s;
+  --transition-easing: ease-in-out;
+  --dropshadow-offset: 2px 2px 6px;
 }
 
 .background-primary {
-    background-color: var(--background-primary);
-    color: var(--primary-text);
-    transition: background-color var(--transition-duration) var(--transition-easing), color var(--transition-duration) var(--transition-easing);
+  background-color: var(--background-primary);
+  color: var(--primary-text);
+  transition: background-color var(--transition-duration)
+      var(--transition-easing),
+    color var(--transition-duration) var(--transition-easing);
 }
 
 .background-secondary {
-    background-color: var(--background-secondary);
-    color: var(--secondary-text);
-    transition: color var(--transition-duration) var(--transition-easing);
+  background-color: var(--background-secondary);
+  color: var(--secondary-text);
+  transition: color var(--transition-duration) var(--transition-easing);
 }
 
 .background-tertiary {
-    background-color: var(--background-tertiary);
-    color: var(--tertiary-text);
-    transition: color var(--transition-duration) var(--transition-easing);
+  background-color: var(--background-tertiary);
+  color: var(--tertiary-text);
+  transition: color var(--transition-duration) var(--transition-easing);
 }
 
 .background:disabled {
-    background-color: var(--background-disabled);
-    color: var(--primary-disabled);
+  background-color: var(--background-disabled);
+  color: var(--primary-disabled);
 }
 
 .primary {
-    font-family: Poppins, Segoe UI, sans-serif;
-    background-color: var(--primary-normal);
-    color: var(--primary-text);
-    border: 1px solid var(--secondary-normal);
-    transition: background-color var(--transition-duration) var(--transition-easing), color var(--transition-duration) var(--transition-easing), border-color var(--transition-duration) var(--transition-easing);
+  font-family: Poppins, Segoe UI, sans-serif;
+  background-color: var(--primary-normal);
+  color: var(--primary-text);
+  border: 1px solid var(--secondary-normal);
+  transition: background-color var(--transition-duration)
+      var(--transition-easing),
+    color var(--transition-duration) var(--transition-easing),
+    border-color var(--transition-duration) var(--transition-easing);
 }
 
 .primary:hover {
-    background-color: var(--primary-hovered);
-    color: var(--primary-text-hovered);
-    border-color: var(--primary-hovered);
-    font-weight: 600;
+  background-color: var(--primary-hovered);
+  color: var(--primary-text-hovered);
+  border-color: var(--primary-hover-border);
+  font-weight: 600;
+}
+
+.primary:hover:not(:disabled) {
+  box-shadow: var(--dropshadow-offset) var(--primary-dropshadow);
 }
 
 .primary:active {
-    background-color: var(--primary-active);
-    color: var(--primary-text-active);
-    border-color: var(--secondary-active);    
+  background-color: var(--primary-active);
+  color: var(--primary-text-active);
+  border-color: var(--secondary-active);
 }
 
 .primary:focus {
-    background-color: var(--primary-focus);
-    color: var(--primary-text-focus);
-    border-color: var(--primary-focus);
-    font-weight: 600;
+  background-color: var(--primary-focus);
+  color: var(--primary-text-focus);
+  border-color: var(--primary-focus);
+  font-weight: 600;
 }
 
 .primary:disabled {
-    background-color: var(--primary-disabled);
-    color: var(--tertiary-disabled);
-    border-color: var(--secondary-disabled);
+  background-color: var(--primary-disabled);
+  color: var(--tertiary-disabled);
+  border-color: var(--secondary-disabled);
 }
 
 .secondary {
-    font-family: Poppins, Segoe UI, sans-serif;
-    background-color: var(--secondary-normal);
-    color: var(--primary-text);
-    border: 1px solid var(--tertiary-normal);
-    transition: background-color var(--transition-duration) var(--transition-easing), color var(--transition-duration) var(--transition-easing), border-color var(--transition-duration) var(--transition-easing);
+  font-family: Poppins, Segoe UI, sans-serif;
+  background-color: var(--secondary-normal);
+  color: var(--primary-text);
+  border: 1px solid var(--tertiary-normal);
+  transition: background-color var(--transition-duration)
+      var(--transition-easing),
+    color var(--transition-duration) var(--transition-easing),
+    border-color var(--transition-duration) var(--transition-easing);
 }
 
 .secondary:hover {
-    background-color: var(--secondary-hovered);
-    color: var(--secondary-text-hovered);
-    border-color: var(--tertiary-hovered);
+  background-color: var(--secondary-hovered);
+  color: var(--secondary-text-hovered);
+  border-color: var(--tertiary-hovered);
 }
 
 .secondary:active {
-    background-color: var(--secondary-active);
-    color: var(--secondary-text-active);
-    border-color: var(--tertiary-active);
+  background-color: var(--secondary-active);
+  color: var(--secondary-text-active);
+  border-color: var(--tertiary-active);
 }
 
 .secondary:focus {
-    background-color: var(--secondary-focus);
-    color: var(--secondary-text-focus);
-    border-color: var(--tertiary-focus);
+  background-color: var(--secondary-focus);
+  color: var(--secondary-text-focus);
+  border-color: var(--tertiary-focus);
 }
 
 .secondary:disabled {
-    background-color: var(--secondary-disabled);
-    color: var(--primary-disabled);
-    border-color: var(--tertiary-disabled);
+  background-color: var(--secondary-disabled);
+  color: var(--primary-disabled);
+  border-color: var(--tertiary-disabled);
 }
 
 .tertiary {
-    font-family: Poppins, Segoe UI, sans-serif;
-    background-color: var(--tertiary-normal);
-    color: var(--primary-text);
-    border: 1px solid var(--primary-normal);
-    transition: background-color var(--transition-duration) var(--transition-easing), color var(--transition-duration) var(--transition-easing), border-color var(--transition-duration) var(--transition-easing);
+  font-family: Poppins, Segoe UI, sans-serif;
+  background-color: var(--tertiary-normal);
+  color: var(--primary-text);
+  border: 1px solid var(--primary-normal);
+  transition: background-color var(--transition-duration)
+      var(--transition-easing),
+    color var(--transition-duration) var(--transition-easing),
+    border-color var(--transition-duration) var(--transition-easing);
 }
 
 .tertiary:hover {
-    background-color: var(--tertiary-hovered);
-    color: var(--tertiary-text-hovered);
-    border-color: var(--primary-hovered);
+  background-color: var(--tertiary-hovered);
+  color: var(--tertiary-text-hovered);
+  border-color: var(--primary-hovered);
 }
 
 .tertiary:active {
-    background-color: var(--tertiary-active);
-    color: var(--tertiary-text-active);
-    border-color: var(--primary-active);
+  background-color: var(--tertiary-active);
+  color: var(--tertiary-text-active);
+  border-color: var(--primary-active);
 }
 
 .tertiary:focus {
-    background-color: var(--tertiary-focus);
-    color: var(--tertiary-text-focus);
-    border-color: var(--primary-focus);
+  background-color: var(--tertiary-focus);
+  color: var(--tertiary-text-focus);
+  border-color: var(--primary-focus);
 }
 
 .tertiary:disabled {
-    background-color: var(--tertiary-disabled);
-    color: var(--primary-disabled);
-    border-color: var(--primary-disabled);
+  background-color: var(--tertiary-disabled);
+  color: var(--primary-disabled);
+  border-color: var(--primary-disabled);
 }
 
 .primary-headign {
-    color: var(--primary-text);
-    font-weight: 1200;
-    text-transform: uppercase;
-    text-align: center;
-    background-color: transparent;
-    border: 1px solid transparent;
-    pointer-events: none;
+  color: var(--primary-text);
+  font-weight: 1200;
+  text-transform: uppercase;
+  text-align: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  pointer-events: none;
 }
 
 .secondary-headign {
-    color: var(--secondary-text);
-    font-weight: 900;
-    text-transform: uppercase;
-    text-align: center;
-    background-color: transparent;
-    border: 1px solid transparent;
-    pointer-events: none;
+  color: var(--secondary-text);
+  font-weight: 900;
+  text-transform: uppercase;
+  text-align: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  pointer-events: none;
 }
 
 .tertiary-headign {
-    color: var(--tertiary-text);
-    font-weight: 600;
-    text-transform: none;
-    text-align: left;
-    background-color: transparent;
-    border: 1px solid transparent;
-    pointer-events: none;
+  color: var(--tertiary-text);
+  font-weight: 600;
+  text-transform: none;
+  text-align: left;
+  background-color: transparent;
+  border: 1px solid transparent;
+  pointer-events: none;
 }
 
 /* Texts */
 .primary-text {
-    color: var(--primary-text);
+  color: var(--primary-text);
 }
 
 .secondary-text {
-    color: var(--secondary-text);
+  color: var(--secondary-text);
 }
 
 .tertiary-text {
-    color: var(--tertiary-text);
+  color: var(--tertiary-text);
 }
 
 /* Placeholder text colors */
-input::placeholder, textarea::placeholder {
-    color: var(--primary-text);
-    opacity: 0.5;
-    transition: color var(--transition-duration) var(--transition-easing);
+input::placeholder,
+textarea::placeholder {
+  color: var(--primary-text);
+  opacity: .8;
+  transition: opacity var(--transition-duration) var(--transition-easing);
 }
 
-input.secondary::placeholder, textarea.secondary::placeholder {
-    color: var(--secondary-text);
-    opacity: 0.5;
-    transition: color var(--transition-duration) var(--transition-easing);
+input.secondary::placeholder,
+textarea.secondary::placeholder {
+  color: var(--secondary-text);
+  opacity: 0.5;
+  transition: color var(--transition-duration) var(--transition-easing);
 }
 
-input.tertiary::placeholder, textarea.tertiary::placeholder {
-    color: var(--tertiary-text);
-    opacity: 0.5;
-    transition: color var(--transition-duration) var(--transition-easing);
+input.tertiary::placeholder,
+textarea.tertiary::placeholder {
+  color: var(--tertiary-text);
+  opacity: 0.5;
+  transition: color var(--transition-duration) var(--transition-easing);
 }

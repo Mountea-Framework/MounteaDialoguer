@@ -39,7 +39,7 @@ function LoadProject({ selectedProject, onSelectProject }) {
 
   return (
     <div>
-      <Title level="2" children="Load Project" className="secondary-headign"/>
+      <Title level="2" children="Load Project" className="secondary-headign" />
       <ScrollList
         selectedProject={selectedProject}
         onSelectProject={onSelectProject}
@@ -53,7 +53,9 @@ function LoadProject({ selectedProject, onSelectProject }) {
         {file ? (
           <p>{file.name}</p>
         ) : (
-          <p className="primary-text">Drag and drop a .mnteadlg file here or click to select</p>
+          <p className="primary-text">
+            Drag and drop a .mnteadlg file here or click to select
+          </p>
         )}
       </div>
       <Button

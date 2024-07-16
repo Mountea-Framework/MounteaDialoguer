@@ -12,7 +12,9 @@
 
     /* Hovered State */
     --primary-hovered: #F39237;
+    --primary-hover-border: #e0e0e080;
     --secondary-hovered: #3D3D3D;
+    --secondary-hover-border: #e0e0e080;
     --tertiary-hovered: #474747;
 
     /* Active State */
@@ -48,4 +50,7 @@
     --primary-text-focus: #000000;
     --secondary-text-focus: #1A1A1A;
     --tertiary-text-focus: #303030;
+
+    /* Dropdown shadows */
+    --primary-dropshadow: #ffffff62;
 }

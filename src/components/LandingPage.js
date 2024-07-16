@@ -4,8 +4,8 @@ import NewProject from "./NewProject";
 import LoadProject from "./LoadProject";
 import NewProjectDetails from "./NewProjectDetails";
 
-import "../base/ColorPalette.css"
-import "../base/BaseStyle.css"
+import "../base/ColorPalette.css";
+import "../base/BaseStyle.css";
 import "../componentStyles/LandingPage.css";
 
 function LandingPage() {
@@ -55,7 +55,7 @@ function LandingPage() {
             onContinue={handleContinue}
             onNewProjectClick={handleNewProjectClick}
           />
-          <hr/>
+          <hr />
           <LoadProject
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}

@@ -14,15 +14,6 @@
   cursor: pointer;
 }
 
-.dropdown::after {
-  content: "▼";
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
 .dropdown:focus {
   outline: none;
 }
@@ -34,3 +25,8 @@
 .dropdown:not(:disabled):hover {
   box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.2);
 }
+
+.dropdown option:first-of-type {
+  font-style: italic;
+}
+
