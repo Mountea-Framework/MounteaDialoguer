@@ -29,7 +29,7 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
       setCategoryList(updatedCategories);
       onUpdate(updatedCategories);
     }
-  }, []);
+  }, [categoryList, onUpdate]);
 
   const addUnique = (newCategory) => {
     setCategoryList((prevList) => {
@@ -63,6 +63,19 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
     // Implement any logic when a category is selected
   };
 
+  const handleIconClick = (item) => {
+    setCategoryList((prevList) => {
+      const updatedList = prevList.filter(
+        (category) =>
+          (category.parent
+            ? `${category.parent}.${category.name}`
+            : category.name) !== item
+      );
+      onUpdate(updatedList);
+      return updatedList;
+    });
+  };
+
   const categoryOptions = categoryList.map((category) => ({
     value: category.parent
       ? `${category.parent}.${category.name}`
@@ -74,7 +87,11 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
 
   return (
     <div className="participants-categories-container scrollable-section">
-      <Title level="3" children="Participants Categories" className="tertiary-headign"/>
+      <Title
+        level="3"
+        children="Participants Categories"
+        className="tertiary-headign"
+      />
       <div className="input-button-row">
         <TextInput
           placeholder="New Category"
@@ -100,10 +117,13 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
       </div>
       <div className="scroll-container">
         <ScrollList
+          classState={"none"}
+          classStateItems={"none"}
           items={categoryList.map((c) =>
             c.parent ? `${c.parent}.${c.name}` : c.name
           )}
           onSelect={handleSelectCategory}
+          onIconClick={handleIconClick}
         />
       </div>
     </div>

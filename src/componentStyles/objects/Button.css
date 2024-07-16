@@ -16,37 +16,12 @@
   white-space: nowrap;
 }
 
-.custom-button:disabled {
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
 .circle-button {
-  width: 30px;
-  height: 30px;
+  width: 31px;
+  height: 31px;
   border-radius: 50%;
   border: none;
-  display: flex;
+  overflow: hidden;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: background-color 1s ease;
-}
-
-.circle-button:hover:not(:disabled) {
-  background-color: #fff;
-  color: #555;
-  box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.2);
-}
-
-.circle-button:active {
-  background-color: #666;
-  color: #fff;
-  cursor: not-allowed;
-}
-
-.circle-button:disabled {
-  background-color: #999;
-  cursor: not-allowed;
-  box-shadow: none;
 }

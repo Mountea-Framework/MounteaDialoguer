@@ -1,8 +1,16 @@
 import React from "react";
 
+import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
+
 import "../../componentStyles/objects/ScrollListItem.css";
 
-function ScrollListItem({ item, onSelect, onTraversed, className, classState }) {
+function ScrollListItem({
+  item,
+  onSelect,
+  onIconClick,
+  className,
+  classState,
+}) {
   return (
     <li
       className={`${classState ? classState : "primary"} ${
@@ -10,7 +18,16 @@ function ScrollListItem({ item, onSelect, onTraversed, className, classState }) 
       }`}
       onClick={() => onSelect(item)}
     >
-      {item}
+      <span className="item-text">{item}</span>
+      <span
+        className="item-icon"
+        onClick={(e) => {
+          e.stopPropagation();
+          onIconClick(item);
+        }}
+      >
+        <RemoveIcon />
+      </span>
     </li>
   );
 }

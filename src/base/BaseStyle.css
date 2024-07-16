@@ -78,8 +78,17 @@
   border-color: var(--secondary-disabled);
 }
 
+button {
+  cursor: pointer;
+}
+
 button.primary:not(:disabled) {
   box-shadow: var(--enabled-dropshadow-offset) var(--enabled-dropshadow);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .secondary {
@@ -216,16 +225,14 @@ button.primary:not(:disabled) {
   transition: color var(--transition-duration) var(--transition-easing);
 }
 
-input.secondary::placeholder,
-textarea.secondary::placeholder {
-  color: var(--secondary-text);
-  opacity: 0.5;
+.secondary:hover:not(:disabled)::placeholder {
+  color: var(--secondary-text-hovered);
+  opacity: 0.3;
   transition: color var(--transition-duration) var(--transition-easing);
 }
 
-input.tertiary::placeholder,
-textarea.tertiary::placeholder {
-  color: var(--tertiary-text);
-  opacity: 0.5;
+.tertiary:hover:not(:disabled)::placeholder {
+  color: var(--tertiary-text-hovered);
+  opacity: 0.3;
   transition: color var(--transition-duration) var(--transition-easing);
 }

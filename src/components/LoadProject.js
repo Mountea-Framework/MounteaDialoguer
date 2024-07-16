@@ -43,6 +43,7 @@ function LoadProject({ selectedProject, onSelectProject }) {
       <ScrollList
         selectedProject={selectedProject}
         onSelectProject={onSelectProject}
+        classState={"base"}
       />
       <div
         className="file-drop-area"

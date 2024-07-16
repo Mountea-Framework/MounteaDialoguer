@@ -1,5 +1,4 @@
-import React from "react";
-
+import React, { useRef, useEffect } from "react";
 import "../../componentStyles/objects/Dropdown.css";
 
 function Dropdown({
@@ -11,9 +10,18 @@ function Dropdown({
   className,
   classState,
 }) {
+  const selectRef = useRef(null);
+
+  useEffect(() => {
+    if (selectRef.current && value !== "") {
+      selectRef.current.blur();
+    }
+  }, [value]);
+
   return (
     <div className="dropdown-container">
       <select
+        ref={selectRef}
         name={name}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}

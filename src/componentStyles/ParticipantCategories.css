@@ -1,22 +1,26 @@
 .participants-categories-container {
-    margin-bottom: 20px;
-    width: 100%;
-  }
+  margin-bottom: 20px;
+  width: 100%;
+}
 
-  .participants-categories-container ul {
-    list-style-type: none;
-    padding: 0;
-    width: 100%;
-  }
-  
-  .participants-categories-container li {
-    padding: 1px 0;
-    border: 1px solid transparent;
-  }
-  
-  .scroll-container {
-    max-height: 200px;
-    overflow-y: auto;
-    width: 100%;
-    border-radius: 5px;
-  }
+.participants-categories-container ul {
+  list-style-type: none;
+  padding: 0;
+  width: 100%;
+}
+
+.participants-categories-container li {
+  padding: 1px 0;
+  border: 1px solid transparent;
+}
+
+.scroll-container {
+  max-height: 250px;
+  overflow-y: auto;
+  width: 100%;
+  border-radius: 5px;
+
+  background-color: var(--primary-normal);
+  color: var(--primary-text);
+  border: 1px solid var(--secondary-normal);
+}

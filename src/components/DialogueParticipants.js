@@ -34,6 +34,13 @@ function DialogueParticipants({
     // Implement any logic when a participant is selected
   };
 
+  const handleIconClick = (item) => {
+    const updatedParticipants = participants.filter(
+      (participant) => `${participant.name} - ${participant.category}` !== item
+    );
+    onUpdate({ participants: updatedParticipants });
+  };
+
   const categoryOptions = categories.map((category) => ({
     value: category.parent
       ? `${category.parent}.${category.name}`
@@ -45,7 +52,11 @@ function DialogueParticipants({
 
   return (
     <div className="dialogue-participants-container scrollable-section">
-      <Title level="3" children="Dialogue Participants" className="tertiary-headign"/>
+      <Title
+        level="3"
+        children="Dialogue Participants"
+        className="tertiary-headign"
+      />
       <div className="input-button-row">
         <TextInput
           placeholder="New Participant"
@@ -74,8 +85,11 @@ function DialogueParticipants({
       </div>
       <div className="scroll-container">
         <ScrollList
+          classState={"Aaa"}
+          classStateItems={"Aaa"}
           items={participants.map((p) => `${p.name} - ${p.category}`)}
           onSelect={handleSelectParticipant}
+          onIconClick={handleIconClick} // Pass the handleIconClick function
         />
       </div>
     </div>

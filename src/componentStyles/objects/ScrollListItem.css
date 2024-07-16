@@ -1,15 +1,46 @@
-.project-list-item {
-    padding: 10px;
-    cursor: pointer;
-    font-size: small;
-    border-radius: 5px;
-    background-color: transparent;
-    border: 1px solid transparent;
+.scroll-list-item {
+  font-family: Poppins, Segoe UI, sans-serif;
+  padding: 10px;
+  cursor: pointer;
+  font-size: small;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background-color: var(--primary-normal);
+  color: var(--primary-text);
+  pointer-events: auto;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    pointer-events: all;
-  }
-  
-  .project-list-item.selected {
-    border-radius: 5px;
-  }
-  
+.item-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-icon {
+  visibility: hidden;
+}
+
+svg {
+  height: min(2rem, 16px);
+  width: auto;
+
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+.scroll-list-item:hover .item-icon {
+  visibility: visible;
+}
+
+.scroll-list-item:hover {
+  color: var(--primary-hovered);
+  transition: color var(--transition-duration) var(--transition-easing);
+}

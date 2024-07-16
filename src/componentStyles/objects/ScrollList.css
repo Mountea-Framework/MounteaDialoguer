@@ -1,16 +1,21 @@
 .scroll-list {
   padding: 5px;
   border-radius: 5px;
-  min-height: 150px;
-  height: min(min(300px, 50%), auto);
-  overflow-y: scroll;
+  min-height: 200px;
+  height: min(300px, 40%);
   display: flex;
   justify-content: flex-start;
   align-items: stretch;
   flex-direction: column;
   flex-wrap: nowrap;
 
-  pointer-events: none; /* However, I wamt child elements to consume pointer events... */
+  overflow-x: hidden;
+
+  pointer-events: auto;
+
+  background-color: var(--primary-normal);
+  color: var(--primary-text);
+  border: 1px solid var(--secondary-normal);
 }
 
 .scroll-list ul {
@@ -18,11 +23,16 @@
   padding: 0;
   margin: 0;
   width: 100%;
+
+  pointer-events: auto;
+}
+
+.scroll-list-item.selected {
+  border-radius: 5px;
 }
 
 .scroll-list::-webkit-scrollbar {
   width: 8px;
-  background-color: transparent;
 }
 
 .scroll-list::-webkit-scrollbar-track {
