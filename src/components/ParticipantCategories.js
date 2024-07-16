@@ -73,7 +73,7 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
   }));
 
   return (
-    <div className="participants-categories-container">
+    <div className="participants-categories-container scrollable-section">
       <Title level="3" children="Participants Categories" className="tertiary-headign"/>
       <div className="input-button-row">
         <TextInput

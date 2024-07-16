@@ -21,7 +21,7 @@ function Dropdown({
           className ? className : "dropdown"
         }`}
       >
-        <option value="" >{placeholder}</option>
+        <option value="">{placeholder}</option>
         {options.map((option, index) => (
           <option key={index} value={option.value}>
             {option.label}

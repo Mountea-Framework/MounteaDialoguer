@@ -11,6 +11,7 @@
   flex-wrap: nowrap;
   align-content: space-between;
   gap: 10px;
+  box-shadow: 0px 0px 16px 2px #ffffff3b;
 }
 
 .landing-page-button-container {

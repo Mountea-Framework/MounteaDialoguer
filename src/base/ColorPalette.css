@@ -52,5 +52,8 @@
     --tertiary-text-focus: #303030;
 
     /* Dropdown shadows */
+    --enabled-dropshadow: #ffffff42;
     --primary-dropshadow: #ffffff62;
+    --secondary-dropshadow: #ffffff62;
+    --tertiary-dropshadow: #ffffff62;
 }

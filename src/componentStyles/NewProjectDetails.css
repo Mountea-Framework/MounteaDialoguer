@@ -10,12 +10,11 @@
 .scrollable-sections {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch;
   width: 100%;
-  overflow-y: auto;
   box-sizing: border-box;
   height: min(700px, 90%);
-  justify-content: space-between;
+  justify-content: space-around;
   align-content: stretch;
   flex-wrap: nowrap;
   gap: 10px;
@@ -23,7 +22,7 @@
 
 .scrollable-section {
   width: 48%;
-  height: 80%;
+  height: 100%;
   box-sizing: border-box;
 }
 

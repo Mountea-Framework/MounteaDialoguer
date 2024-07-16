@@ -44,7 +44,7 @@ function DialogueParticipants({
   }));
 
   return (
-    <div className="dialogue-participants-container">
+    <div className="dialogue-participants-container scrollable-section">
       <Title level="3" children="Dialogue Participants" className="tertiary-headign"/>
       <div className="input-button-row">
         <TextInput
