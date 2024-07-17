@@ -4,6 +4,16 @@
   text-align: center;
 }
 
+.load-project {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-content: stretch;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
 .file-drop-area {
   border: 2px dashed var(--primary-disabled);
   border-radius: 5px;

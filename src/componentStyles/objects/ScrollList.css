@@ -1,8 +1,7 @@
 .scroll-list {
   padding: 5px;
   border-radius: 5px;
-  min-height: 200px;
-  height: min(300px, 40%);
+  height: 100%;
   display: flex;
   justify-content: flex-start;
   align-items: stretch;
@@ -31,19 +30,20 @@
   border-radius: 5px;
 }
 
-.scroll-list::-webkit-scrollbar {
-  width: 8px;
+
+::-webkit-scrollbar {
+  width: 6px;
 }
 
-.scroll-list::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: #888;   
   border-radius: 5px;
-  margin: 5px;
 }
 
-.scroll-list::-webkit-scrollbar-thumb {
-  border-radius: 5px;
-}
-
-.scroll-list::-webkit-scrollbar-thumb:hover {
-  border-radius: 5px;
+::-webkit-scrollbar-thumb:hover {
+  background: white; 
 }
