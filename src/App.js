@@ -11,7 +11,7 @@ import "./base/BaseStyle.css";
 function App() {
   return (
     <AppProvider>
-      <div className="App background">
+      <div className="App">
         <DialogueCanvas>
           <LandingPage />
         </DialogueCanvas>

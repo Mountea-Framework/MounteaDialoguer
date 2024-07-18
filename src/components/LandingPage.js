@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 
 import NewProject from "./NewProject";
 import LoadProject from "./LoadProject";
 import NewProjectDetails from "./NewProjectDetails";
+import AppContext from "../AppContext";
 
-import "../base/ColorPalette.css";
-import "../base/BaseStyle.css";
 import "../componentStyles/LandingPage.css";
 
 function LandingPage() {
+  const { showLandingPage, setShowLandingPage } = useContext(AppContext);
   const [selectedProject, setSelectedProject] = useState(null);
   const [page, setPage] = useState("newProject");
   const [projectData, setProjectData] = useState({
@@ -31,24 +31,12 @@ function LandingPage() {
   };
 
   const handleReturn = () => {
-    setProjectData({
-      name: "",
-      participants: [],
-      categories: [],
-    });
     setPage("newProject");
-  };
-
-  const setParticipants = (participants) => {
-    setProjectData((prev) => ({ ...prev, participants }));
-  };
-
-  const setCategories = (categories) => {
-    setProjectData((prev) => ({ ...prev, categories }));
+    setShowLandingPage(true);
   };
 
   return (
-    <div className="landing-page-wrapper no-selection background-secondary">
+    <div className="landing-page-wrapper no-selection">
       {page === "newProject" && (
         <>
           <NewProject
@@ -63,12 +51,7 @@ function LandingPage() {
         </>
       )}
       {page === "newProjectDetails" && (
-        <NewProjectDetails
-          projectData={projectData}
-          onReturn={handleReturn}
-          setParticipants={setParticipants}
-          setCategories={setCategories}
-        />
+        <NewProjectDetails projectData={projectData} onReturn={handleReturn} />
       )}
     </div>
   );

@@ -1,9 +1,21 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import AppContext from "../AppContext";
+import LandingPage from "./LandingPage";
 
 import "../componentStyles/DialogueCanvas.css";
 
-function DialogueCanvas({ children }) {
-  return <div className="dialogue-canvas">{children}</div>;
-}
+const DialogueCanvas = () => {
+  const { showLandingPage } = useContext(AppContext);
+
+  return (
+    <div className="dialogue-canvas">
+      {showLandingPage && <LandingPage />}
+      {
+        /* Add other components that should be rendered when LandingPage is hidden */
+      }
+    </div>
+  );
+};
 
 export default DialogueCanvas;

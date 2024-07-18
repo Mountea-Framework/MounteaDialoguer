@@ -8,6 +8,7 @@ export const AppProvider = ({ children }) => {
     { name: "NPC", parent: "" },
   ]);
   const [participants, setParticipants] = useState([]);
+  const [showLandingPage, setShowLandingPage] = useState(true);
 
   const addCategory = (category) => {
     setCategories((prevCategories) => [...prevCategories, category]);
@@ -43,6 +44,8 @@ export const AppProvider = ({ children }) => {
         deleteCategory,
         setParticipants,
         setCategories,
+        showLandingPage,
+        setShowLandingPage,
       }}
     >
       {children}

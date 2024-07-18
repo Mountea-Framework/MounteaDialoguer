@@ -3,15 +3,6 @@
 body {
   margin: 0;
   font-family: Poppins, Segoe UI, sans-serif;
-  background-color: var(--background-primary);
-}
-
-.App {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
 }
 
 .footer {

@@ -11,8 +11,13 @@ import AppContext from "./../AppContext";
 import "../componentStyles/NewProjectDetails.css";
 
 function NewProjectDetails({ projectData, onReturn }) {
-  const { categories, participants, setParticipants, setCategories } =
-    useContext(AppContext);
+  const {
+    categories,
+    participants,
+    setParticipants,
+    setCategories,
+    setShowLandingPage,
+  } = useContext(AppContext);
 
   useAutoSave(categories, participants);
 
@@ -29,6 +34,10 @@ function NewProjectDetails({ projectData, onReturn }) {
 
   const handleParticipantsUpdate = (newParticipants) => {
     setParticipants(newParticipants);
+  };
+
+  const handleContinueClick = () => {
+    setShowLandingPage(false);
   };
 
   return (
@@ -52,7 +61,7 @@ function NewProjectDetails({ projectData, onReturn }) {
       </div>
       <div className="footer-buttons">
         <Button onClick={handleReturnClick}>return</Button>
-        <Button onClick={() => console.log("Start project")}>continue</Button>
+        <Button onClick={handleContinueClick}>continue</Button>
       </div>
     </div>
   );
