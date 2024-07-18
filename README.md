@@ -1,4 +1,10 @@
-# Project Documentation
+# Mountea Dialoguer
+
+## Showcase
+
+<p align="center" width="100%">
+     <img width="66%" src="https://github.com/user-attachments/assets/f8b90e96-f800-4722-be5f-57c8069979e2">
+</p>
 
 ## Table of Contents
 1. [Project Structure](#project-structure)
