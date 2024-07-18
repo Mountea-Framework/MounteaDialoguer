@@ -1,6 +1,7 @@
 import React from "react";
 
 import LandingPage from "./components/LandingPage";
+import DialogueCanvas from "./components/DialogueCanvas";
 import { AppProvider } from "./AppContext";
 
 import "./App.css";
@@ -12,6 +13,7 @@ function App() {
     <AppProvider>
       <div className="App background">
         <LandingPage />
+        <DialogueCanvas />
         <footer className="footer">
           <p>app version: 0.0.0.1a</p>
         </footer>

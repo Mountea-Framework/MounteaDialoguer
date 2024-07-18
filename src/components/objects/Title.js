@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 
 function Title({ level, children, className, classState }) {
   const Heading = `h${level}`;
-  return <Heading className={`${classState ? classState : 'primary'} ${className ? className : 'primary-headign'}`}>{children}</Heading>;
+  return <Heading className={`${classState ? classState : 'primary'} ${className ? className : 'primary-heading'}`}>{children}</Heading>;
 }
 
 Title.propTypes = {

@@ -42,6 +42,11 @@
 }
 
 
+/* ------------------------------- */
+/* ---------- SCROLLBAR ---------- */
+/* ------------------------------- */
+
+/* For WebKit browsers (Chrome, Safari) */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -51,6 +56,7 @@
 }
  
 ::-webkit-scrollbar-thumb {
+  scrollbar-gutter: stable;
   background: transparent;  
   border-radius: 5px;
   transition: all var(--transition-duration) var(--transition-easing);
@@ -63,4 +69,27 @@
 
 ::-webkit-scrollbar-thumb:active {
   background: var(--primary-active); 
+}
+
+/* Firefox specific pseudo-element workaround */
+@-moz-document url-prefix() {
+  .scroll-container {
+    scrollbar-gutter: stable;
+    scrollbar-color: var(--primary-normal) transparent;
+    scrollbar-width: thin;
+  }
+
+  .scroll-container::-moz-scrollbar-thumb {
+    background: var(--primary-normal);
+    border-radius: 5px;
+    transition: all var(--transition-duration) var(--transition-easing);
+  }
+
+  .scroll-container::-moz-scrollbar-thumb:hover {
+    background: var(--primary-hovered);
+  }
+
+  .scroll-container::-moz-scrollbar-thumb:active {
+    background: var(--primary-active);
+  }
 }

@@ -39,7 +39,7 @@ function LoadProject({ selectedProject, onSelectProject }) {
 
   return (
     <div className="load-project">
-      <Title level="2" children="Load Project" className="secondary-headign" />
+      <Title level="2" children="Load Project" className="secondary-heading" />
       <ScrollList
         selectedProject={selectedProject}
         onSelectProject={onSelectProject}

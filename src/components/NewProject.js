@@ -30,7 +30,7 @@ function NewProject({ onContinue, onNewProjectClick }) {
 
   return (
     <div>
-      <Title level="2" children="New Project" className="secondary-headign" />
+      <Title level="2" children="New Project" className="secondary-heading" />
       <TextInput
         title="Dialogue Name"
         placeholder="New project name"

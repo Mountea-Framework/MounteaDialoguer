@@ -51,8 +51,8 @@ function NewProjectDetails({ projectData, onReturn }) {
         />
       </div>
       <div className="footer-buttons">
-        <Button onClick={handleReturnClick}>Return</Button>
-        <Button onClick={() => console.log("Start project")}>Start</Button>
+        <Button onClick={handleReturnClick}>return</Button>
+        <Button onClick={() => console.log("Start project")}>continue</Button>
       </div>
     </div>
   );
