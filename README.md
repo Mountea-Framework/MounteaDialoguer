@@ -185,6 +185,8 @@ To build and run the app locally, follow these steps:
 3. **Install Dependencies**:
    ```
    npm install
+
+   npm install reactflow
    ```
 
 4. **Start the Development Server**:
