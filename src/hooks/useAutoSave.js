@@ -1,15 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 const saveProjectToLocalStorage = (projectData) => {
-  localStorage.setItem('autoSaveProject', JSON.stringify(projectData));
+  localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 };
 
-const useAutoSave = (projectData) => {
+const useAutoSave = (categories, participants) => {
   useEffect(() => {
-    if (projectData && projectData.name) {
-      saveProjectToLocalStorage(projectData);
+    if (categories && participants) {
+      saveProjectToLocalStorage({ categories, participants });
     }
-  }, [projectData]);
+  }, [categories, participants]);
 };
 
 export default useAutoSave;

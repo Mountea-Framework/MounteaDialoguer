@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 
 import AppContext from "./../AppContext";
 import Title from "./objects/Title";
@@ -9,8 +9,8 @@ import ScrollList from "./objects/ScrollList";
 
 import "../componentStyles/DialogueParticipants.css";
 
-function DialogueParticipants({ onUpdate }) {
-  const { categories, participants, setParticipants } = useContext(AppContext);
+function DialogueParticipants() {
+  const { participants, categories, setParticipants } = useContext(AppContext);
   const [newParticipant, setNewParticipant] = useState({
     name: "",
     category: "",
@@ -32,13 +32,6 @@ function DialogueParticipants({ onUpdate }) {
     // Implement any logic when a participant is selected
   };
 
-  const handleIconClick = (item) => {
-    const updatedParticipants = participants.filter(
-      (participant) => `${participant.name} - ${participant.category}` !== item
-    );
-    setParticipants(updatedParticipants);
-  };
-
   const categoryOptions = categories.map((category) => ({
     value: category.parent
       ? `${category.parent}.${category.name}`
@@ -53,7 +46,7 @@ function DialogueParticipants({ onUpdate }) {
       <Title
         level="3"
         children="Dialogue Participants"
-        className="tertiary-headign"
+        className="tertiary-heading"
       />
       <div className="input-button-row">
         <TextInput
@@ -68,26 +61,22 @@ function DialogueParticipants({ onUpdate }) {
           value={newParticipant.category}
           onChange={handleInputChange}
           options={categoryOptions}
-          placeholder="select category"
+          placeholder="Category"
         />
         <Button
           className="circle-button"
           onClick={handleAddParticipant}
-          disabled={
-            newParticipant.name.length === 0 ||
-            newParticipant.category.length === 0
-          }
+          disabled={!newParticipant.name || !newParticipant.category}
         >
           +
         </Button>
       </div>
       <div className="scroll-container">
         <ScrollList
-          classState={"Aaa"}
-          classStateItems={"Aaa"}
+          classState="none"
+          classStateItems="none"
           items={participants.map((p) => `${p.name} - ${p.category}`)}
           onSelect={handleSelectParticipant}
-          onIconClick={handleIconClick}
         />
       </div>
     </div>

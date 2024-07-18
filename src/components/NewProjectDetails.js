@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useContext } from "react";
 
 import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
@@ -6,25 +6,15 @@ import Button from "./objects/Button";
 import useAutoSave from "../hooks/useAutoSave";
 import ParticipantCategories from "./ParticipantCategories";
 import DialogueParticipants from "./DialogueParticipants";
+import AppContext from "./../AppContext";
 
 import "../componentStyles/NewProjectDetails.css";
 
-function NewProjectDetails({
-  projectData,
-  onReturn,
-  setParticipants,
-  setCategories,
-}) {
-  const [data, setData] = useState(() => {
-    const savedData = localStorage.getItem("autoSaveProject");
-    return savedData ? JSON.parse(savedData) : projectData;
-  });
+function NewProjectDetails({ projectData, onReturn }) {
+  const { categories, participants, setParticipants, setCategories } =
+    useContext(AppContext);
 
-  useAutoSave(data);
-
-  const handleProjectUpdate = (newData) => {
-    setData((prevData) => ({ ...prevData, ...newData }));
-  };
+  useAutoSave(categories, participants);
 
   const handleReturnClick = () => {
     localStorage.removeItem("autoSaveProject");
@@ -33,9 +23,12 @@ function NewProjectDetails({
     onReturn();
   };
 
-  const handleCategoriesUpdate = (categories) => {
-    setCategories(categories);
-    handleProjectUpdate({ categories });
+  const handleCategoriesUpdate = (newCategories) => {
+    setCategories(newCategories);
+  };
+
+  const handleParticipantsUpdate = (newParticipants) => {
+    setParticipants(newParticipants);
   };
 
   return (
@@ -43,18 +36,18 @@ function NewProjectDetails({
       <Title
         level="2"
         children="New Project details"
-        className="secondary-headign"
+        className="secondary-heading"
       />
-      <TextInput title="Dialogue Name" value={data.name} readOnly />
+      <TextInput title="Dialogue Name" value={projectData.name} readOnly />
       <div className="scrollable-sections">
         <ParticipantCategories
-          categories={data.categories}
+          categories={categories}
           onUpdate={handleCategoriesUpdate}
         />
         <DialogueParticipants
-          participants={data.participants}
-          categories={data.categories}
-          onUpdate={handleProjectUpdate}
+          participants={participants}
+          categories={categories}
+          onUpdate={handleParticipantsUpdate}
         />
       </div>
       <div className="footer-buttons">

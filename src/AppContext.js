@@ -1,4 +1,4 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect } from "react";
 
 const AppContext = createContext();
 
@@ -29,6 +29,11 @@ export const AppProvider = ({ children }) => {
     setParticipants(updatedParticipants);
   };
 
+  const projectData = {
+    categories,
+    participants,
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -37,6 +42,7 @@ export const AppProvider = ({ children }) => {
         addCategory,
         deleteCategory,
         setParticipants,
+        setCategories,
       }}
     >
       {children}
