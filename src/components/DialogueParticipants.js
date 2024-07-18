@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
+import AppContext from "./../AppContext";
 import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
@@ -8,11 +9,8 @@ import ScrollList from "./objects/ScrollList";
 
 import "../componentStyles/DialogueParticipants.css";
 
-function DialogueParticipants({
-  participants = [],
-  categories = [],
-  onUpdate,
-}) {
+function DialogueParticipants({ onUpdate }) {
+  const { categories, participants, setParticipants } = useContext(AppContext);
   const [newParticipant, setNewParticipant] = useState({
     name: "",
     category: "",
@@ -21,7 +19,7 @@ function DialogueParticipants({
   const handleAddParticipant = () => {
     if (newParticipant.name && newParticipant.category) {
       const updatedParticipants = [...participants, newParticipant];
-      onUpdate({ participants: updatedParticipants });
+      setParticipants(updatedParticipants);
       setNewParticipant({ name: "", category: "" });
     }
   };
@@ -38,7 +36,7 @@ function DialogueParticipants({
     const updatedParticipants = participants.filter(
       (participant) => `${participant.name} - ${participant.category}` !== item
     );
-    onUpdate({ participants: updatedParticipants });
+    setParticipants(updatedParticipants);
   };
 
   const categoryOptions = categories.map((category) => ({
@@ -89,7 +87,7 @@ function DialogueParticipants({
           classStateItems={"Aaa"}
           items={participants.map((p) => `${p.name} - ${p.category}`)}
           onSelect={handleSelectParticipant}
-          onIconClick={handleIconClick} // Pass the handleIconClick function
+          onIconClick={handleIconClick}
         />
       </div>
     </div>

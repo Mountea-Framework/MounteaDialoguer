@@ -8,7 +8,8 @@
 }
 
 .scroll-container {
-  height: 100%;
+  height: min(600px, 70%);
+  overflow-y: scroll;
 }
 
 .scrollable-sections {
@@ -18,16 +19,14 @@
   width: 100%;
   box-sizing: border-box;
   height: min(700px, 90%);
-  justify-content: space-around;
+  justify-content: space-between;
   align-content: stretch;
   flex-wrap: nowrap;
-  gap: 10px;
+  gap: 2%;
 }
 
 .scrollable-section {
-  width: 48%;
-  height: 100%;
-  box-sizing: border-box;
+  width: 100%;
 }
 
 .input-button-row {

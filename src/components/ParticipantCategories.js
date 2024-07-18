@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useContext, useState, useEffect } from "react";
 
+import AppContext from "./../AppContext";
 import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
@@ -8,49 +9,13 @@ import ScrollList from "./objects/ScrollList";
 
 import "../componentStyles/ParticipantCategories.css";
 
-function ParticipantsCategories({ categories = [], onUpdate }) {
-  const [categoryList, setCategoryList] = useState(categories);
+function ParticipantsCategories() {
+  const { categories, addCategory, deleteCategory } = useContext(AppContext);
   const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
-
-  useEffect(() => {
-    const initialCategories = [
-      { name: "Player", parent: "" },
-      { name: "NPC", parent: "" },
-    ];
-
-    const uniqueCategories = initialCategories.filter((category) => {
-      return !categoryList.some(
-        (cat) => cat.name === category.name && cat.parent === category.parent
-      );
-    });
-
-    if (uniqueCategories.length > 0) {
-      const updatedCategories = [...categoryList, ...uniqueCategories];
-      setCategoryList(updatedCategories);
-      onUpdate(updatedCategories);
-    }
-  }, [categoryList, onUpdate]);
-
-  const addUnique = (newCategory) => {
-    setCategoryList((prevList) => {
-      if (
-        !prevList.find(
-          (category) =>
-            category.name === newCategory.name &&
-            category.parent === newCategory.parent
-        )
-      ) {
-        const updatedList = [...prevList, newCategory];
-        onUpdate(updatedList);
-        return updatedList;
-      }
-      return prevList;
-    });
-  };
 
   const handleAddCategory = () => {
     if (newCategory.name) {
-      addUnique(newCategory);
+      addCategory(newCategory);
       setNewCategory({ name: "", parent: "" });
     }
   };
@@ -64,19 +29,10 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
   };
 
   const handleIconClick = (item) => {
-    setCategoryList((prevList) => {
-      const updatedList = prevList.filter(
-        (category) =>
-          (category.parent
-            ? `${category.parent}.${category.name}`
-            : category.name) !== item
-      );
-      onUpdate(updatedList);
-      return updatedList;
-    });
+    deleteCategory(item);
   };
 
-  const categoryOptions = categoryList.map((category) => ({
+  const categoryOptions = categories.map((category) => ({
     value: category.parent
       ? `${category.parent}.${category.name}`
       : category.name,
@@ -119,7 +75,7 @@ function ParticipantsCategories({ categories = [], onUpdate }) {
         <ScrollList
           classState={"none"}
           classStateItems={"none"}
-          items={categoryList.map((c) =>
+          items={categories.map((c) =>
             c.parent ? `${c.parent}.${c.name}` : c.name
           )}
           onSelect={handleSelectCategory}

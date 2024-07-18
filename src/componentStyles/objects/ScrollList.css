@@ -26,6 +26,17 @@
   pointer-events: auto;
 }
 
+.scroll-list ul {
+  list-style-type: none;
+  padding: 0;
+  width: 100%;
+}
+
+.scroll-list li {
+  padding: 1px 0;
+  border: 1px solid transparent;
+}
+
 .scroll-list-item.selected {
   border-radius: 5px;
 }
@@ -40,10 +51,16 @@
 }
  
 ::-webkit-scrollbar-thumb {
-  background: #888;   
+  background: transparent;  
   border-radius: 5px;
+  transition: all var(--transition-duration) var(--transition-easing);
+  background: var(--primary-normal); 
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: white; 
+  background: var(--primary-hovered); 
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--primary-active); 
 }
