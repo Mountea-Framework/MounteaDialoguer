@@ -5,7 +5,7 @@ import "../../componentStyles/editorComponentStyles/DialogueEditorCanvas.css"
 function DialogueEditorCanvas() {
 
     return (
-        <div className="dialogue-editor-canvas"></div>
+        <div className="dialogue-editor-canvas background-transparent-primary"></div>
     )
 };
 

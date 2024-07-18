@@ -1,0 +1,11 @@
+.dialogue-editor-details {
+    display: flex;
+    flex-direction: column;
+    align-content: stretch;
+    justify-content: flex-start;
+    align-items: stretch;
+}
+
+.dialogue-editor-details h3 {
+    text-align: center;
+}

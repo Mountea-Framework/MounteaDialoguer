@@ -32,6 +32,21 @@
   color: var(--primary-disabled);
 }
 
+.background-transparent-primary {
+  background-color: transparent;
+  color: var(--primary-text);
+}
+
+.background-transparent-secondary {
+  background-color: transparent;
+  color: var(--secondary-text);
+}
+
+.background-transparent-tertiary {
+  background-color: transparent;
+  color: var(--tertiary-text);
+}
+
 .primary {
   font-family: Poppins, Segoe UI, sans-serif;
   background-color: var(--primary-normal);

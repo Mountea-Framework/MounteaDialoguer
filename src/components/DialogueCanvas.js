@@ -11,10 +11,7 @@ const DialogueCanvas = () => {
 
   return (
     <div className="dialogue-canvas">
-      {showLandingPage && <LandingPage />}
-      {
-        <DialogueEditor></DialogueEditor>
-      }
+      {showLandingPage ? <LandingPage /> : <DialogueEditor />}
     </div>
   );
 };
