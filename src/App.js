@@ -12,8 +12,9 @@ function App() {
   return (
     <AppProvider>
       <div className="App background">
-        <LandingPage />
-        <DialogueCanvas />
+        <DialogueCanvas>
+          <LandingPage />
+        </DialogueCanvas>
         <footer className="footer">
           <p>app version: 0.0.0.1a</p>
         </footer>

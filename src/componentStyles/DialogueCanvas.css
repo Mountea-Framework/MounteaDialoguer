@@ -1,7 +1,9 @@
 .dialogue-canvas {
   width: 100%;
-  height: 100%;
-  display: grid;
+  height: 100vh; /* Ensure it takes the full viewport height */
+  display: flex; /* Use flexbox to align its children */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
   background-color: var(--background-primary);
   background-image: linear-gradient(
       var(--background-secondary) 1px,
@@ -9,8 +11,6 @@
     ),
     linear-gradient(to right, var(--background-secondary) 1px, transparent 1px);
   background-size: 25px 25px;
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: -1;
+  position: relative;
+  z-index: 0;
 }
