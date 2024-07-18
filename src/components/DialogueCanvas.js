@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 
 import AppContext from "../AppContext";
 import LandingPage from "./LandingPage";
+import DialogueEditor from "./DialogueEditor";
 
 import "../componentStyles/DialogueCanvas.css";
 
@@ -12,7 +13,7 @@ const DialogueCanvas = () => {
     <div className="dialogue-canvas">
       {showLandingPage && <LandingPage />}
       {
-        /* Add other components that should be rendered when LandingPage is hidden */
+        <DialogueEditor></DialogueEditor>
       }
     </div>
   );
