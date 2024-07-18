@@ -169,7 +169,7 @@ button:disabled {
   border-color: var(--primary-disabled);
 }
 
-.primary-headign {
+.primary-heading {
   color: var(--primary-text);
   font-weight: 1200;
   text-transform: uppercase;
@@ -179,7 +179,7 @@ button:disabled {
   pointer-events: none;
 }
 
-.secondary-headign {
+.secondary-heading {
   color: var(--secondary-text);
   font-weight: 900;
   text-transform: uppercase;
@@ -189,7 +189,7 @@ button:disabled {
   pointer-events: none;
 }
 
-.tertiary-headign {
+.tertiary-heading {
   color: var(--tertiary-text);
   font-weight: 600;
   text-transform: none;
