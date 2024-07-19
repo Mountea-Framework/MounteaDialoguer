@@ -1,11 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 
-import ScrollList from "./../objects/ScrollList";
+import ScrollList from "../objects/ScrollList";
+import AppContext from "../../AppContext";
 
-function DialogueParticipantsList({ participants, categories, onUpdate }) {
-  const handleSelectParticipant = (participant) => {
-    // Implement any logic when a participant is selected
-  };
+function DialogueParticipantsList() {
+  const { participants, deleteParticipant } = useContext(AppContext);
 
   return (
     <div className="scroll-container">
@@ -13,7 +12,7 @@ function DialogueParticipantsList({ participants, categories, onUpdate }) {
         classState="none"
         classStateItems="none"
         items={participants.map((p) => `${p.name} - ${p.category}`)}
-        onSelect={handleSelectParticipant}
+        onIconClick={deleteParticipant}
       />
     </div>
   );

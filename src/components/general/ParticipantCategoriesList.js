@@ -1,18 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 
-import ScrollList from "./../objects/ScrollList";
+import ScrollList from "../objects/ScrollList";
+import AppContext from "../..//AppContext";
 
-function ParticipantCategoriesList({ categories, onUpdate }) {
-  const handleSelectCategory = (category) => {
-    // Implement any logic when a category is selected
-  };
-
-  const handleIconClick = (item) => {
-    const updatedCategories = categories.filter(
-      (category) => `${category.name}` !== item
-    );
-    onUpdate(updatedCategories);
-  };
+function ParticipantCategoriesList() {
+  const { categories, deleteCategory } = useContext(AppContext);
 
   return (
     <div className="scroll-container">
@@ -22,8 +14,7 @@ function ParticipantCategoriesList({ categories, onUpdate }) {
         items={categories.map((c) =>
           c.parent ? `${c.parent}.${c.name}` : c.name
         )}
-        onSelect={handleSelectCategory}
-        onIconClick={handleIconClick}
+        onIconClick={deleteCategory}
       />
     </div>
   );
