@@ -42,6 +42,26 @@ function NewProjectDetails({ projectData, onReturn }) {
     setShowLandingPage(false);
   };
 
+  const handleDeleteCategory = (categoryName) => {
+    const updatedCategories = categories.filter(
+      (category) => category.name !== categoryName
+    );
+    const updatedParticipants = participants.filter(
+      (participant) =>
+        participant.category !== categoryName &&
+        !participant.category.startsWith(`${categoryName}.`)
+    );
+    setCategories(updatedCategories);
+    setParticipants(updatedParticipants);
+  };
+
+  const handleDeleteParticipant = (participantName) => {
+    const updatedParticipants = participants.filter(
+      (participant) => `${participant.name} - ${participant.category}` !== participantName
+    );
+    setParticipants(updatedParticipants);
+  };
+
   return (
     <div className="new-project-details">
       <Title
@@ -67,11 +87,16 @@ function NewProjectDetails({ projectData, onReturn }) {
       </div>
       <div className="lists">
         <div className="scrollable-sections">
-          <ParticipantCategoriesList categories={categories} />
+          <ParticipantCategoriesList
+            categories={categories}
+            onDeleteCategory={handleDeleteCategory}
+          />
         </div>
-
         <div className="scrollable-sections">
-          <DialogueParticipantsList participants={participants} />
+          <DialogueParticipantsList
+            participants={participants}
+            onDeleteParticipant={handleDeleteParticipant}
+          />
         </div>
       </div>
       <div className="footer-buttons">

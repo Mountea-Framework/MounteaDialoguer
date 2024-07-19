@@ -1,9 +1,8 @@
 import React from "react";
-
 import PropTypes from "prop-types";
 
 function Title({ level, children, className, classState }) {
-  const Heading = `h${level}`;
+  const Heading = `h${Number(level)}`;
   return (
     <Heading
       className={`${classState ? classState : "primary"} ${
@@ -16,7 +15,7 @@ function Title({ level, children, className, classState }) {
 }
 
 Title.propTypes = {
-  level: PropTypes.number,
+  level: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   children: PropTypes.node.isRequired,
 };
 
