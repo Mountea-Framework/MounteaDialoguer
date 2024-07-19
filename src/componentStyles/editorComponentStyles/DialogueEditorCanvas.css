@@ -1,0 +1,45 @@
+.custom-node {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  width: 160px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-content: stretch;
+}
+
+.start-node {
+  background-color: #fff;
+}
+
+.lead-node {
+  background-color: #f0f0f0;
+}
+
+.answer-node {
+  background-color: #e0e0ff;
+}
+
+.close-dialogue-node {
+  background-color: #ffe0e0;
+}
+
+.close-dialogue-automatic-node {
+  background-color: #e0ffe0;
+}
+
+.jump-to-node {
+  background-color: #e0f0ff;
+}
+
+/* ---------------------------------------- */
+/*      REACT FLOW WILL BE ATTRIBUTED       */
+/* INVISIBLE BECAUSE MINIMAP IS OVERLAPPING */
+/* ---------------------------------------- */
+.react-flow__attribution {
+    display: none;
+}
