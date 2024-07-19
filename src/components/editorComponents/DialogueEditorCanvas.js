@@ -1,7 +1,10 @@
 import React, { useState, useCallback } from "react";
 import ReactFlow, {
-  addEdge,
+  useNodesState,
+  useEdgesState,
   Controls,
+  reconnectEdge,
+  addEdge,
   applyNodeChanges,
   applyEdgeChanges,
 } from "reactflow";
@@ -117,32 +120,37 @@ const initialEdges = [
 ];
 
 const DialogueEditorCanvas = () => {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
 
-  const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  );
-  const onEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+   const onReconnect = useCallback(
+    (oldEdge, newConnection) =>
+      setEdges((els) => reconnectEdge(oldEdge, newConnection, els)),
+    [],
   );
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
-    []
+    (params) => setEdges((els) => addEdge(params, els)),
+    [],
   );
 
   return (
     <div className="dialogue-editor-canvas background-transparent-primary">
       <ReactFlow
         colorMode="dark"
+        
         nodes={nodes}
         edges={edges}
+
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        snapToGrid
+
+        onReconnect={onReconnect}
         onConnect={onConnect}
+
         nodeTypes={nodeTypes}
+
         maxZoom={1.75}
         minZoom={0.75}
         fitView
