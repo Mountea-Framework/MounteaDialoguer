@@ -1,0 +1,47 @@
+.custom-node {
+  padding: 10px;
+  border-radius: 5px;
+  border: 5px solid #ddd;
+  width: 180px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-content: stretch;
+}
+
+.custom-node h4 {
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+.start-node {
+  background-color: var(--start-node);
+  border-color: var(--start-node-border);
+}
+
+.lead-node {
+  background-color: var(--lead-node);
+  border-color: var(--lead-node-border);
+}
+
+.answer-node {
+  background-color: var(--answer-node);
+  border-color: var(--answer-node-border);
+}
+
+.close-dialogue-node {
+  background-color: var(--complete-node);
+  border-color: var(--complete-node-border);
+}
+
+.close-dialogue-automatic-node {
+  background-color: var(--complete-auto-node);
+  border-color: var(--complete-auto-node-border);
+}
+
+.jump-to-node {
+  background-color: var(--jump-node);
+  border-color: var(--jump-node-border);
+}

@@ -1,16 +1,14 @@
 import React, { useState, useCallback } from "react";
 import ReactFlow, {
   addEdge,
-  MiniMap,
   Controls,
-  Background,
   applyNodeChanges,
   applyEdgeChanges,
 } from "reactflow";
 
 import "reactflow/dist/style.css";
 import "../../componentStyles/editorComponentStyles/DialogueEditorCanvas.css";
-import "../../componentStyles/dialogueNodes/customNode.css"
+import "../../base/BaseNodesStyle.css";
 
 import StartNode from "../dialogueNodes/startNode";
 import LeadNode from "../dialogueNodes/leadNode";
@@ -33,11 +31,17 @@ const initialNodes = [
     id: "0",
     type: "startNode",
     position: { x: 250, y: 0 },
-    data: { label: "Start" },
+    data: {  },
   },
+  {
+    id: "1",
+    type: "leadNode",
+    position: { x: 250, y: 250 },
+    data: {  },
+  }
 ];
 
-const initialEdges = [];
+const initialEdges = [{ id: 'e1-2', source: '0', target: '1' }];
 
 const DialogueEditorCanvas = () => {
   const [nodes, setNodes] = useState(initialNodes);

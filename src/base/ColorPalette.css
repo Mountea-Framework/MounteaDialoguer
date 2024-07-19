@@ -51,11 +51,30 @@
     --secondary-text-focus: #1A1A1A;
     --tertiary-text-focus: #303030;
 
-    
 
     /* Dropdown shadows */
     --enabled-dropshadow: #ffffff42;
     --primary-dropshadow: #ffffff62;
     --secondary-dropshadow: #ffffff62;
     --tertiary-dropshadow: #ffffff62;
+
+
+    /* Dialogue Nodes */
+    --start-node: #013701;
+    --start-node-border: #03d404;
+
+    --answer-node: #062922;
+    --answer-node-border: #199f85 ;
+
+    --lead-node: #352205;
+    --lead-node-border: #cc8413;
+
+    --complete-node: #370101;
+    --complete-node-border: #d50404;
+
+    --complete-auto-node: #370101;
+    --complete-auto-node-border: #d50404;
+   
+    --jump-node: #373838;
+    --jump-node-border: #d4d5d;
 }
