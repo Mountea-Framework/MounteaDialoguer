@@ -1,23 +1,15 @@
 import React from "react";
-import { Handle, NodeToolbar } from "reactflow";
-import Title from "../objects/Title";
+import BaseNode from "./baseNode";
 
 const StartNode = ({ data }) => {
+  const nodeData = {
+    customClassName: "start-node",
+    title: "Start Node",
+    sourceHandle: true,
+  };
+
   return (
-    <>
-      <div className="react-flow__node-default custom-node start-node">
-        {}
-        <Title>
-          <Title
-            level="4"
-            children="Start Node"
-            className="tertiary-heading"
-            classState={"tertiary"}
-          />
-        </Title>
-        <Handle type="source" position="bottom" id="a" />
-      </div>
-    </>
+    <BaseNode data={nodeData} />
   );
 };
 

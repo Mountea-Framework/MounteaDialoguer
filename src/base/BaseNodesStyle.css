@@ -1,9 +1,10 @@
 .custom-node {
   padding: 10px;
-  border-radius: 5px;
+  border-radius: 8px;
   border: 5px solid #ddd;
-  width: 180px;
-  height: 100px;
+  width: 150px;
+  height: 80px;
+
   display: flex;
   align-items: center;
   flex-direction: column;
@@ -12,8 +13,21 @@
   align-content: stretch;
 }
 
+.custom-node-border {
+  border-radius: 10px;
+  border: 2px solid transparent;
+
+  transition: border-color var(--transition-duration) var(--transition-easing);
+}
+
+.custom-node-border:hover {
+  border: 2px solid white;
+}
+
 .custom-node h4 {
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  text-align: center;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000,
+    1px 1px 0 #000;
 }
 
 .start-node {

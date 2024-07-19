@@ -1,19 +1,15 @@
 import React from "react";
-
-import Title from "../objects/Title";
+import BaseNode from "./baseNode";
 
 const CloseDialogueNode = ({ data }) => {
+  const nodeData = {
+    customClassName: "close-dialogue-node",
+    title: "Close",
+    targetHandle: true,
+  };
+
   return (
-    <div className="custom-node close-dialogue-node">
-      <Title>
-        <Title
-          level="3"
-          children="Close Dialogue"
-          className="tertiary-heading"
-          classState={"tertiary"}
-        />
-      </Title>
-    </div>
+    <BaseNode data={nodeData} />
   );
 };
 

@@ -1,20 +1,17 @@
 import React from "react";
+import BaseNode from "./baseNode";
 
-import Title from "../objects/Title";
+const answerNode = ({ data }) => {
+  const nodeData = {
+    customClassName: " answer-node",
+    title: "Answer Node",
+    sourceHandle: true,
+    targetHandle: true,
+  };
 
-const AnswearNode = ({ data }) => {
   return (
-    <div className="custom-node answear-node">
-      <Title>
-        <Title
-          level="3"
-          children="Answear Node"
-          className="tertiary-heading"
-          classState={"tertiary"}
-        />
-      </Title>
-    </div>
+    <BaseNode data={nodeData} />
   );
 };
 
-export default AnswearNode;
+export default answerNode;

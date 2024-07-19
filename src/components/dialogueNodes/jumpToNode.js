@@ -1,19 +1,15 @@
 import React from "react";
-
-import Title from "../objects/Title";
+import BaseNode from "./baseNode";
 
 const JumpToNode = ({ data }) => {
+  const nodeData = {
+    customClassName: "jump-to-node",
+    title: "Jump to",
+    targetHandle: true,
+  };
+
   return (
-    <div className="custom-node jump-to-node">
-      <Title>
-        <Title
-          level="3"
-          children="Jump to Node"
-          className="tertiary-heading"
-          classState={"tertiary"}
-        />
-      </Title>
-    </div>
+    <BaseNode data={nodeData} />
   );
 };
 

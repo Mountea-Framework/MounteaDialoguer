@@ -1,80 +1,78 @@
 :root {
-    /* Background */
-    --background-primary: #181818;
-    --background-secondary: #1e1e1e;
-    --background-tertiary: #252525;
-    --background-disabled: #3c3b3b;
+  /* Background */
+  --background-primary: #181818;
+  --background-secondary: #1e1e1e;
+  --background-tertiary: #252525;
+  --background-disabled: #3c3b3b;
 
-    /* Normal State */
-    --primary-normal: #1A1A1A;
-    --secondary-normal: #252525;
-    --tertiary-normal: #303030;
+  /* Normal State */
+  --primary-normal: #1a1a1a;
+  --secondary-normal: #252525;
+  --tertiary-normal: #303030;
 
-    /* Hovered State */
-    --primary-hovered: #F39237;
-    --primary-hover-border: #e0e0e080;
-    --secondary-hovered: #3D3D3D;
-    --secondary-hover-border: #e0e0e080;
-    --tertiary-hovered: #474747;
+  /* Hovered State */
+  --primary-hovered: #f39237;
+  --primary-hover-border: #e0e0e080;
+  --secondary-hovered: #3d3d3d;
+  --secondary-hover-border: #e0e0e080;
+  --tertiary-hovered: #474747;
 
-    /* Active State */
-    --primary-active: #4D4D4D;
-    --secondary-active: #575757;
-    --tertiary-active: #616161;
+  /* Active State */
+  --primary-active: #4d4d4d;
+  --secondary-active: #575757;
+  --tertiary-active: #616161;
 
-    /* In Focus State */
-    --primary-focus: #666666;
-    --secondary-focus: #707070;
-    --tertiary-focus: #7A7A7A;
+  /* In Focus State */
+  --primary-focus: #666666;
+  --secondary-focus: #707070;
+  --tertiary-focus: #7a7a7a;
 
-    /* Disabled State */
-    --primary-disabled: #888888;
-    --secondary-disabled: #929292;
-    --tertiary-disabled: #9C9C9C;
-    --background-disabled: #686868;
+  /* Disabled State */
+  --primary-disabled: #888888;
+  --secondary-disabled: #929292;
+  --tertiary-disabled: #9c9c9c;
+  --background-disabled: #686868;
 
-    /* Text Colors */
-    --primary-text: #FFFFFF;
-    --secondary-text: #E0E0E0;
-    --tertiary-text: #B0B0B0;
+  /* Text Colors */
+  --primary-text: #ffffff;
+  --secondary-text: #e0e0e0;
+  --tertiary-text: #b0b0b0;
 
-    /* Text Hovered, Active, Focus States */
-    --primary-text-hovered: #000000;
-    --secondary-text-hovered: #1A1A1A;
-    --tertiary-text-hovered: #303030;
+  /* Text Hovered, Active, Focus States */
+  --primary-text-hovered: #000000;
+  --secondary-text-hovered: #1a1a1a;
+  --tertiary-text-hovered: #303030;
 
-    --primary-text-active: #000000;
-    --secondary-text-active: #1A1A1A;
-    --tertiary-text-active: #303030;
+  --primary-text-active: #000000;
+  --secondary-text-active: #1a1a1a;
+  --tertiary-text-active: #303030;
 
-    --primary-text-focus: #000000;
-    --secondary-text-focus: #1A1A1A;
-    --tertiary-text-focus: #303030;
+  --primary-text-focus: #000000;
+  --secondary-text-focus: #1a1a1a;
+  --tertiary-text-focus: #303030;
 
+  /* Dropdown shadows */
+  --enabled-dropshadow: #ffffff42;
+  --primary-dropshadow: #ffffff62;
+  --secondary-dropshadow: #ffffff62;
+  --tertiary-dropshadow: #ffffff62;
 
-    /* Dropdown shadows */
-    --enabled-dropshadow: #ffffff42;
-    --primary-dropshadow: #ffffff62;
-    --secondary-dropshadow: #ffffff62;
-    --tertiary-dropshadow: #ffffff62;
+  /* Dialogue Nodes */
+  --start-node: #013701;
+  --start-node-border: #03d404;
 
+  --answer-node: #062922;
+  --answer-node-border: #199f85;
 
-    /* Dialogue Nodes */
-    --start-node: #013701;
-    --start-node-border: #03d404;
+  --lead-node: #352205;
+  --lead-node-border: #cc8413;
 
-    --answer-node: #062922;
-    --answer-node-border: #199f85 ;
+  --complete-node: #370101;
+  --complete-node-border: #d50404;
 
-    --lead-node: #352205;
-    --lead-node-border: #cc8413;
+  --complete-auto-node: #370101;
+  --complete-auto-node-border: #d50404;
 
-    --complete-node: #370101;
-    --complete-node-border: #d50404;
-
-    --complete-auto-node: #370101;
-    --complete-auto-node-border: #d50404;
-   
-    --jump-node: #373838;
-    --jump-node-border: #d4d5d;
+  --jump-node: #373838;
+  --jump-node-border: #d4d5d;
 }
