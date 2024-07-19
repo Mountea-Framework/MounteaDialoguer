@@ -1,3 +1,21 @@
 .dialogue-editor-toolbar {
- 
+  display: flex;
+}
+
+.toolbar-button-container {
+  transition: all var(--transition-duration) var(--transition-easing);
+
+  background-color: transparent;
+  margin: 5px;
+}
+
+.toolbar-button-container:hover {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.toolbar-button-container .toolbar-button {
+  padding: 0;
+  background-color: transparent;
+  border: none;
 }

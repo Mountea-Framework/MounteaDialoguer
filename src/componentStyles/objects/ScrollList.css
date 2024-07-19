@@ -1,17 +1,16 @@
 .scroll-list {
+  flex: 1;
   padding: 5px;
   border-radius: 5px;
-  height: 100%;
+  height: 95%;
   display: flex;
   justify-content: flex-start;
   align-items: stretch;
   flex-direction: column;
   flex-wrap: nowrap;
-
+  overflow-y: auto;
   overflow-x: hidden;
-
   pointer-events: auto;
-
   background-color: var(--primary-normal);
   color: var(--primary-text);
   border: 1px solid var(--secondary-normal);
@@ -22,7 +21,6 @@
   padding: 0;
   margin: 0;
   width: 100%;
-
   pointer-events: auto;
 }
 
@@ -41,7 +39,6 @@
   border-radius: 5px;
 }
 
-
 /* ------------------------------- */
 /* ---------- SCROLLBAR ---------- */
 /* ------------------------------- */
@@ -52,23 +49,23 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
- 
+
 ::-webkit-scrollbar-thumb {
   scrollbar-gutter: stable;
-  background: transparent;  
+  background: transparent;
   border-radius: 5px;
   transition: all var(--transition-duration) var(--transition-easing);
-  background: var(--primary-normal); 
+  background: var(--primary-normal);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-hovered); 
+  background: var(--primary-hovered);
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: var(--primary-active); 
+  background: var(--primary-active);
 }
 
 /* Firefox specific pseudo-element workaround */
@@ -82,7 +79,7 @@
   .scroll-container::-moz-scrollbar-thumb {
     background: var(--primary-normal);
     border-radius: 5px;
-    transition: all var(--transition-duration) var(--transition-easing);
+    transition: all var(--transition-duration) var (--transition-easing);
   }
 
   .scroll-container::-moz-scrollbar-thumb:hover {

@@ -56,6 +56,9 @@
       var(--transition-easing),
     color var(--transition-duration) var(--transition-easing),
     border-color var(--transition-duration) var(--transition-easing);
+
+  text-shadow: 2px 2px 2px var(--primary-text-shadow),
+    1px 1px 0 var(--primary-text-shadow);
 }
 
 .primary:hover {
@@ -68,6 +71,9 @@
     color var(--transition-duration) var(--transition-easing),
     border-color var(--transition-duration) var(--transition-easing),
     font-weight var(--transition-duration) var(--transition-easing);
+
+  text-shadow: 2px 2px 2px var(--primary-text-shadow-hovered),
+    1px 1px 0 var(--primary-text-shadow-hovered);
 }
 
 .primary:hover:not(:disabled) {
@@ -78,6 +84,9 @@
   background-color: var(--primary-active);
   color: var(--primary-text-active);
   border-color: var(--secondary-active);
+
+  text-shadow: 2px 2px 2px var(--primary-text-shadow-active),
+    1px 1px 0 var(--primary-text-shadow-active);
 }
 
 .primary:focus {
@@ -85,12 +94,18 @@
   color: var(--primary-text-focus);
   border-color: var(--primary-focus);
   font-weight: 600;
+
+  text-shadow: 2px 2px 2px var(--primary-text-shadow-active),
+    1px 1px 0 var(--primary-text-shadow-active);
 }
 
 .primary:disabled {
   background-color: var(--primary-disabled);
   color: var(--tertiary-disabled);
   border-color: var(--secondary-disabled);
+
+  text-shadow: 2px 2px 2px var(--primary-text-shadow-disabled),
+    1px 1px 0 var(--primary-text-shadow-disabled);
 }
 
 button {
@@ -109,18 +124,24 @@ button:disabled {
 .secondary {
   font-family: Poppins, Segoe UI, sans-serif;
   background-color: var(--secondary-normal);
-  color: var(--primary-text);
+  color: var(--secondary-text);
   border: 1px solid var(--tertiary-normal);
   transition: background-color var(--transition-duration)
       var(--transition-easing),
     color var(--transition-duration) var(--transition-easing),
     border-color var(--transition-duration) var(--transition-easing);
+
+  text-shadow: 2px 2px 2px var(--secondary-text-shadow),
+    1px 1px 0 var(--secondary-text-shadow);
 }
 
 .secondary:hover {
   background-color: var(--secondary-hovered);
   color: var(--secondary-text-hovered);
   border-color: var(--tertiary-hovered);
+
+  text-shadow: 2px 2px 2px var(--secondary-text-shadow-hovered),
+    1px 1px 0 var(--secondary-text-shadow-hovered);
 }
 
 .secondary:hover:not(:disabled) {
@@ -131,35 +152,50 @@ button:disabled {
   background-color: var(--secondary-active);
   color: var(--secondary-text-active);
   border-color: var(--tertiary-active);
+
+  text-shadow: 2px 2px 2px var(--secondary-text-shadow-active),
+    1px 1px 0 var(--secondary-text-shadow-active);
 }
 
 .secondary:focus {
   background-color: var(--secondary-focus);
   color: var(--secondary-text-focus);
   border-color: var(--tertiary-focus);
+
+  text-shadow: 2px 2px 2px var(--secondary-text-shadow-active),
+    1px 1px 0 var(--secondary-text-shadow-active);
 }
 
 .secondary:disabled {
   background-color: var(--secondary-disabled);
-  color: var(--primary-disabled);
+  color: var(--secondary-disabled);
   border-color: var(--tertiary-disabled);
+
+  text-shadow: 2px 2px 2px var(--secondary-text-shadow-disabled),
+    1px 1px 0 var(--secondary-text-shadow-disabled);
 }
 
 .tertiary {
   font-family: Poppins, Segoe UI, sans-serif;
   background-color: var(--tertiary-normal);
-  color: var(--primary-text);
-  border: 1px solid var(--primary-normal);
+  color: var(--tertiary-text);
+  border: 1px solid var(--tertiary-normal);
   transition: background-color var(--transition-duration)
       var(--transition-easing),
     color var(--transition-duration) var(--transition-easing),
     border-color var(--transition-duration) var(--transition-easing);
+
+    text-shadow: 2px 2px 2px var(--tertiary-text-shadow),
+    1px 1px 0 var(--tertiary-text-shadow);
 }
 
 .tertiary:hover {
   background-color: var(--tertiary-hovered);
   color: var(--tertiary-text-hovered);
-  border-color: var(--primary-hovered);
+  border-color: var(--tertiary-hovered);
+
+  text-shadow: 2px 2px 2px var(--tertiary-text-shadow-hovered),
+    1px 1px 0 var(--tertiary-text-shadow-hovered);
 }
 
 .tertiary:hover:not(:disabled) {
@@ -169,19 +205,28 @@ button:disabled {
 .tertiary:active {
   background-color: var(--tertiary-active);
   color: var(--tertiary-text-active);
-  border-color: var(--primary-active);
+  border-color: var(--tertiary-active);
+
+  text-shadow: 2px 2px 2px var(--tertiary-text-shadow-active),
+    1px 1px 0 var(--tertiary-text-shadow-active);
 }
 
 .tertiary:focus {
   background-color: var(--tertiary-focus);
   color: var(--tertiary-text-focus);
-  border-color: var(--primary-focus);
+  border-color: var(--tertiary-focus);
+
+  text-shadow: 2px 2px 2px var(--tertiary-text-shadow-active),
+    1px 1px 0 var(--tertiary-text-shadow-active);
 }
 
 .tertiary:disabled {
   background-color: var(--tertiary-disabled);
-  color: var(--primary-disabled);
-  border-color: var(--primary-disabled);
+  color: var(--tertiary-disabled);
+  border-color: var(--tertiary-disabled);
+
+  text-shadow: 2px 2px 2px var(--tertiary-text-shadow-disabled),
+    1px 1px 0 var(--tertiary-text-shadow-disabled);
 }
 
 .primary-heading {
