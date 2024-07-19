@@ -4,8 +4,10 @@ import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
 import useAutoSave from "../hooks/useAutoSave";
-import ParticipantCategories from "./ParticipantCategories";
-import DialogueParticipants from "./DialogueParticipants";
+import ParticipantCategoriesHeader from "./general/ParticipantCategorierHeader";
+import ParticipantCategoriesList from "./general/ParticipantCategoriesList";
+import DialogueParticipantsHeader from "./general/DialogueParticipantsHeader";
+import DialogueParticipantsList from "./general/DialogueParticipantsList";
 import AppContext from "./../AppContext";
 
 import "../componentStyles/NewProjectDetails.css";
@@ -48,16 +50,29 @@ function NewProjectDetails({ projectData, onReturn }) {
         className="secondary-heading"
       />
       <TextInput title="Dialogue Name" value={projectData.name} readOnly />
-      <div className="scrollable-sections">
-        <ParticipantCategories
-          categories={categories}
-          onUpdate={handleCategoriesUpdate}
-        />
-        <DialogueParticipants
-          participants={participants}
-          categories={categories}
-          onUpdate={handleParticipantsUpdate}
-        />
+      <div className="headers">
+        <div className="scrollable-sections-header">
+          <ParticipantCategoriesHeader
+            categories={categories}
+            onUpdate={handleCategoriesUpdate}
+          />
+        </div>
+        <div className="scrollable-sections-header">
+          <DialogueParticipantsHeader
+            participants={participants}
+            categories={categories}
+            onUpdate={handleParticipantsUpdate}
+          />
+        </div>
+      </div>
+      <div className="lists">
+        <div className="scrollable-sections">
+          <ParticipantCategoriesList categories={categories} />
+        </div>
+
+        <div className="scrollable-sections">
+          <DialogueParticipantsList participants={participants} />
+        </div>
       </div>
       <div className="footer-buttons">
         <Button onClick={handleReturnClick}>return</Button>
