@@ -4,12 +4,12 @@ const saveProjectToLocalStorage = (projectData) => {
   localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 };
 
-const useAutoSave = (categories, participants) => {
+const useAutoSave = (name, categories, participants) => {
   useEffect(() => {
-    if (categories && participants) {
-      saveProjectToLocalStorage({ categories, participants });
+    if (name && categories && participants) {
+      saveProjectToLocalStorage({ name, categories, participants });
     }
-  }, [categories, participants]);
+  }, [name, categories, participants]);
 };
 
 export default useAutoSave;

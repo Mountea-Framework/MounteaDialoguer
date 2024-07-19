@@ -152,7 +152,7 @@ const DialogueEditorCanvas = () => {
         nodeTypes={nodeTypes}
 
         maxZoom={1.75}
-        minZoom={0.75}
+        minZoom={0.25}
         fitView
       >
         <Controls />

@@ -39,6 +39,7 @@ function NewProject({ onContinue, onNewProjectClick }) {
         onChange={handleInputChange}
         highlight={highlight}
         onClick={handleProjectNameClick}
+        maxLength={64} // Set maxLength to 64 characters
       />
       <Button
         onClick={handleContinueClick}

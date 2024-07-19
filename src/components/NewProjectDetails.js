@@ -19,7 +19,7 @@ function NewProjectDetails({ projectData, onReturn }) {
     setShowLandingPage,
   } = useContext(AppContext);
 
-  useAutoSave(categories, participants);
+  useAutoSave(projectData.name, categories, participants);
 
   const handleReturnClick = () => {
     localStorage.removeItem("autoSaveProject");

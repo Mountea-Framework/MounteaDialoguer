@@ -63,8 +63,10 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
       if (validatedData) {
         setFile(file);
         onSelectProject(file.name);
-        setProjectData(validatedData);
-        localStorage.setItem("autoSaveProject", JSON.stringify(validatedData));
+        const projectName = validatedData.name || "Untitled Project"; // Set a default name if none provided
+        setProjectData({ ...validatedData, name: projectName });
+        const autoSaveData = { ...validatedData, name: projectName };
+        localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
       }
     } else {
       alert("Please select a .mnteadlg file");
@@ -86,8 +88,10 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
       if (validatedData) {
         setFile(file);
         onSelectProject(file.name);
-        setProjectData(validatedData);
-        localStorage.setItem("autoSaveProject", JSON.stringify(validatedData));
+        const projectName = validatedData.name || "Untitled Project"; // Set a default name if none provided
+        setProjectData({ ...validatedData, name: projectName });
+        const autoSaveData = { ...validatedData, name: projectName };
+        localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
       }
     } else {
       alert("Please select a .mnteadlg file");
