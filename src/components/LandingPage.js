@@ -1,10 +1,8 @@
 import React, { useState, useContext } from "react";
-
 import NewProject from "./NewProject";
 import LoadProject from "./LoadProject";
 import NewProjectDetails from "./NewProjectDetails";
 import AppContext from "../AppContext";
-
 import "../componentStyles/LandingPage.css";
 
 function LandingPage() {
@@ -22,7 +20,7 @@ function LandingPage() {
   };
 
   const handleNewProjectClick = () => {
-    setSelectedProject(null);
+    // setSelectedProject(null);
   };
 
   const handleContinue = (name) => {
@@ -47,6 +45,8 @@ function LandingPage() {
           <LoadProject
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}
+            setSelectedProject={setSelectedProject}
+            setProjectData={setProjectData}
           />
         </>
       )}

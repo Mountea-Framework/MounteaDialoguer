@@ -1,19 +1,71 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useContext } from "react";
+import JSZip from "jszip";
 
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
 import Button from "./objects/Button";
-
+import AppContext from "../AppContext";
 import "../componentStyles/LoadProject.css";
 
-function LoadProject({ selectedProject, onSelectProject }) {
+function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
+  const { setShowLandingPage } = useContext(AppContext);
   const [file, setFile] = useState(null);
-  const fileInputRef = useRef(null);
+  const [error, setError] = useState(null);
 
-  const handleFileChange = (e) => {
+  const validateMnteadlgFile = async (file) => {
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const dialogueJsonFile = zip.file("dialogueJson.json");
+      if (!dialogueJsonFile) {
+        setError("Invalid .mnteadlg file: missing dialogueJson.json");
+        onSelectProject(null);
+        setProjectData({ name: "", participants: [], categories: [] });
+        return false;
+      }
+      const dialogueJsonContent = await dialogueJsonFile.async("string");
+      const dialogueJson = JSON.parse(dialogueJsonContent);
+      if (
+        !dialogueJson.name ||
+        !Array.isArray(dialogueJson.categories) ||
+        !Array.isArray(dialogueJson.participants)
+      ) {
+        setError("Invalid dialogueJson.json content or structure");
+        onSelectProject(null);
+        setProjectData({ name: "", participants: [], categories: [] });
+        return false;
+      }
+      if (
+        dialogueJson.categories.length === 0 ||
+        dialogueJson.participants.length === 0
+      ) {
+        setError("Categories or participants cannot be empty");
+        onSelectProject(null);
+        setProjectData({ name: "", participants: [], categories: [] });
+        return false;
+      }
+      setError(null);
+      return dialogueJson;
+    } catch (e) {
+      setError("Error reading .mnteadlg file");
+      onSelectProject(null);
+      setProjectData({ name: "", participants: [], categories: [] });
+      return false;
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    setError(null);
+    setFile(null);
+    setProjectData({ name: "", participants: [], categories: [] });
     const file = e.target.files[0];
-    if (file && file.name.endsWith(".mnteadlg")) {
-      setFile(file);
+    if (file) {
+      const validatedData = await validateMnteadlgFile(file);
+      if (validatedData) {
+        setFile(file);
+        onSelectProject(file.name);
+        setProjectData(validatedData);
+        localStorage.setItem("autoSaveProject", JSON.stringify(validatedData));
+      }
     } else {
       alert("Please select a .mnteadlg file");
     }
@@ -23,24 +75,33 @@ function LoadProject({ selectedProject, onSelectProject }) {
     e.preventDefault();
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
+    setError(null);
+    setFile(null);
+    setProjectData({ name: "", participants: [], categories: [] });
     const file = e.dataTransfer.files[0];
-    if (file && file.name.endsWith(".mnteadlg")) {
-      setFile(file);
+    if (file) {
+      const validatedData = await validateMnteadlgFile(file);
+      if (validatedData) {
+        setFile(file);
+        onSelectProject(file.name);
+        setProjectData(validatedData);
+        localStorage.setItem("autoSaveProject", JSON.stringify(validatedData));
+      }
     } else {
       alert("Please select a .mnteadlg file");
     }
   };
 
-  const handleFileClick = () => {
-    fileInputRef.current.click();
+  const handleClick = () => {
+    document.getElementById("fileInput").click();
   };
 
   const handleContinueClick = () => {
     if (selectedProject) {
       console.log("Continuing with selected project:", selectedProject);
-      // TODO: call to landing page to move to remove LoadingPage, load Project from JSON
+      setShowLandingPage(false); // Move to DialogueEditor
     }
   };
 
@@ -56,16 +117,18 @@ function LoadProject({ selectedProject, onSelectProject }) {
         className="file-drop-area"
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onClick={handleFileClick}
+        onClick={handleClick}
       >
         <input
+          id="fileInput"
           type="file"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
           onChange={handleFileChange}
           accept=".mnteadlg"
+          style={{ display: "none" }}
         />
-        {file ? (
+        {error ? (
+          <p className="error">{error}</p>
+        ) : file ? (
           <p>{file.name}</p>
         ) : (
           <p className="primary-text">
@@ -75,7 +138,7 @@ function LoadProject({ selectedProject, onSelectProject }) {
       </div>
       <Button
         onClick={handleContinueClick}
-        disabled={!selectedProject}
+        disabled={!selectedProject || error !== null}
         containerClassName={"landing-page-button-container"}
         className={"custom-button landing-page-button"}
       >
