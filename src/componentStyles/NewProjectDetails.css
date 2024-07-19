@@ -4,12 +4,7 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  overflow: none;
   box-sizing: border-box;
-}
-
-.scroll-container {
-  height: min(600px, 70%);
 }
 
 .scrollable-sections {
@@ -27,7 +22,14 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: visible;
   box-sizing: border-box;
+}
+
+.scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .input-button-row {
@@ -38,7 +40,10 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-content: center;
-  justify-content: space-evenly;
+  justify-content: space-between;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
 }
 
 .input-button-row input {
