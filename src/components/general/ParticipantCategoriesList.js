@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 
 import ScrollList from "../objects/ScrollList";
-import AppContext from "../..//AppContext";
+import AppContext from "../../AppContext";
 
 function ParticipantCategoriesList() {
   const { categories, deleteCategory } = useContext(AppContext);

@@ -137,7 +137,6 @@ const DialogueEditorCanvas = () => {
   return (
     <div className="dialogue-editor-canvas background-transparent-primary">
       <ReactFlow
-        colorMode="dark"
         
         nodes={nodes}
         edges={edges}

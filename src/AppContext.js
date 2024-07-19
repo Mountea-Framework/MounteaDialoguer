@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState } from "react";
 
 const AppContext = createContext();
 
@@ -15,19 +15,46 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteCategory = (categoryToDelete) => {
-    console.log(`Deleting category: ${categoryToDelete}`);
-    const updatedCategories = categories.filter((category) => {
-      const categoryFullName = category.parent
-        ? `${category.parent}.${category.name}`
-        : category.name;
-      return categoryFullName !== categoryToDelete;
-    });
-    setCategories(updatedCategories);
+    const deleteRecursive = (categoryName) => {
+      // Find and delete child categories recursively
+      const children = categories.filter(
+        (category) => category.parent === categoryName
+      );
+      children.forEach((child) => deleteRecursive(child.name));
 
-    const updatedParticipants = participants.filter(
-      (participant) => participant.category !== categoryToDelete
+      // Construct the full name of the category
+      const categoryFullName = categories.find(
+        (category) => category.name === categoryName
+      ).parent
+        ? `${
+            categories.find((category) => category.name === categoryName).parent
+          }.${categoryName}`
+        : categoryName;
+
+      // Delete the category
+      setCategories((prevCategories) =>
+        prevCategories.filter((category) => category.name !== categoryName)
+      );
+
+      // Delete participants belonging to the category and its subcategories
+      setParticipants((prevParticipants) =>
+        prevParticipants.filter(
+          (participant) =>
+            participant.category !== categoryFullName &&
+            !participant.category.startsWith(`${categoryFullName}.`)
+        )
+      );
+    };
+
+    deleteRecursive(categoryToDelete);
+  };
+
+  const deleteParticipant = (participantName) => {
+    setParticipants((prevParticipants) =>
+      prevParticipants.filter(
+        (participant) => participant.name !== participantName
+      )
     );
-    setParticipants(updatedParticipants);
   };
 
   const projectData = {
@@ -42,6 +69,7 @@ export const AppProvider = ({ children }) => {
         participants,
         addCategory,
         deleteCategory,
+        deleteParticipant,
         setParticipants,
         setCategories,
         showLandingPage,
