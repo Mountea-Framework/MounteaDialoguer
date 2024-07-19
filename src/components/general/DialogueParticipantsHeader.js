@@ -19,10 +19,18 @@ function DialogueParticipantsHeader({ participants, categories, onUpdate }) {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  const handleInputChange = (name, value) => {
     setNewParticipant((prev) => ({ ...prev, [name]: value }));
   };
+
+  const categoryOptions = categories.map((category) => ({
+    value: category.parent
+      ? `${category.parent}.${category.name}`
+      : category.name,
+    label: category.parent
+      ? `${category.parent}.${category.name}`
+      : category.name,
+  }));
 
   return (
     <div>
@@ -33,22 +41,24 @@ function DialogueParticipantsHeader({ participants, categories, onUpdate }) {
       />
       <div className="input-button-row">
         <TextInput
-          title="New Participant"
+          placeholder="New Participant"
+          title="Participant Name"
           name="name"
           value={newParticipant.name}
           onChange={handleInputChange}
         />
         <Dropdown
-          title="Category"
           name="category"
           value={newParticipant.category}
           onChange={handleInputChange}
-          options={categories.map((category) => ({
-            label: category.name,
-            value: category.name,
-          }))}
+          options={categoryOptions}
+          placeholder="select category"
         />
-        <Button className="circle-button" onClick={handleAddParticipant}>
+        <Button
+          className="circle-button"
+          onClick={handleAddParticipant}
+          disabled={!newParticipant.name || !newParticipant.category}
+        >
           +
         </Button>
       </div>

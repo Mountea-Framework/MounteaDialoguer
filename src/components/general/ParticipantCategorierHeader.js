@@ -16,36 +16,46 @@ function ParticipantCategoriesHeader({ categories, onUpdate }) {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  const handleInputChange = (name, value) => {
     setNewCategory((prev) => ({ ...prev, [name]: value }));
   };
+
+  const categoryOptions = categories.map((category) => ({
+    value: category.parent
+      ? `${category.parent}.${category.name}`
+      : category.name,
+    label: category.parent
+      ? `${category.parent}.${category.name}`
+      : category.name,
+  }));
 
   return (
     <div>
       <Title
         level="3"
-        children="Dialogue Categories"
+        children="Participants Categories"
         className="tertiary-heading"
       />
       <div className="input-button-row">
         <TextInput
-          title="New Category"
+          placeholder="New Category"
+          title="Category Name"
           name="name"
           value={newCategory.name}
           onChange={handleInputChange}
         />
         <Dropdown
-          title="Parent Category"
           name="parent"
           value={newCategory.parent}
           onChange={handleInputChange}
-          options={categories.map((category) => ({
-            label: category.name,
-            value: category.name,
-          }))}
+          options={categoryOptions}
+          placeholder="select parent category"
         />
-        <Button className="circle-button" onClick={handleAddCategory}>
+        <Button
+          className="circle-button"
+          onClick={handleAddCategory}
+          disabled={!newCategory.name}
+        >
           +
         </Button>
       </div>
