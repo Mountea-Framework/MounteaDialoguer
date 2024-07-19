@@ -20,6 +20,12 @@
   padding: 20px;
   margin-top: 20px;
   cursor: pointer;
+
+  transition: border-color var(--transition-duration) var(--transition-easing);
+}
+
+.file-drop-area:hover {
+  border-color: var(--primary-hovered);
 }
 
 .file-drop-area input[type="file"] {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
@@ -8,10 +8,12 @@ import "../componentStyles/LoadProject.css";
 
 function LoadProject({ selectedProject, onSelectProject }) {
   const [file, setFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
-    if (e.target.files[0].type === "application/x-mnteadlg") {
-      setFile(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file && file.name.endsWith(".mnteadlg")) {
+      setFile(file);
     } else {
       alert("Please select a .mnteadlg file");
     }
@@ -21,19 +23,24 @@ function LoadProject({ selectedProject, onSelectProject }) {
     e.preventDefault();
   };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith(".mnteadlg")) {
+      setFile(file);
+    } else {
+      alert("Please select a .mnteadlg file");
+    }
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current.click();
+  };
+
   const handleContinueClick = () => {
     if (selectedProject) {
       console.log("Continuing with selected project:", selectedProject);
       // TODO: call to landing page to move to remove LoadingPage, load Project from JSON
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    if (e.dataTransfer.files[0].type === "application/x-mnteadlg") {
-      setFile(e.dataTransfer.files[0]);
-    } else {
-      alert("Please select a .mnteadlg file");
     }
   };
 
@@ -49,8 +56,15 @@ function LoadProject({ selectedProject, onSelectProject }) {
         className="file-drop-area"
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onClick={handleFileClick}
       >
-        <input type="file" onChange={handleFileChange} accept=".mnteadlg" />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+          accept=".mnteadlg"
+        />
         {file ? (
           <p>{file.name}</p>
         ) : (
