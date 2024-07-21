@@ -24,7 +24,7 @@
   justify-content: space-evenly;
   align-content: stretch;
   flex-wrap: wrap;
-  height: 5%;
+  height: max(5%, 50px);
 }
 
 .dialogue-editor-toolbar-spacer {
@@ -33,7 +33,7 @@
 }
 
 .dialogue-editor-toolbar {
-  width: 100%;
+  width: 70%;
   height: 100%;
 }
 
@@ -43,7 +43,7 @@
 }
 
 .dialogue-editor-canvas {
-  width: 100%;
+  width: 70%;
   height: 100%;
 }
 
