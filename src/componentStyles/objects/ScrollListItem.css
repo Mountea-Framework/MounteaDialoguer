@@ -35,6 +35,9 @@ svg {
   margin-right: auto;
 }
 
+svg:hover {
+  fill: var(--primary-hovered);
+}
 
 .scroll-list-item:hover .item-icon {
   visibility: visible;

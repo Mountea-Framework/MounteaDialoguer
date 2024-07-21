@@ -10,7 +10,10 @@ import "../componentStyles/DialogueEditor.css";
 function DialogueEditor() {
   return (
     <div className="dialogue-editor">
-      <DialogueEditorTooblar></DialogueEditorTooblar>
+      <div className="dialogue-editor-toolbar-wrapper">
+        <DialogueEditorTooblar></DialogueEditorTooblar>
+        <div className="dialogue-editor-toolbar-spacer background-secondary"></div>
+      </div>
       <div className="dialogue-editor-board">
         <DialogueEditorCanvas></DialogueEditorCanvas>
         <DialogueEditorDetails></DialogueEditorDetails>
