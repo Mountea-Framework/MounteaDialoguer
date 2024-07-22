@@ -64,6 +64,24 @@ export const AppProvider = ({ children }) => {
     setParticipants(updatedParticipants);
   };
 
+  const addParticipant = (newParticipant) => {
+    const duplicateParticipant = participants.find(
+      (participant) =>
+        participant.name === newParticipant.name &&
+        participant.category === newParticipant.category
+    );
+    if (!duplicateParticipant) {
+      setParticipants((prevParticipants) => [
+        ...prevParticipants,
+        newParticipant,
+      ]);
+    } else {
+      console.log(
+        `Participant with name "${newParticipant.name}" and category "${newParticipant.category}" already exists.`
+      );
+    }
+  };
+
   const editCategory = (editedCategory, originalCategory) => {
     // Deduplicate participants
     const updatedParticipants = participants.map((participant) => {
@@ -132,6 +150,38 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const editParticipant = (editedParticipant, originalParticipant) => {
+    // Deduplicate participants
+    const updatedParticipants = participants.map((participant) => {
+      if (
+        participant.name === originalParticipant.name &&
+        participant.category === originalParticipant.category
+      ) {
+        return editedParticipant;
+      }
+      return participant;
+    });
+
+    const uniqueParticipants = Array.from(
+      new Set(updatedParticipants.map((p) => JSON.stringify(p)))
+    ).map((p) => JSON.parse(p));
+
+    setParticipants(uniqueParticipants);
+
+    // Log any duplicates found
+    const duplicateParticipant = participants.find(
+      (participant) =>
+        participant.name === editedParticipant.name &&
+        participant.category === editedParticipant.category
+    );
+
+    if (duplicateParticipant) {
+      console.log(
+        `Duplicate participant found: name="${editedParticipant.name}", category="${editedParticipant.category}".`
+      );
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -140,7 +190,9 @@ export const AppProvider = ({ children }) => {
         addCategory,
         deleteCategory,
         deleteParticipant,
+        addParticipant,
         editCategory,
+        editParticipant,
         setParticipants,
         setCategories,
         showLandingPage,

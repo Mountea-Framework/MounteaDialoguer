@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 
-import TextInput from "./../objects/TextInput";
-import Dropdown from "./../objects/Dropdown";
-import Button from "./../objects/Button";
+import TextInput from "../objects/TextInput";
+import Dropdown from "../objects/Dropdown";
+import Button from "../objects/Button";
 import Title from "../objects/Title";
+import AppContext from "../../AppContext";
 
-function DialogueParticipantsHeader({ participants, categories, onUpdate }) {
+function DialogueParticipantsHeader() {
+  const { participants, categories, addParticipant } = useContext(AppContext);
   const [newParticipant, setNewParticipant] = useState({
     name: "",
     category: "",
@@ -13,8 +15,7 @@ function DialogueParticipantsHeader({ participants, categories, onUpdate }) {
 
   const handleAddParticipant = () => {
     if (newParticipant.name && newParticipant.category) {
-      const updatedParticipants = [...participants, newParticipant];
-      onUpdate(updatedParticipants);
+      addParticipant(newParticipant);
       setNewParticipant({ name: "", category: "" });
     }
   };
