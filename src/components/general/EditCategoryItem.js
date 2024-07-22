@@ -1,25 +1,32 @@
 import React, { useState, useEffect, useContext } from "react";
+
 import Modal from "../objects/Modal";
 import TextInput from "../objects/TextInput";
 import Dropdown from "../objects/Dropdown";
 import Button from "../objects/Button";
 import AppContext from "../../AppContext";
 
-function EditScrollListItem({ isOpen, onClose, category, onSave }) {
-  console.log('EditScrollListItem received category:', category);
-
+function EditScrollListItem({ isOpen, onClose, item, onSave }) {
   const { categories } = useContext(AppContext);
-  const [editedCategory, setEditedCategory] = useState({});
-  const [originalCategory, setOriginalCategory] = useState({});
+  const [editedCategory, setEditedCategory] = useState({
+    name: "",
+    parent: "",
+  });
+  const [originalCategory, setOriginalCategory] = useState({
+    name: "",
+    parent: "",
+  });
 
   useEffect(() => {
-    if (category) {
-      const initialCategory = typeof category === 'string' ? { name: category } : { ...category };
+    if (item) {
+      const category = categories.find((cat) => cat.name === item.name);
+      const parentCategory = category ? category.parent : "";
+      const initialCategory = { name: item.name, parent: parentCategory };
+
       setEditedCategory(initialCategory);
       setOriginalCategory(initialCategory);
-      console.log('Updated editedCategory:', initialCategory);
     }
-  }, [category]);
+  }, [item, categories]);
 
   const handleInputChange = (name, value) => {
     setEditedCategory((prev) => ({ ...prev, [name]: value }));
@@ -35,9 +42,14 @@ function EditScrollListItem({ isOpen, onClose, category, onSave }) {
     label: cat.parent ? `${cat.parent}.${cat.name}` : cat.name,
   }));
 
+  console.log("Dropdown options:", categoryOptions);
+
   return (
-    isOpen && category && (
-      <Modal onClose={onClose} title={`Edit Category ${editedCategory.name || 'invalid'}`}>
+    isOpen && (
+      <Modal
+        onClose={onClose}
+        title={`Edit Category ${editedCategory.name || ""}`}
+      >
         <div className="edit-scroll-list-item">
           <TextInput
             placeholder="Category Name"

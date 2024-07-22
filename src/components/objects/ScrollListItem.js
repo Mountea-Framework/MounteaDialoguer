@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import EditScrollListItem from "../general/EditScrollListItem";
-
 import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
 import { ReactComponent as EditIcon } from "../../icons/editoIcon.svg";
 
@@ -12,13 +10,14 @@ function ScrollListItem({
   className,
   classState,
   onEdit,
+  EditComponent, // Accept EditComponent as a prop
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const handleEditClick = () => {
-    setSelectedCategory(item);
-    console.log('Selected Category:', item);
+    setSelectedItem(item);
+    console.log('Selected Item:', item);
     setIsEditOpen(true);
   };
 
@@ -51,11 +50,11 @@ function ScrollListItem({
           <RemoveIcon />
         </span>
       </li>
-      {isEditOpen && selectedCategory && (
-        <EditScrollListItem
+      {isEditOpen && selectedItem && (
+        <EditComponent
           isOpen={isEditOpen}
           onClose={() => setIsEditOpen(false)}
-          category={selectedCategory}
+          item={selectedItem}
           onSave={handleSave}
         />
       )}

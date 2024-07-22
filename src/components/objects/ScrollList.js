@@ -12,6 +12,7 @@ function ScrollList({
   classState,
   classNameItems,
   classStateItems,
+  EditComponent,
 }) {
   return (
     <div
@@ -28,6 +29,7 @@ function ScrollList({
             onIconClick={onIconClick}
             className={`${classNameItems ? classNameItems : ""}`}
             classState={`${classStateItems ? classStateItems : ""}`}
+            EditComponent={EditComponent}
           />
         ))}
       </ul>

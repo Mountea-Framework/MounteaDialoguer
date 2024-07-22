@@ -104,8 +104,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 
   const handleContinueClick = () => {
     if (selectedProject) {
-      console.log("Continuing with selected project:", selectedProject);
-      setShowLandingPage(false); // Move to DialogueEditor
+      setShowLandingPage(false);
     }
   };
 

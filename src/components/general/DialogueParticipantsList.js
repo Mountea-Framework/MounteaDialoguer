@@ -7,9 +7,7 @@ function DialogueParticipantsList() {
   const { participants, deleteParticipant } = useContext(AppContext);
 
   const handleDeleteParticipant = (participant) => {
-    console.log("Deleting participant:", participant);
     const [participantName, participantCategory] = participant.split(" - ");
-    console.log("Deleting participant:", participantName, participantCategory);
     deleteParticipant(participantName, participantCategory);
   };
 

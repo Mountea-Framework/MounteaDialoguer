@@ -12,6 +12,9 @@ function Dropdown({
 }) {
   const selectRef = useRef(null);
 
+  console.log('Dropdown value:', value);
+  console.log('Dropdown options:', options);
+
   useEffect(() => {
     if (selectRef.current && value !== "") {
       selectRef.current.blur();
@@ -23,7 +26,7 @@ function Dropdown({
       <select
         ref={selectRef}
         name={name}
-        value={value}
+        value={value || ""}
         onChange={(e) => onChange(name, e.target.value)}
         className={`${classState ? classState : "primary"} ${
           className ? className : "dropdown"
