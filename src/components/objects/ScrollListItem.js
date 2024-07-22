@@ -17,7 +17,6 @@ function ScrollListItem({
 
   const handleEditClick = () => {
     setSelectedItem(item);
-    console.log('Selected Item:', item);
     setIsEditOpen(true);
   };
 
@@ -34,7 +33,7 @@ function ScrollListItem({
         }`}
         onClick={handleEditClick}
       >
-        <span className="item-text">{item.name || item}</span>
+        <span className="item-text">{item.displayName || item.name || item}</span>
         <span className="item-icon edit-icon" onClick={handleEditClick}>
           <EditIcon />
         </span>

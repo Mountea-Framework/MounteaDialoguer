@@ -43,6 +43,31 @@ export const AppProvider = ({ children }) => {
     setParticipants(updatedParticipants);
   };
 
+  const editCategory = (editedCategory, originalCategory) => {
+    const updatedCategories = categories.map((category) =>
+      category.name === originalCategory.name ? editedCategory : category
+    );
+    setCategories(updatedCategories);
+
+    const updatedParticipants = participants.map((participant) => {
+      if (participant.category === originalCategory.name) {
+        return { ...participant, category: editedCategory.name };
+      }
+      if (participant.category.startsWith(`${originalCategory.name}.`)) {
+        return {
+          ...participant,
+          category: participant.category.replace(
+            `${originalCategory.name}.`,
+            `${editedCategory.name}.`
+          ),
+        };
+      }
+      return participant;
+    });
+
+    setParticipants(updatedParticipants);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -51,6 +76,7 @@ export const AppProvider = ({ children }) => {
         addCategory,
         deleteCategory,
         deleteParticipant,
+        editCategory,
         setParticipants,
         setCategories,
         showLandingPage,

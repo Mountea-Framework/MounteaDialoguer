@@ -42,8 +42,6 @@ function EditScrollListItem({ isOpen, onClose, item, onSave }) {
     label: cat.parent ? `${cat.parent}.${cat.name}` : cat.name,
   }));
 
-  console.log("Dropdown options:", categoryOptions);
-
   return (
     isOpen && (
       <Modal

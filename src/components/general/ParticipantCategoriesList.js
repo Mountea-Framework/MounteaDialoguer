@@ -1,36 +1,24 @@
 import React, { useContext } from "react";
-
 import ScrollList from "../objects/ScrollList";
-import EditCategoryItem from "./EditCategoryItem";
+import EditCategoryItem from "../general/EditCategoryItem";
 import AppContext from "../../AppContext";
 
 function ParticipantCategoriesList() {
-  const { categories, setCategories, participants, setParticipants } =
-    useContext(AppContext);
+  const { categories, deleteCategory, editCategory } = useContext(AppContext);
+
+  const combinedCategories = categories.map((category) => ({
+    ...category,
+    displayName: `${category.name}${
+      category.parent ? `.${category.parent}` : ""
+    }`,
+  }));
+
+  const handleDeleteCategory = (categoryToDelete) => {
+    deleteCategory(categoryToDelete.name);
+  };
 
   const handleEditCategory = (editedCategory, originalCategory) => {
-    const updatedCategories = categories.map((category) =>
-      category.name === originalCategory.name ? editedCategory : category
-    );
-    setCategories(updatedCategories);
-
-    const updatedParticipants = participants.map((participant) => {
-      if (participant.category === originalCategory.name) {
-        return { ...participant, category: editedCategory.name };
-      }
-      if (participant.category.startsWith(`${originalCategory.name}.`)) {
-        return {
-          ...participant,
-          category: participant.category.replace(
-            `${originalCategory.name}.`,
-            `${editedCategory.name}.`
-          ),
-        };
-      }
-      return participant;
-    });
-
-    setParticipants(updatedParticipants);
+    editCategory(editedCategory, originalCategory);
   };
 
   return (
@@ -38,10 +26,8 @@ function ParticipantCategoriesList() {
       <ScrollList
         classState="none"
         classStateItems="none"
-        items={categories}
-        onIconClick={(categoryName) =>
-          setCategories(categories.filter((c) => c.name !== categoryName))
-        }
+        items={combinedCategories}
+        onIconClick={handleDeleteCategory}
         onEdit={handleEditCategory}
         EditComponent={EditCategoryItem}
       />

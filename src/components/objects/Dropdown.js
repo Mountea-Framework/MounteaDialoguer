@@ -12,9 +12,6 @@ function Dropdown({
 }) {
   const selectRef = useRef(null);
 
-  console.log('Dropdown value:', value);
-  console.log('Dropdown options:', options);
-
   useEffect(() => {
     if (selectRef.current && value !== "") {
       selectRef.current.blur();
