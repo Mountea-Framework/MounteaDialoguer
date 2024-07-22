@@ -19,29 +19,31 @@ export const AppProvider = ({ children }) => {
 
 	const deleteCategory = (categoryToDeleteName, categoryToDeleteParent) => {
 		const deleteRecursive = (categoryName, categoryParent) => {
-			const children = categories.filter(
-				(category) => category.parent === `${categoryParent}.${categoryName}`
-			);
-			children.forEach((child) =>
-				deleteRecursive(child.name, `${categoryParent}.${categoryName}`)
+			const categoryPath = categoryParent
+				? `${categoryParent}.${categoryName}`
+				: categoryName;
+
+			// Delete participants first
+			setParticipants((prevParticipants) =>
+				prevParticipants.filter(
+					(participant) =>
+						participant.category !== categoryPath &&
+						!participant.category.startsWith(`${categoryPath}.`)
+				)
 			);
 
+			const children = categories.filter(
+				(category) => category.parent === categoryPath
+			);
+			children.forEach((child) => deleteRecursive(child.name, categoryPath));
+
+			// Delete the category itself
 			setCategories((prevCategories) =>
 				prevCategories.filter(
 					(category) =>
 						!(
 							category.name === categoryName &&
 							category.parent === categoryParent
-						)
-				)
-			);
-
-			setParticipants((prevParticipants) =>
-				prevParticipants.filter(
-					(participant) =>
-						participant.category !== `${categoryParent}.${categoryName}` &&
-						!participant.category.startsWith(
-							`${categoryParent}.${categoryName}.`
 						)
 				)
 			);
