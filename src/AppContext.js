@@ -55,11 +55,11 @@ export const AppProvider = ({ children }) => {
     deleteRecursive(categoryToDeleteName, categoryToDeleteParent);
   };
 
-  const deleteParticipant = (participantName, participantCategory) => {
+  const deleteParticipant = (participantToDelete) => {
     const updatedParticipants = participants.filter(
       (participant) =>
-        participant.name !== participantName ||
-        participant.category !== participantCategory
+        participant.name !== participantToDelete.name ||
+        participant.category !== participantToDelete.category
     );
     setParticipants(updatedParticipants);
   };

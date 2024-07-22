@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-
 import ScrollList from "../objects/ScrollList";
 import EditParticipantItem from "../general/EditParticipantItem";
 import AppContext from "../../AppContext";
@@ -9,20 +8,26 @@ function DialogueParticipantsList() {
     useContext(AppContext);
 
   const handleDeleteParticipant = (participant) => {
-    const [participantName, participantCategory] = participant.split(" - ");
-    deleteParticipant(participantName, participantCategory);
+    deleteParticipant(participant);
   };
 
   const handleEditParticipant = (editedParticipant, originalParticipant) => {
     editParticipant(editedParticipant, originalParticipant);
   };
 
+  const combinedParticipants = participants.map((participant) => ({
+    ...participant,
+    displayName: `${participant.name}${
+      participant.category ? ` - ${participant.category}` : ""
+    }`,
+  }));
+
   return (
     <div className="scroll-container">
       <ScrollList
         classState="none"
         classStateItems="none"
-        items={participants.map((p) => `${p.name} - ${p.category}`)}
+        items={combinedParticipants}
         onIconClick={handleDeleteParticipant}
         onEdit={handleEditParticipant}
         EditComponent={EditParticipantItem}
