@@ -1,5 +1,4 @@
-import React, { useState, useContext } from "react";
-
+import React, { useState, useEffect, useContext } from "react";
 import Modal from "../objects/Modal";
 import TextInput from "../objects/TextInput";
 import Dropdown from "../objects/Dropdown";
@@ -7,15 +6,27 @@ import Button from "../objects/Button";
 import AppContext from "../../AppContext";
 
 function EditScrollListItem({ isOpen, onClose, category, onSave }) {
+  console.log('EditScrollListItem received category:', category);
+
   const { categories } = useContext(AppContext);
-  const [editedCategory, setEditedCategory] = useState({ ...category });
+  const [editedCategory, setEditedCategory] = useState({});
+  const [originalCategory, setOriginalCategory] = useState({});
+
+  useEffect(() => {
+    if (category) {
+      const initialCategory = typeof category === 'string' ? { name: category } : { ...category };
+      setEditedCategory(initialCategory);
+      setOriginalCategory(initialCategory);
+      console.log('Updated editedCategory:', initialCategory);
+    }
+  }, [category]);
 
   const handleInputChange = (name, value) => {
     setEditedCategory((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = () => {
-    onSave(editedCategory);
+    onSave(editedCategory, originalCategory);
     onClose();
   };
 
@@ -25,8 +36,8 @@ function EditScrollListItem({ isOpen, onClose, category, onSave }) {
   }));
 
   return (
-    isOpen && (
-      <Modal onClose={onClose} title={"Edit Category"}>
+    isOpen && category && (
+      <Modal onClose={onClose} title={`Edit Category ${editedCategory.name || 'invalid'}`}>
         <div className="edit-scroll-list-item">
           <TextInput
             placeholder="Category Name"
