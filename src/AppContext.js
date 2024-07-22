@@ -74,21 +74,94 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const editCategory = (editedCategory, originalCategory) => {
+		// Update participants' categories
 		const updatedParticipants = updateParticipantsForCategory(
 			editedCategory,
 			originalCategory
 		);
 
+		// Deduplicate participants
 		setParticipants(deduplicateArray(updatedParticipants));
 
-		const duplicateCategory = findDuplicateCategory(editedCategory);
+		// Update the edited category itself
+		let updatedCategories = categories.map((category) =>
+			category.name === originalCategory.name &&
+			category.parent === originalCategory.parent
+				? editedCategory
+				: category
+		);
 
-		if (duplicateCategory) {
-			logDuplicateCategory(editedCategory);
-			removeOriginalCategory(originalCategory);
-		} else {
-			updateCategories(editedCategory, originalCategory);
-		}
+		// Update all child categories
+		updatedCategories = updateChildCategories(
+			editedCategory,
+			originalCategory,
+			updatedCategories
+		);
+
+		// Deduplicate and set categories
+		setCategories(deduplicateArray(updatedCategories));
+	};
+
+	const updateParticipantsForCategory = (editedCategory, originalCategory) => {
+		const originalCategoryPath = originalCategory.parent
+			? `${originalCategory.parent}.${originalCategory.name}`
+			: originalCategory.name;
+
+		const editedCategoryPath = editedCategory.parent
+			? `${editedCategory.parent}.${editedCategory.name}`
+			: editedCategory.name;
+
+		return participants.map((participant) => {
+			if (participant.category === originalCategoryPath) {
+				return {
+					...participant,
+					category: editedCategoryPath,
+				};
+			}
+			if (participant.category.startsWith(`${originalCategoryPath}.`)) {
+				return {
+					...participant,
+					category: participant.category.replace(
+						new RegExp(`^${originalCategoryPath}`),
+						editedCategoryPath
+					),
+				};
+			}
+			return participant;
+		});
+	};
+
+	const updateChildCategories = (
+		editedCategory,
+		originalCategory,
+		categories
+	) => {
+		const originalCategoryPath = originalCategory.parent
+			? `${originalCategory.parent}.${originalCategory.name}`
+			: originalCategory.name;
+
+		const editedCategoryPath = editedCategory.parent
+			? `${editedCategory.parent}.${editedCategory.name}`
+			: editedCategory.name;
+
+		return categories.map((category) => {
+			if (category.parent === originalCategoryPath) {
+				return {
+					...category,
+					parent: editedCategoryPath,
+				};
+			}
+			if (category.parent.startsWith(`${originalCategoryPath}.`)) {
+				return {
+					...category,
+					parent: category.parent.replace(
+						new RegExp(`^${originalCategoryPath}`),
+						editedCategoryPath
+					),
+				};
+			}
+			return category;
+		});
 	};
 
 	const editParticipant = (editedParticipant, originalParticipant) => {
@@ -156,33 +229,6 @@ export const AppProvider = ({ children }) => {
 			)
 		);
 	};
-
-	const updateParticipantsForCategory = (editedCategory, originalCategory) =>
-		participants.map((participant) => {
-			if (
-				participant.category ===
-				`${originalCategory.parent}.${originalCategory.name}`
-			) {
-				return {
-					...participant,
-					category: `${editedCategory.parent}.${editedCategory.name}`,
-				};
-			}
-			if (
-				participant.category.startsWith(
-					`${originalCategory.parent}.${originalCategory.name}.`
-				)
-			) {
-				return {
-					...participant,
-					category: participant.category.replace(
-						`${originalCategory.parent}.${originalCategory.name}.`,
-						`${editedCategory.parent}.${editedCategory.name}.`
-					),
-				};
-			}
-			return participant;
-		});
 
 	const deduplicateArray = (array) =>
 		Array.from(new Set(array.map((item) => JSON.stringify(item)))).map((item) =>
