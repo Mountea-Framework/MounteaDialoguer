@@ -7,8 +7,19 @@ export const AppProvider = ({ children }) => {
   const [participants, setParticipants] = useState([]);
   const [showLandingPage, setShowLandingPage] = useState(true);
 
-  const addCategory = (category) => {
-    setCategories((prevCategories) => [...prevCategories, category]);
+  const addCategory = (newCategory) => {
+    const duplicateCategory = categories.find(
+      (category) =>
+        category.name === newCategory.name &&
+        category.parent === newCategory.parent
+    );
+    if (!duplicateCategory) {
+      setCategories((prevCategories) => [...prevCategories, newCategory]);
+    } else {
+      console.log(
+        `Category with name "${newCategory.name}" and parent "${newCategory.parent}" already exists.`
+      );
+    }
   };
 
   const deleteCategory = (categoryToDeleteName, categoryToDeleteParent) => {

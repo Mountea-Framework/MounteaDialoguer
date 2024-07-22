@@ -1,17 +1,17 @@
-import React, { useState } from "react";
-
-import TextInput from "./../objects/TextInput";
-import Dropdown from "./../objects/Dropdown";
-import Button from "./../objects/Button";
+import React, { useState, useContext } from "react";
+import TextInput from "../objects/TextInput";
+import Dropdown from "../objects/Dropdown";
+import Button from "../objects/Button";
 import Title from "../objects/Title";
+import AppContext from "../../AppContext";
 
-function ParticipantCategoriesHeader({ categories, onUpdate }) {
+function ParticipantCategoriesHeader() {
+  const { categories, addCategory } = useContext(AppContext);
   const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
 
   const handleAddCategory = () => {
     if (newCategory.name) {
-      const updatedCategories = [...categories, newCategory];
-      onUpdate(updatedCategories);
+      addCategory(newCategory);
       setNewCategory({ name: "", parent: "" });
     }
   };
@@ -49,7 +49,7 @@ function ParticipantCategoriesHeader({ categories, onUpdate }) {
           value={newCategory.parent}
           onChange={handleInputChange}
           options={categoryOptions}
-          placeholder="select parent category"
+          placeholder="Select Parent Category"
         />
         <Button
           className="circle-button"
