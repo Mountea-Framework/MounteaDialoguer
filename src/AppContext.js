@@ -11,27 +11,37 @@ export const AppProvider = ({ children }) => {
     setCategories((prevCategories) => [...prevCategories, category]);
   };
 
-  const deleteCategory = (categoryToDelete) => {
-    const deleteRecursive = (categoryName) => {
+  const deleteCategory = (categoryToDeleteName, categoryToDeleteParent) => {
+    const deleteRecursive = (categoryName, categoryParent) => {
       const children = categories.filter(
-        (category) => category.parent === categoryName
+        (category) => category.parent === `${categoryParent}.${categoryName}`
       );
-      children.forEach((child) => deleteRecursive(child.name));
+      children.forEach((child) =>
+        deleteRecursive(child.name, `${categoryParent}.${categoryName}`)
+      );
 
       setCategories((prevCategories) =>
-        prevCategories.filter((category) => category.name !== categoryName)
+        prevCategories.filter(
+          (category) =>
+            !(
+              category.name === categoryName &&
+              category.parent === categoryParent
+            )
+        )
       );
 
       setParticipants((prevParticipants) =>
         prevParticipants.filter(
           (participant) =>
-            participant.category !== categoryName &&
-            !participant.category.startsWith(`${categoryName}.`)
+            participant.category !== `${categoryParent}.${categoryName}` &&
+            !participant.category.startsWith(
+              `${categoryParent}.${categoryName}.`
+            )
         )
       );
     };
 
-    deleteRecursive(categoryToDelete);
+    deleteRecursive(categoryToDeleteName, categoryToDeleteParent);
   };
 
   const deleteParticipant = (participantName, participantCategory) => {
@@ -45,20 +55,33 @@ export const AppProvider = ({ children }) => {
 
   const editCategory = (editedCategory, originalCategory) => {
     const updatedCategories = categories.map((category) =>
-      category.name === originalCategory.name ? editedCategory : category
+      category.name === originalCategory.name &&
+      category.parent === originalCategory.parent
+        ? editedCategory
+        : category
     );
     setCategories(updatedCategories);
 
     const updatedParticipants = participants.map((participant) => {
-      if (participant.category === originalCategory.name) {
-        return { ...participant, category: editedCategory.name };
+      if (
+        participant.category ===
+        `${originalCategory.parent}.${originalCategory.name}`
+      ) {
+        return {
+          ...participant,
+          category: `${editedCategory.parent}.${editedCategory.name}`,
+        };
       }
-      if (participant.category.startsWith(`${originalCategory.name}.`)) {
+      if (
+        participant.category.startsWith(
+          `${originalCategory.parent}.${originalCategory.name}.`
+        )
+      ) {
         return {
           ...participant,
           category: participant.category.replace(
-            `${originalCategory.name}.`,
-            `${editedCategory.name}.`
+            `${originalCategory.parent}.${originalCategory.name}.`,
+            `${editedCategory.parent}.${editedCategory.name}.`
           ),
         };
       }

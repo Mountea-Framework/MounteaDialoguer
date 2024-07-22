@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+
 import ScrollList from "../objects/ScrollList";
 import EditCategoryItem from "../general/EditCategoryItem";
 import AppContext from "../../AppContext";
@@ -14,7 +15,7 @@ function ParticipantCategoriesList() {
   }));
 
   const handleDeleteCategory = (categoryToDelete) => {
-    deleteCategory(categoryToDelete.name);
+    deleteCategory(categoryToDelete.name, categoryToDelete.parent);
   };
 
   const handleEditCategory = (editedCategory, originalCategory) => {
