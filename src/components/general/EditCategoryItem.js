@@ -61,7 +61,7 @@ function EditCategoryItem({ isOpen, onClose, item }) {
             value={editedCategory.parent}
             onChange={handleInputChange}
             options={categoryOptions}
-            placeholder="Select Parent Category"
+            placeholder="select parent category"
           />
           <div className="buttons">
             <Button onClick={onClose}>Cancel</Button>

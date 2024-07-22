@@ -50,7 +50,7 @@ function ParticipantCategoriesHeader() {
           value={newCategory.parent}
           onChange={handleInputChange}
           options={categoryOptions}
-          placeholder="Select Parent Category"
+          placeholder="select parent category"
         />
         <Button
           className="circle-button"

@@ -64,11 +64,11 @@ function EditParticipantItem({ isOpen, onClose, item }) {
             value={editedParticipant.category}
             onChange={handleInputChange}
             options={categoryOptions}
-            placeholder="Select Category"
+            placeholder="select category"
           />
           <div className="buttons">
-            <Button onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button onClick={onClose}>cancel</Button>
+            <Button onClick={handleSave}>save</Button>
           </div>
         </div>
       </Modal>
