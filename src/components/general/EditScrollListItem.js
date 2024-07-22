@@ -26,7 +26,7 @@ function EditScrollListItem({ isOpen, onClose, category, onSave }) {
 
   return (
     isOpen && (
-      <Modal onClose={onClose}>
+      <Modal onClose={onClose} title={"Edit Category"}>
         <div className="edit-scroll-list-item">
           <TextInput
             placeholder="Category Name"
