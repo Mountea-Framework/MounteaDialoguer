@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-
 import Modal from "../objects/Modal";
 import TextInput from "../objects/TextInput";
 import Dropdown from "../objects/Dropdown";
 import Button from "../objects/Button";
 import AppContext from "../../AppContext";
 
-function EditScrollListItem({ isOpen, onClose, item, onSave }) {
-  const { categories } = useContext(AppContext);
+function EditCategoryItem({ isOpen, onClose, item }) {
+  const { categories, editCategory } = useContext(AppContext);
   const [editedCategory, setEditedCategory] = useState({
     name: "",
     parent: "",
@@ -19,7 +18,9 @@ function EditScrollListItem({ isOpen, onClose, item, onSave }) {
 
   useEffect(() => {
     if (item) {
-      const category = categories.find((cat) => cat.name === item.name);
+      const category = categories.find(
+        (cat) => cat.name === item.name && cat.parent === item.parent
+      );
       const parentCategory = category ? category.parent : "";
       const initialCategory = { name: item.name, parent: parentCategory };
 
@@ -33,7 +34,7 @@ function EditScrollListItem({ isOpen, onClose, item, onSave }) {
   };
 
   const handleSave = () => {
-    onSave(editedCategory, originalCategory);
+    editCategory(editedCategory, originalCategory); // Call editCategory from AppContext
     onClose();
   };
 
@@ -72,4 +73,4 @@ function EditScrollListItem({ isOpen, onClose, item, onSave }) {
   );
 }
 
-export default EditScrollListItem;
+export default EditCategoryItem;

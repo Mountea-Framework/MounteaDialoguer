@@ -65,14 +65,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const editCategory = (editedCategory, originalCategory) => {
-    const updatedCategories = categories.map((category) =>
-      category.name === originalCategory.name &&
-      category.parent === originalCategory.parent
-        ? editedCategory
-        : category
-    );
-    setCategories(updatedCategories);
-
+    // Deduplicate participants
     const updatedParticipants = participants.map((participant) => {
       if (
         participant.category ===
@@ -99,7 +92,44 @@ export const AppProvider = ({ children }) => {
       return participant;
     });
 
-    setParticipants(updatedParticipants);
+    const uniqueParticipants = Array.from(
+      new Set(updatedParticipants.map((p) => JSON.stringify(p)))
+    ).map((p) => JSON.parse(p));
+
+    setParticipants(uniqueParticipants);
+
+    // Deduplicate categories
+    const duplicateCategory = categories.find(
+      (category) =>
+        category.name === editedCategory.name &&
+        category.parent === editedCategory.parent
+    );
+
+    if (duplicateCategory) {
+      // Log the duplicate case
+      console.log(
+        `Duplicate category found: name="${editedCategory.name}", parent="${editedCategory.parent}".`
+      );
+      // Remove the original category if duplicate exists
+      setCategories((prevCategories) =>
+        prevCategories.filter(
+          (category) =>
+            !(
+              category.name === originalCategory.name &&
+              category.parent === originalCategory.parent
+            )
+        )
+      );
+    } else {
+      // Update categories with new data
+      const updatedCategories = categories.map((category) =>
+        category.name === originalCategory.name &&
+        category.parent === originalCategory.parent
+          ? editedCategory
+          : category
+      );
+      setCategories(updatedCategories);
+    }
   };
 
   return (
