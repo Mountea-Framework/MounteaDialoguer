@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
+import EditScrollListItem from "../general/EditScrollListItem";
 
 import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
 import { ReactComponent as EditIcon } from "../../icons/editoIcon.svg";
+
 
 import "../../componentStyles/objects/ScrollListItem.css";
 
@@ -11,34 +13,50 @@ function ScrollListItem({
   onIconClick,
   className,
   classState,
+  onEdit, // New prop for handling edit
 }) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    setIsEditOpen(true);
+  };
+
+  const handleSave = (editedItem) => {
+    onEdit(editedItem);
+  };
+
   return (
-    <li
-      className={`${classState ? classState : "primary"} ${
-        className ? className : "scroll-list-item"
-      }`}
-      onClick={() => onSelect(item)}
-    >
-      <span className="item-text">{item}</span>
-      <span
-        className="item-icon edit-icon"
-        onClick={(e) => {
-          e.stopPropagation();
-          console.log("edit requested");
-        }}
+    <>
+      <li
+        className={`${classState ? classState : "primary"} ${
+          className ? className : "scroll-list-item"
+        }`}
+        onClick={() => onSelect(item)}
       >
-        <EditIcon />
-      </span>
-      <span
-        className={`item-icon remove-icon ${classState ? classState : "primary"}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onIconClick(item);
-        }}
-      >
-        <RemoveIcon />
-      </span>
-    </li>
+        <span className="item-text">{item}</span>
+        <span className="item-icon edit-icon" onClick={handleEditClick}>
+          <EditIcon />
+        </span>
+        <span
+          className={`item-icon remove-icon ${
+            classState ? classState : "primary"
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onIconClick(item);
+          }}
+        >
+          <RemoveIcon />
+        </span>
+      </li>
+      <EditScrollListItem
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        category={item}
+        onSave={handleSave}
+      />
+    </>
   );
 }
 

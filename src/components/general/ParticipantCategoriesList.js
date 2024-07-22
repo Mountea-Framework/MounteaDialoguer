@@ -4,7 +4,14 @@ import ScrollList from "../objects/ScrollList";
 import AppContext from "../../AppContext";
 
 function ParticipantCategoriesList() {
-  const { categories, deleteCategory } = useContext(AppContext);
+  const { categories, setCategories } = useContext(AppContext);
+
+  const handleEditCategory = (editedCategory) => {
+    const updatedCategories = categories.map((category) =>
+      category.name === editedCategory.name ? editedCategory : category
+    );
+    setCategories(updatedCategories);
+  };
 
   return (
     <div className="scroll-container">
@@ -14,7 +21,10 @@ function ParticipantCategoriesList() {
         items={categories.map((c) =>
           c.parent ? `${c.parent}.${c.name}` : c.name
         )}
-        onIconClick={deleteCategory}
+        onIconClick={(categoryName) =>
+          setCategories(categories.filter((c) => c.name !== categoryName))
+        }
+        onEdit={handleEditCategory} // Pass the onEdit handler
       />
     </div>
   );

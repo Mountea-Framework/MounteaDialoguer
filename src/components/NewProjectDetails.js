@@ -55,6 +55,33 @@ function NewProjectDetails({ projectData, onReturn }) {
     setParticipants(updatedParticipants);
   };
 
+  const handleEditCategory = (editedCategory) => {
+    const updatedCategories = categories.map((category) =>
+      category.name === editedCategory.name ? editedCategory : category
+    );
+
+    const updatedParticipants = participants.map((participant) => {
+      if (participant.category === editedCategory.name) {
+        return { ...participant, category: editedCategory.name };
+      }
+      if (participant.category.startsWith(`${editedCategory.name}.`)) {
+        return {
+          ...participant,
+          category: participant.category.replace(
+            `${editedCategory.name}.`,
+            `${editedCategory.parent ? `${editedCategory.parent}.` : ""}${
+              editedCategory.name
+            }.`
+          ),
+        };
+      }
+      return participant;
+    });
+
+    setCategories(updatedCategories);
+    setParticipants(updatedParticipants);
+  };
+
   const handleDeleteParticipant = (participantName) => {
     const updatedParticipants = participants.filter(
       (participant) => `${participant.name} - ${participant.category}` !== participantName
@@ -90,6 +117,7 @@ function NewProjectDetails({ projectData, onReturn }) {
           <ParticipantCategoriesList
             categories={categories}
             onDeleteCategory={handleDeleteCategory}
+            onEditCategory={handleEditCategory}
           />
         </div>
         <div className="scrollable-sections">
