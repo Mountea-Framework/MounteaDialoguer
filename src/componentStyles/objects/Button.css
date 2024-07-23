@@ -25,3 +25,8 @@
   align-items: center;
   justify-content: center;
 }
+
+.node-edge-button {
+  pointer-events: all;
+  overflow: visible;
+}
