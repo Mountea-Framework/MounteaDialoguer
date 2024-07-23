@@ -9,9 +9,9 @@ function ParticipantCategoriesList() {
 
   const combinedCategories = categories.map((category) => ({
     ...category,
-    displayName: `${category.name}${
-      category.parent ? `.${category.parent}` : ""
-    }`,
+    displayName: `${
+      category.parent ? `${category.parent}.` : ""
+    }${category.name}`,
   }));
 
   const handleDeleteCategory = (categoryToDelete) => {

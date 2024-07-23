@@ -38,10 +38,18 @@ function EditCategoryItem({ isOpen, onClose, item }) {
     onClose();
   };
 
-  const categoryOptions = categories.map((cat) => ({
-    value: cat.parent ? `${cat.parent}.${cat.name}` : cat.name,
-    label: cat.parent ? `${cat.parent}.${cat.name}` : cat.name,
-  }));
+  const categoryOptions = categories
+    .filter(
+      (cat) =>
+        !(
+          cat.name === originalCategory.name &&
+          cat.parent === originalCategory.parent
+        )
+    )
+    .map((cat) => ({
+      value: cat.parent ? `${cat.parent}.${cat.name}` : cat.name,
+      label: cat.parent ? `${cat.parent}.${cat.name}` : cat.name,
+    }));
 
   return (
     isOpen && (
