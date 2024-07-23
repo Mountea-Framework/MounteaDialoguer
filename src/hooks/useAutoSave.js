@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import mergeWithExistingData from "../helpers/autoSaveHelpers";
 
 const saveProjectToLocalStorage = (projectData) => {
-  localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
+  const mergedData = mergeWithExistingData(projectData);
+  localStorage.setItem("autoSaveProject", JSON.stringify(mergedData));
 };
 
 const useAutoSave = (name, categories, participants) => {
