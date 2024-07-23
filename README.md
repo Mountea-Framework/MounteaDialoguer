@@ -246,8 +246,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 We appreciate the contributions from the open-source community and the following libraries that made this project possible:
-- React
-- Redux
-- React Flow
-- Google Fonts
-- Google Icons
+- [React](https://react.dev/)
+- [Redux](https://redux.js.org/)
+- [React Flow](https://reactflow.dev/)
+- [Google Fonts](https://fonts.google.com/)
+- [Google Icons](https://fonts.google.com/icons)
