@@ -1,5 +1,14 @@
 # Mountea Dialoguer
 
+Welcome to the Dialogue Editor Tool, a comprehensive solution for creating and managing dialogue systems for various applications. This tool offers an intuitive interface for designing dialogue flows, managing participants, and customizing interactions.
+
+## Features
+- **Interactive Dialogue Canvas:** Easily create and edit dialogue nodes in easy to understand graph mode.
+- **Participant Management:** Add and categorize dialogue participants.
+- **Project Management:** Create, load, and manage multiple projects.
+- **Customizable Styles:** Tailor the look and feel with custom CSS.
+- **Auto-Save Functionality:** Ensures your work is saved periodically to prevent data loss.
+
 ## Showcase
 
 <p align="center" width="100%">
@@ -8,11 +17,12 @@
 
 ## Table of Contents
 1. [Project Structure](#project-structure)
-2. [Styling Structure](#styling-structure)
-3. [Context Management](#context-management)
-4. [Components Overview](#components-overview)
-5. [Building the App](#building-the-app)
-6. [Usage](#usage)
+2. [Components Overview](#components-overview)
+3. [Building the App](#building-the-app)
+4. [Usage](#usage)
+5. [Contributing](#contributing)
+6. [License](#license)
+7. [Acknowledgments](#acknowledgments)
 
 ## Project Structure
 
@@ -20,147 +30,153 @@ The project is organized in a way that separates components, hooks, and styles f
 
 ```
 src/
+|-- base/
+|   |-- BaseNodesStyle.css
+|   |-- BaseStyle.css
+|   |-- ColorPalette.css
 |-- components/
+|   |-- dialogueNodes/
+|   |   |-- answerNode.js
+|   |   |-- baseNode.js
+|   |   |-- closeDialogueAutomaticNode.js
+|   |   |-- closeDialogueNode.js
+|   |   |-- jumpToNode.js
+|   |   |-- leadNode.js
+|   |   |-- startNode.js
+|   |-- editorComponents/
+|   |   |-- DialogueEditorCanvas.js
+|   |   |-- DialogueEditorDetails.js
+|   |   |-- DialogueEditorToolbar.js
+|   |-- general/
+|   |   |-- DialogueParticipantsHeader.js
+|   |   |-- DialogueParticipantsList.js
+|   |   |-- EditCategoryItem.js
+|   |   |-- EditParticipantItem.js
+|   |   |-- ParticipantCategorierHeader.js
+|   |   |-- ParticipantCategoriesList.js
 |   |-- objects/
 |   |   |-- Button.js
 |   |   |-- Dropdown.js
+|   |   |-- Modal.js
 |   |   |-- ScrollList.js
 |   |   |-- ScrollListItem.js
 |   |   |-- TextInput.js
 |   |   |-- Title.js
 |   |-- DialogueCanvas.js
+|   |-- DialogueEditor.js
 |   |-- DialogueParticipants.js
 |   |-- LandingPage.js
 |   |-- LoadProject.js
 |   |-- NewProject.js
 |   |-- NewProjectDetails.js
 |   |-- ParticipantCategories.js
-|-- hooks/
-|   |-- useAutoSave.js
 |-- componentStyles/
+|   |-- editorComponentStyles/
+|   |   |-- DialogueEditorCanvas.css
+|   |   |-- DialogueEditorDetails.css
+|   |   |-- DialogueEditorToolbar.css
 |   |-- objects/
 |   |   |-- Button.css
 |   |   |-- Dropdown.css
+|   |   |-- Modal.css
 |   |   |-- ScrollList.css
+|   |   |-- ScrollListItem.css
 |   |   |-- TextInput.css
 |   |   |-- Title.css
 |   |-- DialogueCanvas.css
+|   |-- DialogueEditor.css
 |   |-- DialogueParticipants.css
 |   |-- LandingPage.css
 |   |-- LoadProject.css
 |   |-- NewProject.css
 |   |-- NewProjectDetails.css
 |   |-- ParticipantCategories.css
-|-- base/
-|   |-- BaseStyle.css
-|   |-- ColorPalette.css
+|   |-- dialogueNodes/
+|   |   |-- customNode.css
+|-- hooks/
+|   |-- useAutoSave.js
+|-- icons/
+|   |-- addIcon.svg
+|   |-- editoIcon.svg
+|   |-- removeIcon.svg
+|-- App.css
 |-- App.js
+|-- App.test.js
 |-- AppContext.js
+|-- index.css
 |-- index.js
+|-- logo.svg
 ```
 
 ### Key Files and Folders
 
 - **components/**: Contains all the React components used in the application.
-  - **objects/**: Reusable UI components like buttons, dropdowns, and input fields.
-  - **DialogueCanvas.js**: The main container component that manages the state and renders different pages based on the context.
-  - **LandingPage.js**: The landing page that allows users to create a new project or load an existing one.
+  - **dialogueNodes/**: Components related to dialogue nodes such as `answerNode.js`, `baseNode.js`, etc.
+  - **editorComponents/**: Components used in the dialogue editor like `DialogueEditorCanvas.js`, `DialogueEditorDetails.js`, etc.
+  - **general/**: General components like `DialogueParticipantsHeader.js`, `DialogueParticipantsList.js`, etc.
+  - **objects/**: Reusable UI components like buttons, dropdowns, modals, etc.
+  - **DialogueCanvas.js**: The main container component for the dialogue canvas.
+  - **DialogueEditor.js**: Main editor component.
+  - **DialogueParticipants.js**: Manages dialogue participants.
+  - **LandingPage.js**: The landing page component.
+  - **LoadProject.js**: Component for loading existing projects.
   - **NewProject.js**: Component for creating a new project.
   - **NewProjectDetails.js**: Detailed view for configuring the new project.
   - **ParticipantCategories.js**: Manages participant categories.
-  - **DialogueParticipants.js**: Manages dialogue participants.
-
-- **hooks/**: Contains custom hooks used in the application.
-  - **useAutoSave.js**: A custom hook that autosaves project data to local storage.
-
-- **componentStyles/**: Contains CSS files for styling the components.
-  - **objects/**: Styles for the reusable UI components.
-  - **DialogueCanvas.css**: Styles for the DialogueCanvas component.
-  - **LandingPage.css**: Styles for the LandingPage component.
-  - **NewProject.css**: Styles for the NewProject component.
-  - **NewProjectDetails.css**: Styles for the NewProjectDetails component.
-  - **ParticipantCategories.css**: Styles for the ParticipantCategories component.
-  - **DialogueParticipants.css**: Styles for the DialogueParticipants component.
-
-- **base/**: Contains base styles and color palettes used throughout the application.
-  - **BaseStyle.css**: Global styles for the application.
-  - **ColorPalette.css**: Defines the color scheme used in the application.
-
-- **App.js**: The root component that initializes the application and wraps it in the AppProvider for context.
-- **AppContext.js**: Defines the context and provider for managing global state.
-- **index.js**: Entry point of the application.
-
-## Styling Structure
-
-The styling in this project follows a modular approach where each component has its own CSS file. This makes it easier to manage and maintain styles specific to each component. The styles are organized as follows:
-
-- **Base Styles**: Contained in the `base/` folder, these styles include global resets, common typography, and the color palette used across the app.
-- **Component Styles**: Each component has a corresponding CSS file in the `componentStyles/` folder. This ensures that styles are scoped to the component, preventing unintended side effects.
-- **Object Styles**: Reusable UI elements like buttons, inputs, and dropdowns have their styles in the `objects/` folder within `componentStyles/`.
-
-### CSS File Naming
-
-- **Button.css**: Styles for the Button component.
-- **Dropdown.css**: Styles for the Dropdown component.
-- **ScrollList.css**: Styles for the ScrollList component.
-- **TextInput.css**: Styles for the TextInput component.
-- **Title.css**: Styles for the Title component.
-- **DialogueCanvas.css**: Styles for the DialogueCanvas component.
-- **LandingPage.css**: Styles for the LandingPage component.
-- **LoadProject.css**: Styles for the LoadProject component.
-- **NewProject.css**: Styles for the NewProject component.
-- **NewProjectDetails.css**: Styles for the NewProjectDetails component.
-- **ParticipantCategories.css**: Styles for the ParticipantCategories component.
-- **DialogueParticipants.css**: Styles for the DialogueParticipants component.
-
-## Context Management
-
-The app uses React Context for managing global state. The `AppContext.js` file defines the context and provider:
-
-- **AppContext**: The context object that holds the state and functions.
-- **AppProvider**: The provider component that wraps the app and provides the context values.
-
-### AppContext.js
-
-The context manages categories, participants, and the visibility of the landing page.
-
-- **State Variables**:
-  - `categories`: Array of categories.
-  - `participants`: Array of participants.
-  - `showLandingPage`: Boolean indicating whether the landing page is visible.
-
-- **Functions**:
-  - `addCategory`: Adds a new category.
-  - `deleteCategory`: Deletes a category.
-  - `setParticipants`: Sets the participants array.
-  - `setCategories`: Sets the categories array.
-  - `setShowLandingPage`: Toggles the visibility of the landing page.
+- **componentStyles/**: CSS files for styling the components.
+  - **editorComponentStyles/**: Styles for editor components.
+  - **objects/**: Styles for UI components.
+  - **dialogueNodes/**: Styles for dialogue nodes.
+- **hooks/**: Custom React hooks.
+  - **useAutoSave.js**: Hook that provides automatic saving functionality.
+- **icons/**: SVG icons used in the application.
+- **base/**: Base styles and CSS variables.
 
 ## Components Overview
 
-### DialogueCanvas.js
+The application is built with a variety of components organized into different categories for better maintainability and scalability. Here is an overview of the key components:
 
-The main container component that manages the state and renders different pages based on the context.
+### Dialogue Nodes
+- **answerNode.js**: Handles user answers in dialogues.
+- **baseNode.js**: The base class for all dialogue nodes.
+- **closeDialogueAutomaticNode.js**: Automatically closes the dialogue.
+- **closeDialogueNode.js**: Manually closes the dialogue.
+- **jumpToNode.js**: Jumps to a specific node in the dialogue.
+- **leadNode.js**: Leads the conversation forward.
+- **startNode.js**: The starting point of the dialogue.
 
-### LandingPage.js
+### Editor Components
+- **DialogueEditorCanvas.js**: The main canvas for editing dialogues.
+- **DialogueEditorDetails.js**: Provides details for the dialogue editor.
+- **DialogueEditorToolbar.js**: The toolbar with editing options.
 
-The landing page that allows users to create a new project or load an existing one.
+### General Components
+- **DialogueParticipantsHeader.js**: Header for the dialogue participants section.
+- **DialogueParticipantsList.js**: List of dialogue participants.
+- **EditCategoryItem.js**: Edit items in participant categories.
+- **EditParticipantItem.js**: Edit individual participants.
+- **ParticipantCategorierHeader.js**: Header for participant categories.
+- **ParticipantCategoriesList.js**: List of participant categories.
 
-### NewProject.js
+### Objects
+- **Button.js**: Reusable button component.
+- **Dropdown.js**: Reusable dropdown component.
+- **Modal.js**: Reusable modal component.
+- **ScrollList.js**: Reusable scrollable list component.
+- **ScrollListItem.js**: Items within the scrollable list.
+- **TextInput.js**: Reusable text input component.
+- **Title.js**: Reusable title component.
 
-Component for creating a new project. It transitions to `NewProjectDetails` upon entering a project name.
+### Main Components
+- **DialogueCanvas.js**: The main container component for the dialogue canvas.
+- **DialogueEditor.js**: Main editor component for dialogues.
+- **DialogueParticipants.js**: Manages dialogue participants.
+- **LandingPage.js**: The landing page component.
+- **LoadProject.js**: Component for loading existing projects.
+- **NewProject.js**: Component for creating a new project.
+- **NewProjectDetails.js**: Detailed view for configuring the new project.
+- **ParticipantCategories.js**: Manages participant categories.
 
-### NewProjectDetails.js
-
-Detailed view for configuring the new project. It uses the `useAutoSave` hook to autosave project data.
-
-### ParticipantCategories.js
-
-Manages participant categories. Allows adding and deleting categories.
-
-### DialogueParticipants.js
-
-Manages dialogue participants. Participants can be assigned to categories.
 
 ## Building the App
 
@@ -168,36 +184,35 @@ To build and run the app locally, follow these steps:
 
 ### Prerequisites
 
-- Node.js and npm installed on your machine.
+- Node.js (v14.0.0 or higher)
+- npm (v6.0.0 or higher)
 
 ### Steps
 
 1. **Clone the Repository**:
-   ```
-   git clone https://github.com/Mountea-Framework/MounteaDialoguer
+   ```sh
+   git clone https://github.com/yourusername/dialogue-editor-tool.git
    ```
 
 2. **Navigate to the Project Directory**:
-   ```
-   cd <project-directory>
+   ```sh
+   cd dialogue-editor-tool
    ```
 
 3. **Install Dependencies**:
-   ```
+   ```sh
    npm install
-
-   npm install reactflow
    ```
 
 4. **Start the Development Server**:
-   ```
+   ```sh
    npm start
    ```
 
    This will start the development server and open the app in your default browser. The app will automatically reload if you make changes to the code.
 
 5. **Build the App for Production**:
-   ```
+   ```sh
    npm run build
    ```
 
@@ -219,3 +234,20 @@ To build and run the app locally, follow these steps:
 ### Autosave
 
 The app automatically saves the project data to local storage every time categories or participants are updated. This ensures that your work is not lost if you accidentally close the browser or navigate away from the app.
+
+## Contributing
+
+We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+We appreciate the contributions from the open-source community and the following libraries that made this project possible:
+- React
+- Redux
+- React Flow
+- Google Fonts
+- Google Icons
