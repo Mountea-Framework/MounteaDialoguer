@@ -38,7 +38,7 @@ const nodeTypes = {
 
 const edgeTypes = {
 	customEdge: CustomEdge,
-  };
+};
 
 const initialNodes = [
 	{
@@ -51,7 +51,10 @@ const initialNodes = [
 		id: "1",
 		type: "leadNode",
 		position: { x: 250, y: 250 },
-		data: { title: "Lead Node", nodeId: "05ad91d6-de8a-4521-a537-5d55053b1825" },
+		data: {
+			title: "Lead Node",
+			nodeId: uuidv4(),
+		},
 	},
 ];
 
@@ -62,6 +65,18 @@ const DialogueEditorCanvas = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+	// THIS IS FOR TESTING ONLY
+	const handlePaneContextMenu = (event) => {
+		event.preventDefault();
+		const newNode = {
+			id: `${nodes.length}`,
+			type: "leadNode",
+			position: { x: 0, y: 0 },
+			data: { title: "New Node", nodeId: uuidv4() },
+		};
+		setNodes((nds) => nds.concat(newNode));
+	};
+
 	const onReconnect = useCallback(
 		(oldEdge, newConnection) =>
 			setEdges((els) => reconnectEdge(oldEdge, newConnection, els)),
@@ -69,22 +84,17 @@ const DialogueEditorCanvas = () => {
 	);
 	const onConnect = useCallback(
 		(connection) => {
-		  const edge = { ...connection, type: 'customEdge' };
-		  setEdges((eds) => addEdge(edge, eds));
+			const edge = { ...connection, type: "customEdge" };
+			setEdges((eds) => addEdge(edge, eds));
 		},
-		[setEdges],
-	  );
+		[setEdges]
+	);
 
 	const isValidConnection = (connection) => {
 		return connection.source !== connection.target;
 	};
 
-	const nodeList = nodes.map((node) => ({
-		NodeName: node.data.title,
-		NodeID: node.data.nodeId,
-	}));
-
-	useAutoSaveNodesAndEdges(nodeList, edges);
+	useAutoSaveNodesAndEdges(nodes, edges);
 	useAutoSave(name, categories, participants);
 
 	return (
@@ -100,6 +110,7 @@ const DialogueEditorCanvas = () => {
 				}
 				onConnectStop={(event) => console.log("connect stop", event)}
 				onConnectEnd={(event) => console.log("connect end", event)}
+				onPaneContextMenu={handlePaneContextMenu}
 				isValidConnection={isValidConnection}
 				snapToGrid
 				onReconnect={onReconnect}
