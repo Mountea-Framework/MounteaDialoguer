@@ -35,8 +35,8 @@ const FileProvider = ({ children }) => {
 				suggestedName: `${jsonData.name}`,
 				types: [
 					{
-						description: "Mnteadlg Files",
-						accept: { "application/zip": [".mnteadlg"] },
+						description: "Mountea Dialogue Files",
+						accept: { "application/mnteadlg": [".mnteadlg"] },
 					},
 				],
 			};
