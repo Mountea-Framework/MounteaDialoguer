@@ -43,10 +43,13 @@ const edgeTypes = {
 
 const initialNodes = [
 	{
-		id: uuidv4(),
+		id: "00000000-0000-0000-0000-000000000001",
 		type: "startNode",
 		position: { x: 250, y: 0 },
-		data: { title: "Start Node", nodeId: uuidv4() },
+		data: {
+			title: "Start Node",
+			nodeId: "00000000-0000-0000-0000-000000000001",
+		},
 	},
 ];
 
@@ -101,6 +104,28 @@ const DialogueEditorCanvas = () => {
 
 	const isValidConnection = (connection) => {
 		return connection.source !== connection.target;
+	};
+
+	const handleMouseDown = (event) => {
+		if (event.button === 2) {
+			// Right click
+			if (event.detail === 1) {
+				console.log("Single right-click");
+			} else if (event.detail > 1) {
+				console.log("Right-click and hold");
+			}
+		} else if (event.button === 0) {
+			// Left click
+			if (event.detail === 1) {
+				// Single click
+				// Handle left-click (open add node menu) logic here
+				handlePaneContextMenu(event);
+			} else if (event.detail > 1) {
+				// Click and hold
+				// Handle left-click and hold (enable moving around canvas) logic here
+				console.log("Left-click and hold");
+			}
+		}
 	};
 
 	useAutoSaveNodesAndEdges(nodes, edges);

@@ -6,7 +6,6 @@ const CloseDialogueAutomaticNode = (props) => {
 		...props.data,
 		customClassName: "close-dialogue-automatic-node",
 		title: "Auto Close",
-		sourceHandle: true,
 		targetHandle: true,
 	};
 

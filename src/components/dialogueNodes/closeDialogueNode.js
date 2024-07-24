@@ -6,7 +6,6 @@ const CloseDialogueNode = (props) => {
 		...props.data,
 		customClassName: "close-dialogue-node",
 		title: "Close",
-		sourceHandle: true,
 		targetHandle: true,
 	};
 

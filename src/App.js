@@ -8,6 +8,7 @@ import { FileProvider } from "./FileProvider";
 import "./App.css";
 import "./base/ColorPalette.css";
 import "./base/BaseStyle.css";
+import { ReactFlowProvider } from "reactflow";
 
 function App() {
 	useEffect(() => {
@@ -25,9 +26,11 @@ function App() {
 		<AppProvider>
 			<FileProvider>
 				<div id="App" className="App">
-					<DialogueCanvas>
-						<LandingPage />
-					</DialogueCanvas>
+					<ReactFlowProvider>
+						<DialogueCanvas>
+							<LandingPage />
+						</DialogueCanvas>
+					</ReactFlowProvider>
 					<footer className="footer">
 						<p>app version: 0.0.0.1a</p>
 					</footer>
