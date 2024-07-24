@@ -2,22 +2,10 @@ import React from "react";
 import Modal from "../objects/Modal";
 import Button from "../objects/Button";
 
-const SpawnNewNode = ({
-	isOpen,
-	onClose,
-	nodeTypes,
-	onSpawn,
-	canvasTransform,
-}) => {
+const SpawnNewNode = ({ isOpen, onClose, nodeTypes, onSpawn }) => {
 	const nodeTypeList = Object.keys(nodeTypes).map((key) => ({
 		name: key,
 	}));
-
-	const transformStyle = {
-		transform: `translate(${canvasTransform[0] / 2}px, ${
-			canvasTransform[1] / 2
-		}px) scale(${canvasTransform[2]})`,
-	};
 
 	return (
 		isOpen && (

@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, {
+	useState,
+	useCallback,
+	useContext,
+	useRef,
+	useEffect,
+} from "react";
 import ReactFlow, {
 	useNodesState,
 	useEdgesState,
@@ -6,6 +12,7 @@ import ReactFlow, {
 	reconnectEdge,
 	addEdge,
 	SelectionMode,
+	useReactFlow,
 } from "reactflow";
 import { v4 as uuidv4 } from "uuid";
 
@@ -63,22 +70,28 @@ const DialogueEditorCanvas = () => {
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [canvasTransform, setCanvasTransform] = useState([1, 0, 0]);
+	const [contextMenuPosition, setContextMenuPosition] = useState({
+		x: 0,
+		y: 0,
+	});
+
+	const reactFlowWrapper = useRef(null);
+	const { project } = useReactFlow();
 
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
+		const { clientX, clientY } = event;
+		console.log(`Right-click at position: X=${clientX}, Y=${clientY}`);
+		setContextMenuPosition({ x: clientX, y: clientY });
 		setIsModalOpen(true);
 	};
 
-	const handleTransform = useCallback((transform) => {
-		setCanvasTransform(transform);
-	}, []);
-
 	const handleSpawnNode = (type) => {
-		console.log(type);
+		const projectedPosition = project(contextMenuPosition);
 		const newNode = {
 			id: uuidv4(),
 			type: type,
-			position: { x: 0, y: 0 },
+			position: { x: projectedPosition.x, y: projectedPosition.y },
 			data: {
 				title: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
 				nodeId: uuidv4(),
@@ -106,34 +119,26 @@ const DialogueEditorCanvas = () => {
 		return connection.source !== connection.target;
 	};
 
-	const handleMouseDown = (event) => {
-		if (event.button === 2) {
-			// Right click
-			if (event.detail === 1) {
-				console.log("Single right-click");
-			} else if (event.detail > 1) {
-				console.log("Right-click and hold");
-			}
-		} else if (event.button === 0) {
-			// Left click
-			if (event.detail === 1) {
-				// Single click
-				// Handle left-click (open add node menu) logic here
-				handlePaneContextMenu(event);
-			} else if (event.detail > 1) {
-				// Click and hold
-				// Handle left-click and hold (enable moving around canvas) logic here
-				console.log("Left-click and hold");
-			}
-		}
-	};
-
 	useAutoSaveNodesAndEdges(nodes, edges);
 	useAutoSave(name, categories, participants);
+
+	useEffect(() => {
+		const handleContextMenu = (event) => {
+			event.preventDefault();
+		};
+
+		const currentWrapper = reactFlowWrapper.current;
+		currentWrapper.addEventListener("contextmenu", handleContextMenu);
+
+		return () => {
+			currentWrapper.removeEventListener("contextmenu", handleContextMenu);
+		};
+	}, []);
 
 	return (
 		<div
 			className="dialogue-editor-canvas background-transparent-primary"
+			ref={reactFlowWrapper}
 			onContextMenu={handlePaneContextMenu}
 		>
 			<ReactFlow
@@ -155,7 +160,6 @@ const DialogueEditorCanvas = () => {
 				maxZoom={1.75}
 				minZoom={0.25}
 				fitView
-				onMoveEnd={handleTransform}
 				selectionOnDrag
 				panOnDrag={panOnDrag}
 				selectionMode={SelectionMode.Partial}
@@ -167,7 +171,6 @@ const DialogueEditorCanvas = () => {
 				onClose={() => setIsModalOpen(false)}
 				nodeTypes={nodeTypes}
 				onSpawn={handleSpawnNode}
-				canvasTransform={canvasTransform}
 			/>
 		</div>
 	);
