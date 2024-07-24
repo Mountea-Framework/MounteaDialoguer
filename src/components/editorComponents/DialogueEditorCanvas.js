@@ -36,31 +36,13 @@ import "reactflow/dist/style.css";
 import "../../componentStyles/editorComponentStyles/DialogueEditorCanvas.css";
 import "../../base/BaseNodesStyle.css";
 
-const nodeTypesConfig = {
-	startNode: {
-		component: StartNode,
-		canCreate: false,
-	},
-	leadNode: {
-		component: LeadNode,
-		canCreate: true,
-	},
-	answerNode: {
-		component: AnswerNode,
-		canCreate: true,
-	},
-	closeDialogueNode: {
-		component: CloseDialogueNode,
-		canCreate: true,
-	},
-	closeDialogueAutomaticNode: {
-		component: CloseDialogueAutomaticNode,
-		canCreate: true,
-	},
-	jumpToNode: {
-		component: JumpToNode,
-		canCreate: true,
-	},
+const nodeTypes = {
+	startNode: StartNode,
+	leadNode: LeadNode,
+	answerNode: AnswerNode,
+	closeDialogueNode: CloseDialogueNode,
+	closeDialogueAutomaticNode: CloseDialogueAutomaticNode,
+	jumpToNode: JumpToNode,
 };
 
 const edgeTypes = {
@@ -154,11 +136,11 @@ const DialogueEditorCanvas = () => {
 	}, []);
 
 	// Memoize nodeTypes to prevent unnecessary re-renders
-	const nodeTypes = useMemo(() => {
+	const memoizedNodeTypes = useMemo(() => {
 		return Object.fromEntries(
-			Object.entries(nodeTypesConfig).map(([key, value]) => [
+			Object.entries(nodeTypes).map(([key, value]) => [
 				key,
-				value.component,
+				value,
 			])
 		);
 	}, []);
@@ -183,7 +165,7 @@ const DialogueEditorCanvas = () => {
 				isValidConnection={isValidConnection}
 				snapToGrid
 				onReconnect={onReconnect}
-				nodeTypes={nodeTypes}
+				nodeTypes={memoizedNodeTypes}
 				edgeTypes={edgeTypes}
 				maxZoom={1.75}
 				minZoom={0.25}
@@ -197,7 +179,7 @@ const DialogueEditorCanvas = () => {
 			<SpawnNewNode
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
-				nodeTypes={nodeTypesConfig}
+				nodeTypes={memoizedNodeTypes}
 				onSpawn={handleSpawnNode}
 			/>
 		</div>

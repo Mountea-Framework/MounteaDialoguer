@@ -3,11 +3,21 @@ import React from "react";
 import Modal from "../objects/Modal";
 import Button from "../objects/Button";
 
+// Define the map of logical names and display names for the nodes
+const spawnNodeTypesMap = {
+	leadNode: "Lead Node",
+	answerNode: "Answer Node",
+	closeDialogueNode: "Close Dialogue Node",
+	closeDialogueAutomaticNode: "Auto Close Dialogue Node",
+	jumpToNode: "Jump To Node",
+};
+
 const SpawnNewNode = ({ isOpen, onClose, nodeTypes, onSpawn }) => {
 	const nodeTypeList = Object.keys(nodeTypes)
-		.filter((key) => nodeTypes[key].canCreate)
+		.filter((key) => key !== "startNode" && spawnNodeTypesMap[key])
 		.map((key) => ({
 			name: key,
+			displayName: spawnNodeTypesMap[key],
 		}));
 
 	return (
@@ -20,7 +30,7 @@ const SpawnNewNode = ({ isOpen, onClose, nodeTypes, onSpawn }) => {
 							onClick={() => onSpawn(nodeType.name)}
 							className="spawn-button"
 						>
-							{nodeType.name}
+							{nodeType.displayName}
 						</Button>
 					))}
 				</div>

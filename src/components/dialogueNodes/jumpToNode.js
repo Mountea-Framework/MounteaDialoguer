@@ -6,7 +6,6 @@ const JumpToNode = (props) => {
 		...props.data,
 		customClassName: "jump-to-node",
 		title: "Jump to",
-		sourceHandle: true,
 		targetHandle: true,
 	};
 
