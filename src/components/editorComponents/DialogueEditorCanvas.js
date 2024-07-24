@@ -48,16 +48,7 @@ const initialNodes = [
 		type: "startNode",
 		position: { x: 250, y: 0 },
 		data: { title: "Start Node", nodeId: uuidv4() },
-	},
-	{
-		id: "1",
-		type: "leadNode",
-		position: { x: 250, y: 250 },
-		data: {
-			title: "Lead Node",
-			nodeId: uuidv4(),
-		},
-	},
+	}
 ];
 
 const initialEdges = [];
@@ -67,11 +58,16 @@ const DialogueEditorCanvas = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [canvasTransform, setCanvasTransform] = useState([1, 0, 0]);
 
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
 		setIsModalOpen(true);
-	};
+	  };
+	
+	  const handleTransform = useCallback((transform) => {
+		setCanvasTransform(transform);
+	  }, []);
 
 	const handleSpawnNode = (type) => {
 		const newNode = {
@@ -129,6 +125,7 @@ const DialogueEditorCanvas = () => {
 				maxZoom={1.75}
 				minZoom={0.25}
 				fitView
+				onMoveEnd={handleTransform}
 			>
 				<Controls />
 			</ReactFlow>
@@ -137,6 +134,7 @@ const DialogueEditorCanvas = () => {
 				onClose={() => setIsModalOpen(false)}
 				nodeTypes={nodeTypes}
 				onSpawn={handleSpawnNode}
+				canvasTransform={canvasTransform}
 			/>
 		</div>
 	);
