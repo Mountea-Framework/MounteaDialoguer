@@ -5,6 +5,7 @@ import ReactFlow, {
 	Controls,
 	reconnectEdge,
 	addEdge,
+	SelectionMode,
 } from "reactflow";
 import { v4 as uuidv4 } from "uuid";
 
@@ -51,6 +52,8 @@ const initialNodes = [
 
 const initialEdges = [];
 
+const panOnDrag = [1, 2];
+
 const DialogueEditorCanvas = () => {
 	const { name, categories, participants } = useContext(AppContext);
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -68,6 +71,7 @@ const DialogueEditorCanvas = () => {
 	}, []);
 
 	const handleSpawnNode = (type) => {
+		console.log(type);
 		const newNode = {
 			id: uuidv4(),
 			type: type,
@@ -75,6 +79,7 @@ const DialogueEditorCanvas = () => {
 			data: {
 				title: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
 				nodeId: uuidv4(),
+				setEdges: setEdges,
 			},
 		};
 		setNodes((nds) => nds.concat(newNode));
@@ -126,6 +131,9 @@ const DialogueEditorCanvas = () => {
 				minZoom={0.25}
 				fitView
 				onMoveEnd={handleTransform}
+				selectionOnDrag
+				panOnDrag={panOnDrag}
+				selectionMode={SelectionMode.Partial}
 			>
 				<Controls />
 			</ReactFlow>
