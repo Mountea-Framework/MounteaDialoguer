@@ -164,6 +164,7 @@ const DialogueEditorCanvas = () => {
 				onConnectEnd={(event) => console.log("connect end", event)}
 				isValidConnection={isValidConnection}
 				snapToGrid
+				snapGrid={[10,10]}
 				onReconnect={onReconnect}
 				nodeTypes={memoizedNodeTypes}
 				edgeTypes={edgeTypes}

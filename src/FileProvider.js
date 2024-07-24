@@ -3,9 +3,57 @@ import JSZip from "jszip";
 
 const FileContext = createContext();
 
-export const FileProvider = ({ children }) => {
+const FileProvider = ({ children }) => {
 	const [file, setFile] = useState(null);
 	const [error, setError] = useState(null);
+
+	const generateFile = async () => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+
+		const jsonData = {
+			name: parsedData.name || "UntitledProject",
+			categories: parsedData.categories || [],
+			participants: parsedData.participants || [],
+			nodes: parsedData.nodes || [],
+			edges: parsedData.edges || [],
+		};
+
+		const zip = new JSZip();
+		zip.file("dialogueJson.json", JSON.stringify(jsonData));
+		zip.folder("audio"); // TODO: Actually add audio files once supported
+
+		try {
+			const content = await zip.generateAsync({ type: "blob" });
+
+			const options = {
+				suggestedName: `${jsonData.name}`,
+				types: [
+					{
+						description: "Mnteadlg Files",
+						accept: { "application/zip": [".mnteadlg"] },
+					},
+				],
+			};
+
+			const handle = await window.showSaveFilePicker(options);
+
+			const writable = await handle.createWritable();
+
+			await writable.write(content);
+
+			await writable.close();
+
+			setError(null);
+		} catch (e) {
+			setError("Error generating .mnteadlg file or saving it.");
+		}
+	};
 
 	const validateMnteadlgFile = async (file) => {
 		try {
@@ -18,7 +66,7 @@ export const FileProvider = ({ children }) => {
 			const dialogueJsonContent = await dialogueJsonFile.async("string");
 			const dialogueJson = JSON.parse(dialogueJsonContent);
 			if (
-				!dialogueJson.name ||
+				!dialogueJson.title ||
 				!Array.isArray(dialogueJson.categories) ||
 				!Array.isArray(dialogueJson.participants)
 			) {
@@ -43,16 +91,16 @@ export const FileProvider = ({ children }) => {
 	const handleFileChange = async (e, setProjectData, onSelectProject) => {
 		setError(null);
 		setFile(null);
-		setProjectData({ name: "", participants: [], categories: [] });
+		setProjectData({ title: "", participants: [], categories: [] });
 		const file = e.target.files[0];
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
 			if (validatedData) {
 				setFile(file);
 				onSelectProject(file.name);
-				const projectName = validatedData.name || "Untitled Project"; // Set a default name if none provided
-				setProjectData({ ...validatedData, name: projectName });
-				const autoSaveData = { ...validatedData, name: projectName };
+				const projectTitle = validatedData.title || "UntitledProject";
+				setProjectData({ ...validatedData, title: projectTitle });
+				const autoSaveData = { ...validatedData, title: projectTitle };
 				localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
 			}
 		} else {
@@ -68,16 +116,16 @@ export const FileProvider = ({ children }) => {
 		e.preventDefault();
 		setError(null);
 		setFile(null);
-		setProjectData({ name: "", participants: [], categories: [] });
+		setProjectData({ title: "", participants: [], categories: [] });
 		const file = e.dataTransfer.files[0];
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
 			if (validatedData) {
 				setFile(file);
 				onSelectProject(file.name);
-				const projectName = validatedData.name || "Untitled Project"; // Set a default name if none provided
-				setProjectData({ ...validatedData, name: projectName });
-				const autoSaveData = { ...validatedData, name: projectName };
+				const projectTitle = validatedData.title || "UntitledProject";
+				setProjectData({ ...validatedData, title: projectTitle });
+				const autoSaveData = { ...validatedData, title: projectTitle };
 				localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
 			}
 		} else {
@@ -98,6 +146,7 @@ export const FileProvider = ({ children }) => {
 				handleDragOver,
 				handleDrop,
 				handleClick,
+				generateFile,
 			}}
 		>
 			{children}
@@ -105,4 +154,4 @@ export const FileProvider = ({ children }) => {
 	);
 };
 
-export default FileContext;
+export { FileContext, FileProvider };

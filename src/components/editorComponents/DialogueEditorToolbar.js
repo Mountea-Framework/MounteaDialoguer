@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 
 import Button from "../../components/objects/Button";
-import FileContext from "../../FileProvider";
+import { FileContext } from "../../FileProvider";
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorToolbar.css";
 

@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
-import FileContext from "../../FileProvider";
+
+import { FileContext } from "../../FileProvider";
 
 const FileDrop = ({ setProjectData, onSelectProject }) => {
 	const {
