@@ -4,6 +4,7 @@ import React, {
 	useContext,
 	useRef,
 	useEffect,
+	useMemo,
 } from "react";
 import ReactFlow, {
 	useNodesState,
@@ -35,13 +36,31 @@ import "reactflow/dist/style.css";
 import "../../componentStyles/editorComponentStyles/DialogueEditorCanvas.css";
 import "../../base/BaseNodesStyle.css";
 
-const nodeTypes = {
-	startNode: StartNode,
-	leadNode: LeadNode,
-	answerNode: AnswerNode,
-	closeDialogueNode: CloseDialogueNode,
-	closeDialogueAutomaticNode: CloseDialogueAutomaticNode,
-	jumpToNode: JumpToNode,
+const nodeTypesConfig = {
+	startNode: {
+		component: StartNode,
+		canCreate: false,
+	},
+	leadNode: {
+		component: LeadNode,
+		canCreate: true,
+	},
+	answerNode: {
+		component: AnswerNode,
+		canCreate: true,
+	},
+	closeDialogueNode: {
+		component: CloseDialogueNode,
+		canCreate: true,
+	},
+	closeDialogueAutomaticNode: {
+		component: CloseDialogueAutomaticNode,
+		canCreate: true,
+	},
+	jumpToNode: {
+		component: JumpToNode,
+		canCreate: true,
+	},
 };
 
 const edgeTypes = {
@@ -69,7 +88,6 @@ const DialogueEditorCanvas = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [canvasTransform, setCanvasTransform] = useState([1, 0, 0]);
 	const [contextMenuPosition, setContextMenuPosition] = useState({
 		x: 0,
 		y: 0,
@@ -135,6 +153,16 @@ const DialogueEditorCanvas = () => {
 		};
 	}, []);
 
+	// Memoize nodeTypes to prevent unnecessary re-renders
+	const nodeTypes = useMemo(() => {
+		return Object.fromEntries(
+			Object.entries(nodeTypesConfig).map(([key, value]) => [
+				key,
+				value.component,
+			])
+		);
+	}, []);
+
 	return (
 		<div
 			className="dialogue-editor-canvas background-transparent-primary"
@@ -169,7 +197,7 @@ const DialogueEditorCanvas = () => {
 			<SpawnNewNode
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
-				nodeTypes={nodeTypes}
+				nodeTypes={nodeTypesConfig}
 				onSpawn={handleSpawnNode}
 			/>
 		</div>

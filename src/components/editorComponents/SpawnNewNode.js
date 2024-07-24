@@ -1,11 +1,14 @@
 import React from "react";
+
 import Modal from "../objects/Modal";
 import Button from "../objects/Button";
 
 const SpawnNewNode = ({ isOpen, onClose, nodeTypes, onSpawn }) => {
-	const nodeTypeList = Object.keys(nodeTypes).map((key) => ({
-		name: key,
-	}));
+	const nodeTypeList = Object.keys(nodeTypes)
+		.filter((key) => nodeTypes[key].canCreate)
+		.map((key) => ({
+			name: key,
+		}));
 
 	return (
 		isOpen && (

@@ -8,6 +8,7 @@ const StartNode = (props) => {
 		title: "Start Node",
 		sourceHandle: true,
 		canDelete: false,
+		canCreate: false,
 	};
 
 	return <BaseNode {...props} data={nodeData} />;
