@@ -3,5 +3,26 @@
 /* INVISIBLE BECAUSE MINIMAP IS OVERLAPPING */
 /* ---------------------------------------- */
 .react-flow__attribution {
-    display: none;
+	display: none;
+}
+
+.spawn-new-node {
+	width: 100%;
+	gap: 10%;
+	display: flex;
+	flex-direction: column;
+	align-content: stretch;
+	align-items: stretch;
+	justify-content: center;
+	flex-wrap: nowrap;
+}
+
+.spawn-new-node .button-container {
+	width: 100%;
+	height: 100%;
+}
+
+.spawn-new-node .spawn-button {
+	width: 100%;
+	height: 100%;
 }

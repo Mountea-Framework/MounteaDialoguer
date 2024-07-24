@@ -1,9 +1,27 @@
 import { useEffect } from "react";
-import mergeWithExistingData from "../helpers/autoSaveHelpers";
 
 const saveNodesAndEdgesToLocalStorage = (nodes, edges) => {
-	const mergedData = mergeWithExistingData({ nodes, edges });
-	localStorage.setItem("autoSaveProject", JSON.stringify(mergedData));
+	// Extract only the necessary serializable data from nodes and edges
+	const serializableNodes = nodes.map((node) => ({
+		id: node.id,
+		type: node.type,
+		position: node.position,
+		data: node.data, // Ensure `data` contains only serializable values
+	}));
+
+	const serializableEdges = edges.map((edge) => ({
+		id: edge.id,
+		source: edge.source,
+		target: edge.target,
+		type: edge.type,
+	}));
+
+	const projectData = {
+		nodes: serializableNodes,
+		edges: serializableEdges,
+	};
+
+	localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 };
 
 const useAutoSaveNodesAndEdges = (nodes, edges) => {

@@ -12,6 +12,8 @@ import AppContext from "../../AppContext";
 import useAutoSaveNodesAndEdges from "../../hooks/useAutoSaveNodesAndEdges";
 import useAutoSave from "../../hooks/useAutoSave";
 
+import SpawnNewNode from "./SpawnNewNode";
+
 import CustomEdge from "../dialogueEdges/baseEdge";
 
 import StartNode from "../dialogueNodes/startNode";
@@ -64,17 +66,25 @@ const DialogueEditorCanvas = () => {
 	const { name, categories, participants } = useContext(AppContext);
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	const [isModalOpen, setIsModalOpen] = useState(false);
 
-	// THIS IS FOR TESTING ONLY
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
+		setIsModalOpen(true);
+	};
+
+	const handleSpawnNode = (type) => {
 		const newNode = {
 			id: `${nodes.length}`,
-			type: "leadNode",
+			type: type,
 			position: { x: 0, y: 0 },
-			data: { title: "New Node", nodeId: uuidv4() },
+			data: {
+				title: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+				nodeId: uuidv4(),
+			},
 		};
 		setNodes((nds) => nds.concat(newNode));
+		setIsModalOpen(false);
 	};
 
 	const onReconnect = useCallback(
@@ -122,6 +132,12 @@ const DialogueEditorCanvas = () => {
 			>
 				<Controls />
 			</ReactFlow>
+			<SpawnNewNode
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				nodeTypes={nodeTypes}
+				onSpawn={handleSpawnNode}
+			/>
 		</div>
 	);
 };
