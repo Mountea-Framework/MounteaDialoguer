@@ -10,7 +10,7 @@ import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
 import "../../componentStyles/dialogueNodes/customNode.css";
 
 const BaseNode = ({ id, data }) => {
-	const { customClassName, title, targetHandle, sourceHandle } = data;
+	const { customClassName, title, targetHandle, sourceHandle, canDelete = true  } = data;
 	const [nodeId, setNodeId] = useState(data.nodeId || uuidv4());
 	const { setNodes } = useReactFlow();
 
@@ -22,19 +22,20 @@ const BaseNode = ({ id, data }) => {
 
 	return (
 		<div className="custom-node-border">
-			<Button
-				className="circle-button nodrag nopan node-button-delete"
-				onClick={() => {
-					console.log("Node ID:", id); // Debugging line
-					setNodes((nds) => nds.filter((node) => node.id !== id));
-				}}
-			>
-				<RemoveIcon
-					style={{
-						pointerEvents: "none",
+			{canDelete && (
+				<Button
+					className="circle-button nodrag nopan node-button-delete"
+					onClick={() => {
+						setNodes((nds) => nds.filter((node) => node.id !== id));
 					}}
-				/>
-			</Button>
+				>
+					<RemoveIcon
+						style={{
+							pointerEvents: "none",
+						}}
+					/>
+				</Button>
+			)}
 			<div className={`custom-node ${customClassName || ""}`}>
 				<Title
 					level="4"
