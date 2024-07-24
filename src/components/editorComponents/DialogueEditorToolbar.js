@@ -1,28 +1,36 @@
-import React, { useState, useContext } from "react";
+import React, { useContext } from "react";
 
 import Button from "../../components/objects/Button";
+import FileContext from "../../FileProvider";
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorToolbar.css";
 
-function DialogueEditorTooblar() {
-  return (
-    <div className="dialogue-editor-toolbar background-secondary">
-      <Button
-        containerClassName={"toolbar-button-container"}
-        className={"custom-button toolbar-button"}
-        classState={"tertiary"}
-      >
-        save
-      </Button>
-      <Button
-        containerClassName={"toolbar-button-container"}
-        className={"custom-button toolbar-button"}
-        classState={"tertiary"}
-      >
-        load
-      </Button>
-    </div>
-  );
+function DialogueEditorToolbar() {
+	const { generateFile } = useContext(FileContext);
+
+	const handleSave = () => {
+		generateFile();
+	};
+
+	return (
+		<div className="dialogue-editor-toolbar background-secondary">
+			<Button
+				containerClassName={"toolbar-button-container"}
+				className={"custom-button toolbar-button"}
+				classState={"tertiary"}
+				onClick={handleSave}
+			>
+				Save
+			</Button>
+			<Button
+				containerClassName={"toolbar-button-container"}
+				className={"custom-button toolbar-button"}
+				classState={"tertiary"}
+			>
+				Load
+			</Button>
+		</div>
+	);
 }
 
-export default DialogueEditorTooblar;
+export default DialogueEditorToolbar;

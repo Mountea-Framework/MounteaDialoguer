@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+
 import mergeWithExistingData from "../helpers/autoSaveHelpers";
 
 const saveProjectToLocalStorage = (projectData) => {
