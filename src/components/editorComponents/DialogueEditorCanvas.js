@@ -27,8 +27,6 @@ import "reactflow/dist/style.css";
 import "../../componentStyles/editorComponentStyles/DialogueEditorCanvas.css";
 import "../../base/BaseNodesStyle.css";
 
-// TODO: https://reactflow.dev/learn/layouting/layouting implement Vertical Layout
-
 const nodeTypes = {
 	startNode: StartNode,
 	leadNode: LeadNode,
@@ -44,11 +42,11 @@ const edgeTypes = {
 
 const initialNodes = [
 	{
-		id: "0",
+		id: uuidv4(),
 		type: "startNode",
 		position: { x: 250, y: 0 },
 		data: { title: "Start Node", nodeId: uuidv4() },
-	}
+	},
 ];
 
 const initialEdges = [];
@@ -63,15 +61,15 @@ const DialogueEditorCanvas = () => {
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
 		setIsModalOpen(true);
-	  };
-	
-	  const handleTransform = useCallback((transform) => {
+	};
+
+	const handleTransform = useCallback((transform) => {
 		setCanvasTransform(transform);
-	  }, []);
+	}, []);
 
 	const handleSpawnNode = (type) => {
 		const newNode = {
-			id: `${nodes.length}`,
+			id: uuidv4(),
 			type: type,
 			position: { x: 0, y: 0 },
 			data: {
@@ -104,7 +102,10 @@ const DialogueEditorCanvas = () => {
 	useAutoSave(name, categories, participants);
 
 	return (
-		<div className="dialogue-editor-canvas background-transparent-primary">
+		<div
+			className="dialogue-editor-canvas background-transparent-primary"
+			onContextMenu={handlePaneContextMenu}
+		>
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
@@ -116,7 +117,6 @@ const DialogueEditorCanvas = () => {
 				}
 				onConnectStop={(event) => console.log("connect stop", event)}
 				onConnectEnd={(event) => console.log("connect end", event)}
-				onPaneContextMenu={handlePaneContextMenu}
 				isValidConnection={isValidConnection}
 				snapToGrid
 				onReconnect={onReconnect}

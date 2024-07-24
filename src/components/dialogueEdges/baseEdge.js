@@ -20,8 +20,6 @@ const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY }) => {
 		targetY,
 	});
 
-	console.log(`labelX: ${labelX} and labelY: ${labelY}`);
-
 	return (
 		<>
 			<BaseEdge id={id} path={edgePath} />

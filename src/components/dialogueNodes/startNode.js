@@ -1,16 +1,15 @@
 import React from "react";
 import BaseNode from "./baseNode";
 
-const StartNode = ({ data }) => {
-  const nodeData = {
-    customClassName: "start-node",
-    title: "Start Node",
-    sourceHandle: true,
-  };
+const StartNode = (props) => {
+	const nodeData = {
+		...props.data,
+		customClassName: "start-node",
+		title: "Start Node",
+		sourceHandle: true,
+	};
 
-  return (
-    <BaseNode data={nodeData} />
-  );
+	return <BaseNode {...props} data={nodeData} />;
 };
 
 export default StartNode;

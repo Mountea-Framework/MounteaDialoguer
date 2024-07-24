@@ -1,17 +1,16 @@
 import React from "react";
 import BaseNode from "./baseNode";
 
-const answerNode = ({ data }) => {
-  const nodeData = {
-    customClassName: " answer-node",
-    title: "Answer Node",
-    sourceHandle: true,
-    targetHandle: true,
-  };
+const AnswerNode = (props) => {
+	const nodeData = {
+		...props.data,
+		customClassName: "answer-node",
+		title: "Answer Node",
+		sourceHandle: true,
+		targetHandle: true,
+	};
 
-  return (
-    <BaseNode data={nodeData} />
-  );
+	return <BaseNode {...props} data={nodeData} />;
 };
 
-export default answerNode;
+export default AnswerNode;

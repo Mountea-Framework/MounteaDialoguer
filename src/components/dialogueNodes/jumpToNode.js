@@ -1,16 +1,16 @@
 import React from "react";
 import BaseNode from "./baseNode";
 
-const JumpToNode = ({ data }) => {
-  const nodeData = {
-    customClassName: "jump-to-node",
-    title: "Jump to",
-    targetHandle: true,
-  };
+const JumpToNode = (props) => {
+	const nodeData = {
+		...props.data,
+		customClassName: "jump-to-node",
+		title: "Jump to",
+		sourceHandle: true,
+		targetHandle: true,
+	};
 
-  return (
-    <BaseNode data={nodeData} />
-  );
+	return <BaseNode {...props} data={nodeData} />;
 };
 
 export default JumpToNode;

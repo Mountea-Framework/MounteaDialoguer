@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { Handle } from "reactflow";
-import Title from "../objects/Title";
+import { Handle, useReactFlow } from "reactflow";
 
-const BaseNode = ({ data }) => {
+import { v4 as uuidv4 } from "uuid";
+
+import Title from "../objects/Title";
+import Button from "../objects/Button";
+
+import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
+import "../../componentStyles/dialogueNodes/customNode.css";
+
+const BaseNode = ({ id, data }) => {
 	const { customClassName, title, targetHandle, sourceHandle } = data;
 	const [nodeId, setNodeId] = useState(data.nodeId || uuidv4());
+	const { setNodes } = useReactFlow();
 
 	useEffect(() => {
 		if (!data.nodeId) {
@@ -15,6 +22,19 @@ const BaseNode = ({ data }) => {
 
 	return (
 		<div className="custom-node-border">
+			<Button
+				className="circle-button nodrag nopan node-button-delete"
+				onClick={() => {
+					console.log("Node ID:", id); // Debugging line
+					setNodes((nds) => nds.filter((node) => node.id !== id));
+				}}
+			>
+				<RemoveIcon
+					style={{
+						pointerEvents: "none",
+					}}
+				/>
+			</Button>
 			<div className={`custom-node ${customClassName || ""}`}>
 				<Title
 					level="4"

@@ -1,3 +1,15 @@
 h4 {
-    text-size-adjust: 60%;
+	text-size-adjust: 60%;
+}
+
+.node-button-delete {
+	position: absolute;
+	top: 0;
+	right: 0;
+	scale: 0.5;
+	transition: scale var(--transition-duration) var(--transition-easing);
+}
+
+.node-button-delete:hover {
+	scale: 1;
 }

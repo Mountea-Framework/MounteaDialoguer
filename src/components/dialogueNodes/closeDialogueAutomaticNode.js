@@ -1,16 +1,16 @@
 import React from "react";
 import BaseNode from "./baseNode";
 
-const CloseDialogueAutomaticNode = ({ data }) => {
-  const nodeData = {
-    customClassName: "close-dialogue-automatic-node",
-    title: "Auto Close",
-    targetHandle: true,
-  };
+const CloseDialogueAutomaticNode = (props) => {
+	const nodeData = {
+		...props.data,
+		customClassName: "close-dialogue-automatic-node",
+		title: "Auto Close",
+		sourceHandle: true,
+		targetHandle: true,
+	};
 
-  return (
-    <BaseNode data={nodeData} />
-  );
+	return <BaseNode {...props} data={nodeData} />;
 };
 
 export default CloseDialogueAutomaticNode;
