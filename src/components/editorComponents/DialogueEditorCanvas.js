@@ -53,7 +53,7 @@ const initialNodes = [
 	{
 		id: "00000000-0000-0000-0000-000000000001",
 		type: "startNode",
-		position: { x: 250, y: 0 },
+		position: { x: 0, y: 0 },
 		data: {
 			title: "Start Node",
 			nodeId: "00000000-0000-0000-0000-000000000001",

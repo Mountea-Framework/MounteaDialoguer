@@ -1,4 +1,4 @@
-import React, { createContext, useState, useRef } from "react";
+import React, { createContext, useState, useRef, useEffect } from "react";
 import JSZip from "jszip";
 
 import useAutoSave from "./hooks/useAutoSave";
@@ -11,6 +11,19 @@ const FileProvider = ({ children }) => {
 	const importCallbackRef = useRef(null);
 
 	const { saveProjectToLocalStorage } = useAutoSave();
+
+	useEffect(() => {
+		const handleBeforeUnload = (e) => {
+			setError(null);
+			localStorage.removeItem("autoSaveProject");
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, []);
 
 	const generateFile = async () => {
 		const autoSaveData = localStorage.getItem("autoSaveProject");

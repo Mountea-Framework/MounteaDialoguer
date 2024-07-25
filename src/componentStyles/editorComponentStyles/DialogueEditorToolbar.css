@@ -1,21 +1,25 @@
 .dialogue-editor-toolbar {
-  display: flex;
+	display: flex;
 }
 
 .toolbar-button-container {
-  transition: all var(--transition-duration) var(--transition-easing);
-
-  background-color: transparent;
-  margin: 5px;
-}
-
-.toolbar-button-container:hover {
-  background-color: transparent;
-  box-shadow: none;
+	transition: all var(--transition-duration) var(--transition-easing);
+	background-color: transparent;
+	margin: 5px;
 }
 
 .toolbar-button-container .toolbar-button {
-  padding: 0;
-  background-color: transparent;
-  border: none;
+	padding: 0;
+	background-color: transparent;
+	border: none;
+	min-width: 48px;
+	max-width: 64px;
+}
+
+.tertiary:hover:not(:disabled) {
+	box-shadow: none !important;
+}
+
+.toolbar-button:hover > .icon {
+	fill: var(--primary-hovered);
 }
