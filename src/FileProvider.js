@@ -134,7 +134,6 @@ const FileProvider = ({ children }) => {
 		document.getElementById("fileInput").click();
 	};
 
-	// New function to handle category file import
 	const importCategories = async (e) => {
 		const file = e.target.files[0];
 		if (!file) {
@@ -142,7 +141,14 @@ const FileProvider = ({ children }) => {
 			return;
 		}
 
-		if (!["application/json", "text/xml", "text/csv"].includes(file.type)) {
+		// TODO: All "parent" categories must be declared as normal category -> all entries with non-declared parents must be excluded
+		// maybe provide output log for download?
+
+		if (
+			!["application/json", "application/xml", "text/xml", "text/csv"].includes(
+				file.type
+			)
+		) {
 			alert("Invalid file type");
 			return;
 		}
@@ -153,9 +159,128 @@ const FileProvider = ({ children }) => {
 			return;
 		}
 
-		// Process file content as needed (JSON, XML, CSV parsing)
+		let categories = [];
+		let logEntries = [];
 
-		alert("File imported successfully");
+		try {
+			if (file.type === "application/json") {
+				const data = JSON.parse(fileContent);
+				if (
+					!data.categories ||
+					!Array.isArray(data.categories) ||
+					data.categories.length === 0 ||
+					!data.categories.every(
+						(cat) =>
+							typeof cat.name === "string" && typeof cat.parent === "string"
+					)
+				) {
+					alert("Invalid JSON format");
+					return;
+				}
+			} else if (file.type === "application/xml" || file.type === "text/xml") {
+				const parser = new DOMParser();
+				const xmlDoc = parser.parseFromString(fileContent, "application/xml");
+				const categories = xmlDoc.getElementsByTagName("category");
+				if (categories.length === 0) {
+					alert("Invalid XML format: No categories found");
+					return;
+				}
+				for (let i = 0; i < categories.length; i++) {
+					const name = categories[i].getElementsByTagName("name")[0];
+					if (!name || name.textContent.trim() === "") {
+						alert("Invalid XML format: Each category must have a name!");
+						return;
+					}
+				}
+			} else if (
+				file.type === "text/csv" ||
+				file.type === "application/vnd.ms-excel"
+			) {
+				const rows = fileContent
+					.trim()
+					.split("\n")
+					.map((row) => row.split(","));
+				const headers = rows[0].map((header) => header.trim());
+				if (!headers.includes("name") || !headers.includes("parent")) {
+					alert("Invalid CSV format: Missing 'name' or 'parent' columns");
+					return;
+				}
+				const nameIndex = headers.indexOf("name");
+				const parentIndex = headers.indexOf("parent");
+				const categories = rows.slice(1).filter((row) => row.length > 1);
+				if (categories.length === 0) {
+					alert("Invalid CSV format: No categories found");
+					return;
+				}
+				for (let i = 0; i < categories.length; i++) {
+					const name = categories[i][nameIndex];
+					const parent = categories[i][parentIndex];
+					if (!name || name.trim() === "") {
+						alert("Invalid CSV format: Each category must have a name!");
+						return;
+					}
+				}
+			}
+
+			// Post-processing steps
+
+			// Step 1: Find all valid parents
+			const categoryNames = new Set(categories.map((cat) => cat.name));
+			console.log(categoryNames);
+			const invalidEntries = [];
+			const validCategories = categories.filter((cat) => {
+				if (cat.parent && !categoryNames.has(cat.parent)) {
+					invalidEntries.push(cat);
+					return false;
+				}
+				return true;
+			});
+
+			// Step 1.1: Log invalid entries
+			if (invalidEntries.length > 0) {
+				logEntries.push("Invalid Categories:\n");
+				invalidEntries.forEach((entry) => {
+					logEntries.push(`Name: ${entry.name}, Parent: ${entry.parent}\n`);
+				});
+			}
+
+			// Step 2: Create a hierarchy tree and replace parents with composite strings
+			const parentMap = {};
+			validCategories.forEach((cat) => {
+				if (cat.parent) {
+					const compositeParent = parentMap[cat.parent]
+						? parentMap[cat.parent]
+						: cat.parent;
+					cat.parent = `${compositeParent}.${cat.name}`;
+					parentMap[cat.name] = cat.parent;
+				} else {
+					parentMap[cat.name] = cat.name;
+				}
+			});
+
+			// Show the user a log and provide a download option if there are invalid entries
+			if (logEntries.length > 0) {
+				const logBlob = new Blob(logEntries, { type: "text/plain" });
+				const logUrl = URL.createObjectURL(logBlob);
+				const logLink = document.createElement("a");
+				logLink.href = logUrl;
+				logLink.download = "import_log.txt";
+				logLink.innerText = "Download log file";
+				document.body.appendChild(logLink);
+				alert(
+					"Some categories had invalid parents. Check the log file for details."
+				);
+				logLink.click();
+				document.body.removeChild(logLink);
+			} else {
+				alert("File imported successfully");
+			}
+
+			// Now you can use the validCategories list as needed
+			console.log(validCategories);
+		} catch (err) {
+			alert("Error parsing file");
+		}
 	};
 
 	return (

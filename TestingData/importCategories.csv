@@ -1,0 +1,39 @@
+﻿name,parent
+NPC,
+Merchant,NPC
+Blacksmith,Merchant
+Potion Seller,Merchant
+General Goods Merchant,Merchant
+Quest Giver,NPC
+Main Quest Giver,Quest Giver
+Side Quest Giver,Quest Giver
+Guard,NPC
+City Guard,Guard
+Royal Guard,Guard
+Village Guard,Guard
+Villager,NPC
+Farmer,Villager
+Blacksmith Villager,Villager
+Fisherman,Villager
+Healer,NPC
+Priest,Healer
+Herbalist,Healer
+Trainer,NPC
+Combat Trainer,Trainer
+Magic Trainer,Trainer
+Crafting Trainer,Trainer
+Innkeeper,NPC
+Barkeep,Innkeeper
+Traveler,NPC
+Wandering Merchant,Traveler
+Adventurer,Traveler
+Noble,NPC
+King,Noble
+Queen,Noble
+Prince,Noble
+Princess,Noble
+Courtier,Noble
+Craftsman,NPC
+Tailor,Craftsman
+Carpenter,Craftsman
+Stone Mason,Craftsman
