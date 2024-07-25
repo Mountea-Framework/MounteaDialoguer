@@ -322,6 +322,33 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
+	const exportCategories = async () => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+		const categories = parsedData.categories || [];
+
+		const jsonData = {
+			categories: categories,
+		};
+
+		const jsonString = JSON.stringify(jsonData, null, 2);
+		const blob = new Blob([jsonString], { type: "application/json" });
+
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `${parsedData.name}_categories.json`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	};
+
 	return (
 		<FileContext.Provider
 			value={{
@@ -333,6 +360,7 @@ const FileProvider = ({ children }) => {
 				handleClick,
 				generateFile,
 				importCategories,
+				exportCategories,
 			}}
 		>
 			<input

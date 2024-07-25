@@ -12,7 +12,7 @@ import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
 
 function ParticipantCategoriesHeader({ onUpdate }) {
 	const { categories, addCategory } = useContext(AppContext);
-	const { handleClick } = useContext(FileContext);
+	const { handleClick, exportCategories } = useContext(FileContext);
 	const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
 
 	const handleAddCategory = () => {
@@ -42,6 +42,10 @@ function ParticipantCategoriesHeader({ onUpdate }) {
 		});
 	};
 
+	const handleExportClick = () => {
+		exportCategories();
+	};
+
 	return (
 		<div>
 			<div className="input-header-row">
@@ -59,7 +63,7 @@ function ParticipantCategoriesHeader({ onUpdate }) {
 					</Button>
 					<Button
 						className="circle-button icon-button download"
-						onClick={handleClick}
+						onClick={handleExportClick}
 					>
 						<DownloadIcon className="download-icon icon" />
 					</Button>
