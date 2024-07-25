@@ -332,8 +332,13 @@ const FileProvider = ({ children }) => {
 		const parsedData = JSON.parse(autoSaveData);
 		const categories = parsedData.categories || [];
 
+		const transformedCategories = categories.map((category) => ({
+			name: category.name,
+			parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
+		}));
+
 		const jsonData = {
-			categories: categories,
+			categories: transformedCategories,
 		};
 
 		const jsonString = JSON.stringify(jsonData, null, 2);
