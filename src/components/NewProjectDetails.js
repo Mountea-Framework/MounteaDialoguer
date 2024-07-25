@@ -1,5 +1,4 @@
 import React, { useState, useContext } from "react";
-
 import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";

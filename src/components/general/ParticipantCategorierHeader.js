@@ -10,7 +10,7 @@ import { FileContext } from "../../FileProvider";
 import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
 import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
 
-function ParticipantCategoriesHeader() {
+function ParticipantCategoriesHeader({ onUpdate }) {
 	const { categories, addCategory } = useContext(AppContext);
 	const { handleClick } = useContext(FileContext);
 	const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
@@ -19,6 +19,7 @@ function ParticipantCategoriesHeader() {
 		if (newCategory.name) {
 			addCategory(newCategory);
 			setNewCategory({ name: "", parent: "" });
+			onUpdate([...categories, newCategory]); // Propagate changes to parent
 		}
 	};
 
@@ -35,6 +36,12 @@ function ParticipantCategoriesHeader() {
 			: category.name,
 	}));
 
+	const handleImportClick = () => {
+		handleClick((importedCategories) => {
+			onUpdate(importedCategories);
+		});
+	};
+
 	return (
 		<div>
 			<div className="input-header-row">
@@ -46,7 +53,7 @@ function ParticipantCategoriesHeader() {
 				<div className="header-buttons">
 					<Button
 						className="circle-button icon-button import"
-						onClick={handleClick}
+						onClick={handleImportClick}
 					>
 						<ImportIcon className="import-icon icon" />
 					</Button>

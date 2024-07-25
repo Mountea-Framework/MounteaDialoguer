@@ -1,14 +1,16 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useRef } from "react";
 import JSZip from "jszip";
 
 import useAutoSave from "./hooks/useAutoSave";
-import mergeWithExistingData from "./helpers/autoSaveHelpers";
 
 const FileContext = createContext();
 
 const FileProvider = ({ children }) => {
 	const [file, setFile] = useState(null);
 	const [error, setError] = useState(null);
+	const importCallbackRef = useRef(null);
+
+	const { saveProjectToLocalStorage } = useAutoSave();
 
 	const generateFile = async () => {
 		const autoSaveData = localStorage.getItem("autoSaveProject");
@@ -133,11 +135,36 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
-	const handleClick = () => {
+	const handleClick = (callback) => {
+		importCallbackRef.current = callback;
 		document.getElementById("fileInput").click();
 	};
 
-	const downloadCategories = async (e) => {};
+	const processImportedCategories = (importedCategories) => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+		const existingCategories = parsedData.categories || [];
+
+		// Merge categories
+		const mergedCategories = [...existingCategories, ...importedCategories];
+		const uniqueCategories = Array.from(
+			new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
+		).map((str) => JSON.parse(str));
+
+		// Save using useAutoSave
+		saveProjectToLocalStorage({ ...parsedData, categories: uniqueCategories });
+
+		if (importCallbackRef.current) {
+			importCallbackRef.current(uniqueCategories);
+		}
+
+		alert("Categories imported and merged successfully.");
+	};
 
 	const importCategories = async (e) => {
 		const file = e.target.files[0];
@@ -201,7 +228,7 @@ const FileProvider = ({ children }) => {
 					}
 					categories.push({
 						name: name.textContent.trim(),
-						parent: parent.textContent.trim(),
+						parent: parent ? parent.textContent.trim() : "",
 					});
 				}
 			} else if (
@@ -288,32 +315,12 @@ const FileProvider = ({ children }) => {
 				logLink.click();
 				document.body.removeChild(logLink);
 			} else {
-				processImportedCategories(categories);
+				processImportedCategories(validCategories);
 			}
 		} catch (err) {
 			alert("Error parsing file");
 		}
 	};
-
-	const processImportedCategories = (importedCategories) => {
-        const autoSaveData = localStorage.getItem("autoSaveProject");
-        if (!autoSaveData) {
-            setError("No data found in local storage.");
-            return;
-        }
-
-        const parsedData = JSON.parse(autoSaveData);
-        const existingCategories = parsedData.categories || [];
-
-        // Merge categories
-        const mergedCategories = [...existingCategories, ...importedCategories];
-        const uniqueCategories = Array.from(new Set(mergedCategories.map(cat => JSON.stringify(cat)))).map(str => JSON.parse(str));
-
-        // Save using useAutoSave
-        saveProjectToLocalStorage({ ...parsedData, categories: uniqueCategories });
-
-        alert("Categories imported and merged successfully.");
-    };
 
 	return (
 		<FileContext.Provider
