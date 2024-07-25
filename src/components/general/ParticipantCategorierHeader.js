@@ -5,63 +5,84 @@ import Dropdown from "../objects/Dropdown";
 import Button from "../objects/Button";
 import Title from "../objects/Title";
 import AppContext from "../../AppContext";
+import { FileContext } from "../../FileProvider";
+
+import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
+import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
 
 function ParticipantCategoriesHeader() {
-  const { categories, addCategory } = useContext(AppContext);
-  const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
+	const { categories, addCategory } = useContext(AppContext);
+	const { handleClick } = useContext(FileContext);
+	const [newCategory, setNewCategory] = useState({ name: "", parent: "" });
 
-  const handleAddCategory = () => {
-    if (newCategory.name) {
-      addCategory(newCategory);
-      setNewCategory({ name: "", parent: "" });
-    }
-  };
+	const handleAddCategory = () => {
+		if (newCategory.name) {
+			addCategory(newCategory);
+			setNewCategory({ name: "", parent: "" });
+		}
+	};
 
-  const handleInputChange = (name, value) => {
-    setNewCategory((prev) => ({ ...prev, [name]: value }));
-  };
+	const handleInputChange = (name, value) => {
+		setNewCategory((prev) => ({ ...prev, [name]: value }));
+	};
 
-  const categoryOptions = categories.map((category) => ({
-    value: category.parent
-      ? `${category.parent}.${category.name}`
-      : category.name,
-    label: category.parent
-      ? `${category.parent}.${category.name}`
-      : category.name,
-  }));
+	const categoryOptions = categories.map((category) => ({
+		value: category.parent
+			? `${category.parent}.${category.name}`
+			: category.name,
+		label: category.parent
+			? `${category.parent}.${category.name}`
+			: category.name,
+	}));
 
-  return (
-    <div>
-      <Title
-        level="3"
-        children="Participants Categories"
-        className="tertiary-heading"
-      />
-      <div className="input-button-row">
-        <TextInput
-          placeholder="New Category"
-          title="Category Name"
-          name="name"
-          value={newCategory.name}
-          onChange={handleInputChange}
-        />
-        <Dropdown
-          name="parent"
-          value={newCategory.parent}
-          onChange={handleInputChange}
-          options={categoryOptions}
-          placeholder="select parent category"
-        />
-        <Button
-          className="circle-button"
-          onClick={handleAddCategory}
-          disabled={!newCategory.name}
-        >
-          +
-        </Button>
-      </div>
-    </div>
-  );
+	return (
+		<div>
+			<div className="input-header-row">
+				<Title
+					level="3"
+					children="Participants Categories"
+					className="tertiary-heading"
+				/>
+				<div className="header-buttons">
+					<Button
+						className="circle-button icon-button import"
+						onClick={handleClick}
+					>
+						<ImportIcon className="import-icon icon" />
+					</Button>
+					<Button
+						className="circle-button icon-button download"
+						onClick={handleClick}
+					>
+						<DownloadIcon className="download-icon icon" />
+					</Button>
+				</div>
+			</div>
+			<div className="input-button-row">
+				<TextInput
+					placeholder="New Category"
+					title="Category Name"
+					name="name"
+					value={newCategory.name}
+					onChange={handleInputChange}
+				/>
+				<Dropdown
+					name="parent"
+					value={newCategory.parent}
+					onChange={handleInputChange}
+					options={categoryOptions}
+					placeholder="select parent category"
+				/>
+				<Button
+					className="circle-button"
+					onClick={handleAddCategory}
+					disabled={!newCategory.name}
+				>
+					+
+				</Button>
+			</div>
+		</div>
+	);
 }
 
 export default ParticipantCategoriesHeader;

@@ -42,11 +42,8 @@ const FileProvider = ({ children }) => {
 			};
 
 			const handle = await window.showSaveFilePicker(options);
-
 			const writable = await handle.createWritable();
-
 			await writable.write(content);
-
 			await writable.close();
 
 			setError(null);
@@ -137,6 +134,30 @@ const FileProvider = ({ children }) => {
 		document.getElementById("fileInput").click();
 	};
 
+	// New function to handle category file import
+	const importCategories = async (e) => {
+		const file = e.target.files[0];
+		if (!file) {
+			alert("No file selected");
+			return;
+		}
+
+		if (!["application/json", "text/xml", "text/csv"].includes(file.type)) {
+			alert("Invalid file type");
+			return;
+		}
+
+		const fileContent = await file.text();
+		if (!fileContent) {
+			alert("File is empty");
+			return;
+		}
+
+		// Process file content as needed (JSON, XML, CSV parsing)
+
+		alert("File imported successfully");
+	};
+
 	return (
 		<FileContext.Provider
 			value={{
@@ -147,8 +168,16 @@ const FileProvider = ({ children }) => {
 				handleDrop,
 				handleClick,
 				generateFile,
+				importCategories,
 			}}
 		>
+			<input
+				type="file"
+				id="fileInput"
+				style={{ display: "none" }}
+				onChange={importCategories}
+				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
+			/>
 			{children}
 		</FileContext.Provider>
 	);
