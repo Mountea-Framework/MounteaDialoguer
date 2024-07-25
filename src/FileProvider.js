@@ -1,6 +1,9 @@
 import React, { createContext, useState } from "react";
 import JSZip from "jszip";
 
+import useAutoSave from "./hooks/useAutoSave";
+import mergeWithExistingData from "./helpers/autoSaveHelpers";
+
 const FileContext = createContext();
 
 const FileProvider = ({ children }) => {
@@ -133,6 +136,8 @@ const FileProvider = ({ children }) => {
 	const handleClick = () => {
 		document.getElementById("fileInput").click();
 	};
+
+	const downloadCategories = async (e) => {};
 
 	const importCategories = async (e) => {
 		const file = e.target.files[0];
@@ -283,14 +288,32 @@ const FileProvider = ({ children }) => {
 				logLink.click();
 				document.body.removeChild(logLink);
 			} else {
-				alert("File imported successfully");
+				processImportedCategories(categories);
 			}
-
-			// TODO: SAVE CATEGORIES TO AUTO SAVE FILE
 		} catch (err) {
 			alert("Error parsing file");
 		}
 	};
+
+	const processImportedCategories = (importedCategories) => {
+        const autoSaveData = localStorage.getItem("autoSaveProject");
+        if (!autoSaveData) {
+            setError("No data found in local storage.");
+            return;
+        }
+
+        const parsedData = JSON.parse(autoSaveData);
+        const existingCategories = parsedData.categories || [];
+
+        // Merge categories
+        const mergedCategories = [...existingCategories, ...importedCategories];
+        const uniqueCategories = Array.from(new Set(mergedCategories.map(cat => JSON.stringify(cat)))).map(str => JSON.parse(str));
+
+        // Save using useAutoSave
+        saveProjectToLocalStorage({ ...parsedData, categories: uniqueCategories });
+
+        alert("Categories imported and merged successfully.");
+    };
 
 	return (
 		<FileContext.Provider

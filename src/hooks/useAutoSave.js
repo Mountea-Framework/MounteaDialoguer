@@ -13,6 +13,8 @@ const useAutoSave = (name, categories, participants) => {
 			saveProjectToLocalStorage({ name, categories, participants });
 		}
 	}, [name, categories, participants]);
+
+	return { saveProjectToLocalStorage };
 };
 
 export default useAutoSave;
