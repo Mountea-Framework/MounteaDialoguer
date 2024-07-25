@@ -7,13 +7,13 @@ import DialogueEditor from "./DialogueEditor";
 import "../componentStyles/DialogueCanvas.css";
 
 const DialogueCanvas = () => {
-  const { showLandingPage } = useContext(AppContext);
+	const { showLandingPage } = useContext(AppContext);
 
-  return (
-    <div className="dialogue-canvas">
-      {showLandingPage ? <LandingPage /> : <DialogueEditor />}
-    </div>
-  );
+	return (
+		<div className="dialogue-canvas">
+			{showLandingPage ? <LandingPage /> : <DialogueEditor />}
+		</div>
+	);
 };
 
 export default DialogueCanvas;

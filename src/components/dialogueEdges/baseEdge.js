@@ -1,10 +1,8 @@
 import React from "react";
 import {
 	useReactFlow,
-	getSmoothStepPath,
 	EdgeLabelRenderer,
 	BaseEdge,
-	getStraightPath,
 	getBezierPath,
 } from "reactflow";
 
