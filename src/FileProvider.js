@@ -141,13 +141,14 @@ const FileProvider = ({ children }) => {
 			return;
 		}
 
-		// TODO: All "parent" categories must be declared as normal category -> all entries with non-declared parents must be excluded
-		// maybe provide output log for download?
-
 		if (
-			!["application/json", "application/xml", "text/xml", "text/csv"].includes(
-				file.type
-			)
+			![
+				"application/json",
+				"application/xml",
+				"text/xml",
+				"text/csv",
+				"application/vnd.ms-excel",
+			].includes(file.type)
 		) {
 			alert("Invalid file type");
 			return;
@@ -177,20 +178,26 @@ const FileProvider = ({ children }) => {
 					alert("Invalid JSON format");
 					return;
 				}
+				categories = data.categories;
 			} else if (file.type === "application/xml" || file.type === "text/xml") {
 				const parser = new DOMParser();
 				const xmlDoc = parser.parseFromString(fileContent, "application/xml");
-				const categories = xmlDoc.getElementsByTagName("category");
-				if (categories.length === 0) {
+				const xmlCategories = xmlDoc.getElementsByTagName("category");
+				if (xmlCategories.length === 0) {
 					alert("Invalid XML format: No categories found");
 					return;
 				}
-				for (let i = 0; i < categories.length; i++) {
-					const name = categories[i].getElementsByTagName("name")[0];
+				for (let i = 0; i < xmlCategories.length; i++) {
+					const name = xmlCategories[i].getElementsByTagName("name")[0];
+					const parent = xmlCategories[i].getElementsByTagName("parent")[0];
 					if (!name || name.textContent.trim() === "") {
-						alert("Invalid XML format: Each category must have a name!");
+						alert("Invalid XML format: Each category must have a name");
 						return;
 					}
+					categories.push({
+						name: name.textContent.trim(),
+						parent: parent.textContent.trim(),
+					});
 				}
 			} else if (
 				file.type === "text/csv" ||
@@ -207,26 +214,29 @@ const FileProvider = ({ children }) => {
 				}
 				const nameIndex = headers.indexOf("name");
 				const parentIndex = headers.indexOf("parent");
-				const categories = rows.slice(1).filter((row) => row.length > 1);
-				if (categories.length === 0) {
+				const csvCategories = rows.slice(1).filter((row) => row.length > 1);
+				if (csvCategories.length === 0) {
 					alert("Invalid CSV format: No categories found");
 					return;
 				}
-				for (let i = 0; i < categories.length; i++) {
-					const name = categories[i][nameIndex];
-					const parent = categories[i][parentIndex];
+				for (let i = 0; i < csvCategories.length; i++) {
+					const name = csvCategories[i][nameIndex];
+					const parent = csvCategories[i][parentIndex];
 					if (!name || name.trim() === "") {
-						alert("Invalid CSV format: Each category must have a name!");
+						alert("Invalid CSV format: Each category must have a name");
 						return;
 					}
+					categories.push({ name: name.trim(), parent: parent.trim() });
 				}
 			}
 
-			// Post-processing steps
+			categories = categories.map((cat) => ({
+				name: cat.name.replace(/\s+/g, ""),
+				parent: cat.parent.replace(/\s+/g, ""),
+			}));
 
 			// Step 1: Find all valid parents
 			const categoryNames = new Set(categories.map((cat) => cat.name));
-			console.log(categoryNames);
 			const invalidEntries = [];
 			const validCategories = categories.filter((cat) => {
 				if (cat.parent && !categoryNames.has(cat.parent)) {
@@ -251,8 +261,8 @@ const FileProvider = ({ children }) => {
 					const compositeParent = parentMap[cat.parent]
 						? parentMap[cat.parent]
 						: cat.parent;
-					cat.parent = `${compositeParent}.${cat.name}`;
-					parentMap[cat.name] = cat.parent;
+					parentMap[cat.name] = `${compositeParent}.${cat.name}`;
+					cat.parent = compositeParent;
 				} else {
 					parentMap[cat.name] = cat.name;
 				}
@@ -268,7 +278,7 @@ const FileProvider = ({ children }) => {
 				logLink.innerText = "Download log file";
 				document.body.appendChild(logLink);
 				alert(
-					"Some categories had invalid parents. Check the log file for details."
+					`Some (${invalidEntries.length}) categories had invalid parents. Check the log file for details.`
 				);
 				logLink.click();
 				document.body.removeChild(logLink);
@@ -276,8 +286,7 @@ const FileProvider = ({ children }) => {
 				alert("File imported successfully");
 			}
 
-			// Now you can use the validCategories list as needed
-			console.log(validCategories);
+			// TODO: SAVE CATEGORIES TO AUTO SAVE FILE
 		} catch (err) {
 			alert("Error parsing file");
 		}
