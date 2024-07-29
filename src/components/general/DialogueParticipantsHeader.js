@@ -10,7 +10,7 @@ import { FileContext } from "../../FileProvider";
 import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
 import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
 
-function DialogueParticipantsHeader( {onUpdate} ) {
+function DialogueParticipantsHeader({ onUpdate }) {
 	const { participants, categories, addParticipant } = useContext(AppContext);
 	const { handleClick, exportParticipants } = useContext(FileContext);
 	const [newParticipant, setNewParticipant] = useState({

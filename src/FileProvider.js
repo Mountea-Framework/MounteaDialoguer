@@ -163,13 +163,11 @@ const FileProvider = ({ children }) => {
 		const parsedData = JSON.parse(autoSaveData);
 		const existingCategories = parsedData.categories || [];
 
-		// Merge categories
 		const mergedCategories = [...existingCategories, ...importedCategories];
 		const uniqueCategories = Array.from(
 			new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
 		).map((str) => JSON.parse(str));
 
-		// Save using useAutoSave
 		saveProjectToLocalStorage({ ...parsedData, categories: uniqueCategories });
 
 		if (importCallbackRef.current) {
@@ -280,7 +278,6 @@ const FileProvider = ({ children }) => {
 				parent: cat.parent.replace(/\s+/g, ""),
 			}));
 
-			// Step 1: Find all valid parents
 			const categoryNames = new Set(categories.map((cat) => cat.name));
 			const invalidEntries = [];
 			const validCategories = categories.filter((cat) => {
@@ -291,7 +288,6 @@ const FileProvider = ({ children }) => {
 				return true;
 			});
 
-			// Step 1.1: Log invalid entries
 			if (invalidEntries.length > 0) {
 				logEntries.push("Invalid Categories:\n");
 				invalidEntries.forEach((entry) => {
@@ -299,7 +295,6 @@ const FileProvider = ({ children }) => {
 				});
 			}
 
-			// Step 2: Create a hierarchy tree and replace parents with composite strings
 			const parentMap = {};
 			validCategories.forEach((cat) => {
 				if (cat.parent) {
@@ -313,7 +308,6 @@ const FileProvider = ({ children }) => {
 				}
 			});
 
-			// Show the user a log and provide a download option if there are invalid entries
 			if (logEntries.length > 0) {
 				const logBlob = new Blob(logEntries, { type: "text/plain" });
 				const logUrl = URL.createObjectURL(logBlob);
@@ -329,6 +323,189 @@ const FileProvider = ({ children }) => {
 				document.body.removeChild(logLink);
 			} else {
 				processImportedCategories(validCategories);
+			}
+		} catch (err) {
+			alert("Error parsing file");
+		}
+	};
+
+	const processImportedParticipants = (importedParticipants) => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+		const existingParticipants = parsedData.participants || [];
+
+		const mergedParticipants = [
+			...existingParticipants,
+			...importedParticipants,
+		];
+		const uniqueParticipants = Array.from(
+			new Set(mergedParticipants.map((part) => JSON.stringify(part)))
+		).map((str) => JSON.parse(str));
+
+		saveProjectToLocalStorage({
+			...parsedData,
+			participants: uniqueParticipants,
+		});
+
+		if (importCallbackRef.current) {
+			importCallbackRef.current(uniqueParticipants);
+		}
+
+		alert("Participants imported and merged successfully.");
+	};
+
+	const importParticipants = async (e) => {
+		const file = e.target.files[0];
+		if (!file) {
+			alert("No file selected");
+			return;
+		}
+
+		if (
+			![
+				"application/json",
+				"application/xml",
+				"text/xml",
+				"text/csv",
+				"application/vnd.ms-excel",
+			].includes(file.type)
+		) {
+			alert("Invalid file type");
+			return;
+		}
+
+		const fileContent = await file.text();
+		if (!fileContent) {
+			alert("File is empty");
+			return;
+		}
+
+		let participants = [];
+		let logEntries = [];
+
+		try {
+			if (file.type === "application/json") {
+				const data = JSON.parse(fileContent);
+				if (
+					!data.participants ||
+					!Array.isArray(data.participants) ||
+					data.participants.length === 0 ||
+					!data.participants.every(
+						(part) =>
+							typeof part.name === "string" && typeof part.category === "string"
+					)
+				) {
+					alert("Invalid JSON format");
+					return;
+				}
+				participants = data.participants;
+			} else if (file.type === "application/xml" || file.type === "text/xml") {
+				const parser = new DOMParser();
+				const xmlDoc = parser.parseFromString(fileContent, "application/xml");
+				const xmlParticipants = xmlDoc.getElementsByTagName("participant");
+				if (xmlParticipants.length === 0) {
+					alert("Invalid XML format: No participants found");
+					return;
+				}
+				for (let i = 0; i < xmlParticipants.length; i++) {
+					const name = xmlParticipants[i].getElementsByTagName("name")[0];
+					const category =
+						xmlParticipants[i].getElementsByTagName("category")[0];
+					if (!name || name.textContent.trim() === "") {
+						alert("Invalid XML format: Each participant must have a name");
+						return;
+					}
+					participants.push({
+						name: name.textContent.trim(),
+						category: category ? category.textContent.trim() : "",
+					});
+				}
+			} else if (
+				file.type === "text/csv" ||
+				file.type === "application/vnd.ms-excel"
+			) {
+				const rows = fileContent
+					.trim()
+					.split("\n")
+					.map((row) => row.split(","));
+				const headers = rows[0].map((header) => header.trim());
+				if (!headers.includes("name") || !headers.includes("category")) {
+					alert("Invalid CSV format: Missing 'name' or 'category' columns");
+					return;
+				}
+				const nameIndex = headers.indexOf("name");
+				const categoryIndex = headers.indexOf("category");
+				const csvParticipants = rows.slice(1).filter((row) => row.length > 1);
+				if (csvParticipants.length === 0) {
+					alert("Invalid CSV format: No participants found");
+					return;
+				}
+				for (let i = 0; i < csvParticipants.length; i++) {
+					const name = csvParticipants[i][nameIndex];
+					const category = csvParticipants[i][categoryIndex];
+					if (!name || name.trim() === "") {
+						alert("Invalid CSV format: Each participant must have a name");
+						return;
+					}
+					participants.push({ name: name.trim(), category: category.trim() });
+				}
+			}
+
+			participants = participants.map((part) => ({
+				name: part.name.replace(/\s+/g, ""),
+				category: part.category.replace(/\s+/g, ""),
+			}));
+
+			const participantNames = new Set(participants.map((part) => part.name));
+			const invalidEntries = [];
+			const validParticipants = participants.filter((part) => {
+				if (part.category && !participantNames.has(part.category)) {
+					invalidEntries.push(part);
+					return false;
+				}
+				return true;
+			});
+
+			if (invalidEntries.length > 0) {
+				logEntries.push("Invalid Participants:\n");
+				invalidEntries.forEach((entry) => {
+					logEntries.push(`Name: ${entry.name}, Category: ${entry.category}\n`);
+				});
+			}
+
+			const categoryMap = {};
+			validParticipants.forEach((part) => {
+				if (part.category) {
+					const compositeCategory = categoryMap[part.category]
+						? categoryMap[part.category]
+						: part.category;
+					categoryMap[part.name] = `${compositeCategory}.${part.name}`;
+					part.category = compositeCategory;
+				} else {
+					categoryMap[part.name] = part.name;
+				}
+			});
+
+			if (logEntries.length > 0) {
+				const logBlob = new Blob(logEntries, { type: "text/plain" });
+				const logUrl = URL.createObjectURL(logBlob);
+				const logLink = document.createElement("a");
+				logLink.href = logUrl;
+				logLink.download = "import_log.txt";
+				logLink.innerText = "Download log file";
+				document.body.appendChild(logLink);
+				alert(
+					`Some (${invalidEntries.length}) participants had invalid categories. Check the log file for details.`
+				);
+				logLink.click();
+				document.body.removeChild(logLink);
+			} else {
+				processImportedParticipants(validParticipants);
 			}
 		} catch (err) {
 			alert("Error parsing file");
@@ -367,6 +544,33 @@ const FileProvider = ({ children }) => {
 		URL.revokeObjectURL(url);
 	};
 
+	const exportParticipants = async () => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+		const participants = parsedData.participants || [];
+
+		const jsonData = {
+			participants,
+		};
+
+		const jsonString = JSON.stringify(jsonData, null, 2);
+		const blob = new Blob([jsonString], { type: "application/json" });
+
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `${parsedData.name}_participants.json`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	};
+
 	return (
 		<FileContext.Provider
 			value={{
@@ -379,6 +583,8 @@ const FileProvider = ({ children }) => {
 				generateFile,
 				importCategories,
 				exportCategories,
+				importParticipants,
+				exportParticipants,
 			}}
 		>
 			<input
@@ -386,7 +592,14 @@ const FileProvider = ({ children }) => {
 				id="fileInput"
 				style={{ display: "none" }}
 				onChange={importCategories}
-				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
+				accept=".xml,.json,.csv"
+			/>
+			<input
+				type="file"
+				id="participantFileInput"
+				style={{ display: "none" }}
+				onChange={importParticipants}
+				accept=".xml,.json,.csv"
 			/>
 			{children}
 		</FileContext.Provider>
