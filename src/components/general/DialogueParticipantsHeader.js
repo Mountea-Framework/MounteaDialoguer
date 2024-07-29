@@ -5,9 +5,14 @@ import Dropdown from "../objects/Dropdown";
 import Button from "../objects/Button";
 import Title from "../objects/Title";
 import AppContext from "../../AppContext";
+import { FileContext } from "../../FileProvider";
 
-function DialogueParticipantsHeader() {
+import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
+import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
+
+function DialogueParticipantsHeader( {onUpdate} ) {
 	const { participants, categories, addParticipant } = useContext(AppContext);
+	const { handleClick, exportParticipants } = useContext(FileContext);
 	const [newParticipant, setNewParticipant] = useState({
 		name: "",
 		category: "",
@@ -33,13 +38,39 @@ function DialogueParticipantsHeader() {
 			: category.name,
 	}));
 
+	const handleImportClick = () => {
+		handleClick((importedParticipants) => {
+			onUpdate(importedParticipants);
+		});
+	};
+
+	const handleExportClick = () => {
+		exportParticipants();
+	};
+
 	return (
 		<div>
-			<Title
-				level="3"
-				children="Dialogue Participants"
-				className="tertiary-heading"
-			/>
+			<div className="input-header-row">
+				<Title
+					level="3"
+					children="Dialogue Participants"
+					className="tertiary-heading"
+				/>
+				<div className="header-buttons">
+					<Button
+						className="circle-button icon-button import"
+						onClick={handleImportClick}
+					>
+						<ImportIcon className="import-icon icon" />
+					</Button>
+					<Button
+						className="circle-button icon-button download"
+						onClick={handleExportClick}
+					>
+						<DownloadIcon className="download-icon icon" />
+					</Button>
+				</div>
+			</div>
 			<div className="input-button-row">
 				<TextInput
 					placeholder="New Participant"
