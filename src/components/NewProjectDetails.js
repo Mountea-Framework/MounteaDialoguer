@@ -3,7 +3,7 @@ import React, { useContext } from "react";
 import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
 import Button from "./objects/Button";
-import useAutoSave from "../hooks/useAutoSave";
+import { useAutoSave } from "../hooks/useAutoSave";
 import ParticipantCategoriesHeader from "./general/ParticipantCategoriesHeader";
 import ParticipantCategoriesList from "./general/ParticipantCategoriesList";
 import DialogueParticipantsHeader from "./general/DialogueParticipantsHeader";

@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import AppContext from "../../AppContext";
 import useAutoSaveNodesAndEdges from "../../hooks/useAutoSaveNodesAndEdges";
-import useAutoSave from "../../hooks/useAutoSave";
+import { useAutoSave } from "../../hooks/useAutoSave";
 
 import SpawnNewNode from "./SpawnNewNode";
 
@@ -138,10 +138,7 @@ const DialogueEditorCanvas = () => {
 	// Memoize nodeTypes to prevent unnecessary re-renders
 	const memoizedNodeTypes = useMemo(() => {
 		return Object.fromEntries(
-			Object.entries(nodeTypes).map(([key, value]) => [
-				key,
-				value,
-			])
+			Object.entries(nodeTypes).map(([key, value]) => [key, value])
 		);
 	}, []);
 
@@ -164,7 +161,7 @@ const DialogueEditorCanvas = () => {
 				onConnectEnd={(event) => console.log("connect end", event)}
 				isValidConnection={isValidConnection}
 				snapToGrid
-				snapGrid={[10,10]}
+				snapGrid={[10, 10]}
 				onReconnect={onReconnect}
 				nodeTypes={memoizedNodeTypes}
 				edgeTypes={edgeTypes}

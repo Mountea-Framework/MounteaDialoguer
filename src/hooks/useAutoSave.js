@@ -17,4 +17,4 @@ const useAutoSave = (name, categories, participants) => {
 	return { saveProjectToLocalStorage };
 };
 
-export default useAutoSave;
+export { useAutoSave, saveProjectToLocalStorage };
