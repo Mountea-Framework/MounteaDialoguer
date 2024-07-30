@@ -1,3 +1,4 @@
+// importCategoriesHelper.js
 import { saveProjectToLocalStorage } from "../hooks/useAutoSave";
 
 export const processImportedCategories = (
@@ -28,7 +29,12 @@ export const processImportedCategories = (
 	alert("Categories imported and merged successfully.");
 };
 
-export const importCategories = async (e, importCallbackRef, setError) => {
+export const importCategories = async (
+	e,
+	processImportedCategories,
+	importCallbackRef,
+	setError
+) => {
 	const file = e.target.files[0];
 	if (!file) {
 		alert("No file selected");

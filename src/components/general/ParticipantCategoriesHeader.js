@@ -39,7 +39,7 @@ function ParticipantCategoriesHeader({ onUpdate }) {
 	const handleImportClick = () => {
 		handleClick((importedCategories) => {
 			onUpdate(importedCategories);
-		});
+		}, "fileInput");
 	};
 
 	const handleExportClick = () => {

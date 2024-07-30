@@ -155,9 +155,44 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
-	const handleClick = (callback) => {
+	const handleClick = (callback, inputId) => {
 		importCallbackRef.current = callback;
-		document.getElementById("fileInput").click();
+		const input = document.getElementById(inputId);
+		if (input) {
+			input.click();
+		}
+	};
+
+	const exportCategories = async () => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+		const categories = parsedData.categories || [];
+
+		const transformedCategories = categories.map((category) => ({
+			name: category.name,
+			parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
+		}));
+
+		const jsonData = {
+			categories: transformedCategories,
+		};
+
+		const jsonString = JSON.stringify(jsonData, null, 2);
+		const blob = new Blob([jsonString], { type: "application/json" });
+
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `${parsedData.name}_categories.json`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
 	};
 
 	return (
@@ -171,28 +206,28 @@ const FileProvider = ({ children }) => {
 				handleClick,
 				generateFile,
 				importCategories: (e) =>
-					importCategories(e, importCallbackRef, setError),
-				processImportedCategories: (data) =>
-					processImportedCategories(data, importCallbackRef, setError),
-				importParticipants: (e) =>
-					importParticipants(e, importCallbackRef, setError),
-				processImportedParticipants: (data) =>
-					processImportedParticipants(data, importCallbackRef, setError),
+					importCategories(
+						e,
+						processImportedCategories,
+						importCallbackRef,
+						setError
+					),
+					exportCategories,
 			}}
 		>
 			<input
 				type="file"
 				id="fileInput"
 				style={{ display: "none" }}
-				onChange={(e) => importCategories(e, importCallbackRef, setError)}
-				accept=".xml,.json,.csv"
-			/>
-			<input
-				type="file"
-				id="participantFileInput"
-				style={{ display: "none" }}
-				onChange={(e) => importParticipants(e, importCallbackRef, setError)}
-				accept=".xml,.json,.csv"
+				onChange={(e) =>
+					importCategories(
+						e,
+						processImportedCategories,
+						importCallbackRef,
+						setError
+					)
+				}
+				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
 			/>
 			{children}
 		</FileContext.Provider>
