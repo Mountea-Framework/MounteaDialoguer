@@ -163,6 +163,28 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
+	const resetFileInput = (inputId) => {
+		const input = document.getElementById(inputId);
+		if (input) {
+			input.value = ""; // Reset the value of the file input element
+		}
+	};
+
+	const importCategoriesHandler = (e) => {
+		importCategories(e, processImportedCategories, importCallbackRef, setError);
+		resetFileInput("fileInput"); // Reset the file input element after import
+	};
+
+	const importParticipantsHandler = (e) => {
+		importParticipants(
+			e,
+			processImportedParticipants,
+			importCallbackRef,
+			setError
+		);
+		resetFileInput("participantFileInput"); // Reset the file input element after import
+	};
+
 	const exportCategories = async () => {
 		const autoSaveData = localStorage.getItem("autoSaveProject");
 		if (!autoSaveData) {
@@ -211,7 +233,7 @@ const FileProvider = ({ children }) => {
 		}));
 
 		const jsonData = {
-			categories: transformedParticipants,
+			participants: transformedParticipants,
 		};
 
 		const jsonString = JSON.stringify(jsonData, null, 2);
@@ -237,20 +259,8 @@ const FileProvider = ({ children }) => {
 				handleDrop,
 				handleClick,
 				generateFile,
-				importCategories: (e) =>
-					importCategories(
-						e,
-						processImportedCategories,
-						importCallbackRef,
-						setError
-					),
-				importParticipants: (e) =>
-					importParticipants(
-						e,
-						processImportedParticipants,
-						importCallbackRef,
-						setError
-					),
+				importCategories: importCategoriesHandler,
+				importParticipants: importParticipantsHandler,
 				exportCategories,
 				exportParticipants,
 			}}
@@ -259,28 +269,14 @@ const FileProvider = ({ children }) => {
 				type="file"
 				id="fileInput"
 				style={{ display: "none" }}
-				onChange={(e) =>
-					importCategories(
-						e,
-						processImportedCategories,
-						importCallbackRef,
-						setError
-					)
-				}
+				onChange={importCategoriesHandler}
 				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
 			/>
 			<input
 				type="file"
 				id="participantFileInput"
 				style={{ display: "none" }}
-				onChange={(e) =>
-					importParticipants(
-						e,
-						processImportedParticipants,
-						importCallbackRef,
-						setError
-					)
-				}
+				onChange={importParticipantsHandler}
 				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
 			/>
 			{children}
