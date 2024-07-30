@@ -30,47 +30,25 @@ The project is organized in a way that separates components, hooks, and styles f
 
 ```
 src/
+|-- App.css
+|-- App.js
+|-- AppContext.js
+|-- FileProvider.js
 |-- base/
 |   |-- BaseNodesStyle.css
 |   |-- BaseStyle.css
 |   |-- ColorPalette.css
-|-- components/
-|   |-- dialogueNodes/
-|   |   |-- answerNode.js
-|   |   |-- baseNode.js
-|   |   |-- closeDialogueAutomaticNode.js
-|   |   |-- closeDialogueNode.js
-|   |   |-- jumpToNode.js
-|   |   |-- leadNode.js
-|   |   |-- startNode.js
-|   |-- editorComponents/
-|   |   |-- DialogueEditorCanvas.js
-|   |   |-- DialogueEditorDetails.js
-|   |   |-- DialogueEditorToolbar.js
-|   |-- general/
-|   |   |-- DialogueParticipantsHeader.js
-|   |   |-- DialogueParticipantsList.js
-|   |   |-- EditCategoryItem.js
-|   |   |-- EditParticipantItem.js
-|   |   |-- ParticipantCategorierHeader.js
-|   |   |-- ParticipantCategoriesList.js
-|   |-- objects/
-|   |   |-- Button.js
-|   |   |-- Dropdown.js
-|   |   |-- Modal.js
-|   |   |-- ScrollList.js
-|   |   |-- ScrollListItem.js
-|   |   |-- TextInput.js
-|   |   |-- Title.js
-|   |-- DialogueCanvas.js
-|   |-- DialogueEditor.js
-|   |-- DialogueParticipants.js
-|   |-- LandingPage.js
-|   |-- LoadProject.js
-|   |-- NewProject.js
-|   |-- NewProjectDetails.js
-|   |-- ParticipantCategories.js
 |-- componentStyles/
+|   |-- DialogueCanvas.css
+|   |-- DialogueEditor.css
+|   |-- DialogueParticipants.css
+|   |-- LandingPage.css
+|   |-- LoadProject.css
+|   |-- NewProject.css
+|   |-- NewProjectDetails.css
+|   |-- ParticipantCategories.css
+|   |-- dialogueNodes/
+|   |   |-- customNode.css
 |   |-- editorComponentStyles/
 |   |   |-- DialogueEditorCanvas.css
 |   |   |-- DialogueEditorDetails.css
@@ -83,29 +61,69 @@ src/
 |   |   |-- ScrollListItem.css
 |   |   |-- TextInput.css
 |   |   |-- Title.css
-|   |-- DialogueCanvas.css
-|   |-- DialogueEditor.css
-|   |-- DialogueParticipants.css
-|   |-- LandingPage.css
-|   |-- LoadProject.css
-|   |-- NewProject.css
-|   |-- NewProjectDetails.css
-|   |-- ParticipantCategories.css
+|-- components/
+|   |-- DialogueCanvas.js
+|   |-- DialogueEditor.js
+|   |-- DialogueParticipants.js
+|   |-- LandingPage.js
+|   |-- LoadProject.js
+|   |-- NewProject.js
+|   |-- NewProjectDetails.js
+|   |-- ParticipantCategories.js
+|   |-- dialogueEdges/
+|   |   |-- baseEdge.js
 |   |-- dialogueNodes/
-|   |   |-- customNode.css
+|   |   |-- answerNode.js
+|   |   |-- baseNode.js
+|   |   |-- closeDialogueAutomaticNode.js
+|   |   |-- closeDialogueNode.js
+|   |   |-- jumpToNode.js
+|   |   |-- leadNode.js
+|   |   |-- startNode.js
+|   |-- editorComponents/
+|   |   |-- DialogueEditorCanvas.js
+|   |   |-- DialogueEditorDetails.js
+|   |   |-- DialogueEditorToolbar.js
+|   |   |-- SpawnNewNode.js
+|   |-- general/
+|   |   |-- DialogueParticipantsHeader.js
+|   |   |-- DialogueParticipantsList.js
+|   |   |-- EditCategoryItem.js
+|   |   |-- EditParticipantItem.js
+|   |   |-- ParticipantCategoriesHeader.js
+|   |   |-- ParticipantCategoriesList.js
+|   |-- objects/
+|   |   |-- Button.js
+|   |   |-- Dropdown.js
+|   |   |-- FileDrop.js
+|   |   |-- Modal.js
+|   |   |-- ScrollList.js
+|   |   |-- ScrollListItem.js
+|   |   |-- TextInput.js
+|   |   |-- Title.js
+|-- helpers/
+|   |-- autoSaveHelpers.js
+|   |-- importCategoriesHelper.js
+|   |-- importParticipantsHelper.js
 |-- hooks/
 |   |-- useAutoSave.js
+|   |-- useAutoSaveNodesAndEdges.js
 |-- icons/
 |   |-- addIcon.svg
+|   |-- downloadIcon.svg
 |   |-- editoIcon.svg
+|   |-- favoriteIcon.svg
+|   |-- helpIcon.svg
+|   |-- redoIcon.svg
 |   |-- removeIcon.svg
-|-- App.css
-|-- App.js
-|-- App.test.js
-|-- AppContext.js
+|   |-- searchIcon.svg
+|   |-- settingsIcon.svg
+|   |-- undoIcon.svg
+|   |-- uploadIcon.svg
 |-- index.css
 |-- index.js
 |-- logo.svg
+
 ```
 
 ### Key Files and Folders
