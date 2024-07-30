@@ -1,3 +1,4 @@
+// importParticipantsHelper.js
 import { saveProjectToLocalStorage } from "../hooks/useAutoSave";
 
 export const processImportedParticipants = (
@@ -31,7 +32,12 @@ export const processImportedParticipants = (
 	alert("Participants imported and merged successfully.");
 };
 
-export const importParticipants = async (e, importCallbackRef, setError) => {
+export const importParticipants = async (
+	e,
+	processImportedParticipants,
+	importCallbackRef,
+	setError
+) => {
 	const file = e.target.files[0];
 	if (!file) {
 		alert("No file selected");

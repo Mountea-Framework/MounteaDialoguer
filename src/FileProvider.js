@@ -195,6 +195,38 @@ const FileProvider = ({ children }) => {
 		URL.revokeObjectURL(url);
 	};
 
+	const exportParticipants = async () => {
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		if (!autoSaveData) {
+			setError("No data found in local storage.");
+			return;
+		}
+
+		const parsedData = JSON.parse(autoSaveData);
+		const participants = parsedData.participants || [];
+
+		const transformedParticipants = participants.map((participant) => ({
+			name: participant.name,
+			category: participant.category.split(".").pop(), // Get the last part of the composite parent so import will consume it
+		}));
+
+		const jsonData = {
+			categories: transformedParticipants,
+		};
+
+		const jsonString = JSON.stringify(jsonData, null, 2);
+		const blob = new Blob([jsonString], { type: "application/json" });
+
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `${parsedData.name}_participants.json`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	};
+
 	return (
 		<FileContext.Provider
 			value={{
@@ -212,7 +244,15 @@ const FileProvider = ({ children }) => {
 						importCallbackRef,
 						setError
 					),
-					exportCategories,
+				importParticipants: (e) =>
+					importParticipants(
+						e,
+						processImportedParticipants,
+						importCallbackRef,
+						setError
+					),
+				exportCategories,
+				exportParticipants 
 			}}
 		>
 			<input
@@ -223,6 +263,20 @@ const FileProvider = ({ children }) => {
 					importCategories(
 						e,
 						processImportedCategories,
+						importCallbackRef,
+						setError
+					)
+				}
+				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
+			/>
+			<input
+				type="file"
+				id="participantFileInput"
+				style={{ display: "none" }}
+				onChange={(e) =>
+					importParticipants(
+						e,
+						processImportedParticipants,
 						importCallbackRef,
 						setError
 					)
