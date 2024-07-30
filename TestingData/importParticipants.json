@@ -1,0 +1,6 @@
+{
+	"participants": [
+		{ "name": "Karel", "category": "NPC" },
+		{ "name": "Merchant", "category": "Farmer" }
+	]
+}
