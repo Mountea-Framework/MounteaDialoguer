@@ -252,7 +252,7 @@ const FileProvider = ({ children }) => {
 						setError
 					),
 				exportCategories,
-				exportParticipants 
+				exportParticipants,
 			}}
 		>
 			<input

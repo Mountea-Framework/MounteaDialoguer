@@ -1,4 +1,3 @@
-// importParticipantsHelper.js
 import { saveProjectToLocalStorage } from "../hooks/useAutoSave";
 
 export const processImportedParticipants = (
@@ -138,10 +137,21 @@ export const importParticipants = async (
 			category: part.category.replace(/\s+/g, ""),
 		}));
 
-		const participantNames = new Set(participants.map((part) => part.name));
+		const autoSaveData = localStorage.getItem("autoSaveProject");
+		const parsedData = JSON.parse(autoSaveData);
+		const categoryNames = new Set(parsedData.categories.map((cat) => cat.name));
 		const invalidEntries = [];
 		const validParticipants = participants.filter((part) => {
-			if (part.category && !participantNames.has(part.category)) {
+			const categoryParts = part.category.split(".");
+			let isValid = true;
+			for (let i = 0; i < categoryParts.length; i++) {
+				const categoryName = categoryParts.slice(0, i + 1).join(".");
+				if (!categoryNames.has(categoryName)) {
+					isValid = false;
+					break;
+				}
+			}
+			if (!isValid) {
 				invalidEntries.push(part);
 				return false;
 			}
@@ -154,19 +164,6 @@ export const importParticipants = async (
 				logEntries.push(`Name: ${entry.name}, Category: ${entry.category}\n`);
 			});
 		}
-
-		const categoryMap = {};
-		validParticipants.forEach((part) => {
-			if (part.category) {
-				const compositeCategory = categoryMap[part.category]
-					? categoryMap[part.category]
-					: part.category;
-				categoryMap[part.name] = `${compositeCategory}.${part.name}`;
-				part.category = compositeCategory;
-			} else {
-				categoryMap[part.name] = part.name;
-			}
-		});
 
 		if (logEntries.length > 0) {
 			const logBlob = new Blob(logEntries, { type: "text/plain" });

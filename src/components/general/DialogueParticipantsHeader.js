@@ -12,8 +12,7 @@ import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
 
 function DialogueParticipantsHeader({ onUpdate }) {
 	const { participants, categories, addParticipant } = useContext(AppContext);
-	const { handleClick, exportParticipants, processImportedParticipants } =
-		useContext(FileContext);
+	const { handleClick, exportParticipants } = useContext(FileContext);
 	const [newParticipant, setNewParticipant] = useState({
 		name: "",
 		category: "",
@@ -23,6 +22,7 @@ function DialogueParticipantsHeader({ onUpdate }) {
 		if (newParticipant.name && newParticipant.category) {
 			addParticipant(newParticipant);
 			setNewParticipant({ name: "", category: "" });
+			onUpdate([...participants, newParticipant]);
 		}
 	};
 
@@ -41,7 +41,6 @@ function DialogueParticipantsHeader({ onUpdate }) {
 
 	const handleImportClick = () => {
 		handleClick((importedParticipants) => {
-			processImportedParticipants(importedParticipants);
 			onUpdate(importedParticipants);
 		}, "participantFileInput");
 	};
