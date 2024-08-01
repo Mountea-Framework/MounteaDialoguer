@@ -18,7 +18,7 @@ import "../../componentStyles/editorComponentStyles/DialogueEditorToolbar.css";
 
 function DialogueEditorToolbar() {
 	const { generateFile } = useContext(FileContext);
-	const [isSettingsOpen, setIsSettingsOpen] = useState(false); 
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const handleSave = () => {
 		generateFile();
 	};
@@ -33,7 +33,7 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
-				onClick={handleSave}
+				disabled={true}
 			>
 				<UndoIcon className="undo-icon icon" />
 			</Button>
@@ -41,7 +41,7 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
-				onClick={handleSave}
+				disabled={true}
 			>
 				<RedoIcon className="redo-icon icon" />
 			</Button>
@@ -72,6 +72,7 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
+				disabled={true}
 			>
 				<HelpIcon className="help-icon icon" />
 			</Button>
@@ -79,6 +80,7 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
+				disabled={true}
 			>
 				<SearchIcon className="search-icon icon" />
 			</Button>
