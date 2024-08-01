@@ -19,14 +19,7 @@ const BaseNode = ({ id, data }) => {
 		canCreate = true,
 		additionalInfo,
 	} = data;
-	const [nodeId, setNodeId] = useState(data.nodeId || uuidv4());
 	const { setNodes, setEdges } = useReactFlow();
-
-	useEffect(() => {
-		if (!data.nodeId) {
-			data.nodeId = nodeId;
-		}
-	}, [data, nodeId]);
 
 	const handleDeleteNode = () => {
 		setNodes((nds) => nds.filter((node) => node.id !== id));

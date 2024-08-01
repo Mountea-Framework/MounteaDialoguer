@@ -8,8 +8,9 @@ const CloseDialogueNode = (props) => {
 		title: "Close",
 		targetHandle: true,
 		additionalInfo: {
-			participant: "",
-		}
+            participant: "",
+            dialogueRows: [],
+        },
 	};
 
 	return <BaseNode {...props} data={nodeData} />;

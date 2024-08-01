@@ -56,7 +56,6 @@ const initialNodes = [
 		position: { x: 0, y: 0 },
 		data: {
 			title: "Start Node",
-			nodeId: "00000000-0000-0000-0000-000000000001",
 		},
 	},
 ];
@@ -93,8 +92,7 @@ const DialogueEditorCanvas = () => {
 			type: type,
 			position: { x: projectedPosition.x, y: projectedPosition.y },
 			data: {
-				title: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-				nodeId: uuidv4(),
+				title: `${type.charAt(0).toUpperCase() + type.slice(1)}`,
 				setEdges: setEdges,
 			},
 		};

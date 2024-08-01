@@ -9,8 +9,9 @@ const AnswerNode = (props) => {
 		sourceHandle: true,
 		targetHandle: true,
 		additionalInfo: {
-			participant: "",
-		}
+            participant: "Player",
+            dialogueRows: [],
+        },
 	};
 
 	return <BaseNode {...props} data={nodeData} />;

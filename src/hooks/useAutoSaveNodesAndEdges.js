@@ -8,7 +8,13 @@ const saveNodesAndEdgesToLocalStorage = (nodes, edges) => {
 		id: node.id,
 		type: node.type,
 		position: node.position,
-		data: node.data, // Ensure `data` contains only serializable values
+		data: {
+            ...node.data,
+            additionalInfo: node.data.additionalInfo || {
+                participant: "",
+                dialogueRows: []
+            }, // Ensure `additionalInfo` is included
+        }
 	}));
 
 	const serializableEdges = edges.map((edge) => ({

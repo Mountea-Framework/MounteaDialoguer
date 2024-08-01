@@ -8,8 +8,9 @@ const CloseDialogueAutomaticNode = (props) => {
 		title: "Auto Close",
 		targetHandle: true,
 		additionalInfo: {
-			participant: "",
-		}
+            participant: "",
+            dialogueRows: [],
+        },
 	};
 
 	return <BaseNode {...props} data={nodeData} />;

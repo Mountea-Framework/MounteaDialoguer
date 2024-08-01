@@ -9,8 +9,9 @@ const LeadNode = (props) => {
 		sourceHandle: true,
 		targetHandle: true,
 		additionalInfo: {
-			participant: "",
-		}
+            participant: "NPC",
+            dialogueRows: [],
+        },
 	};
 
 	return <BaseNode {...props} data={nodeData} />;
