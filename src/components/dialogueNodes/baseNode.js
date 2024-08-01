@@ -17,6 +17,7 @@ const BaseNode = ({ id, data }) => {
 		sourceHandle,
 		canDelete = true,
 		canCreate = true,
+		additionalInfo,
 	} = data;
 	const [nodeId, setNodeId] = useState(data.nodeId || uuidv4());
 	const { setNodes, setEdges } = useReactFlow();

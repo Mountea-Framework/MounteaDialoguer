@@ -8,6 +8,9 @@ const AnswerNode = (props) => {
 		title: "Answer Node",
 		sourceHandle: true,
 		targetHandle: true,
+		additionalInfo: {
+			participant: "",
+		}
 	};
 
 	return <BaseNode {...props} data={nodeData} />;

@@ -8,6 +8,9 @@ const LeadNode = (props) => {
 		title: "Lead Node",
 		sourceHandle: true,
 		targetHandle: true,
+		additionalInfo: {
+			participant: "",
+		}
 	};
 
 	return <BaseNode {...props} data={nodeData} />;

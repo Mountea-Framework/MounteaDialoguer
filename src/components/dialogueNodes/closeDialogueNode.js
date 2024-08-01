@@ -7,6 +7,9 @@ const CloseDialogueNode = (props) => {
 		customClassName: "close-dialogue-node",
 		title: "Close",
 		targetHandle: true,
+		additionalInfo: {
+			participant: "",
+		}
 	};
 
 	return <BaseNode {...props} data={nodeData} />;
