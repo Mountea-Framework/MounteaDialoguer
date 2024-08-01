@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 
 import Modal from "../objects/Modal";
 import ParticipantCategoriesHeader from "../general/ParticipantCategoriesHeader";
@@ -15,14 +15,37 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 	const { categories, participants, setParticipants, setCategories, name } =
 		useContext(AppContext);
 
-	useAutoSave(name, categories, participants);
+	const { saveProjectToLocalStorage } = useAutoSave(
+		name,
+		categories,
+		participants
+	);
+
+	useEffect(() => {
+		console.log("Categories or participants updated:", {
+			categories,
+			participants,
+		});
+	}, [categories, participants]);
 
 	const handleCategoriesUpdate = (newCategories) => {
+		console.log("Updating categories:", newCategories);
 		setCategories(newCategories);
+		saveProjectToLocalStorage({
+			name,
+			categories: newCategories,
+			participants,
+		});
 	};
 
 	const handleParticipantsUpdate = (newParticipants) => {
+		console.log("Updating participants:", newParticipants);
 		setParticipants(newParticipants);
+		saveProjectToLocalStorage({
+			name,
+			categories,
+			participants: newParticipants,
+		});
 	};
 
 	const handleDeleteCategory = (categoryName) => {
