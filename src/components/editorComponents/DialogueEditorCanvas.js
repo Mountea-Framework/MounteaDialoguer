@@ -14,7 +14,6 @@ import ReactFlow, {
 	addEdge,
 	SelectionMode,
 	useReactFlow,
-	useOnSelectionChange,
 } from "reactflow";
 import { v4 as uuidv4 } from "uuid";
 
@@ -80,17 +79,10 @@ const DialogueEditorCanvas = () => {
 	const reactFlowWrapper = useRef(null);
 	const { project } = useReactFlow();
 
-	useOnSelectionChange({
-		onChange: ({ nodes, edges }) => {
-			if (nodes.length > 0) {
-				console.log("Node Selected");
-				selectNode(nodes[0]);
-			} else {
-				console.log("Node Unselected");
-				selectNode(null);
-			}
-		},
-	});
+	const handleNodeClick = (event, node) => {
+		console.log("Node Clicked");
+		selectNode(node);
+	};
 
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
@@ -184,6 +176,7 @@ const DialogueEditorCanvas = () => {
 				selectionOnDrag
 				panOnDrag={panOnDrag}
 				selectionMode={SelectionMode.Partial}
+				onNodeClick={handleNodeClick}
 			>
 				<Controls />
 			</ReactFlow>
