@@ -21,15 +21,9 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 		participants
 	);
 
-	useEffect(() => {
-		console.log("Categories or participants updated:", {
-			categories,
-			participants,
-		});
-	}, [categories, participants]);
+	useEffect(() => {}, [categories, participants]);
 
 	const handleCategoriesUpdate = (newCategories) => {
-		console.log("Updating categories:", newCategories);
 		setCategories(newCategories);
 		saveProjectToLocalStorage({
 			name,
@@ -39,7 +33,6 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 	};
 
 	const handleParticipantsUpdate = (newParticipants) => {
-		console.log("Updating participants:", newParticipants);
 		setParticipants(newParticipants);
 		saveProjectToLocalStorage({
 			name,

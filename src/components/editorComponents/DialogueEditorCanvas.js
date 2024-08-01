@@ -74,22 +74,43 @@ const DialogueEditorCanvas = () => {
 		x: 0,
 		y: 0,
 	});
-	const { selectNode } = useSelection();
+	const { selectedNode, selectNode } = useSelection();
 
 	const reactFlowWrapper = useRef(null);
 	const { project } = useReactFlow();
 
 	const handleNodeClick = (event, node) => {
-		console.log("Node Clicked");
+		if (selectedNode?.id !== node.id) {
+			selectNode(node);
+		}
+	};
+
+	const handleNodeDoubleClick = (event, node) => {
 		selectNode(node);
 	};
 
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
 		const { clientX, clientY } = event;
-		console.log(`Right-click at position: X=${clientX}, Y=${clientY}`);
 		setContextMenuPosition({ x: clientX, y: clientY });
 		setIsModalOpen(true);
+	};
+
+	const handleDragNode = (event, node) => {
+		if (node && selectedNode) {
+			if (node.id === selectedNode.id) {
+				return;
+			}
+		}
+		if (node !== selectedNode) {
+			selectNode(null);
+		}
+	};
+
+	const handlePaneClick = (event) => {
+		if (event.target === event.currentTarget) {
+			selectNode(null);
+		}
 	};
 
 	const handleSpawnNode = (type) => {
@@ -159,11 +180,6 @@ const DialogueEditorCanvas = () => {
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
 				onConnect={onConnect}
-				onConnectStart={(event, params) =>
-					console.log("connect start", event, params)
-				}
-				onConnectStop={(event) => console.log("connect stop", event)}
-				onConnectEnd={(event) => console.log("connect end", event)}
 				isValidConnection={isValidConnection}
 				snapToGrid
 				snapGrid={[10, 10]}
@@ -176,7 +192,11 @@ const DialogueEditorCanvas = () => {
 				selectionOnDrag
 				panOnDrag={panOnDrag}
 				selectionMode={SelectionMode.Partial}
+				onNodeDoubleClick={handleNodeDoubleClick}
 				onNodeClick={handleNodeClick}
+				onPaneClick={handlePaneClick}
+				onPaneScroll={handlePaneClick}
+				onNodeDragStart={handleDragNode}
 			>
 				<Controls />
 			</ReactFlow>

@@ -1,11 +1,28 @@
 .dialogue-editor-details {
-    display: flex;
-    flex-direction: column;
-    align-content: stretch;
-    justify-content: flex-start;
-    align-items: stretch;
+	display: flex;
+	flex-direction: column;
+	align-content: stretch;
+	justify-content: flex-start;
+	align-items: stretch;
 }
 
 .dialogue-editor-details h3 {
-    text-align: center;
+	text-align: center;
+}
+
+.node-details {
+	width: 95%;
+	height: 100%;
+	display: flex;
+	margin: 10px;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-content: stretch;
+	justify-content: flex-start;
+	align-items: stretch;
+
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+	width: auto;
 }

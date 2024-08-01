@@ -3,6 +3,7 @@ import React from "react";
 import { useSelection } from "../../contexts/SelectionContext";
 
 import Title from "../objects/Title";
+import ReadOnlyText from "../objects/ReadOnlyText";
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
@@ -17,7 +18,7 @@ function DialogueEditorDetails() {
 				className="tertiary-heading"
 				classState={"tertiary"}
 			/>
-			<div>
+			<div className="node-details">
 				{selectedNode ? (
 					<div>
 						<p>
@@ -32,7 +33,7 @@ function DialogueEditorDetails() {
 						</p>
 					</div>
 				) : (
-					<p>No node selected</p>
+					<ReadOnlyText value={"No node selected"} />
 				)}
 			</div>
 		</div>
