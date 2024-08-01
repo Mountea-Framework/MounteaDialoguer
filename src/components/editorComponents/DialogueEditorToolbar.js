@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import Button from "../../components/objects/Button";
 import { FileContext } from "../../FileProvider";
@@ -12,13 +12,19 @@ import { ReactComponent as SearchIcon } from "../../icons/searchIcon.svg";
 import { ReactComponent as UndoIcon } from "../../icons/undoIcon.svg";
 import { ReactComponent as RedoIcon } from "../../icons/redoIcon.svg";
 
+import DialogueEditorSettings from "./DialogueEditorSettings";
+
 import "../../componentStyles/editorComponentStyles/DialogueEditorToolbar.css";
 
 function DialogueEditorToolbar() {
 	const { generateFile } = useContext(FileContext);
-
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false); 
 	const handleSave = () => {
 		generateFile();
+	};
+
+	const handleSettingsClick = () => {
+		setIsSettingsOpen(true);
 	};
 
 	return (
@@ -58,6 +64,7 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
+				onClick={handleSettingsClick}
 			>
 				<SettingsIcon className="settings-icon icon" />
 			</Button>
@@ -79,9 +86,16 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
+				onClick={() =>
+					window.open("https://github.com/sponsors/Mountea-Framework", "_blank")
+				}
 			>
 				<FavoriteIcon className="favorite-icon icon" />
 			</Button>
+			<DialogueEditorSettings
+				isOpen={isSettingsOpen}
+				onClose={() => setIsSettingsOpen(false)}
+			/>
 		</div>
 	);
 }
