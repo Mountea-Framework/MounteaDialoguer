@@ -23,3 +23,7 @@
 .toolbar-button:hover > .icon {
 	fill: var(--primary-hovered);
 }
+
+.toolbar-button:hover > .favorite-icon {
+	fill: red;
+}

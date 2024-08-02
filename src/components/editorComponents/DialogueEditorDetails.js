@@ -38,6 +38,8 @@ function DialogueEditorDetails({ setNodes }) {
 		}
 	};
 
+	console.log(selectedNode);
+
 	return (
 		<div className="dialogue-editor-details background-secondary">
 			<Title
@@ -46,35 +48,62 @@ function DialogueEditorDetails({ setNodes }) {
 				className="tertiary-heading"
 				classState={"tertiary"}
 			/>
+
 			<div className="node-details">
 				{selectedNode ? (
-					<div className="node-details-generic">
-						<div className="node-details-c1">
-							<Title
-								level="4"
-								children="Node Title"
-								className="tertiary-heading"
-								classState={"tertiary"}
-							/>
-							<div />
-							<Title
-								level="4"
-								children="Node Info"
-								className="tertiary-heading"
-								classState={"tertiary"}
-							/>
+					selectedNode.type !== "startNode" ? (
+						<div className="node-details-generic">
+							<div className="node-details-c1">
+								<Title
+									level="4"
+									children="Node Title"
+									className="tertiary-heading"
+									classState={"tertiary"}
+								/>
+								<div />
+								<Title
+									level="4"
+									children="Node Info"
+									className="tertiary-heading"
+									classState={"tertiary"}
+								/>
+							</div>
+							<div className="node-details-c2">
+								<TextInput
+									title="Node Title"
+									placeholder={tempNodeData.title}
+									name="title"
+									value={tempNodeData.title}
+									onChange={(name, value) => handleInputChange(name, value)}
+									maxLength={32}
+									readOnly={false}
+								/>
+							</div>
 						</div>
-						<div className="node-details-c2">
-							<TextInput
-								title="Node Title"
-								placeholder={tempNodeData.title}
-								name="title"
-								value={tempNodeData.title}
-								onChange={(name, value) => handleInputChange(name, value)}
-								maxLength={32}
-							/>
+					) : (
+						<div className="node-details-generic">
+							<div className="node-details-c1">
+								<Title
+									level="4"
+									children="Node Title"
+									className="tertiary-heading"
+									classState={"tertiary"}
+								/>
+								<div />
+							</div>
+							<div className="node-details-c2">
+								<TextInput
+									title="Node Title"
+									placeholder={tempNodeData.title}
+									name="title"
+									value={tempNodeData.title}
+									onChange={(name, value) => handleInputChange(name, value)}
+									maxLength={32}
+									readOnly={true}
+								/>
+							</div>
 						</div>
-					</div>
+					)
 				) : (
 					<CSSTransition
 						in={!selectedNode}
@@ -86,7 +115,7 @@ function DialogueEditorDetails({ setNodes }) {
 					</CSSTransition>
 				)}
 			</div>
-			{selectedNode && (
+			{selectedNode && selectedNode.type !== "startNode" && (
 				<div className="node-details-confirmation">
 					<Button onClick={handleConfirmChanges}>Confirm</Button>
 				</div>
