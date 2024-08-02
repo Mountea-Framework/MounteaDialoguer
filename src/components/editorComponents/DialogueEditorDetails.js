@@ -180,65 +180,69 @@ function DialogueEditorDetails({ setNodes }) {
 									className="tertiary-heading"
 									classState={"tertiary"}
 								/>
-								<div className="node-details-specific-tab">
-									<div className="node-info-panel participant-selector">
-										<Title
-											level="5"
-											children="Participant"
-											className="tertiary-heading"
-											classState={"tertiary"}
-										/>
-										<Dropdown
-											name="participant"
-											placeholder="select participant"
-											value={JSON.stringify(
-												tempNodeData.additionalInfo.participant
+								{selectedNode.type !== "jumpToNode" ? (
+									<div className="node-details-specific-tab">
+										<div className="node-info-panel participant-selector">
+											<Title
+												level="5"
+												children="Participant"
+												className="tertiary-heading"
+												classState={"tertiary"}
+											/>
+											<Dropdown
+												name="participant"
+												placeholder="select participant"
+												value={JSON.stringify(
+													tempNodeData.additionalInfo.participant
+												)}
+												onChange={handleParticipantInputChange}
+												options={participantOptions}
+											/>
+										</div>
+										<div className="node-info-panel ">
+											<Title
+												level="5"
+												children="Dialogue Rows"
+												className="tertiary-heading"
+												classState={"tertiary"}
+											/>
+											<div className="dialogue-row-buttons-control">
+												<Button
+													onClick={addDialogueRow}
+													className="circle-button dialogue-row-button"
+												>
+													<span className={`add-icon icon`}>
+														<AddIcon />
+													</span>
+												</Button>
+												<Button
+													onClick={resetDialogueRows}
+													className="circle-button dialogue-row-button"
+												>
+													<span className={`remove-icon icon`}>
+														<DeleteIcon />
+													</span>
+												</Button>
+											</div>
+										</div>
+										<div className="dialogue-row-area">
+											{tempNodeData.additionalInfo.dialogueRows.map(
+												(row, index) => (
+													<DialogueRow
+														key={index}
+														index={index}
+														text={row.text}
+														audio={row.audio}
+														onTextChange={handleDialogueRowTextChange}
+														onAudioChange={handleDialogueRowAudioChange}
+													/>
+												)
 											)}
-											onChange={handleParticipantInputChange}
-											options={participantOptions}
-										/>
-									</div>
-									<div className="node-info-panel ">
-										<Title
-											level="5"
-											children="Dialogue Rows"
-											className="tertiary-heading"
-											classState={"tertiary"}
-										/>
-										<div className="dialogue-row-buttons-control">
-											<Button
-												onClick={addDialogueRow}
-												className="circle-button dialogue-row-button"
-											>
-												<span className={`add-icon icon`}>
-													<AddIcon />
-												</span>
-											</Button>
-											<Button
-												onClick={resetDialogueRows}
-												className="circle-button dialogue-row-button"
-											>
-												<span className={`remove-icon icon`}>
-													<DeleteIcon />
-												</span>
-											</Button>
 										</div>
 									</div>
-									<div className="dialogue-row-area">
-										{tempNodeData.additionalInfo.dialogueRows.map(
-											(row, index) => (
-												<DialogueRow
-													key={index}
-													index={index}
-													text={row.text}
-													audio={row.audio}
-													onTextChange={handleDialogueRowTextChange}
-													onAudioChange={handleDialogueRowAudioChange}
-												/>
-											)
-										)}
-									</div>
-								</div>
+								) : (
+									<div></div>
+								)}
 							</div>
 						</div>
 					) : (
