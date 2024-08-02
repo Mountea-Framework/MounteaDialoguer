@@ -8,6 +8,7 @@ import Dropdown from "../objects/Dropdown";
 import TextInput from "../objects/TextInput";
 import Button from "../objects/Button";
 import ReadOnlyText from "../objects/ReadOnlyText";
+import DialogueRow from "./DialogueRow"; // Import the new component
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
@@ -27,7 +28,7 @@ function DialogueEditorDetails({ setNodes }) {
 			name: participant.name,
 			category: participant.category,
 		}),
-		label: `${participant.name} - ${participant.category}`,
+		label: `${participant.name} (${participant.category})`,
 	}));
 
 	useEffect(() => {
@@ -66,6 +67,43 @@ function DialogueEditorDetails({ setNodes }) {
 		} catch (error) {
 			console.error("Error parsing participant value:", error);
 		}
+	};
+
+	const handleDialogueRowTextChange = (index, text) => {
+		const updatedDialogueRows = [...tempNodeData.additionalInfo.dialogueRows];
+		updatedDialogueRows[index] = { ...updatedDialogueRows[index], text };
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				dialogueRows: updatedDialogueRows,
+			},
+		}));
+	};
+
+	const handleDialogueRowAudioChange = (index, audio) => {
+		const updatedDialogueRows = [...tempNodeData.additionalInfo.dialogueRows];
+		updatedDialogueRows[index] = { ...updatedDialogueRows[index], audio };
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				dialogueRows: updatedDialogueRows,
+			},
+		}));
+	};
+
+	const addDialogueRow = () => {
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				dialogueRows: [
+					...prevData.additionalInfo.dialogueRows,
+					{ text: "", audio: null },
+				],
+			},
+		}));
 	};
 
 	const handleConfirmChanges = () => {
@@ -122,14 +160,14 @@ function DialogueEditorDetails({ setNodes }) {
 									/>
 								</div>
 							</div>
-							<div>
+							<div className="node-details-">
 								<Title
 									level="4"
 									children="Node Info"
 									className="tertiary-heading"
 									classState={"tertiary"}
 								/>
-								<div className="node-info-panel">
+								<div className="node-info-panel participant-selector">
 									<Title
 										level="5"
 										children="Participant"
@@ -145,6 +183,29 @@ function DialogueEditorDetails({ setNodes }) {
 										onChange={handleParticipantInputChange}
 										options={participantOptions}
 									/>
+								</div>
+								<div className="node-info-panel dialogue-rows-selector">
+									<Title
+										level="5"
+										children="Dialogue Rows"
+										className="tertiary-heading"
+										classState={"tertiary"}
+									/>
+									<Button onClick={addDialogueRow}>Add Dialogue Row</Button>
+									<div className="dialogue-row-area">
+									{tempNodeData.additionalInfo.dialogueRows.map(
+										(row, index) => (
+											<DialogueRow
+												key={index}
+												index={index}
+												text={row.text}
+												audio={row.audio}
+												onTextChange={handleDialogueRowTextChange}
+												onAudioChange={handleDialogueRowAudioChange}
+											/>
+										)
+									)}
+									</div>
 								</div>
 							</div>
 						</div>

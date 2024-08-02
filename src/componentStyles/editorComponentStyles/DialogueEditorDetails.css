@@ -12,7 +12,7 @@
 
 .node-details {
 	width: 95%;
-	height: 100%;
+	/*height: 80%; */
 	display: flex;
 	margin: 10px;
 	flex-direction: column;
@@ -37,6 +37,16 @@
 	gap: 5px;
 }
 
+.node-details-specific {
+	display: flex;
+	grid-template-columns: 25% 75%;
+	align-content: stretch;
+	justify-content: space-evenly;
+	align-items: stretch;
+	justify-items: stretch;
+	gap: 5px;
+}
+
 .node-details-confirmation {
 	margin-bottom: 20px;
 }
@@ -49,6 +59,38 @@
 	align-items: stretch;
 	justify-items: stretch;
 	gap: 5px;
+}
+
+.dialogue-rows-selector {
+	overflow: hidden;
+	height: 60%;
+}
+
+.dialogue-row-area {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-content: stretch;
+	align-items: stretch;
+	justify-content: flex-start;
+	width: 100%;
+	grid-column: 1/3;
+	gap: 25px;
+}
+
+.dialogue-row {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	justify-content: space-evenly;
+	align-content: stretch;
+	align-items: stretch;
+	width: 100%;
+	gap: 5px;
+}
+
+.dialogue-row textarea {
+	width: 100%;
 }
 
 .fade-enter {
