@@ -8,10 +8,20 @@ import ReadOnlyText from "../objects/ReadOnlyText";
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
-function DialogueEditorDetails() {
+function DialogueEditorDetails({ setNodes }) {
 	const { selectedNode } = useSelection();
 
-	console.log(selectedNode);
+	const handleInputChange = (name, value) => {
+		if (selectedNode) {
+			setNodes((nds) =>
+				nds.map((node) =>
+					node.id === selectedNode.id
+						? { ...node, data: { ...node.data, title: value } }
+						: node
+				)
+			);
+		}
+	};
 
 	return (
 		<div className="dialogue-editor-details background-secondary">
@@ -31,13 +41,13 @@ function DialogueEditorDetails() {
 								className="tertiary-heading"
 								classState={"tertiary"}
 							/>
-							<div/>
+							<div />
 							<Title
 								level="4"
 								children="Node Info"
 								className="tertiary-heading"
 								classState={"tertiary"}
-							/>							
+							/>
 						</div>
 						<div className="node-details-c2">
 							<TextInput
@@ -45,7 +55,7 @@ function DialogueEditorDetails() {
 								placeholder={selectedNode.data.title}
 								name="nodeTitle"
 								value={selectedNode.data.title}
-								//onChange={handleInputChange}
+								onChange={(name, value) => handleInputChange(name, value)}
 								maxLength={32}
 							/>
 						</div>

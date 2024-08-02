@@ -50,25 +50,19 @@ const edgeTypes = {
 	customEdge: CustomEdge,
 };
 
-const initialNodes = [
-	{
-		id: "00000000-0000-0000-0000-000000000001",
-		type: "startNode",
-		position: { x: 0, y: 0 },
-		data: {
-			title: "Start Node",
-		},
-	},
-];
-
-const initialEdges = [];
-
 const panOnDrag = [1, 2];
 
-const DialogueEditorCanvas = () => {
+const DialogueEditorCanvas = ({
+	nodes,
+	edges,
+	setNodes,
+	setEdges,
+	onNodesChange,
+	onEdgesChange,
+}) => {
 	const { name, categories, participants } = useContext(AppContext);
-	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	//const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+	//const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [contextMenuPosition, setContextMenuPosition] = useState({
 		x: 0,
@@ -226,7 +220,6 @@ const DialogueEditorCanvas = () => {
 				onNodeDoubleClick={handleNodeDoubleClick}
 				onNodeClick={handleNodeClick}
 				onPaneClick={handlePaneClick}
-				onPaneScroll={handlePaneClick}
 				onNodeDragStart={handleDragNode}
 				onNodeDragStop={handleDragNodeEnd}
 			>
