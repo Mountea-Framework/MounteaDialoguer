@@ -70,12 +70,12 @@
 	pointer-events: none;
 }
 
-.dialogue-row-button .icon> svg {
+.dialogue-row-button .icon > svg {
 	fill: var(--tertiary-text);
 }
 
-.dialogue-row-button:hover .icon> svg {
-	fill: var(--primary-text);
+.dialogue-row-button:hover .icon > svg {
+	fill: var(--primary-text-hovered);
 }
 
 .node-edge-button svg {
