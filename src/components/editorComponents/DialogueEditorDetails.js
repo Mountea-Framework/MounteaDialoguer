@@ -160,7 +160,7 @@ function DialogueEditorDetails({ setNodes }) {
 									/>
 								</div>
 							</div>
-							<div className="node-details-">
+							<div className="node-details-specific">
 								<Title
 									level="4"
 									children="Node Info"
@@ -184,7 +184,7 @@ function DialogueEditorDetails({ setNodes }) {
 										options={participantOptions}
 									/>
 								</div>
-								<div className="node-info-panel dialogue-rows-selector">
+								<div className="node-info-panel ">
 									<Title
 										level="5"
 										children="Dialogue Rows"
@@ -192,7 +192,8 @@ function DialogueEditorDetails({ setNodes }) {
 										classState={"tertiary"}
 									/>
 									<Button onClick={addDialogueRow}>Add Dialogue Row</Button>
-									<div className="dialogue-row-area">
+								</div>
+								<div className="dialogue-row-area">
 									{tempNodeData.additionalInfo.dialogueRows.map(
 										(row, index) => (
 											<DialogueRow
@@ -205,7 +206,6 @@ function DialogueEditorDetails({ setNodes }) {
 											/>
 										)
 									)}
-									</div>
 								</div>
 							</div>
 						</div>
