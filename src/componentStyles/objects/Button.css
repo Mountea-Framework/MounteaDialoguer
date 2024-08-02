@@ -53,6 +53,31 @@
 	align-items: center;
 }
 
+.dialogue-row-button {
+	width: 48px;
+	height: 48px;
+	pointer-events: all;
+	overflow: visible;
+	justify-content: space-evenly;
+	align-content: stretch;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+}
+
+.dialogue-row-button .icon > svg {
+	pointer-events: none;
+}
+
+.dialogue-row-button .icon> svg {
+	fill: var(--tertiary-text);
+}
+
+.dialogue-row-button:hover .icon> svg {
+	fill: var(--primary-text);
+}
+
 .node-edge-button svg {
 	width: 26px;
 	height: 26px;

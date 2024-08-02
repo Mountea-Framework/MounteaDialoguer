@@ -41,8 +41,13 @@
 	gap: 5px;
 }
 
-.node-details-specific-tab {
-	
+.dialogue-row-buttons-control {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	flex-direction: row;
+	align-content: center;
+	gap: 15%;
 }
 
 .node-details-confirmation {

@@ -10,6 +10,9 @@ import Button from "../objects/Button";
 import ReadOnlyText from "../objects/ReadOnlyText";
 import DialogueRow from "./DialogueRow"; // Import the new component
 
+import { ReactComponent as AddIcon } from "../../icons/addIcon.svg";
+import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
+
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
 function DialogueEditorDetails({ setNodes }) {
@@ -106,6 +109,16 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
+	const resetDialogueRows = () => {
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				dialogueRows: [],
+			},
+		}));
+	};
+
 	const handleConfirmChanges = () => {
 		if (selectedNode) {
 			setNodes((nds) =>
@@ -192,7 +205,24 @@ function DialogueEditorDetails({ setNodes }) {
 											className="tertiary-heading"
 											classState={"tertiary"}
 										/>
-										<Button onClick={addDialogueRow}>Add Dialogue Row</Button>
+										<div className="dialogue-row-buttons-control">
+											<Button
+												onClick={addDialogueRow}
+												className="circle-button dialogue-row-button"
+											>
+												<span className={`add-icon icon`}>
+													<AddIcon />
+												</span>
+											</Button>
+											<Button
+												onClick={resetDialogueRows}
+												className="circle-button dialogue-row-button"
+											>
+												<span className={`remove-icon icon`}>
+													<DeleteIcon />
+												</span>
+											</Button>
+										</div>
 									</div>
 									<div className="dialogue-row-area">
 										{tempNodeData.additionalInfo.dialogueRows.map(
