@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Handle, useReactFlow } from "reactflow";
-
-import { v4 as uuidv4 } from "uuid";
 
 import Title from "../objects/Title";
 import Button from "../objects/Button";
 
 import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
+
 import "../../componentStyles/dialogueNodes/customNode.css";
 
 const BaseNode = ({ id, data, selected }) => {

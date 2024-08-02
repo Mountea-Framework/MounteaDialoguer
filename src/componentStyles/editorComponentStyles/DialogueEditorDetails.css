@@ -36,3 +36,7 @@
 	justify-items: stretch;
 	gap: 5px;
 }
+
+.node-details-confirmation {
+	margin-bottom: 20px;
+}

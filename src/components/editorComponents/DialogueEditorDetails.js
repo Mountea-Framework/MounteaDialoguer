@@ -1,22 +1,34 @@
-import React from "react";
-
+import React, { useState, useEffect } from "react";
 import { useSelection } from "../../contexts/SelectionContext";
-
 import Title from "../objects/Title";
 import TextInput from "../objects/TextInput";
+import Button from "../objects/Button";
 import ReadOnlyText from "../objects/ReadOnlyText";
-
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
 function DialogueEditorDetails({ setNodes }) {
 	const { selectedNode } = useSelection();
+	const [tempNodeData, setTempNodeData] = useState({ title: "" });
+
+	useEffect(() => {
+		if (selectedNode) {
+			setTempNodeData({ title: selectedNode.data.title });
+		}
+	}, [selectedNode]);
 
 	const handleInputChange = (name, value) => {
+		setTempNodeData((prevData) => ({
+			...prevData,
+			[name]: value,
+		}));
+	};
+
+	const handleConfirmChanges = () => {
 		if (selectedNode) {
 			setNodes((nds) =>
 				nds.map((node) =>
 					node.id === selectedNode.id
-						? { ...node, data: { ...node.data, title: value } }
+						? { ...node, data: { ...node.data, title: tempNodeData.title } }
 						: node
 				)
 			);
@@ -52,9 +64,9 @@ function DialogueEditorDetails({ setNodes }) {
 						<div className="node-details-c2">
 							<TextInput
 								title="Node Title"
-								placeholder={selectedNode.data.title}
-								name="nodeTitle"
-								value={selectedNode.data.title}
+								placeholder={tempNodeData.title}
+								name="title"
+								value={tempNodeData.title}
 								onChange={(name, value) => handleInputChange(name, value)}
 								maxLength={32}
 							/>
@@ -64,6 +76,13 @@ function DialogueEditorDetails({ setNodes }) {
 					<ReadOnlyText value={"No node selected"} />
 				)}
 			</div>
+			{selectedNode ? (
+				<div className="node-details-confirmation">
+					<Button onClick={handleConfirmChanges}>Confirm</Button>
+				</div>
+			) : (
+				<div />
+			)}
 		</div>
 	);
 }
