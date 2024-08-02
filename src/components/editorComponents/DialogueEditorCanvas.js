@@ -61,8 +61,6 @@ const DialogueEditorCanvas = ({
 	onEdgesChange,
 }) => {
 	const { name, categories, participants } = useContext(AppContext);
-	//const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	//const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [contextMenuPosition, setContextMenuPosition] = useState({
 		x: 0,

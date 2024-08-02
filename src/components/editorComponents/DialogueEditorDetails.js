@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { CSSTransition } from "react-transition-group";
+
 import { useSelection } from "../../contexts/SelectionContext";
 import Title from "../objects/Title";
 import TextInput from "../objects/TextInput";
 import Button from "../objects/Button";
 import ReadOnlyText from "../objects/ReadOnlyText";
+
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
 function DialogueEditorDetails({ setNodes }) {
@@ -69,20 +72,24 @@ function DialogueEditorDetails({ setNodes }) {
 								value={tempNodeData.title}
 								onChange={(name, value) => handleInputChange(name, value)}
 								maxLength={32}
-								readOnly={selectedNode.type === "startNode"}
 							/>
 						</div>
 					</div>
 				) : (
-					<ReadOnlyText value={"No node selected"} />
+					<CSSTransition
+						in={!selectedNode}
+						timeout={300}
+						classNames="fade"
+						unmountOnExit
+					>
+						<ReadOnlyText value={"No node selected"} />
+					</CSSTransition>
 				)}
 			</div>
-			{selectedNode ? (
+			{selectedNode && (
 				<div className="node-details-confirmation">
 					<Button onClick={handleConfirmChanges}>Confirm</Button>
 				</div>
-			) : (
-				<div />
 			)}
 		</div>
 	);
