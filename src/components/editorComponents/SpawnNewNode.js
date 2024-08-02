@@ -22,7 +22,7 @@ const SpawnNewNode = ({ isOpen, onClose, nodeTypes, onSpawn }) => {
 
 	return (
 		isOpen && (
-			<Modal onClose={onClose} title="Create New Node">
+			<Modal onClose={onClose} className={"modal-spawn-node"} title="Create New Node">
 				<div className="spawn-new-node">
 					{nodeTypeList.map((nodeType) => (
 						<Button

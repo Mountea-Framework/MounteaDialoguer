@@ -1,32 +1,59 @@
 .button-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 
 .custom-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
 
-  min-width: 105px;
-  min-height: 40px;
-  overflow: hidden;
-  white-space: nowrap;
+	min-width: 105px;
+	min-height: 40px;
+	overflow: hidden;
+	white-space: nowrap;
 }
 
 .circle-button {
-  width: 31px;
-  height: 31px;
-  border-radius: 50%;
-  border: none;
-  overflow: hidden;
-  align-items: center;
-  justify-content: center;
+	width: 31px;
+	height: 31px;
+	border-radius: 50%;
+	border: none;
+	overflow: hidden;
+	pointer-events: all;
+	overflow: visible;
+	justify-content: space-evenly;
+	align-content: stretch;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+}
+
+.node-edge-button-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 24px;
+	height: 24px;
 }
 
 .node-edge-button {
-  pointer-events: all;
-  overflow: visible;
+	width: 26px;
+	height: 26px;
+	pointer-events: all;
+	overflow: visible;
+	justify-content: space-evenly;
+	align-content: stretch;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+}
+
+.node-edge-button svg {
+	width: 26px;
+	height: 26px;
 }

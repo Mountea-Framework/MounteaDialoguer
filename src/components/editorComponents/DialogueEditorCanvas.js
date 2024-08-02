@@ -82,11 +82,25 @@ const DialogueEditorCanvas = () => {
 	const handleNodeClick = (event, node) => {
 		if (selectedNode?.id !== node.id) {
 			selectNode(node);
+			setNodes((nds) =>
+				nds.map((n) =>
+					n.id === node.id
+						? { ...n, data: { ...n.data, selected: true } }
+						: { ...n, data: { ...n.data, selected: false } }
+				)
+			);
 		}
 	};
 
 	const handleNodeDoubleClick = (event, node) => {
 		selectNode(node);
+		setNodes((nds) =>
+			nds.map((n) =>
+				n.id === node.id
+					? { ...n, data: { ...n.data, selected: true } }
+					: { ...n, data: { ...n.data, selected: false } }
+			)
+		);
 	};
 
 	const handlePaneContextMenu = (event) => {
@@ -94,6 +108,15 @@ const DialogueEditorCanvas = () => {
 		const { clientX, clientY } = event;
 		setContextMenuPosition({ x: clientX, y: clientY });
 		setIsModalOpen(true);
+	};
+
+	const handlePaneClick = (event) => {
+		if (event.target === event.currentTarget) {
+			selectNode(null);
+			setNodes((nds) =>
+				nds.map((n) => ({ ...n, data: { ...n.data, selected: false } }))
+			);
+		}
 	};
 
 	const handleDragNode = (event, node) => {
@@ -104,12 +127,18 @@ const DialogueEditorCanvas = () => {
 		}
 		if (node !== selectedNode) {
 			selectNode(null);
+			setNodes((nds) =>
+				nds.map((n) => ({ ...n, data: { ...n.data, selected: false } }))
+			);
 		}
 	};
 
-	const handlePaneClick = (event) => {
-		if (event.target === event.currentTarget) {
-			selectNode(null);
+	const handleDragNodeEnd = (event, node) => {
+		console.log(node, selectedNode);
+		if (selectedNode == null) {
+			setNodes((nds) =>
+				nds.map((n) => ({ ...n, data: { ...n.data, selected: false } }))
+			);
 		}
 	};
 
@@ -122,6 +151,7 @@ const DialogueEditorCanvas = () => {
 			data: {
 				title: `${type.charAt(0).toUpperCase() + type.slice(1)}`,
 				setEdges: setEdges,
+				selected: false,
 			},
 		};
 		setNodes((nds) => nds.concat(newNode));
@@ -173,6 +203,7 @@ const DialogueEditorCanvas = () => {
 			className="dialogue-editor-canvas background-transparent-primary"
 			ref={reactFlowWrapper}
 			onContextMenu={handlePaneContextMenu}
+			onClick={handlePaneClick}
 		>
 			<ReactFlow
 				nodes={nodes}
@@ -197,6 +228,7 @@ const DialogueEditorCanvas = () => {
 				onPaneClick={handlePaneClick}
 				onPaneScroll={handlePaneClick}
 				onNodeDragStart={handleDragNode}
+				onNodeDragStop={handleDragNodeEnd}
 			>
 				<Controls />
 			</ReactFlow>

@@ -19,11 +19,9 @@
 	border: 4px solid rgba(255, 255, 255, 0.8);
 }
 
-/* This won't work as draggable node is also selected :(
-.selected .custom-node-border .custom-node {
+.highlight .custom-node {
 	border: 4px solid rgba(255, 255, 255, 1);
 }
-*/
 
 .custom-node-border {
 	background-color: transparent;

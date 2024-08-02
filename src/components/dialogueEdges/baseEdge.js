@@ -30,6 +30,7 @@ const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY }) => {
 					}}
 				>
 					<Button
+						containerClassName="node-edge-button-container"
 						className="circle-button nodrag nopan node-edge-button"
 						onClick={() => {
 							setEdges((es) => es.filter((e) => e.id !== id));
@@ -37,7 +38,7 @@ const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY }) => {
 					>
 						<RemoveIcon
 							style={{
-								pointerEvents: "none"
+								pointerEvents: "none",
 							}}
 						/>
 					</Button>

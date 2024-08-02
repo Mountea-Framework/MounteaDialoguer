@@ -9,7 +9,7 @@ import Button from "../objects/Button";
 import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
 import "../../componentStyles/dialogueNodes/customNode.css";
 
-const BaseNode = ({ id, data }) => {
+const BaseNode = ({ id, data, selected }) => {
 	const {
 		customClassName,
 		title,
@@ -29,7 +29,7 @@ const BaseNode = ({ id, data }) => {
 	};
 
 	return (
-		<div className="custom-node-border">
+		<div className={`custom-node-border ${selected ? "highlight" : ""}`}>
 			{canDelete && (
 				<Button
 					className="circle-button nodrag nopan node-button-delete"
