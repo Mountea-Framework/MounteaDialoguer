@@ -23,8 +23,10 @@ function DialogueEditorDetails({ setNodes }) {
 	});
 
 	const participantOptions = participants.map((participant) => ({
-		name: participant.name,
-		category: participant.category,
+		value: JSON.stringify({
+			name: participant.name,
+			category: participant.category,
+		}),
 		label: `${participant.name} - ${participant.category}`,
 	}));
 
@@ -33,7 +35,10 @@ function DialogueEditorDetails({ setNodes }) {
 			setTempNodeData({
 				title: selectedNode.data.title,
 				additionalInfo: {
-					participant: selectedNode.data.additionalInfo?.participant || { name: "", category: "" },
+					participant: selectedNode.data.additionalInfo?.participant || {
+						name: "",
+						category: "",
+					},
 					dialogueRows: selectedNode.data.additionalInfo?.dialogueRows || [],
 				},
 			});
@@ -48,14 +53,19 @@ function DialogueEditorDetails({ setNodes }) {
 	};
 
 	const handleParticipantInputChange = (name, value) => {
-		console.log("Selected participant:", value);
-		setTempNodeData((prevData) => ({
-			...prevData,
-			additionalInfo: {
-				...prevData.additionalInfo,
-				participant: value,
-			},
-		}));
+		try {
+			const parsedValue = JSON.parse(value);
+			console.log("Selected participant:", parsedValue);
+			setTempNodeData((prevData) => ({
+				...prevData,
+				additionalInfo: {
+					...prevData.additionalInfo,
+					participant: parsedValue,
+				},
+			}));
+		} catch (error) {
+			console.error("Error parsing participant value:", error);
+		}
 	};
 
 	const handleConfirmChanges = () => {
@@ -129,8 +139,10 @@ function DialogueEditorDetails({ setNodes }) {
 									<Dropdown
 										name="participant"
 										placeholder="select participant"
-										value={tempNodeData.additionalInfo.participant}
-										onChange={(name, value) => handleParticipantInputChange(name, value)}
+										value={JSON.stringify(
+											tempNodeData.additionalInfo.participant
+										)}
+										onChange={handleParticipantInputChange}
 										options={participantOptions}
 									/>
 								</div>
