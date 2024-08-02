@@ -16,23 +16,25 @@ function DialogueEditorDetails({ setNodes }) {
 	const { participants } = useContext(AppContext);
 	const [tempNodeData, setTempNodeData] = useState({
 		title: "",
-		additionalInfo: { participant: "Player", dialogueRows: [] },
+		additionalInfo: {
+			participant: { name: "Player", category: "" },
+			dialogueRows: [],
+		},
 	});
 
-	const particiapntOptions = participants.map((participant) => ({
-		value: participant,
-		label: participant.name
-			? `${participant.name} - ${participant.category}`
-			: `invalid`,
+	const participantOptions = participants.map((participant) => ({
+		name: participant.name,
+		category: participant.category,
+		label: `${participant.name} - ${participant.category}`,
 	}));
 
 	useEffect(() => {
 		if (selectedNode) {
 			setTempNodeData({
 				title: selectedNode.data.title,
-				additionalInfo: selectedNode.data.additionalInfo || {
-					participant: "Player",
-					dialogueRows: [],
+				additionalInfo: {
+					participant: selectedNode.data.additionalInfo?.participant || { name: "", category: "" },
+					dialogueRows: selectedNode.data.additionalInfo?.dialogueRows || [],
 				},
 			});
 		}
@@ -41,15 +43,19 @@ function DialogueEditorDetails({ setNodes }) {
 	const handleInputChange = (name, value) => {
 		setTempNodeData((prevData) => ({
 			...prevData,
-			additionalInfo: {
-				...prevData.additionalInfo,
-				[name]: value,
-			},
+			[name]: value,
 		}));
 	};
 
-	const handleParticipantInputChange = (participant) => {
-		console.log(participant);
+	const handleParticipantInputChange = (name, value) => {
+		console.log("Selected participant:", value);
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				participant: value,
+			},
+		}));
 	};
 
 	const handleConfirmChanges = () => {
@@ -124,8 +130,8 @@ function DialogueEditorDetails({ setNodes }) {
 										name="participant"
 										placeholder="select participant"
 										value={tempNodeData.additionalInfo.participant}
-										onChange={handleParticipantInputChange}
-										options={particiapntOptions}
+										onChange={(name, value) => handleParticipantInputChange(name, value)}
+										options={participantOptions}
 									/>
 								</div>
 							</div>
