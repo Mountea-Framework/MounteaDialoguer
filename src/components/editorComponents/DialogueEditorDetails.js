@@ -69,6 +69,7 @@ function DialogueEditorDetails({ setNodes }) {
 								value={tempNodeData.title}
 								onChange={(name, value) => handleInputChange(name, value)}
 								maxLength={32}
+								readOnly={selectedNode.type === "startNode"}
 							/>
 						</div>
 					</div>

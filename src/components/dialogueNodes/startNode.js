@@ -5,7 +5,7 @@ const StartNode = (props) => {
 	const nodeData = {
 		...props.data,
 		customClassName: "start-node",
-		title: "Start Node",
+		title: props.data.title || "Start Node",
 		sourceHandle: true,
 		canDelete: false,
 		canCreate: false,
