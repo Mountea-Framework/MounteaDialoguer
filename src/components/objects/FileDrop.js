@@ -1,40 +1,53 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { FileContext } from "../../FileProvider";
+const FileDrop = ({
+	type = "file",
+	accept = "*/*",
+	primaryText = "Drag and drop a file here or click to select",
+	onChange,
+}) => {
+	const handleFileChange = (e) => {
+		if (onChange) {
+			onChange(e);
+		}
+	};
 
-const FileDrop = ({ setProjectData, onSelectProject }) => {
-	const {
-		file,
-		error,
-		handleFileChange,
-		handleDragOver,
-		handleDrop,
-		handleClick,
-	} = useContext(FileContext);
+	const handleDragOver = (e) => {
+		e.preventDefault();
+	};
+
+	const handleDrop = (e) => {
+		e.preventDefault();
+		if (onChange) {
+			const droppedFile = e.dataTransfer.files[0];
+			const syntheticEvent = {
+				target: {
+					files: [droppedFile],
+				},
+			};
+			onChange(syntheticEvent);
+		}
+	};
+
+	const handleClick = () => {
+		document.getElementById("fileInput").click();
+	};
 
 	return (
 		<div
 			className="file-drop-area"
 			onDragOver={handleDragOver}
-			onDrop={(e) => handleDrop(e, setProjectData, onSelectProject)}
+			onDrop={handleDrop}
 			onClick={handleClick}
 		>
 			<input
 				id="fileInput"
-				type="file"
-				onChange={(e) => handleFileChange(e, setProjectData, onSelectProject)}
-				accept=".mnteadlg"
+				type={type}
+				onChange={handleFileChange}
+				accept={accept}
 				style={{ display: "none" }}
 			/>
-			{error ? (
-				<p className="error">{error}</p>
-			) : file ? (
-				<p>{file.name}</p>
-			) : (
-				<p className="primary-text">
-					Drag and drop a .mnteadlg file here or click to select
-				</p>
-			)}
+			<p className="primary-text">{primaryText}</p>
 		</div>
 	);
 };

@@ -87,25 +87,40 @@ const FileProvider = ({ children }) => {
 			}
 			const dialogueJsonContent = await dialogueJsonFile.async("string");
 			const dialogueJson = JSON.parse(dialogueJsonContent);
-			if (
-				!dialogueJson.title ||
-				!Array.isArray(dialogueJson.categories) ||
-				!Array.isArray(dialogueJson.participants)
-			) {
-				setError("Invalid dialogueJson.json content or structure");
+
+			console.log("Extracted JSON Content:", dialogueJson);
+
+			// Check the required properties
+			if (!dialogueJson.name) {
+				setError("Missing dialogue name");
 				return false;
 			}
-			if (
-				dialogueJson.categories.length === 0 ||
-				dialogueJson.participants.length === 0
-			) {
-				setError("Categories or participants cannot be empty");
+
+			if (!Array.isArray(dialogueJson.categories)) {
+				setError("Categories must be an array");
 				return false;
 			}
+
+			if (!Array.isArray(dialogueJson.participants)) {
+				setError("Participants must be an array");
+				return false;
+			}
+
+			if (dialogueJson.categories.length === 0) {
+				setError("Categories cannot be empty");
+				return false;
+			}
+
+			if (dialogueJson.participants.length === 0) {
+				setError("Participants cannot be empty");
+				return false;
+			}
+
 			setError(null);
 			return dialogueJson;
 		} catch (e) {
 			setError("Error reading .mnteadlg file");
+			console.error(e);
 			return false;
 		}
 	};
@@ -113,17 +128,17 @@ const FileProvider = ({ children }) => {
 	const handleFileChange = async (e, setProjectData, onSelectProject) => {
 		setError(null);
 		setFile(null);
-		setProjectData({ title: "", participants: [], categories: [] });
 		const file = e.target.files[0];
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
+			console.log(validatedData);
 			if (validatedData) {
 				setFile(file);
-				onSelectProject(file.name);
+				//onSelectProject(file.name);
 				const projectTitle = validatedData.title || "UntitledProject";
-				setProjectData({ ...validatedData, title: projectTitle });
-				const autoSaveData = { ...validatedData, title: projectTitle };
-				localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
+				const projectData = { ...validatedData, title: projectTitle };
+				//setProjectData(projectData);
+				localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 			}
 		} else {
 			alert("Please select a .mnteadlg file");
@@ -155,9 +170,8 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
-	const handleClick = (callback, inputId) => {
-		importCallbackRef.current = callback;
-		const input = document.getElementById(inputId);
+	const handleClick = () => {
+		const input = document.getElementById("fileInput");
 		if (input) {
 			input.click();
 		}
@@ -269,15 +283,8 @@ const FileProvider = ({ children }) => {
 				type="file"
 				id="fileInput"
 				style={{ display: "none" }}
-				onChange={importCategoriesHandler}
-				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
-			/>
-			<input
-				type="file"
-				id="participantFileInput"
-				style={{ display: "none" }}
-				onChange={importParticipantsHandler}
-				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
+				onChange={handleFileChange}
+				accept=".mnteadlg"
 			/>
 			{children}
 		</FileContext.Provider>

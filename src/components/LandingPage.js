@@ -47,7 +47,6 @@ function LandingPage() {
 					<LoadProject
 						selectedProject={selectedProject}
 						onSelectProject={handleSelectProject}
-						setSelectedProject={setSelectedProject}
 						setProjectData={setProjectData}
 					/>
 				</>
