@@ -36,10 +36,18 @@
 	flex-wrap: nowrap;
 }
 
+.node-details-c2 {
+	width: 100%;
+}
+
 .node-details-specific {
 	display: flex;
 	flex-direction: column;
 	gap: 5px;
+}
+
+.node-details-specific-tab {
+	margin-left: 15px;
 }
 
 .dialogue-row-buttons-control {
