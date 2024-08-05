@@ -16,6 +16,8 @@ const FileProvider = ({ children }) => {
 	const [file, setFile] = useState(null);
 	const [error, setError] = useState(null);
 	const importCallbackRef = useRef(null);
+	const setProjectDataRef = useRef(null);
+	const onSelectProjectRef = useRef(null);
 
 	const { saveProjectToLocalStorage } = useAutoSave();
 
@@ -125,7 +127,15 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
-	const handleFileChange = async (e, setProjectData, onSelectProject) => {
+	const handleFileChange = async (e) => {
+		const setProjectData = setProjectDataRef.current;
+		const onSelectProject = onSelectProjectRef.current;
+
+		if (!setProjectData || !onSelectProject) {
+			console.error("setProjectData or onSelectProject is not set");
+			return;
+		}
+
 		setError(null);
 		setFile(null);
 		const file = e.target.files[0];
@@ -137,7 +147,7 @@ const FileProvider = ({ children }) => {
 				onSelectProject(file.name);
 				const projectTitle = validatedData.name || "UntitledProject";
 				const projectData = { ...validatedData, title: projectTitle };
-				//setProjectData(projectData);
+				setProjectData(projectData);
 				localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 			}
 		} else {
@@ -149,7 +159,15 @@ const FileProvider = ({ children }) => {
 		e.preventDefault();
 	};
 
-	const handleDrop = async (e, setProjectData, onSelectProject) => {
+	const handleDrop = async (e) => {
+		const setProjectData = setProjectDataRef.current;
+		const onSelectProject = onSelectProjectRef.current;
+
+		if (!setProjectData || !onSelectProject) {
+			console.error("setProjectData or onSelectProject is not set");
+			return;
+		}
+
 		e.preventDefault();
 		setError(null);
 		setFile(null);
@@ -278,6 +296,8 @@ const FileProvider = ({ children }) => {
 				importParticipants: importParticipantsHandler,
 				exportCategories,
 				exportParticipants,
+				setProjectDataRef,
+				onSelectProjectRef,
 			}}
 		>
 			<input

@@ -1,4 +1,5 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
+
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
 import Button from "./objects/Button";
@@ -10,7 +11,13 @@ import "../componentStyles/LoadProject.css";
 
 function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	const { setShowLandingPage } = useContext(AppContext);
-	const { handleFileChange } = useContext(FileContext);
+	const { handleFileChange, setProjectDataRef, onSelectProjectRef } =
+		useContext(FileContext);
+
+	useEffect(() => {
+		setProjectDataRef.current = setProjectData;
+		onSelectProjectRef.current = onSelectProject;
+	}, [setProjectData, onSelectProject, setProjectDataRef, onSelectProjectRef]);
 
 	const handleContinueClick = () => {
 		if (selectedProject) {
@@ -27,7 +34,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 				classState={"base"}
 			/>
 			<FileDrop
-				onChange={(e) => handleFileChange(e, setProjectData, onSelectProject)}
+				onChange={handleFileChange}
 				primaryText="Drag and drop a .mnteadlg file here or click to select"
 				accept=".mnteadlg"
 				id="projectFileInput"
