@@ -24,7 +24,7 @@
 	overflow: hidden;
 	pointer-events: all;
 	overflow: visible;
-	justify-content: space-evenly;
+	justify-content: center;
 	align-content: stretch;
 	display: flex;
 	flex-direction: row;
@@ -45,7 +45,7 @@
 	height: 26px;
 	pointer-events: all;
 	overflow: visible;
-	justify-content: space-evenly;
+	justify-content: center;
 	align-content: stretch;
 	display: flex;
 	flex-direction: row;
@@ -54,11 +54,11 @@
 }
 
 .dialogue-row-button {
-	width: 48px;
-	height: 48px;
+	width: 32px;
+	height: 32px;
 	pointer-events: all;
 	overflow: visible;
-	justify-content: space-evenly;
+	justify-content: center;
 	align-content: stretch;
 	display: flex;
 	flex-direction: row;
@@ -75,6 +75,26 @@
 }
 
 .dialogue-row-button:hover .icon > svg {
+	fill: var(--primary-text-hovered);
+}
+
+.dialogue-row-data-button {
+	width: 24px;
+	height: 24px;
+	align-items: center;
+	justify-content: center;
+	margin-left: 10px;
+}
+
+.dialogue-row-data-button .icon > svg {
+	pointer-events: none;
+}
+
+.dialogue-row-data-button .icon > svg {
+	fill: var(--tertiary-text);
+}
+
+.dialogue-row-data-button:hover .icon > svg {
 	fill: var(--primary-text-hovered);
 }
 

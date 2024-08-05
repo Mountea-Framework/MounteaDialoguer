@@ -8,7 +8,7 @@ import Dropdown from "../objects/Dropdown";
 import TextInput from "../objects/TextInput";
 import Button from "../objects/Button";
 import ReadOnlyText from "../objects/ReadOnlyText";
-import DialogueRow from "./DialogueRow"; // Import the new component
+import DialogueRow from "./DialogueRow";
 
 import { ReactComponent as AddIcon } from "../../icons/addIcon.svg";
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
@@ -115,6 +115,19 @@ function DialogueEditorDetails({ setNodes }) {
 			additionalInfo: {
 				...prevData.additionalInfo,
 				dialogueRows: [],
+			},
+		}));
+	};
+
+	const deleteDialogueRow = (index) => {
+		const updatedDialogueRows = tempNodeData.additionalInfo.dialogueRows.filter(
+			(_, i) => i !== index
+		);
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				dialogueRows: updatedDialogueRows,
 			},
 		}));
 	};
@@ -235,6 +248,7 @@ function DialogueEditorDetails({ setNodes }) {
 														audio={row.audio}
 														onTextChange={handleDialogueRowTextChange}
 														onAudioChange={handleDialogueRowAudioChange}
+														onDelete={deleteDialogueRow}
 													/>
 												)
 											)}
