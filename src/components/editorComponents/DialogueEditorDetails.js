@@ -219,6 +219,7 @@ function DialogueEditorDetails({ setNodes }) {
 												className="tertiary-heading"
 												classState={"tertiary"}
 											/>
+
 											<div className="dialogue-row-buttons-control">
 												<Button
 													onClick={addDialogueRow}

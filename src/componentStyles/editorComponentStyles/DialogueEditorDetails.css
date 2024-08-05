@@ -27,13 +27,13 @@
 }
 
 .node-details-generic {
-	display: grid;
-	grid-template-columns: 20% 80%;
-	align-content: stretch;
-	justify-content: space-evenly;
-	align-items: stretch;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	justify-items: stretch;
 	gap: 5px;
+	flex-direction: row;
+	flex-wrap: nowrap;
 }
 
 .node-details-specific {
@@ -45,10 +45,11 @@
 .dialogue-row-buttons-control {
 	display: flex;
 	align-items: center;
-	justify-content: flex-start;
+	justify-content: flex-end;
 	flex-direction: row;
 	align-content: center;
 	gap: 15%;
+	flex: 0.3;
 }
 
 .node-details-confirmation {
@@ -56,13 +57,14 @@
 }
 
 .node-info-panel {
-	display: grid;
-	grid-template-columns: 20% 80%;
-	align-content: stretch;
-	justify-content: space-evenly;
+	display: flex;
+	align-content: center;
+	justify-content: space-between;
 	align-items: center;
 	justify-items: start;
 	gap: 5px;
+	flex-direction: row;
+	flex-wrap: nowrap;
 }
 
 .dialogue-rows-selector {
