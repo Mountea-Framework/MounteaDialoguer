@@ -134,10 +134,10 @@ const FileProvider = ({ children }) => {
 			console.log(validatedData);
 			if (validatedData) {
 				setFile(file);
-				//onSelectProject(file.name);
-				const projectTitle = validatedData.title || "UntitledProject";
+				onSelectProject(file.name);
+				const projectTitle = validatedData.name || "UntitledProject";
 				const projectData = { ...validatedData, title: projectTitle };
-				//setProjectData(projectData);
+				setProjectData(projectData);
 				localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 			}
 		} else {
@@ -170,8 +170,9 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
-	const handleClick = () => {
-		const input = document.getElementById("fileInput");
+	const handleClick = (callback, inputId) => {
+		importCallbackRef.current = callback;
+		const input = document.getElementById(inputId);
 		if (input) {
 			input.click();
 		}
@@ -283,8 +284,23 @@ const FileProvider = ({ children }) => {
 				type="file"
 				id="fileInput"
 				style={{ display: "none" }}
+				onChange={importCategoriesHandler}
+				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
+			/>
+			<input
+				type="file"
+				id="participantFileInput"
+				style={{ display: "none" }}
+				onChange={importParticipantsHandler}
+				accept=".xml,.json,.csv" // Accept XML, JSON, CSV files
+			/>
+			<input
+				type="file"
+				id="projectFileInput"
+				style={{ display: "none" }}
 				onChange={handleFileChange}
 				accept=".mnteadlg"
+				onDrop={handleDrop}
 			/>
 			{children}
 		</FileContext.Provider>

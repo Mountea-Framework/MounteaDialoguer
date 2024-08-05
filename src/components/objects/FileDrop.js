@@ -5,6 +5,7 @@ const FileDrop = ({
 	accept = "*/*",
 	primaryText = "Drag and drop a file here or click to select",
 	onChange,
+	id
 }) => {
 	const handleFileChange = (e) => {
 		if (onChange) {
@@ -30,7 +31,7 @@ const FileDrop = ({
 	};
 
 	const handleClick = () => {
-		document.getElementById("fileInput").click();
+		document.getElementById(id).click();
 	};
 
 	return (
@@ -41,7 +42,7 @@ const FileDrop = ({
 			onClick={handleClick}
 		>
 			<input
-				id="fileInput"
+				id={id}
 				type={type}
 				onChange={handleFileChange}
 				accept={accept}

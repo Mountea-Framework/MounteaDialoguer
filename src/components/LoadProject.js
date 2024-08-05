@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
 import Button from "./objects/Button";
@@ -19,6 +18,10 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		}
 	};
 
+	const handleFileChangeWrapper = (e) => {
+		handleFileChange(e, setProjectData, onSelectProject);
+	};
+
 	return (
 		<div className="load-project">
 			<Title level="2" children="Load Project" className="secondary-heading" />
@@ -28,9 +31,10 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 				classState={"base"}
 			/>
 			<FileDrop
-				onChange={(e) => handleFileChange(e, setProjectData, onSelectProject)}
+				onChange={handleFileChangeWrapper}
 				primaryText="Drag and drop a .mnteadlg file here or click to select"
 				accept=".mnteadlg"
+				id="projectFileInput"
 			/>
 			<Button
 				onClick={handleContinueClick}
