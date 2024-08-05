@@ -11,18 +11,19 @@
 }
 
 .node-details {
-	display: flex;
-	margin: 10px;
-	flex-direction: column;
-	flex-wrap: nowrap;
-	align-content: stretch;
-	justify-content: flex-start;
-	align-items: stretch;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	overflow: visible;
-	width: auto;
-	height: 100%;
+    display: flex;
+    margin: 10px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: stretch;
+    justify-content: flex-start;
+    align-items: stretch;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: visible;
+    width: auto;
+    height: 100%;
+    padding: 0px 10px 0px 10px;
 }
 
 .node-details-generic {

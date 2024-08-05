@@ -1,5 +1,10 @@
 .dialogue-editor-toolbar {
 	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-content: center;
+	justify-content: flex-start;
+	align-items: center;
 }
 
 .toolbar-button-container {
@@ -26,4 +31,13 @@
 
 .toolbar-button:hover > .favorite-icon {
 	fill: red;
+	height: 28px;
+	transition: height var(--transition-duration) var(--transition-easing);
+}
+
+.favourite-container {
+	align-self: flex-end;
+	flex: 1;
+	align-content: end;
+	justify-content: end;
 }

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
+import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 import Button from "../objects/Button";
 
 const DialogueRow = ({ index, text, audio, onTextChange, onAudioChange }) => {
@@ -8,7 +8,7 @@ const DialogueRow = ({ index, text, audio, onTextChange, onAudioChange }) => {
 		<div className="dialogue-row">
 			<div className="dialogue-row-id">
 				<span className={`dialogue-row-icon remove-icon`}>
-					<RemoveIcon />
+					<DeleteIcon />
 				</span>
 			</div>
 			<div className="dialogue-row-data">
@@ -26,7 +26,7 @@ const DialogueRow = ({ index, text, audio, onTextChange, onAudioChange }) => {
 						onChange={(e) => onAudioChange(index, e.target.files[0])}
 					/>
 					<span className={`dialogue-row-icon remove-icon`}>
-						<RemoveIcon />
+						<DeleteIcon />
 					</span>
 				</div>
 			</div>

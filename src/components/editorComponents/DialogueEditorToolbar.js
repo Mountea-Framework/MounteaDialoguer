@@ -84,16 +84,21 @@ function DialogueEditorToolbar() {
 			>
 				<SearchIcon className="search-icon icon" />
 			</Button>
-			<Button
-				containerClassName={"toolbar-button-container"}
-				className={"custom-button toolbar-button"}
-				classState={"tertiary"}
-				onClick={() =>
-					window.open("https://github.com/sponsors/Mountea-Framework", "_blank")
-				}
-			>
-				<FavoriteIcon className="favorite-icon icon" />
-			</Button>
+			<div className="favourite-container">
+				<Button
+					containerClassName={"toolbar-button-container favourite-container"}
+					className={"custom-button toolbar-button"}
+					classState={"tertiary"}
+					onClick={() =>
+						window.open(
+							"https://github.com/sponsors/Mountea-Framework",
+							"_blank"
+						)
+					}
+				>
+					<FavoriteIcon className="favorite-icon icon" />
+				</Button>
+			</div>
 			<DialogueEditorSettings
 				isOpen={isSettingsOpen}
 				onClose={() => setIsSettingsOpen(false)}
