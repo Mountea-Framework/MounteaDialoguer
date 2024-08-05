@@ -29,6 +29,11 @@
 	fill: var(--primary-hovered);
 }
 
+.toolbar-button > .favorite-icon {
+	fill: red;
+	transition: height var(--transition-duration) var(--transition-easing);
+}
+
 .toolbar-button:hover > .favorite-icon {
 	fill: red;
 	height: 28px;
@@ -36,8 +41,11 @@
 }
 
 .favourite-container {
-	align-self: flex-end;
-	flex: 1;
-	align-content: end;
-	justify-content: end;
+	display: flex;
+	flex: 1 1;
+	align-content: stretch;
+	justify-content: flex-end;
+	align-items: stretch;
+	flex-wrap: nowrap;
+	flex-direction: row;
 }
