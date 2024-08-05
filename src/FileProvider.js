@@ -88,7 +88,7 @@ const FileProvider = ({ children }) => {
 			const dialogueJsonContent = await dialogueJsonFile.async("string");
 			const dialogueJson = JSON.parse(dialogueJsonContent);
 
-			console.log("Extracted JSON Content:", dialogueJson); // Log for debugging
+			console.log("Extracted JSON Content:", dialogueJson);
 
 			// Check the required properties
 			if (!dialogueJson.name) {
@@ -120,7 +120,7 @@ const FileProvider = ({ children }) => {
 			return dialogueJson;
 		} catch (e) {
 			setError("Error reading .mnteadlg file");
-			console.error(e); // Log the error for debugging
+			console.error(e);
 			return false;
 		}
 	};
@@ -128,17 +128,17 @@ const FileProvider = ({ children }) => {
 	const handleFileChange = async (e, setProjectData, onSelectProject) => {
 		setError(null);
 		setFile(null);
-		setProjectData({ name: "", participants: [], categories: [] }); // Ensure setProjectData is called
 		const file = e.target.files[0];
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
+			console.log(validatedData);
 			if (validatedData) {
 				setFile(file);
-				onSelectProject(validatedData.name); // Ensure onSelectProject is called
-				const projectTitle = validatedData.name || "UntitledProject";
-				setProjectData({ ...validatedData, name: projectTitle });
-				const autoSaveData = { ...validatedData, name: projectTitle };
-				localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
+				//onSelectProject(file.name);
+				const projectTitle = validatedData.title || "UntitledProject";
+				const projectData = { ...validatedData, title: projectTitle };
+				//setProjectData(projectData);
+				localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 			}
 		} else {
 			alert("Please select a .mnteadlg file");
@@ -153,16 +153,16 @@ const FileProvider = ({ children }) => {
 		e.preventDefault();
 		setError(null);
 		setFile(null);
-		setProjectData({ name: "", participants: [], categories: [] }); // Ensure setProjectData is called
+		setProjectData({ title: "", participants: [], categories: [] });
 		const file = e.dataTransfer.files[0];
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
 			if (validatedData) {
 				setFile(file);
-				onSelectProject(validatedData.name); // Ensure onSelectProject is called
-				const projectTitle = validatedData.name || "UntitledProject";
-				setProjectData({ ...validatedData, name: projectTitle });
-				const autoSaveData = { ...validatedData, name: projectTitle };
+				onSelectProject(file.name);
+				const projectTitle = validatedData.title || "UntitledProject";
+				setProjectData({ ...validatedData, title: projectTitle });
+				const autoSaveData = { ...validatedData, title: projectTitle };
 				localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
 			}
 		} else {
@@ -279,6 +279,13 @@ const FileProvider = ({ children }) => {
 				exportParticipants,
 			}}
 		>
+			<input
+				type="file"
+				id="fileInput"
+				style={{ display: "none" }}
+				onChange={handleFileChange}
+				accept=".mnteadlg"
+			/>
 			{children}
 		</FileContext.Provider>
 	);
