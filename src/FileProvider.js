@@ -137,7 +137,7 @@ const FileProvider = ({ children }) => {
 				onSelectProject(file.name);
 				const projectTitle = validatedData.name || "UntitledProject";
 				const projectData = { ...validatedData, title: projectTitle };
-				setProjectData(projectData);
+				//setProjectData(projectData);
 				localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
 			}
 		} else {

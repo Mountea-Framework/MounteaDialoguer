@@ -17,7 +17,8 @@ function LandingPage() {
 		categories: [],
 	});
 
-	const handleSelectProject = (project) => {
+	const onSelectProject = (project) => {
+		console.log(project);
 		setSelectedProject(project);
 	};
 
@@ -46,7 +47,7 @@ function LandingPage() {
 					<hr />
 					<LoadProject
 						selectedProject={selectedProject}
-						onSelectProject={handleSelectProject}
+						onSelectProject={onSelectProject}
 						setProjectData={setProjectData}
 					/>
 				</>
