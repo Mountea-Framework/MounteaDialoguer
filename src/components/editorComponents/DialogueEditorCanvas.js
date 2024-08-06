@@ -66,6 +66,7 @@ const DialogueEditorCanvas = ({
 		x: 0,
 		y: 0,
 	});
+	const [isDragging, setIsDragging] = useState(false); // Add dragging state
 	const { selectedNode, selectNode } = useSelection();
 
 	const reactFlowWrapper = useRef(null);
@@ -77,8 +78,8 @@ const DialogueEditorCanvas = ({
 			setNodes((nds) =>
 				nds.map((n) =>
 					n.id === node.id
-						? { ...n, data: { ...n.data, selected: true } }
-						: { ...n, data: { ...n.data, selected: false } }
+						? { ...n, data: { ...n.data, selected: true, isDragging } }
+						: { ...n, data: { ...n.data, selected: false, isDragging } }
 				)
 			);
 		}
@@ -89,8 +90,8 @@ const DialogueEditorCanvas = ({
 		setNodes((nds) =>
 			nds.map((n) =>
 				n.id === node.id
-					? { ...n, data: { ...n.data, selected: true } }
-					: { ...n, data: { ...n.data, selected: false } }
+					? { ...n, data: { ...n.data, selected: true, isDragging } }
+					: { ...n, data: { ...n.data, selected: false, isDragging } }
 			)
 		);
 	};
@@ -106,12 +107,16 @@ const DialogueEditorCanvas = ({
 		if (event.target === event.currentTarget) {
 			selectNode(null);
 			setNodes((nds) =>
-				nds.map((n) => ({ ...n, data: { ...n.data, selected: false } }))
+				nds.map((n) => ({
+					...n,
+					data: { ...n.data, selected: false, isDragging },
+				}))
 			);
 		}
 	};
 
 	const handleDragNode = (event, node) => {
+		setIsDragging(true); // Set dragging state
 		if (node && selectedNode) {
 			if (node.id === selectedNode.id) {
 				return;
@@ -120,16 +125,23 @@ const DialogueEditorCanvas = ({
 		if (node !== selectedNode) {
 			selectNode(null);
 			setNodes((nds) =>
-				nds.map((n) => ({ ...n, data: { ...n.data, selected: false } }))
+				nds.map((n) => ({
+					...n,
+					data: { ...n.data, selected: false, isDragging: true },
+				}))
 			);
 		}
 	};
 
 	const handleDragNodeEnd = (event, node) => {
+		setIsDragging(false); // Reset dragging state
 		console.log(node, selectedNode);
 		if (selectedNode == null) {
 			setNodes((nds) =>
-				nds.map((n) => ({ ...n, data: { ...n.data, selected: false } }))
+				nds.map((n) => ({
+					...n,
+					data: { ...n.data, selected: false, isDragging: false },
+				}))
 			);
 		}
 	};
@@ -144,6 +156,7 @@ const DialogueEditorCanvas = ({
 				title: `${type.charAt(0).toUpperCase() + type.slice(1)}`,
 				setEdges: setEdges,
 				selected: false,
+				isDragging: false,
 			},
 		};
 		setNodes((nds) => nds.concat(newNode));
@@ -198,7 +211,10 @@ const DialogueEditorCanvas = ({
 			onClick={handlePaneClick}
 		>
 			<ReactFlow
-				nodes={nodes}
+				nodes={nodes.map((node) => ({
+					...node,
+					data: { ...node.data, isDragging },
+				}))}
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}

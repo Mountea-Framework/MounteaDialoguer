@@ -2,6 +2,7 @@ import React from "react";
 
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 import Button from "../objects/Button";
+import FileDdrop from "../objects/FileDrop";
 
 const DialogueRow = ({
 	index,
@@ -31,11 +32,11 @@ const DialogueRow = ({
 					rows={8}
 				/>
 				<div className="dialogue-row-data-audio-row">
-					<input
-						className="dialogue-row-audio-input"
-						type="file"
-						accept="audio/*"
+					<FileDdrop
 						onChange={(e) => onAudioChange(index, e.target.files[0])}
+						primaryText="Select audio file"
+						accept="audio/*"
+						id="dialogueRowAudioSelection"
 					/>
 				</div>
 			</div>

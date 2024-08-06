@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Handle, useReactFlow } from "reactflow";
-import { Tooltip } from "react-tooltip"; // Import the Tooltip component
+import { Tooltip } from "react-tooltip";
 
 import Title from "../objects/Title";
 import Button from "../objects/Button";
@@ -11,7 +11,6 @@ import "../../componentStyles/dialogueNodes/customNode.css";
 
 const BaseNode = ({ id, data, selected }) => {
 	const [nodeTitle, setNodeTitle] = useState(data.title);
-	const [isDragging, setIsDragging] = useState(false);
 	const nodeRef = useRef(null);
 	const {
 		customClassName,
@@ -20,34 +19,13 @@ const BaseNode = ({ id, data, selected }) => {
 		canDelete = true,
 		canCreate = true,
 		additionalInfo,
+		isDragging, // receive isDragging as a prop
 	} = data;
 	const { setNodes, setEdges } = useReactFlow();
 
 	useEffect(() => {
 		setNodeTitle(data.title);
 	}, [data.title]);
-
-	useEffect(() => {
-		const handleDragStart = () => {
-			setIsDragging(true);
-		};
-
-		const handleDragEnd = () => {
-			setIsDragging(false);
-		};
-
-		const parent = nodeRef.current?.parentElement;
-
-		if (parent) {
-			parent.addEventListener("dragstart", handleDragStart);
-			parent.addEventListener("dragend", handleDragEnd);
-
-			return () => {
-				parent.removeEventListener("dragstart", handleDragStart);
-				parent.removeEventListener("dragend", handleDragEnd);
-			};
-		}
-	}, []);
 
 	const handleDeleteNode = () => {
 		setNodes((nds) => nds.filter((node) => node.id !== id));

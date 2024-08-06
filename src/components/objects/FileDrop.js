@@ -8,7 +8,6 @@ const FileDrop = ({
 	id
 }) => {
 	const handleFileChange = (e) => {
-		console.log("handleFileChange");
 		if (onChange) {
 			onChange(e);
 		}
@@ -19,7 +18,6 @@ const FileDrop = ({
 	};
 
 	const handleDrop = (e) => {
-		console.log("handleDrop");
 		e.preventDefault();
 		if (onChange) {
 			const droppedFile = e.dataTransfer.files[0];

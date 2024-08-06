@@ -59,7 +59,6 @@ function DialogueEditorDetails({ setNodes }) {
 	const handleParticipantInputChange = (name, value) => {
 		try {
 			const parsedValue = JSON.parse(value);
-			console.log("Selected participant:", parsedValue);
 			setTempNodeData((prevData) => ({
 				...prevData,
 				additionalInfo: {

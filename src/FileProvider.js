@@ -90,8 +90,6 @@ const FileProvider = ({ children }) => {
 			const dialogueJsonContent = await dialogueJsonFile.async("string");
 			const dialogueJson = JSON.parse(dialogueJsonContent);
 
-			console.log("Extracted JSON Content:", dialogueJson);
-
 			// Check the required properties
 			if (!dialogueJson.name) {
 				setError("Missing dialogue name");
@@ -141,7 +139,6 @@ const FileProvider = ({ children }) => {
 		const file = e.target.files[0];
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
-			console.log(validatedData);
 			if (validatedData) {
 				setFile(file);
 				onSelectProject(file.name);

@@ -18,7 +18,6 @@ function LandingPage() {
 	});
 
 	const onSelectProject = (project) => {
-		console.log(project);
 		setSelectedProject(project);
 	};
 
