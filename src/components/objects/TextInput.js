@@ -12,6 +12,7 @@ function TextInput({
 	classState,
 	classText,
 	maxLength,
+	isRequired,
 }) {
 	const handleInputChange = (e) => {
 		const { name, value } = e.target;
@@ -31,7 +32,8 @@ function TextInput({
 				}`}
 				onClick={onClick}
 				readOnly={readOnly}
-				maxLength={maxLength} // Add maxLength property
+				maxLength={maxLength}
+				required={isRequired}
 			/>
 		</div>
 	);

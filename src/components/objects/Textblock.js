@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import ContentEditable from "react-contenteditable";
+
 import "../../componentStyles/objects/Textblock.css";
 
 const suggestions = ["player", "participant"];
@@ -15,6 +16,8 @@ function TextBlock({
 	classText,
 	maxLength,
 	startRows,
+	isRequired,
+	useSuggestions
 }) {
 	const [html, setHtml] = useState(value);
 	const [showSuggestions, setShowSuggestions] = useState(false);
@@ -80,6 +83,7 @@ function TextBlock({
 				className={`${classState ? classState : "primary"} ${
 					classText ? classText : "primary-text"
 				} editable-div`}
+				required={isRequired}
 			/>
 			{showSuggestions && (
 				<div className="suggestions">

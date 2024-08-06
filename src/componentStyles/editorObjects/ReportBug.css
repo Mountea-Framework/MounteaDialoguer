@@ -1,0 +1,26 @@
+.modal-bug-report {
+	display: flex;
+	flex-direction: column;
+	align-content: stretch;
+	justify-content: space-between;
+	align-items: stretch;
+}
+
+.bug-report-dialog {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-evenly;
+	align-items: stretch;
+	align-content: stretch;
+	flex-wrap: nowrap;
+    height: 100%;
+}
+
+.bug-report-form {
+	display: flex;
+	flex-direction: column;
+	align-content: space-around;
+	justify-content: space-between;
+	align-items: stretch;
+	gap: 25px;
+}

@@ -2,7 +2,6 @@ import React, { useContext, useState } from "react";
 
 import Button from "../../components/objects/Button";
 import { FileContext } from "../../FileProvider";
-
 import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
 import { ReactComponent as DownloadIcon } from "../../icons/downloadIcon.svg";
 import { ReactComponent as HelpIcon } from "../../icons/helpIcon.svg";
@@ -12,20 +11,26 @@ import { ReactComponent as SearchIcon } from "../../icons/searchIcon.svg";
 import { ReactComponent as UndoIcon } from "../../icons/undoIcon.svg";
 import { ReactComponent as RedoIcon } from "../../icons/redoIcon.svg";
 import { ReactComponent as BugReportIcon } from "../../icons/bugReportIcon.svg";
-
 import DialogueEditorSettings from "./DialogueEditorSettings";
+import BugReportDialog from "./ReportBug";
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorToolbar.css";
 
 function DialogueEditorToolbar() {
 	const { generateFile } = useContext(FileContext);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+	const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+
 	const handleSave = () => {
 		generateFile();
 	};
 
 	const handleSettingsClick = () => {
 		setIsSettingsOpen(true);
+	};
+
+	const handleBugReportClick = () => {
+		setIsBugReportOpen(true);
 	};
 
 	return (
@@ -63,7 +68,6 @@ function DialogueEditorToolbar() {
 			>
 				<ImportIcon className="import-icon icon" />
 			</Button>
-
 			<Button
 				abbrTitle={"Open settings panel"}
 				containerClassName={"toolbar-button-container"}
@@ -73,7 +77,6 @@ function DialogueEditorToolbar() {
 			>
 				<SettingsIcon className="settings-icon icon" />
 			</Button>
-
 			<Button
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
@@ -94,8 +97,7 @@ function DialogueEditorToolbar() {
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
-				//onClick={handleBugReportClicked}
-				disabled={true}
+				onClick={handleBugReportClick}
 			>
 				<BugReportIcon className="bug-icon icon" />
 			</Button>
@@ -118,6 +120,10 @@ function DialogueEditorToolbar() {
 			<DialogueEditorSettings
 				isOpen={isSettingsOpen}
 				onClose={() => setIsSettingsOpen(false)}
+			/>
+			<BugReportDialog
+				isOpen={isBugReportOpen}
+				onClose={() => setIsBugReportOpen(false)}
 			/>
 		</div>
 	);

@@ -11,6 +11,7 @@ function Button({
 	containerClassName,
 	buttonStyle,
 	abbrTitle,
+	butonType,
 }) {
 	const buttonRef = useRef(null);
 
@@ -29,6 +30,7 @@ function Button({
 			}`}
 		>
 			<button
+				type={butonType}
 				style={buttonStyle}
 				ref={buttonRef}
 				className={`${classState ? classState : "primary"} ${
