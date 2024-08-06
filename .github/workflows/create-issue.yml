@@ -1,0 +1,22 @@
+name: Create Issue Ticket
+
+on:
+  repository_dispatch:
+    types: [create_issue]
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Issue
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const issueTitle = context.payload.client_payload.title;
+            const issueBody = context.payload.client_payload.body;
+            const response = await github.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+            });
