@@ -46,6 +46,7 @@ const DialogueRow = ({
 					onChange={handleTextChange}
 					placeholder="Enter dialogue text"
 					startRows={8}
+					useSuggestions={true}
 				/>
 				<div className="dialogue-row-data-audio-row">
 					<FileDrop

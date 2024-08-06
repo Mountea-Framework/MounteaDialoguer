@@ -11,7 +11,7 @@ function Button({
 	containerClassName,
 	buttonStyle,
 	abbrTitle,
-	butonType,
+	buttonType,
 }) {
 	const buttonRef = useRef(null);
 
@@ -19,7 +19,9 @@ function Button({
 		if (buttonRef.current) {
 			buttonRef.current.blur();
 		}
-		onClick(e);
+		if (typeof onClick === "function") {
+			onClick(e);
+		}
 	};
 
 	return (
@@ -30,7 +32,7 @@ function Button({
 			}`}
 		>
 			<button
-				type={butonType}
+				type={buttonType}
 				style={buttonStyle}
 				ref={buttonRef}
 				className={`${classState ? classState : "primary"} ${

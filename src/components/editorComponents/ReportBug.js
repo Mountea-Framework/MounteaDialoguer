@@ -1,15 +1,21 @@
-import React, { useState } from "react";
-
+import React, { useState, useEffect } from "react";
 import Modal from "../objects/Modal";
 import TextInput from "../objects/TextInput";
 import TextBlock from "../objects/Textblock";
 import Button from "../objects/Button";
-
 import "../../componentStyles/editorObjects/ReportBug.css";
 
 const BugReportDialog = ({ isOpen, onClose }) => {
 	const [title, setTitle] = useState("");
 	const [description, setDescription] = useState("");
+
+	useEffect(() => {
+		if (!isOpen) {
+			// Clear values when modal is closed
+			setTitle("");
+			setDescription("");
+		}
+	}, [isOpen]);
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -39,8 +45,11 @@ const BugReportDialog = ({ isOpen, onClose }) => {
 
 		if (response.ok) {
 			alert("Bug report submitted successfully");
+			setTitle("");
+			setDescription("");
 			onClose();
 		} else {
+			console.log(response.statusText);
 			alert("Failed to submit bug report");
 		}
 	};
@@ -83,9 +92,10 @@ const BugReportDialog = ({ isOpen, onClose }) => {
 								onChange={handleDescriptionChange}
 								name="description"
 								isRequired={true}
+								useSuggestions={false}
 							/>
 						</div>
-						<Button type="submit">Submit</Button>
+						<Button buttonType="submit">Submit</Button>
 					</form>
 				</div>
 			</Modal>

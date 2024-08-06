@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import ContentEditable from "react-contenteditable";
-
 import "../../componentStyles/objects/Textblock.css";
 
 const suggestions = ["player", "participant"];
@@ -17,7 +16,7 @@ function TextBlock({
 	maxLength,
 	startRows,
 	isRequired,
-	useSuggestions
+	useSuggestions,
 }) {
 	const [html, setHtml] = useState(value);
 	const [showSuggestions, setShowSuggestions] = useState(false);
@@ -34,7 +33,7 @@ function TextBlock({
 		onChange(name, newValue);
 
 		// Detect if the user has typed "${"
-		if (newValue.endsWith("${")) {
+		if (useSuggestions && newValue.endsWith("${")) {
 			setShowSuggestions(true);
 		} else {
 			setShowSuggestions(false);
@@ -59,7 +58,7 @@ function TextBlock({
 		onChange(name, newValue);
 
 		// Detect if the user has typed "${"
-		if (newValue.endsWith("${")) {
+		if (useSuggestions && newValue.endsWith("${")) {
 			setShowSuggestions(true);
 		} else {
 			setShowSuggestions(false);
@@ -70,6 +69,26 @@ function TextBlock({
 		const regex = /\$\{(.*?)\}/g;
 		return text.replace(regex, '<span class="variable-highlight">$&</span>');
 	};
+
+	if (!useSuggestions) {
+		return (
+			<div className="textblock">
+				<textarea
+					name={name}
+					value={value}
+					onChange={(e) => handleInputChange(e)}
+					placeholder={placeholder}
+					className={`${classState ? classState : "primary"} ${
+						classText ? classText : "primary-text"
+					} editable-div`}
+					readOnly={readOnly}
+					rows={startRows}
+					maxLength={maxLength}
+					required={isRequired}
+				/>
+			</div>
+		);
+	}
 
 	return (
 		<div className="textblock">
