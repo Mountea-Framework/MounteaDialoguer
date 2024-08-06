@@ -193,8 +193,7 @@ const DialogueEditorCanvas = ({
 	};
 
 	const handleDragNodeEnd = (event, node) => {
-		setIsDragging(false); // Reset dragging state
-		console.log(node, selectedNode);
+		setIsDragging(false);
 		if (selectedNode == null) {
 			setNodes((nds) =>
 				nds.map((n) => ({
