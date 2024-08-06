@@ -10,10 +10,6 @@ export const AppProvider = ({ children }) => {
 	const addCategory = (newCategory) => {
 		if (!isDuplicateCategory(newCategory)) {
 			setCategories((prevCategories) => [...prevCategories, newCategory]);
-		} else {
-			console.log(
-				`Category with name "${newCategory.name}" and parent "${newCategory.parent}" already exists.`
-			);
 		}
 	};
 
@@ -68,10 +64,6 @@ export const AppProvider = ({ children }) => {
 				...prevParticipants,
 				newParticipant,
 			]);
-		} else {
-			console.log(
-				`Participant with name "${newParticipant.name}" and category "${newParticipant.category}" already exists.`
-			);
 		}
 	};
 

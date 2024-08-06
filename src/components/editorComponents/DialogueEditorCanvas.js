@@ -96,7 +96,6 @@ const DialogueEditorCanvas = ({
 
 	const onNodesDelete = useCallback(
 		(nodesToDelete) => {
-			console.log("selected note deleted!");
 			setNodes((prevNodes) => {
 				const updatedNodes = prevNodes.filter(
 					(node) => !nodesToDelete.some((n) => n.id === node.id)
@@ -123,7 +122,6 @@ const DialogueEditorCanvas = ({
 					selectedNode &&
 					!currentNodes.some((node) => node.id === selectedNode.id)
 				) {
-					console.log("Selected node no longer exists!");
 					selectNode(null);
 				}
 				return currentNodes;
