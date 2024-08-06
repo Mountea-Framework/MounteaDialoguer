@@ -27,8 +27,6 @@ export const processImportedParticipants = (
 	if (importCallbackRef.current) {
 		importCallbackRef.current(uniqueParticipants);
 	}
-
-	alert("Participants imported and merged successfully.");
 };
 
 export const importParticipants = async (

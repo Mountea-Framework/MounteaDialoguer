@@ -25,8 +25,6 @@ export const processImportedCategories = (
 	if (importCallbackRef.current) {
 		importCallbackRef.current(uniqueCategories);
 	}
-
-	alert("Categories imported and merged successfully.");
 };
 
 export const importCategories = async (

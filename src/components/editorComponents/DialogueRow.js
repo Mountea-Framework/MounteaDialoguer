@@ -52,7 +52,7 @@ const DialogueRow = ({
 						ref={fileDropRef}
 						onChange={(e) => onAudioChange(index, e.target.files[0])}
 						primaryText="Select audio file"
-						accept="audio/*"
+						accept="audio/x-wav"
 						id="dialogueRowAudioSelection"
 					/>
 					<Button

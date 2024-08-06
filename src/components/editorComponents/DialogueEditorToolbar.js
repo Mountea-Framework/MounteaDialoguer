@@ -11,6 +11,7 @@ import { ReactComponent as SettingsIcon } from "../../icons/settingsIcon.svg";
 import { ReactComponent as SearchIcon } from "../../icons/searchIcon.svg";
 import { ReactComponent as UndoIcon } from "../../icons/undoIcon.svg";
 import { ReactComponent as RedoIcon } from "../../icons/redoIcon.svg";
+import { ReactComponent as BugReportIcon } from "../../icons/bugReportIcon.svg";
 
 import DialogueEditorSettings from "./DialogueEditorSettings";
 
@@ -46,6 +47,7 @@ function DialogueEditorToolbar() {
 				<RedoIcon className="redo-icon icon" />
 			</Button>
 			<Button
+				abbrTitle={"Save (Download) Dialogue"}
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
@@ -54,13 +56,16 @@ function DialogueEditorToolbar() {
 				<DownloadIcon className="download-icon icon" />
 			</Button>
 			<Button
+				abbrTitle={"Import Dialogue"}
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
 			>
 				<ImportIcon className="import-icon icon" />
 			</Button>
+
 			<Button
+				abbrTitle={"Open settings panel"}
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}
@@ -68,6 +73,7 @@ function DialogueEditorToolbar() {
 			>
 				<SettingsIcon className="settings-icon icon" />
 			</Button>
+
 			<Button
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
@@ -84,8 +90,18 @@ function DialogueEditorToolbar() {
 			>
 				<SearchIcon className="search-icon icon" />
 			</Button>
+			<Button
+				containerClassName={"toolbar-button-container"}
+				className={"custom-button toolbar-button"}
+				classState={"tertiary"}
+				//onClick={handleBugReportClicked}
+				disabled={true}
+			>
+				<BugReportIcon className="bug-icon icon" />
+			</Button>
 			<div className="favourite-container">
 				<Button
+					abbrTitle={"Support our work"}
 					containerClassName={"toolbar-button-container favourite-container"}
 					className={"custom-button toolbar-button"}
 					classState={"tertiary"}

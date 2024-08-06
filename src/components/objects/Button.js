@@ -10,6 +10,7 @@ function Button({
 	classState,
 	containerClassName,
 	buttonStyle,
+	abbrTitle,
 }) {
 	const buttonRef = useRef(null);
 
@@ -21,13 +22,14 @@ function Button({
 	};
 
 	return (
-		<div
+		<abbr
+			title={abbrTitle}
 			className={`button-container ${
 				containerClassName ? containerClassName : ""
 			}`}
 		>
 			<button
-				style={buttonStyle} // basically enhance with provided lines
+				style={buttonStyle}
 				ref={buttonRef}
 				className={`${classState ? classState : "primary"} ${
 					className ? className : "custom-button"
@@ -37,7 +39,7 @@ function Button({
 			>
 				{children}
 			</button>
-		</div>
+		</abbr>
 	);
 }
 
