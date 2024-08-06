@@ -264,8 +264,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 We appreciate the contributions from the open-source community and the following libraries that made this project possible:
-- [React](https://react.dev/)
-- [Redux](https://redux.js.org/)
+
+- [React](https://reactjs.org/)
 - [React Flow](https://reactflow.dev/)
+- [React Transition Group](https://reactcommunity.org/react-transition-group/)
+- [UUID](https://www.npmjs.com/package/uuid)
+- [React ContentEditable](https://github.com/lovasoa/react-contenteditable)
+- [React Tooltip](https://www.npmjs.com/package/react-tooltip)
+- [JSZip](https://stuk.github.io/jszip/)
+- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+- [Jest DOM](https://github.com/testing-library/jest-dom)
+- [User Event](https://github.com/testing-library/user-event)
+- [Web Vitals](https://github.com/GoogleChrome/web-vitals)
 - [Google Fonts](https://fonts.google.com/)
 - [Google Icons](https://fonts.google.com/icons)
