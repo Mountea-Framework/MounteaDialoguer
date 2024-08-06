@@ -12,6 +12,8 @@ import DialogueRow from "./DialogueRow";
 
 import { ReactComponent as AddIcon } from "../../icons/addIcon.svg";
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
+import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
+import { ReactComponent as ExportIcon } from "../../icons/downloadIcon.svg";
 
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
@@ -107,6 +109,14 @@ function DialogueEditorDetails({ setNodes }) {
 			},
 		}));
 	};
+
+	const importDialogueRows = () => {
+
+	}
+
+	const exportDialogueRows = () => {
+		
+	}
 
 	const resetDialogueRows = () => {
 		setTempNodeData((prevData) => ({
@@ -220,6 +230,22 @@ function DialogueEditorDetails({ setNodes }) {
 											/>
 
 											<div className="dialogue-row-buttons-control">
+												<Button
+													onClick={importDialogueRows}
+													className="circle-button dialogue-row-button"
+												>
+													<span className={`import-icon icon`}>
+														<ImportIcon />
+													</span>
+												</Button>
+												<Button
+													onClick={exportDialogueRows}
+													className="circle-button dialogue-row-button"
+												>
+													<span className={`export-icon icon`}>
+														<ExportIcon />
+													</span>
+												</Button>
 												<Button
 													onClick={addDialogueRow}
 													className="circle-button dialogue-row-button"

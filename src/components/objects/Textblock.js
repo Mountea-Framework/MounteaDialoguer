@@ -1,6 +1,8 @@
-import React from "react";
-
+import React, { useState, useRef, useEffect } from "react";
+import ContentEditable from "react-contenteditable";
 import "../../componentStyles/objects/Textblock.css";
+
+const suggestions = ["player", "participant"];
 
 function TextBlock({
 	placeholder,
@@ -14,26 +16,86 @@ function TextBlock({
 	maxLength,
 	startRows,
 }) {
+	const [html, setHtml] = useState(value);
+	const [showSuggestions, setShowSuggestions] = useState(false);
+	const [suggestionIndex, setSuggestionIndex] = useState(-1);
+	const contentEditableRef = useRef(null);
+
+	useEffect(() => {
+		setHtml(value);
+	}, [value]);
+
 	const handleInputChange = (e) => {
-		const { name, value } = e.target;
-		onChange(name, value);
+		const newValue = e.target.value;
+		setHtml(newValue);
+		onChange(name, newValue);
+
+		// Detect if the user has typed "${"
+		if (newValue.endsWith("${")) {
+			setShowSuggestions(true);
+		} else {
+			setShowSuggestions(false);
+		}
+	};
+
+	const handleSuggestionClick = (suggestion) => {
+		const newValue = html.replace(/\${$/, `\${${suggestion}}`);
+		setHtml(newValue);
+		onChange(name, newValue);
+		setShowSuggestions(false);
+		contentEditableRef.current.focus();
+	};
+
+	const handleChange = (evt) => {
+		let newValue = evt.target.value;
+
+		// Sanitize input to remove existing highlights
+		newValue = newValue.replace(/<\/?span[^>]*>/g, "");
+
+		setHtml(newValue);
+		onChange(name, newValue);
+
+		// Detect if the user has typed "${"
+		if (newValue.endsWith("${")) {
+			setShowSuggestions(true);
+		} else {
+			setShowSuggestions(false);
+		}
+	};
+
+	const formatText = (text) => {
+		const regex = /\$\{(.*?)\}/g;
+		return text.replace(regex, '<span class="variable-highlight">$&</span>');
 	};
 
 	return (
 		<div className="textblock">
-			<textarea
-				name={name}
-				value={value}
-				onChange={handleInputChange}
+			<ContentEditable
+				innerRef={contentEditableRef}
+				html={formatText(html)}
+				disabled={readOnly}
+				onChange={handleChange}
+				tagName="div"
 				placeholder={placeholder}
 				className={`${classState ? classState : "primary"} ${
 					classText ? classText : "primary-text"
-				}`}
-				onClick={onClick}
-				readOnly={readOnly}
-				maxLength={maxLength}
-				rows={startRows}
+				} editable-div`}
 			/>
+			{showSuggestions && (
+				<div className="suggestions">
+					{suggestions.map((suggestion, index) => (
+						<div
+							key={index}
+							className={`suggestion ${
+								index === suggestionIndex ? "selected" : ""
+							}`}
+							onMouseDown={() => handleSuggestionClick(suggestion)}
+						>
+							{suggestion}
+						</div>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }
