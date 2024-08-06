@@ -1,7 +1,10 @@
 import React, { useRef } from "react";
-import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
+
 import Button from "../objects/Button";
 import FileDrop from "../objects/FileDrop";
+import TextBlock from "../objects/Textblock";
+
+import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 
 const DialogueRow = ({
 	index,
@@ -19,6 +22,10 @@ const DialogueRow = ({
 		}
 	};
 
+	const handleTextChange = (name, value) => {
+		onTextChange(index, value);
+	};
+
 	return (
 		<div className="dialogue-row">
 			<div className="dialogue-row-id">
@@ -31,12 +38,14 @@ const DialogueRow = ({
 					</span>
 				</Button>
 			</div>
+
 			<div className="dialogue-row-data">
-				<textarea
+				<TextBlock
+					name={`text-${index}`}
 					value={text}
-					onChange={(e) => onTextChange(index, e.target.value)}
+					onChange={handleTextChange}
 					placeholder="Enter dialogue text"
-					rows={8}
+					startRows={8}
 				/>
 				<div className="dialogue-row-data-audio-row">
 					<FileDrop
