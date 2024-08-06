@@ -1,4 +1,4 @@
-name: Create Issue Ticket
+name: Create GitHub Issue
 
 on:
   repository_dispatch:
@@ -15,8 +15,8 @@ jobs:
             const issueTitle = context.payload.client_payload.title;
             const issueBody = context.payload.client_payload.body;
             const response = await github.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: 'Mountea-Framework',  // Do I need to provide organization?
+              repo: 'MounteaDialoguer',
               title: issueTitle,
               body: issueBody,
             });
