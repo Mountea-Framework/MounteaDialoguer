@@ -25,6 +25,10 @@
 	box-shadow: none !important;
 }
 
+.toolbar-button > svg {
+	height: 24px;
+}
+
 .toolbar-button:hover > .icon {
 	fill: var(--primary-hovered);
 }
@@ -38,6 +42,17 @@
 	fill: red;
 	height: 28px;
 	transition: height var(--transition-duration) var(--transition-easing);
+}
+
+.toolbar-button > .discord-icon {
+	fill: #5865f2; /*Discord official colours*/
+	transition: fill var(--transition-duration) var(--transition-easing);
+}
+
+.toolbar-button:hover > .discord-icon {
+	fill: #ffffff; /*Discord official colours*/
+
+	transition: fill var(--transition-duration) var(--transition-easing);
 }
 
 .favourite-container {

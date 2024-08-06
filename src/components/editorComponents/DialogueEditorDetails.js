@@ -215,6 +215,7 @@ function DialogueEditorDetails({ setNodes }) {
 												)}
 												onChange={handleParticipantInputChange}
 												options={participantOptions}
+												required={true}
 											/>
 										</div>
 										<div className="node-info-panel ">
@@ -227,6 +228,7 @@ function DialogueEditorDetails({ setNodes }) {
 
 											<div className="dialogue-row-buttons-control">
 												<Button
+													abbrTitle={"Add new Dialogue Row"}
 													onClick={addDialogueRow}
 													className="circle-button dialogue-row-button"
 												>
@@ -235,6 +237,9 @@ function DialogueEditorDetails({ setNodes }) {
 													</span>
 												</Button>
 												<Button
+													abbrTitle={
+														"Import Dialogue Rows (JSON)\nCurrent rows will be overriden!"
+													}
 													onClick={importDialogueRows}
 													className="circle-button dialogue-row-button"
 												>
@@ -243,6 +248,7 @@ function DialogueEditorDetails({ setNodes }) {
 													</span>
 												</Button>
 												<Button
+													abbrTitle={"Export Dialogue Rows (JSON)"}
 													onClick={exportDialogueRows}
 													className="circle-button dialogue-row-button"
 												>
@@ -252,6 +258,7 @@ function DialogueEditorDetails({ setNodes }) {
 												</Button>
 
 												<Button
+													abbrTitle={"Delete all Dialogue Rows"}
 													onClick={resetDialogueRows}
 													className="circle-button dialogue-row-button"
 												>
@@ -319,7 +326,9 @@ function DialogueEditorDetails({ setNodes }) {
 			</div>
 			{selectedNode && selectedNode.type !== "startNode" && (
 				<div className="node-details-confirmation">
-					<Button onClick={handleConfirmChanges}>Confirm</Button>
+					<Button onClick={handleConfirmChanges} buttonType={"submit"}>
+						Confirm
+					</Button>
 				</div>
 			)}
 		</div>
