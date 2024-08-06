@@ -19,7 +19,7 @@ const BaseNode = ({ id, data, selected }) => {
 		canDelete = true,
 		canCreate = true,
 		additionalInfo,
-		isDragging, // receive isDragging as a prop
+		isDragging,
 	} = data;
 	const { setNodes, setEdges } = useReactFlow();
 
@@ -27,11 +27,17 @@ const BaseNode = ({ id, data, selected }) => {
 		setNodeTitle(data.title);
 	}, [data.title]);
 
+	const handleDeleteButtonClick = (event) => {
+		event.stopPropagation(); // Prevent the click event from bubbling up
+		handleDeleteNode();
+	};
+
 	const handleDeleteNode = () => {
 		setNodes((nds) => nds.filter((node) => node.id !== id));
 		setEdges((eds) =>
 			eds.filter((edge) => edge.source !== id && edge.target !== id)
 		);
+		data.onDeleteNode(id);
 	};
 
 	return (
@@ -43,8 +49,9 @@ const BaseNode = ({ id, data, selected }) => {
 		>
 			{canDelete && (
 				<Button
+					abbrTitle={"Delete selected Node"}
 					className="circle-button nodrag nopan node-button-delete"
-					onClick={handleDeleteNode}
+					onClick={handleDeleteButtonClick}
 				>
 					<RemoveIcon style={{ pointerEvents: "none" }} />
 				</Button>

@@ -48,6 +48,15 @@ function DialogueEditorDetails({ setNodes }) {
 					dialogueRows: selectedNode.data.additionalInfo?.dialogueRows || [],
 				},
 			});
+		} else {
+			// Reset tempNodeData when no node is selected
+			setTempNodeData({
+				title: "",
+				additionalInfo: {
+					participant: { name: "Player", category: "" },
+					dialogueRows: [],
+				},
+			});
 		}
 	}, [selectedNode]);
 

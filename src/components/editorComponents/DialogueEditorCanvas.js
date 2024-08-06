@@ -15,6 +15,7 @@ import ReactFlow, {
 	SelectionMode,
 	useReactFlow,
 } from "reactflow";
+import { useKeyPress } from "@reactflow/core";
 import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
@@ -72,6 +73,65 @@ const DialogueEditorCanvas = ({
 	const reactFlowWrapper = useRef(null);
 	const { project } = useReactFlow();
 
+	const deleteKeyPressed = useKeyPress("Delete");
+
+	useEffect(() => {
+		if (deleteKeyPressed && selectedNode) {
+			handleDeleteNode(selectedNode.id);
+		}
+	}, [deleteKeyPressed, selectedNode]);
+
+	const handleDeleteNode = useCallback(
+		(nodeId) => {
+			setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+			setEdges((eds) =>
+				eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+			);
+			if (selectedNode && selectedNode.id === nodeId) {
+				selectNode(null);
+			}
+		},
+		[setNodes, setEdges, selectedNode, selectNode]
+	);
+
+	const onNodesDelete = useCallback(
+		(nodesToDelete) => {
+			console.log("selected note deleted!");
+			setNodes((prevNodes) => {
+				const updatedNodes = prevNodes.filter(
+					(node) => !nodesToDelete.some((n) => n.id === node.id)
+				);
+
+				// Check if the deleted node was selected
+				if (nodesToDelete.some((node) => node.id === selectedNode?.id)) {
+					selectNode(null);
+				}
+
+				return updatedNodes;
+			});
+		},
+		[setNodes, selectedNode, selectNode]
+	);
+
+	const handleNodesChange = useCallback(
+		(changes) => {
+			onNodesChange(changes);
+
+			// After the changes are applied, check if the selected node still exists
+			setNodes((currentNodes) => {
+				if (
+					selectedNode &&
+					!currentNodes.some((node) => node.id === selectedNode.id)
+				) {
+					console.log("Selected node no longer exists!");
+					selectNode(null);
+				}
+				return currentNodes;
+			});
+		},
+		[onNodesChange, selectedNode, selectNode, setNodes]
+	);
+
 	const handleNodeClick = (event, node) => {
 		if (selectedNode?.id !== node.id) {
 			selectNode(node);
@@ -101,6 +161,7 @@ const DialogueEditorCanvas = ({
 		const { clientX, clientY } = event;
 		setContextMenuPosition({ x: clientX, y: clientY });
 		setIsModalOpen(true);
+		selectNode(null);
 	};
 
 	const handlePaneClick = (event) => {
@@ -157,6 +218,7 @@ const DialogueEditorCanvas = ({
 				setEdges: setEdges,
 				selected: false,
 				isDragging: false,
+				onDeleteNode: handleDeleteNode,
 			},
 		};
 		setNodes((nds) => nds.concat(newNode));
@@ -216,8 +278,9 @@ const DialogueEditorCanvas = ({
 					data: { ...node.data, isDragging },
 				}))}
 				edges={edges}
-				onNodesChange={onNodesChange}
+				onNodesChange={handleNodesChange}
 				onEdgesChange={onEdgesChange}
+				onNodesDelete={onNodesDelete}
 				onConnect={onConnect}
 				isValidConnection={isValidConnection}
 				snapToGrid
