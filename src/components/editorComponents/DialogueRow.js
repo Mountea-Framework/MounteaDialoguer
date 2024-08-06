@@ -1,8 +1,7 @@
-import React from "react";
-
+import React, { useRef } from "react";
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 import Button from "../objects/Button";
-import FileDdrop from "../objects/FileDrop";
+import FileDrop from "../objects/FileDrop";
 
 const DialogueRow = ({
 	index,
@@ -12,6 +11,14 @@ const DialogueRow = ({
 	onAudioChange,
 	onDelete,
 }) => {
+	const fileDropRef = useRef(null);
+
+	const handleClearFileDrop = () => {
+		if (fileDropRef.current) {
+			fileDropRef.current.clearFile();
+		}
+	};
+
 	return (
 		<div className="dialogue-row">
 			<div className="dialogue-row-id">
@@ -32,12 +39,21 @@ const DialogueRow = ({
 					rows={8}
 				/>
 				<div className="dialogue-row-data-audio-row">
-					<FileDdrop
+					<FileDrop
+						ref={fileDropRef}
 						onChange={(e) => onAudioChange(index, e.target.files[0])}
 						primaryText="Select audio file"
 						accept="audio/*"
 						id="dialogueRowAudioSelection"
 					/>
+					<Button
+						onClick={handleClearFileDrop}
+						className="circle-button dialogue-row-data-button"
+					>
+						<span className={`dialogue-row-icon remove-icon icon`}>
+							<DeleteIcon />
+						</span>
+					</Button>
 				</div>
 			</div>
 		</div>

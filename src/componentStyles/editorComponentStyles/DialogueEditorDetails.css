@@ -132,7 +132,8 @@
 	flex-direction: row;
 	align-content: center;
 	align-items: center;
-	justify-content: flex-start;
+	justify-content: space-between;
+	flex-wrap: nowrap;
 }
 
 .dialogue-row textarea {
@@ -143,6 +144,12 @@
 .dialogue-row-audio-input {
 	pointer-events: all;
 	cursor: pointer;
+}
+
+.dialogue-row-data-audio-row .file-drop-area {
+	width: 80%;
+	margin-top: 0px;
+	padding: 5px;
 }
 
 .fade-enter {
