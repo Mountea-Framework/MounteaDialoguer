@@ -1,21 +1,3 @@
-.textblock textarea {
-	background-color: var(--background-tertiary);
-
-	border: 1px solid var(--primary-focus);
-	border-radius: 5px;
-	padding: 10px;
-
-	font-size: 12px;
-	resize: vertical;
-	box-sizing: border-box;
-	outline: none;
-}
-
-.textblock {
-	position: relative;
-	width: 100%;
-}
-
 .editable-div {
 	background-color: var(--background-tertiary);
 	border: 1px solid var(--primary-focus);
@@ -37,12 +19,11 @@
 .suggestions {
 	position: absolute;
 	background-color: var(--background-tertiary);
-	border: 1px solid #444;
+	border: 1px solid transparent;
 	border-radius: 5px;
 	max-height: 150px;
 	overflow-y: auto;
 	z-index: 10;
-	width: calc(100% - 22px);
 }
 
 .suggestion {
@@ -52,5 +33,6 @@
 
 .suggestion:hover,
 .suggestion.selected {
-	background-color: var(--background-tertiary);
+	background-color: var(--primary-hovered);
+    color: var(--primary-focus);
 }

@@ -110,13 +110,9 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
-	const importDialogueRows = () => {
+	const importDialogueRows = () => {};
 
-	}
-
-	const exportDialogueRows = () => {
-		
-	}
+	const exportDialogueRows = () => {};
 
 	const resetDialogueRows = () => {
 		setTempNodeData((prevData) => ({
@@ -231,6 +227,14 @@ function DialogueEditorDetails({ setNodes }) {
 
 											<div className="dialogue-row-buttons-control">
 												<Button
+													onClick={addDialogueRow}
+													className="circle-button dialogue-row-button"
+												>
+													<span className={`add-icon icon`}>
+														<AddIcon />
+													</span>
+												</Button>
+												<Button
 													onClick={importDialogueRows}
 													className="circle-button dialogue-row-button"
 												>
@@ -246,14 +250,7 @@ function DialogueEditorDetails({ setNodes }) {
 														<ExportIcon />
 													</span>
 												</Button>
-												<Button
-													onClick={addDialogueRow}
-													className="circle-button dialogue-row-button"
-												>
-													<span className={`add-icon icon`}>
-														<AddIcon />
-													</span>
-												</Button>
+
 												<Button
 													onClick={resetDialogueRows}
 													className="circle-button dialogue-row-button"
