@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 
 import Title from "./objects/Title";
 import TextInput from "./objects/TextInput";
@@ -10,6 +10,7 @@ import DialogueParticipantsHeader from "./general/DialogueParticipantsHeader";
 import DialogueParticipantsList from "./general/DialogueParticipantsList";
 import AppContext from "./../AppContext";
 import { getDB } from "../indexedDB"; // Import getDB
+import { v4 as uuidv4 } from "uuid";
 
 import "../componentStyles/NewProjectDetails.css";
 
@@ -27,6 +28,12 @@ function NewProjectDetails({ projectData, onReturn }) {
 		categories,
 		participants
 	);
+
+	useEffect(() => {
+		if (!localStorage.getItem("project-guid")) {
+			localStorage.setItem("project-guid", uuidv4());
+		}
+	}, []);
 
 	const handleReturnClick = async () => {
 		const db = await getDB();

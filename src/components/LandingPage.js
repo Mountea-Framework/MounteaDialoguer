@@ -31,6 +31,7 @@ function LandingPage() {
 	};
 
 	const handleReturn = () => {
+		localStorage.removeItem("project-guid"); // Clear project-guid
 		setPage("newProject");
 		setShowLandingPage(true);
 	};
