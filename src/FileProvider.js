@@ -40,7 +40,7 @@ const FileProvider = ({ children }) => {
 		const projectData = await projectsStore.get(guid);
 
 		const jsonData = {
-			name: projectData.name || "UntitledProject",
+			name: projectData.dialogueName || "UntitledProject",
 			categories: projectData.categories || [],
 			participants: projectData.participants || [],
 			nodes: projectData.nodes || [],

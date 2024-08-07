@@ -30,7 +30,7 @@ export const processImportedParticipants = (
 
 			const updatedProjectData = {
 				...projectData,
-				participants: uniqueParticipants,
+				participants: [...projectData.participants, ...uniqueParticipants],
 			};
 
 			const mergedData = await mergeWithExistingData(updatedProjectData);

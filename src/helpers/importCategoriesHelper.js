@@ -32,7 +32,7 @@ export const processImportedCategories = (
 
 			const updatedProjectData = {
 				...projectData,
-				categories: uniqueCategories,
+				categories: [...projectData.categories, ...uniqueCategories],
 			};
 
 			const mergedData = await mergeWithExistingData(updatedProjectData);

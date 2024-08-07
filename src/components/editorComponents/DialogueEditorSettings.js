@@ -31,16 +31,14 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 				participants,
 			});
 		}
-	}, [categories, participants, name, saveProjectToIndexedDB]); // Added missing dependencies
+	}, [categories, participants, name, saveProjectToIndexedDB]);
 
 	const handleCategoriesUpdate = (newCategories) => {
 		setCategories(newCategories);
 		const guid = localStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
-			name,
 			categories: newCategories,
-			participants,
 		});
 	};
 
@@ -49,8 +47,6 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 		const guid = localStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
-			name,
-			categories,
 			participants: newParticipants,
 		});
 	};

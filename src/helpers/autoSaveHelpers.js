@@ -9,12 +9,19 @@ const mergeWithExistingData = async (newData) => {
 	return {
 		...existingData,
 		...newData,
-		name: existingData.name || newData.name,
-		categories: newData.categories || existingData.categories,
-		participants: newData.participants || existingData.participants,
-		nodes: newData.nodes || existingData.nodes,
-		edges: newData.edges || existingData.edges,
-		files: newData.files || existingData.files,
+		dialogueName:
+			existingData.dialogueName || newData.name || existingData.name,
+		categories: [
+			...(existingData.categories || []),
+			...(newData.categories || []),
+		],
+		participants: [
+			...(existingData.participants || []),
+			...(newData.participants || []),
+		],
+		nodes: [...(existingData.nodes || []), ...(newData.nodes || [])],
+		edges: [...(existingData.edges || []), ...(newData.edges || [])],
+		files: [...(existingData.files || []), ...(newData.files || [])],
 	};
 };
 
