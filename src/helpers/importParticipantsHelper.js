@@ -1,32 +1,53 @@
-import { saveProjectToLocalStorage } from "../hooks/useAutoSave";
+import { saveProjectToIndexedDB } from "../hooks/useAutoSave"; // Corrected import
+import { getDB } from "../indexedDB"; // Import getDB function
 
 export const processImportedParticipants = (
 	importedParticipants,
 	importCallbackRef,
 	setError
 ) => {
-	const autoSaveData = localStorage.getItem("autoSaveProject");
-	if (!autoSaveData) {
-		setError("No data found in local storage.");
-		return;
-	}
+	// Use IndexedDB instead of localStorage
+	const getDataFromIndexedDB = async () => {
+		try {
+			const db = await getDB();
+			const transaction = db.transaction(
+				["projects", "participants"],
+				"readonly"
+			);
+			const projectsStore = transaction.objectStore("projects");
+			const participantsStore = transaction.objectStore("participants");
+			const autoSaveData = await projectsStore.getAll();
+			const existingParticipants = await participantsStore.getAll();
 
-	const parsedData = JSON.parse(autoSaveData);
-	const existingParticipants = parsedData.participants || [];
+			if (!autoSaveData.length) {
+				setError("No data found in IndexedDB.");
+				return;
+			}
 
-	const mergedParticipants = [...existingParticipants, ...importedParticipants];
-	const uniqueParticipants = Array.from(
-		new Set(mergedParticipants.map((part) => JSON.stringify(part)))
-	).map((str) => JSON.parse(str));
+			const parsedData = autoSaveData[0];
+			const mergedParticipants = [
+				...existingParticipants,
+				...importedParticipants,
+			];
+			const uniqueParticipants = Array.from(
+				new Set(mergedParticipants.map((part) => JSON.stringify(part)))
+			).map((str) => JSON.parse(str));
 
-	saveProjectToLocalStorage({
-		...parsedData,
-		participants: uniqueParticipants,
-	});
+			await saveProjectToIndexedDB({
+				...parsedData,
+				participants: uniqueParticipants,
+			});
 
-	if (importCallbackRef.current) {
-		importCallbackRef.current(uniqueParticipants);
-	}
+			if (importCallbackRef.current) {
+				importCallbackRef.current(uniqueParticipants);
+			}
+		} catch (error) {
+			setError("Error processing imported participants.");
+			console.error(error);
+		}
+	};
+
+	getDataFromIndexedDB();
 };
 
 export const importParticipants = async (
@@ -135,54 +156,67 @@ export const importParticipants = async (
 			category: part.category.replace(/\s+/g, ""),
 		}));
 
-		const autoSaveData = localStorage.getItem("autoSaveProject");
-		const parsedData = JSON.parse(autoSaveData);
-		const categoryNames = new Set(parsedData.categories.map((cat) => cat.name));
-		const invalidEntries = [];
-		const validParticipants = participants.filter((part) => {
-			const categoryParts = part.category.split(".");
-			let isValid = true;
-			for (let i = 0; i < categoryParts.length; i++) {
-				const categoryName = categoryParts.slice(0, i + 1).join(".");
-				if (!categoryNames.has(categoryName)) {
-					isValid = false;
-					break;
+		const getDataFromIndexedDB = async () => {
+			const db = await getDB();
+			const transaction = db.transaction(
+				["projects", "categories"],
+				"readonly"
+			);
+			const projectsStore = transaction.objectStore("projects");
+			const categoriesStore = transaction.objectStore("categories");
+			const autoSaveData = await projectsStore.getAll();
+			const existingCategories = await categoriesStore.getAll();
+			const parsedData = autoSaveData[0];
+			const categoryNames = new Set(
+				parsedData.categories.map((cat) => cat.name)
+			);
+			const invalidEntries = [];
+			const validParticipants = participants.filter((part) => {
+				const categoryParts = part.category.split(".");
+				let isValid = true;
+				for (let i = 0; i < categoryParts.length; i++) {
+					const categoryName = categoryParts.slice(0, i + 1).join(".");
+					if (!categoryNames.has(categoryName)) {
+						isValid = false;
+						break;
+					}
 				}
-			}
-			if (!isValid) {
-				invalidEntries.push(part);
-				return false;
-			}
-			return true;
-		});
-
-		if (invalidEntries.length > 0) {
-			logEntries.push("Invalid Participants:\n");
-			invalidEntries.forEach((entry) => {
-				logEntries.push(`Name: ${entry.name}, Category: ${entry.category}\n`);
+				if (!isValid) {
+					invalidEntries.push(part);
+					return false;
+				}
+				return true;
 			});
-		}
 
-		if (logEntries.length > 0) {
-			const logBlob = new Blob(logEntries, { type: "text/plain" });
-			const logUrl = URL.createObjectURL(logBlob);
-			const logLink = document.createElement("a");
-			logLink.href = logUrl;
-			logLink.download = "import_log.txt";
-			logLink.innerText = "Download log file";
-			document.body.appendChild(logLink);
-			alert(
-				`Some (${invalidEntries.length}) participants had invalid categories. Check the log file for details.`
-			);
-			logLink.click();
-			document.body.removeChild(logLink);
-		} else {
-			processImportedParticipants(
-				validParticipants,
-				importCallbackRef,
-				setError
-			);
-		}
+			if (invalidEntries.length > 0) {
+				logEntries.push("Invalid Participants:\n");
+				invalidEntries.forEach((entry) => {
+					logEntries.push(`Name: ${entry.name}, Category: ${entry.category}\n`);
+				});
+			}
+
+			if (logEntries.length > 0) {
+				const logBlob = new Blob(logEntries, { type: "text/plain" });
+				const logUrl = URL.createObjectURL(logBlob);
+				const logLink = document.createElement("a");
+				logLink.href = logUrl;
+				logLink.download = "import_log.txt";
+				logLink.innerText = "Download log file";
+				document.body.appendChild(logLink);
+				alert(
+					`Some (${invalidEntries.length}) participants had invalid categories. Check the log file for details.`
+				);
+				logLink.click();
+				document.body.removeChild(logLink);
+			} else {
+				processImportedParticipants(
+					validParticipants,
+					importCallbackRef,
+					setError
+				);
+			}
+		};
+		getDataFromIndexedDB();
 	} catch (err) {
 		alert("Error parsing file");
 	}

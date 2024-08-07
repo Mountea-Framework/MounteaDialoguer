@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
 import AppContext from "../../AppContext";
-import useAutoSaveNodesAndEdges from "../../hooks/useAutoSaveNodesAndEdges";
+import { useAutoSaveNodesAndEdges } from "../../hooks/useAutoSaveNodesAndEdges";
 import { useAutoSave } from "../../hooks/useAutoSave";
 
 import SpawnNewNode from "./SpawnNewNode";

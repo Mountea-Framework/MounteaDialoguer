@@ -1,30 +1,50 @@
-// importCategoriesHelper.js
-import { saveProjectToLocalStorage } from "../hooks/useAutoSave";
+import { saveProjectToIndexedDB } from "../hooks/useAutoSave"; // Corrected import
+import { getDB } from "../indexedDB"; // Import getDB function
 
 export const processImportedCategories = (
 	importedCategories,
 	importCallbackRef,
 	setError
 ) => {
-	const autoSaveData = localStorage.getItem("autoSaveProject");
-	if (!autoSaveData) {
-		setError("No data found in local storage.");
-		return;
-	}
+	// Use IndexedDB instead of localStorage
+	const getDataFromIndexedDB = async () => {
+		try {
+			const db = await getDB();
+			const transaction = db.transaction(
+				["projects", "categories"],
+				"readonly"
+			);
+			const projectsStore = transaction.objectStore("projects");
+			const categoriesStore = transaction.objectStore("categories");
+			const autoSaveData = await projectsStore.getAll();
+			const existingCategories = await categoriesStore.getAll();
 
-	const parsedData = JSON.parse(autoSaveData);
-	const existingCategories = parsedData.categories || [];
+			if (!autoSaveData.length) {
+				setError("No data found in IndexedDB.");
+				return;
+			}
 
-	const mergedCategories = [...existingCategories, ...importedCategories];
-	const uniqueCategories = Array.from(
-		new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
-	).map((str) => JSON.parse(str));
+			const parsedData = autoSaveData[0];
+			const mergedCategories = [...existingCategories, ...importedCategories];
+			const uniqueCategories = Array.from(
+				new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
+			).map((str) => JSON.parse(str));
 
-	saveProjectToLocalStorage({ ...parsedData, categories: uniqueCategories });
+			await saveProjectToIndexedDB({
+				...parsedData,
+				categories: uniqueCategories,
+			});
 
-	if (importCallbackRef.current) {
-		importCallbackRef.current(uniqueCategories);
-	}
+			if (importCallbackRef.current) {
+				importCallbackRef.current(uniqueCategories);
+			}
+		} catch (error) {
+			setError("Error processing imported categories.");
+			console.error(error);
+		}
+	};
+
+	getDataFromIndexedDB();
 };
 
 export const importCategories = async (

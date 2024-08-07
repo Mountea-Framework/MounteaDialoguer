@@ -1,6 +1,7 @@
 import React, { createContext, useState, useRef, useEffect } from "react";
 import JSZip from "jszip";
 import { useAutoSave } from "./hooks/useAutoSave";
+import { getDB } from "./indexedDB";
 import {
 	importCategories,
 	processImportedCategories,
@@ -19,12 +20,10 @@ const FileProvider = ({ children }) => {
 	const setProjectDataRef = useRef(null);
 	const onSelectProjectRef = useRef(null);
 
-	const { saveProjectToLocalStorage } = useAutoSave();
-
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
 			setError(null);
-			localStorage.removeItem("autoSaveProject");
+			// No need to clear IndexedDB on unload
 		};
 
 		window.addEventListener("beforeunload", handleBeforeUnload);
@@ -35,20 +34,19 @@ const FileProvider = ({ children }) => {
 	}, []);
 
 	const generateFile = async () => {
-		const autoSaveData = localStorage.getItem("autoSaveProject");
-		if (!autoSaveData) {
-			setError("No data found in local storage.");
-			return;
-		}
-
-		const parsedData = JSON.parse(autoSaveData);
+		const db = await getDB();
+		const projectStore = await db.getAll("projects");
+		const nodesStore = await db.getAll("nodes");
+		const edgesStore = await db.getAll("edges");
+		const categoriesStore = await db.getAll("categories");
+		const participantsStore = await db.getAll("participants");
 
 		const jsonData = {
-			name: parsedData.name || "UntitledProject",
-			categories: parsedData.categories || [],
-			participants: parsedData.participants || [],
-			nodes: parsedData.nodes || [],
-			edges: parsedData.edges || [],
+			name: projectStore.name || "UntitledProject",
+			categories: categoriesStore || [],
+			participants: participantsStore || [],
+			nodes: nodesStore || [],
+			edges: edgesStore || [],
 		};
 
 		const zip = new JSZip();
@@ -145,7 +143,16 @@ const FileProvider = ({ children }) => {
 				const projectTitle = validatedData.name || "UntitledProject";
 				const projectData = { ...validatedData, title: projectTitle };
 				setProjectData(projectData);
-				localStorage.setItem("autoSaveProject", JSON.stringify(projectData));
+
+				const db = await getDB();
+				const tx = db.transaction(
+					["projects", "categories", "participants"],
+					"readwrite"
+				);
+				await tx.objectStore("projects").put(projectData);
+				await tx.objectStore("categories").putAll(validatedData.categories);
+				await tx.objectStore("participants").putAll(validatedData.participants);
+				await tx.done;
 			}
 		} else {
 			alert("Please select a .mnteadlg file");
@@ -177,8 +184,18 @@ const FileProvider = ({ children }) => {
 				onSelectProject(file.name);
 				const projectTitle = validatedData.title || "UntitledProject";
 				setProjectData({ ...validatedData, title: projectTitle });
-				const autoSaveData = { ...validatedData, title: projectTitle };
-				localStorage.setItem("autoSaveProject", JSON.stringify(autoSaveData));
+
+				const db = await getDB();
+				const tx = db.transaction(
+					["projects", "categories", "participants"],
+					"readwrite"
+				);
+				await tx
+					.objectStore("projects")
+					.put({ ...validatedData, title: projectTitle });
+				await tx.objectStore("categories").putAll(validatedData.categories);
+				await tx.objectStore("participants").putAll(validatedData.participants);
+				await tx.done;
 			}
 		} else {
 			alert("Please select a .mnteadlg file");
@@ -216,22 +233,20 @@ const FileProvider = ({ children }) => {
 	};
 
 	const exportCategories = async () => {
-		const autoSaveData = localStorage.getItem("autoSaveProject");
-		if (!autoSaveData) {
-			setError("No data found in local storage.");
+		const db = await getDB();
+		const projectStore = await db.getAll("projects");
+		const categoriesStore = await db.getAll("categories");
+
+		if (!projectStore || !categoriesStore) {
+			setError("No data found in IndexedDB.");
 			return;
 		}
 
-		const parsedData = JSON.parse(autoSaveData);
-		const categories = parsedData.categories || [];
-
-		const transformedCategories = categories.map((category) => ({
-			name: category.name,
-			parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
-		}));
-
 		const jsonData = {
-			categories: transformedCategories,
+			categories: categoriesStore.map((category) => ({
+				name: category.name,
+				parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
+			})),
 		};
 
 		const jsonString = JSON.stringify(jsonData, null, 2);
@@ -240,7 +255,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${parsedData.name}_categories.json`;
+		a.download = `${projectStore.name}_categories.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -248,22 +263,20 @@ const FileProvider = ({ children }) => {
 	};
 
 	const exportParticipants = async () => {
-		const autoSaveData = localStorage.getItem("autoSaveProject");
-		if (!autoSaveData) {
-			setError("No data found in local storage.");
+		const db = await getDB();
+		const projectStore = await db.getAll("projects");
+		const participantsStore = await db.getAll("participants");
+
+		if (!projectStore || !participantsStore) {
+			setError("No data found in IndexedDB.");
 			return;
 		}
 
-		const parsedData = JSON.parse(autoSaveData);
-		const participants = parsedData.participants || [];
-
-		const transformedParticipants = participants.map((participant) => ({
-			name: participant.name,
-			category: participant.category.split(".").pop(), // Get the last part of the composite parent so import will consume it
-		}));
-
 		const jsonData = {
-			participants: transformedParticipants,
+			participants: participantsStore.map((participant) => ({
+				name: participant.name,
+				category: participant.category.split(".").pop(), // Get the last part of the composite parent so import will consume it
+			})),
 		};
 
 		const jsonString = JSON.stringify(jsonData, null, 2);
@@ -272,7 +285,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${parsedData.name}_participants.json`;
+		a.download = `${projectStore.name}_participants.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
