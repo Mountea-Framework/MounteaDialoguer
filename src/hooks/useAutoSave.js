@@ -1,20 +1,21 @@
 import { useEffect } from "react";
+import { getDB } from "../indexedDB";
 
-import mergeWithExistingData from "../helpers/autoSaveHelpers";
-
-const saveProjectToLocalStorage = (projectData) => {
-	const mergedData = mergeWithExistingData(projectData);
-	localStorage.setItem("autoSaveProject", JSON.stringify(mergedData));
+const saveProjectToIndexedDB = async (projectData) => {
+	const db = await getDB();
+	const tx = db.transaction("projects", "readwrite");
+	await tx.objectStore("projects").put(projectData);
+	await tx.done;
 };
 
 const useAutoSave = (name, categories, participants) => {
 	useEffect(() => {
 		if (name && categories && participants) {
-			saveProjectToLocalStorage({ name, categories, participants });
+			saveProjectToIndexedDB({ name, categories, participants });
 		}
 	}, [name, categories, participants]);
 
-	return { saveProjectToLocalStorage };
+	return { saveProjectToIndexedDB };
 };
 
-export { useAutoSave, saveProjectToLocalStorage };
+export { useAutoSave, saveProjectToIndexedDB };
