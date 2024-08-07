@@ -3,11 +3,11 @@ import { getDB } from "../indexedDB";
 
 const saveNodesAndEdgesToIndexedDB = async (nodes, edges) => {
 	const db = await getDB();
-	const txNodes = db.transaction("nodes", "readwrite");
-	const txEdges = db.transaction("edges", "readwrite");
+	const tx = db.transaction("projects", "readwrite");
+	const guid = localStorage.getItem("project-guid");
+	const project = await tx.objectStore("projects").get(guid);
 
-	// Ensure nodes are serializable and only include necessary properties
-	const serializableNodes = nodes.map((node) => ({
+	project.nodes = nodes.map((node) => ({
 		id: node.id,
 		type: node.type,
 		position: node.position,
@@ -20,18 +20,15 @@ const saveNodesAndEdgesToIndexedDB = async (nodes, edges) => {
 		},
 	}));
 
-	const serializableEdges = edges.map((edge) => ({
+	project.edges = edges.map((edge) => ({
 		id: edge.id,
 		source: edge.source,
 		target: edge.target,
 		type: edge.type,
 	}));
 
-	serializableNodes.forEach((node) => txNodes.objectStore("nodes").put(node));
-	serializableEdges.forEach((edge) => txEdges.objectStore("edges").put(edge));
-
-	await txNodes.done;
-	await txEdges.done;
+	await tx.objectStore("projects").put(project);
+	await tx.done;
 };
 
 const useAutoSaveNodesAndEdges = (nodes, edges) => {

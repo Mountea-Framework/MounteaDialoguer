@@ -1,6 +1,5 @@
 import React, { createContext, useState, useRef, useEffect } from "react";
 import JSZip from "jszip";
-import { useAutoSave } from "./hooks/useAutoSave";
 import { getDB } from "./indexedDB";
 import {
 	importCategories,
@@ -23,7 +22,7 @@ const FileProvider = ({ children }) => {
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
 			setError(null);
-			// No need to clear IndexedDB on unload
+			localStorage.removeItem("project-guid");
 		};
 
 		window.addEventListener("beforeunload", handleBeforeUnload);
@@ -36,17 +35,15 @@ const FileProvider = ({ children }) => {
 	const generateFile = async () => {
 		const db = await getDB();
 		const projectStore = await db.getAll("projects");
-		const nodesStore = await db.getAll("nodes");
-		const edgesStore = await db.getAll("edges");
-		const categoriesStore = await db.getAll("categories");
-		const participantsStore = await db.getAll("participants");
+		const projectData = projectStore[0]; // Assuming single project for simplicity
 
 		const jsonData = {
-			name: projectStore.name || "UntitledProject",
-			categories: categoriesStore || [],
-			participants: participantsStore || [],
-			nodes: nodesStore || [],
-			edges: edgesStore || [],
+			name: projectData.name || "UntitledProject",
+			categories: projectData.categories || [],
+			participants: projectData.participants || [],
+			nodes: projectData.nodes || [],
+			edges: projectData.edges || [],
+			files: projectData.files || [],
 		};
 
 		const zip = new JSZip();
@@ -145,13 +142,8 @@ const FileProvider = ({ children }) => {
 				setProjectData(projectData);
 
 				const db = await getDB();
-				const tx = db.transaction(
-					["projects", "categories", "participants"],
-					"readwrite"
-				);
+				const tx = db.transaction("projects", "readwrite");
 				await tx.objectStore("projects").put(projectData);
-				await tx.objectStore("categories").putAll(validatedData.categories);
-				await tx.objectStore("participants").putAll(validatedData.participants);
 				await tx.done;
 			}
 		} else {
@@ -186,15 +178,10 @@ const FileProvider = ({ children }) => {
 				setProjectData({ ...validatedData, title: projectTitle });
 
 				const db = await getDB();
-				const tx = db.transaction(
-					["projects", "categories", "participants"],
-					"readwrite"
-				);
+				const tx = db.transaction("projects", "readwrite");
 				await tx
 					.objectStore("projects")
 					.put({ ...validatedData, title: projectTitle });
-				await tx.objectStore("categories").putAll(validatedData.categories);
-				await tx.objectStore("participants").putAll(validatedData.participants);
 				await tx.done;
 			}
 		} else {
@@ -235,15 +222,14 @@ const FileProvider = ({ children }) => {
 	const exportCategories = async () => {
 		const db = await getDB();
 		const projectStore = await db.getAll("projects");
-		const categoriesStore = await db.getAll("categories");
 
-		if (!projectStore || !categoriesStore) {
+		if (!projectStore || !projectStore[0].categories) {
 			setError("No data found in IndexedDB.");
 			return;
 		}
 
 		const jsonData = {
-			categories: categoriesStore.map((category) => ({
+			categories: projectStore[0].categories.map((category) => ({
 				name: category.name,
 				parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
 			})),
@@ -255,7 +241,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${projectStore.name}_categories.json`;
+		a.download = `${projectStore[0].name}_categories.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -265,15 +251,14 @@ const FileProvider = ({ children }) => {
 	const exportParticipants = async () => {
 		const db = await getDB();
 		const projectStore = await db.getAll("projects");
-		const participantsStore = await db.getAll("participants");
 
-		if (!projectStore || !participantsStore) {
+		if (!projectStore || !projectStore[0].participants) {
 			setError("No data found in IndexedDB.");
 			return;
 		}
 
 		const jsonData = {
-			participants: participantsStore.map((participant) => ({
+			participants: projectStore[0].participants.map((participant) => ({
 				name: participant.name,
 				category: participant.category.split(".").pop(), // Get the last part of the composite parent so import will consume it
 			})),
@@ -285,7 +270,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${projectStore.name}_participants.json`;
+		a.download = `${projectStore[0].name}_participants.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);

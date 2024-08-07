@@ -9,15 +9,23 @@ const saveProjectToIndexedDB = async (projectData) => {
 	await tx.done;
 };
 
-const useAutoSave = (name, categories, participants) => {
+const useAutoSave = (name, categories, participants, nodes, edges, files) => {
 	useEffect(() => {
 		if (name && categories && participants) {
 			const guid = localStorage.getItem("project-guid") || uuidv4();
 			localStorage.setItem("project-guid", guid);
 
-			saveProjectToIndexedDB({ guid, name, categories, participants });
+			saveProjectToIndexedDB({
+				guid,
+				name,
+				categories,
+				participants,
+				nodes,
+				edges,
+				files,
+			});
 		}
-	}, [name, categories, participants]);
+	}, [name, categories, participants, nodes, edges, files]);
 
 	return { saveProjectToIndexedDB };
 };
