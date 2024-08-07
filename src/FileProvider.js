@@ -34,8 +34,10 @@ const FileProvider = ({ children }) => {
 
 	const generateFile = async () => {
 		const db = await getDB();
-		const projectStore = await db.getAll("projects");
-		const projectData = projectStore[0]; // Assuming single project for simplicity
+		const transaction = db.transaction(["projects"], "readonly");
+		const projectsStore = transaction.objectStore("projects");
+		const guid = localStorage.getItem("project-guid");
+		const projectData = await projectsStore.get(guid);
 
 		const jsonData = {
 			name: projectData.name || "UntitledProject",
@@ -242,7 +244,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${projectStore.name}_categories.json`;
+		a.download = `${projectStore.dialogueName}_categories.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -272,7 +274,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${projectStore.name}_participants.json`;
+		a.download = `${projectStore.dialogueName}_participants.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);

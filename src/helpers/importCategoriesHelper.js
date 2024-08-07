@@ -1,5 +1,6 @@
 import { saveProjectToIndexedDB } from "../hooks/useAutoSave";
 import { getDB } from "../indexedDB";
+import mergeWithExistingData from "../helpers/autoSaveHelpers";
 
 export const processImportedCategories = (
 	importedCategories,
@@ -27,10 +28,16 @@ export const processImportedCategories = (
 				new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
 			).map((str) => JSON.parse(str));
 
-			await saveProjectToIndexedDB({
+			console.log(projectData);
+
+			const updatedProjectData = {
 				...projectData,
 				categories: uniqueCategories,
-			});
+			};
+
+			const mergedData = await mergeWithExistingData(updatedProjectData);
+
+			await saveProjectToIndexedDB(mergedData);
 
 			if (importCallbackRef.current) {
 				importCallbackRef.current(uniqueCategories);

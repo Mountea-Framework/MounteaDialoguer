@@ -15,15 +15,17 @@ const useAutoSave = (name, categories, participants, nodes, edges, files) => {
 			const guid = localStorage.getItem("project-guid") || uuidv4();
 			localStorage.setItem("project-guid", guid);
 
-			saveProjectToIndexedDB({
+			const projectData = {
 				guid,
-				name,
-				categories,
-				participants,
-				nodes,
-				edges,
-				files,
-			});
+				dialogueName: name || "UntitledProject",
+				categories: categories || [],
+				participants: participants || [],
+				nodes: nodes || [],
+				edges: edges || [],
+				files: files || [],
+			};
+
+			saveProjectToIndexedDB(projectData);
 		}
 	}, [name, categories, participants, nodes, edges, files]);
 
