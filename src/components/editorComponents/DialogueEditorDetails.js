@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { CSSTransition } from "react-transition-group";
+import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
 import AppContext from "../../AppContext";
@@ -107,13 +108,14 @@ function DialogueEditorDetails({ setNodes }) {
 	};
 
 	const addDialogueRow = () => {
+		const newId = uuidv4();
 		setTempNodeData((prevData) => ({
 			...prevData,
 			additionalInfo: {
 				...prevData.additionalInfo,
 				dialogueRows: [
 					...prevData.additionalInfo.dialogueRows,
-					{ text: "", audio: null },
+					{ id: newId, text: "", audio: null },
 				],
 			},
 		}));
@@ -281,6 +283,7 @@ function DialogueEditorDetails({ setNodes }) {
 											{tempNodeData.additionalInfo.dialogueRows.map(
 												(row, index) => (
 													<DialogueRow
+														id={row.id}
 														key={index}
 														index={index}
 														text={row.text}

@@ -10,9 +10,14 @@ const saveNodesAndEdgesToLocalStorage = (nodes, edges) => {
 		position: node.position,
 		data: {
 			...node.data,
-			additionalInfo: node.data.additionalInfo || {
-				participant: "",
-				dialogueRows: [],
+			additionalInfo: {
+				participant: node.data.additionalInfo?.participant || "",
+				dialogueRows:
+					node.data.additionalInfo?.dialogueRows.map((row) => ({
+						id: row.id,
+						text: row.text,
+						audio: row.audio?.path || null,
+					})) || [],
 			},
 		},
 	}));

@@ -1,12 +1,13 @@
 import React, { useRef } from "react";
 
 import Button from "../objects/Button";
-import FileDrop from "../objects/FileDrop";
 import TextBlock from "../objects/Textblock";
+import FileDrop from "../objects/FileDrop";
 
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 
 const DialogueRow = ({
+	id,
 	index,
 	text,
 	audio,
@@ -14,6 +15,8 @@ const DialogueRow = ({
 	onAudioChange,
 	onDelete,
 }) => {
+	console.log(id);
+
 	const fileDropRef = useRef(null);
 
 	const handleClearFileDrop = () => {
@@ -24,6 +27,14 @@ const DialogueRow = ({
 
 	const handleTextChange = (name, value) => {
 		onTextChange(index, value);
+	};
+
+	const handleAudioChange = (e) => {
+		const file = e.target.files[0];
+		if (file) {
+			const filePath = `audio/${id}/${file.name}`;
+			onAudioChange(index, { ...file, path: filePath });
+		}
 	};
 
 	return (
@@ -51,7 +62,7 @@ const DialogueRow = ({
 				<div className="dialogue-row-data-audio-row">
 					<FileDrop
 						ref={fileDropRef}
-						onChange={(e) => onAudioChange(index, e.target.files[0])}
+						onChange={handleAudioChange}//{(e) => onAudioChange(index, e.target.files[0])}
 						primaryText="Select audio file"
 						accept="audio/x-wav"
 						id="dialogueRowAudioSelection"
