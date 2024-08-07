@@ -1,32 +1,26 @@
-import { saveProjectToIndexedDB } from "../hooks/useAutoSave"; // Corrected import
-import { getDB } from "../indexedDB"; // Import getDB function
+import { saveProjectToIndexedDB } from "../hooks/useAutoSave";
+import { getDB } from "../indexedDB";
 
 export const processImportedParticipants = (
 	importedParticipants,
 	importCallbackRef,
 	setError
 ) => {
-	// Use IndexedDB instead of localStorage
 	const getDataFromIndexedDB = async () => {
 		try {
 			const db = await getDB();
-			const transaction = db.transaction(
-				["projects", "participants"],
-				"readonly"
-			);
+			const transaction = db.transaction(["projects"], "readonly");
 			const projectsStore = transaction.objectStore("projects");
-			const participantsStore = transaction.objectStore("participants");
-			const autoSaveData = await projectsStore.getAll();
-			const existingParticipants = await participantsStore.getAll();
+			const guid = localStorage.getItem("project-guid");
+			const projectData = await projectsStore.get(guid);
 
-			if (!autoSaveData.length) {
+			if (!projectData) {
 				setError("No data found in IndexedDB.");
 				return;
 			}
 
-			const parsedData = autoSaveData[0];
 			const mergedParticipants = [
-				...existingParticipants,
+				...projectData.participants,
 				...importedParticipants,
 			];
 			const uniqueParticipants = Array.from(
@@ -34,7 +28,7 @@ export const processImportedParticipants = (
 			).map((str) => JSON.parse(str));
 
 			await saveProjectToIndexedDB({
-				...parsedData,
+				...projectData,
 				participants: uniqueParticipants,
 			});
 
@@ -158,14 +152,9 @@ export const importParticipants = async (
 
 		const getDataFromIndexedDB = async () => {
 			const db = await getDB();
-			const transaction = db.transaction(
-				["projects", "categories"],
-				"readonly"
-			);
+			const transaction = db.transaction(["projects"], "readonly");
 			const projectsStore = transaction.objectStore("projects");
-			const categoriesStore = transaction.objectStore("categories");
 			const autoSaveData = await projectsStore.getAll();
-			const existingCategories = await categoriesStore.getAll();
 			const parsedData = autoSaveData[0];
 			const categoryNames = new Set(
 				parsedData.categories.map((cat) => cat.name)

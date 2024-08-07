@@ -9,6 +9,7 @@ import ParticipantCategoriesList from "./general/ParticipantCategoriesList";
 import DialogueParticipantsHeader from "./general/DialogueParticipantsHeader";
 import DialogueParticipantsList from "./general/DialogueParticipantsList";
 import AppContext from "./../AppContext";
+import { getDB } from "../indexedDB"; // Import getDB
 
 import "../componentStyles/NewProjectDetails.css";
 
@@ -21,10 +22,20 @@ function NewProjectDetails({ projectData, onReturn }) {
 		setShowLandingPage,
 	} = useContext(AppContext);
 
-	useAutoSave(projectData.name, categories, participants);
+	const { saveProjectToIndexedDB } = useAutoSave(
+		projectData.name,
+		categories,
+		participants
+	);
 
-	const handleReturnClick = () => {
-		localStorage.removeItem("autoSaveProject");
+	const handleReturnClick = async () => {
+		const db = await getDB();
+		const tx = db.transaction("projects", "readwrite");
+		const projectsStore = tx.objectStore("projects");
+		const guid = localStorage.getItem("project-guid");
+		await projectsStore.delete(guid);
+		await tx.done;
+
 		setParticipants([]);
 		setCategories([]);
 		onReturn();
@@ -32,10 +43,24 @@ function NewProjectDetails({ projectData, onReturn }) {
 
 	const handleCategoriesUpdate = (newCategories) => {
 		setCategories(newCategories);
+		const guid = localStorage.getItem("project-guid");
+		saveProjectToIndexedDB({
+			guid,
+			name: projectData.name,
+			categories: newCategories,
+			participants,
+		});
 	};
 
 	const handleParticipantsUpdate = (newParticipants) => {
 		setParticipants(newParticipants);
+		const guid = localStorage.getItem("project-guid");
+		saveProjectToIndexedDB({
+			guid,
+			name: projectData.name,
+			categories,
+			participants: newParticipants,
+		});
 	};
 
 	const handleContinueClick = () => {

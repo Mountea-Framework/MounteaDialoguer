@@ -1,37 +1,34 @@
-import { saveProjectToIndexedDB } from "../hooks/useAutoSave"; // Corrected import
-import { getDB } from "../indexedDB"; // Import getDB function
+import { saveProjectToIndexedDB } from "../hooks/useAutoSave";
+import { getDB } from "../indexedDB";
 
 export const processImportedCategories = (
 	importedCategories,
 	importCallbackRef,
 	setError
 ) => {
-	// Use IndexedDB instead of localStorage
 	const getDataFromIndexedDB = async () => {
 		try {
 			const db = await getDB();
-			const transaction = db.transaction(
-				["projects", "categories"],
-				"readonly"
-			);
+			const transaction = db.transaction(["projects"], "readonly");
 			const projectsStore = transaction.objectStore("projects");
-			const categoriesStore = transaction.objectStore("categories");
-			const autoSaveData = await projectsStore.getAll();
-			const existingCategories = await categoriesStore.getAll();
+			const guid = localStorage.getItem("project-guid");
+			const projectData = await projectsStore.get(guid);
 
-			if (!autoSaveData.length) {
+			if (!projectData) {
 				setError("No data found in IndexedDB.");
 				return;
 			}
 
-			const parsedData = autoSaveData[0];
-			const mergedCategories = [...existingCategories, ...importedCategories];
+			const mergedCategories = [
+				...projectData.categories,
+				...importedCategories,
+			];
 			const uniqueCategories = Array.from(
 				new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
 			).map((str) => JSON.parse(str));
 
 			await saveProjectToIndexedDB({
-				...parsedData,
+				...projectData,
 				categories: uniqueCategories,
 			});
 

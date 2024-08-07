@@ -15,7 +15,6 @@ const DialogueRow = ({
 	onAudioChange,
 	onDelete,
 }) => {
-	console.log(id);
 
 	const fileDropRef = useRef(null);
 

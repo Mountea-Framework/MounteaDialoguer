@@ -15,17 +15,29 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 	const { categories, participants, setParticipants, setCategories, name } =
 		useContext(AppContext);
 
-	const { saveProjectToLocalStorage } = useAutoSave(
+	const { saveProjectToIndexedDB } = useAutoSave(
 		name,
 		categories,
 		participants
 	);
 
-	useEffect(() => {}, [categories, participants]);
+	useEffect(() => {
+		if (categories.length || participants.length) {
+			const guid = localStorage.getItem("project-guid");
+			saveProjectToIndexedDB({
+				guid,
+				name,
+				categories,
+				participants,
+			});
+		}
+	}, [categories, participants, name, saveProjectToIndexedDB]); // Added missing dependencies
 
 	const handleCategoriesUpdate = (newCategories) => {
 		setCategories(newCategories);
-		saveProjectToLocalStorage({
+		const guid = localStorage.getItem("project-guid");
+		saveProjectToIndexedDB({
+			guid,
 			name,
 			categories: newCategories,
 			participants,
@@ -34,7 +46,9 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 
 	const handleParticipantsUpdate = (newParticipants) => {
 		setParticipants(newParticipants);
-		saveProjectToLocalStorage({
+		const guid = localStorage.getItem("project-guid");
+		saveProjectToIndexedDB({
+			guid,
 			name,
 			categories,
 			participants: newParticipants,
