@@ -12,7 +12,7 @@ function LandingPage() {
 	const [selectedProject, setSelectedProject] = useState(null);
 	const [page, setPage] = useState("newProject");
 	const [projectData, setProjectData] = useState({
-		name: "",
+		dialogueName: "",
 		participants: [],
 		categories: [],
 	});
