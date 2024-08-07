@@ -221,15 +221,16 @@ const FileProvider = ({ children }) => {
 
 	const exportCategories = async () => {
 		const db = await getDB();
-		const projectStore = await db.getAll("projects");
+		const guid = localStorage.getItem("project-guid");
+		const projectStore = await db.get("projects", guid);
 
-		if (!projectStore || !projectStore[0].categories) {
+		if (!projectStore || !projectStore.categories) {
 			setError("No data found in IndexedDB.");
 			return;
 		}
 
 		const jsonData = {
-			categories: projectStore[0].categories.map((category) => ({
+			categories: projectStore.categories.map((category) => ({
 				name: category.name,
 				parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
 			})),
@@ -241,7 +242,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${projectStore[0].name}_categories.json`;
+		a.download = `${projectStore.name}_categories.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -250,15 +251,16 @@ const FileProvider = ({ children }) => {
 
 	const exportParticipants = async () => {
 		const db = await getDB();
-		const projectStore = await db.getAll("projects");
+		const guid = localStorage.getItem("project-guid");
+		const projectStore = await db.get("projects", guid);
 
-		if (!projectStore || !projectStore[0].participants) {
+		if (!projectStore || !projectStore.participants) {
 			setError("No data found in IndexedDB.");
 			return;
 		}
 
 		const jsonData = {
-			participants: projectStore[0].participants.map((participant) => ({
+			participants: projectStore.participants.map((participant) => ({
 				name: participant.name,
 				category: participant.category.split(".").pop(), // Get the last part of the composite parent so import will consume it
 			})),
@@ -270,7 +272,7 @@ const FileProvider = ({ children }) => {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${projectStore[0].name}_participants.json`;
+		a.download = `${projectStore.name}_participants.json`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
