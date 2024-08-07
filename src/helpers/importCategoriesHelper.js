@@ -28,8 +28,6 @@ export const processImportedCategories = (
 				new Set(mergedCategories.map((cat) => JSON.stringify(cat)))
 			).map((str) => JSON.parse(str));
 
-			console.log(projectData);
-
 			const updatedProjectData = {
 				...projectData,
 				categories: [...projectData.categories, ...uniqueCategories],

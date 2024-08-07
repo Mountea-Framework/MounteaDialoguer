@@ -12,6 +12,8 @@ const saveProjectToIndexedDB = async (newData) => {
 		// Get existing data
 		const existingData = await store.get(guid);
 
+		console.log(newData);
+
 		// Helper function to merge arrays based on a key
 		const mergeArrays = (existing = [], newItems = [], key = "id") => {
 			const merged = [...existing];
@@ -47,14 +49,21 @@ const saveProjectToIndexedDB = async (newData) => {
 	}
 };
 
-const useAutoSave = (name, categories, participants, nodes, edges, files) => {
+const useAutoSave = (
+	dialogueName,
+	categories,
+	participants,
+	nodes,
+	edges,
+	files
+) => {
 	useEffect(() => {
 		const guid = localStorage.getItem("project-guid") || uuidv4();
 		localStorage.setItem("project-guid", guid);
 
 		const projectData = {
 			guid,
-			dialogueName: name,
+			dialogueName: dialogueName,
 		};
 
 		if (categories) projectData.categories = categories;
@@ -64,7 +73,7 @@ const useAutoSave = (name, categories, participants, nodes, edges, files) => {
 		if (files) projectData.files = files;
 
 		saveProjectToIndexedDB(projectData);
-	}, [name, categories, participants, nodes, edges, files]);
+	}, [dialogueName, categories, participants, nodes, edges, files]);
 
 	return { saveProjectToIndexedDB };
 };

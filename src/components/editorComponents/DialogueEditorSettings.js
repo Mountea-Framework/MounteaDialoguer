@@ -24,9 +24,9 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 	useEffect(() => {
 		if (categories.length || participants.length) {
 			const guid = localStorage.getItem("project-guid");
+			const dialogueName = name;
 			saveProjectToIndexedDB({
 				guid,
-				name,
 				categories,
 				participants,
 			});

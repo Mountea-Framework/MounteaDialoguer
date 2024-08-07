@@ -53,9 +53,7 @@ function NewProjectDetails({ projectData, onReturn }) {
 		const guid = localStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
-			dialogueName: projectData.name,
 			categories: newCategories,
-			participants,
 		});
 	};
 
@@ -64,8 +62,6 @@ function NewProjectDetails({ projectData, onReturn }) {
 		const guid = localStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
-			dialogueName: projectData.name,
-			categories,
 			participants: newParticipants,
 		});
 	};
