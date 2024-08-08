@@ -61,6 +61,25 @@ function DialogueEditorDetails({ setNodes }) {
 		}
 	}, [selectedNode]);
 
+	useEffect(() => {
+		if (selectedNode) {
+			setNodes((nds) =>
+				nds.map((node) =>
+					node.id === selectedNode.id
+						? {
+								...node,
+								data: {
+									...node.data,
+									title: tempNodeData.title,
+									additionalInfo: tempNodeData.additionalInfo,
+								},
+						  }
+						: node
+				)
+			);
+		}
+	}, [selectedNode, tempNodeData, setNodes]);
+
 	const handleInputChange = (name, value) => {
 		setTempNodeData((prevData) => ({
 			...prevData,
@@ -336,13 +355,6 @@ function DialogueEditorDetails({ setNodes }) {
 					</CSSTransition>
 				)}
 			</div>
-			{selectedNode && selectedNode.type !== "startNode" && (
-				<div className="node-details-confirmation">
-					<Button onClick={handleConfirmChanges} buttonType={"submit"}>
-						Confirm
-					</Button>
-				</div>
-			)}
 		</div>
 	);
 }

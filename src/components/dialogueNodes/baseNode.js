@@ -45,7 +45,7 @@ const BaseNode = ({ id, data, selected }) => {
 			ref={nodeRef}
 			className={`custom-node-border ${selected ? "highlight" : ""}`}
 			data-tooltip-id={`tooltip-${id}`} // Add a unique id for the tooltip
-			data-tooltip-content={`Node title: ${nodeTitle}`} // Add content for the tooltip
+			data-tooltip-content={`Node title: ${data.title}`} // Add content for the tooltip
 		>
 			{canDelete && (
 				<Button
