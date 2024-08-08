@@ -34,6 +34,26 @@ const saveFileToIndexedDB = async (filePath, fileData) => {
 	}
 };
 
+const deleteFileFromIndexedDB = async (filePath) => {
+	const db = await getDB();
+	const guid = localStorage.getItem("project-guid");
+	const tx = db.transaction("projects", "readwrite");
+	const store = tx.objectStore("projects");
+
+	try {
+		const project = await store.get(guid);
+
+		// Remove the file entry from the project
+		project.files = project.files.filter((f) => f.path !== filePath);
+
+		await store.put(project);
+		await tx.done;
+	} catch (error) {
+		console.error("Error deleting file data:", error);
+		tx.abort();
+	}
+};
+
 const saveProjectToIndexedDB = async (newData) => {
 	const db = await getDB();
 	const guid = localStorage.getItem("project-guid");
@@ -101,7 +121,7 @@ const useAutoSave = (
 		saveProjectToIndexedDB(projectData);
 	}, [dialogueName, categories, participants, nodes, edges, files]);
 
-	return { saveProjectToIndexedDB, saveFileToIndexedDB };
+	return { saveProjectToIndexedDB, saveFileToIndexedDB, deleteFileFromIndexedDB };
 };
 
-export { useAutoSave, saveProjectToIndexedDB, saveFileToIndexedDB };
+export { useAutoSave, saveProjectToIndexedDB, saveFileToIndexedDB, deleteFileFromIndexedDB };

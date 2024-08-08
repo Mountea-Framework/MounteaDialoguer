@@ -16,11 +16,15 @@ const DialogueRow = ({
 	onDelete,
 }) => {
 	const fileDropRef = useRef(null);
-	const { saveFileToIndexedDB } = useAutoSave();
+	const { saveFileToIndexedDB, deleteFileFromIndexedDB } = useAutoSave();
 
-	const handleClearFileDrop = () => {
+	const handleClearFileDrop = async () => {
+		onAudioChange(index, null); // Clear the audio from the parent component
 		if (fileDropRef.current) {
 			fileDropRef.current.clearFile();
+		}
+		if (audio?.path) {
+			await deleteFileFromIndexedDB(audio.path);
 		}
 	};
 
