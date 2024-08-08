@@ -29,6 +29,7 @@ function ParticipantCategoriesList() {
 				classStateItems="none"
 				items={combinedCategories}
 				onIconClick={handleDeleteCategory}
+				onSelect={handleEditCategory}
 				onEdit={handleEditCategory}
 				EditComponent={EditCategoryItem}
 			/>

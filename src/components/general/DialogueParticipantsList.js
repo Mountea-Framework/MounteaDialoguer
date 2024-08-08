@@ -30,6 +30,7 @@ function DialogueParticipantsList() {
 				classStateItems="none"
 				items={combinedParticipants}
 				onIconClick={handleDeleteParticipant}
+				onSelect={handleEditParticipant}
 				onEdit={handleEditParticipant}
 				EditComponent={EditParticipantItem}
 			/>

@@ -7,11 +7,15 @@ import "../../componentStyles/objects/ScrollListItem.css";
 
 function ScrollListItem({
 	item,
+	onSelect,
 	onIconClick,
 	className,
 	classState,
 	onEdit,
-	EditComponent, // Accept EditComponent as a prop
+	EditComponent,
+	allowEdit = true,
+	allowDelete = true,
+	allowClick = true,
 }) {
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [selectedItem, setSelectedItem] = useState(null);
@@ -19,6 +23,11 @@ function ScrollListItem({
 	const handleEditClick = () => {
 		setSelectedItem(item);
 		setIsEditOpen(true);
+	};
+
+	const handleItemClick = () => {
+		setSelectedItem(item);
+		onSelect(item);
 	};
 
 	const handleSave = (editedItem, originalItem) => {
@@ -32,27 +41,31 @@ function ScrollListItem({
 				className={`${classState ? classState : "primary"} ${
 					className ? className : "scroll-list-item"
 				}`}
-				onClick={handleEditClick}
+				onClick={allowClick ? handleItemClick : undefined}
 			>
 				<span className="item-text">
 					{item.displayName || item.name || item}
 				</span>
-				<span className="item-icon edit-icon" onClick={handleEditClick}>
-					<EditIcon />
-				</span>
-				<span
-					className={`item-icon remove-icon ${
-						classState ? classState : "primary"
-					}`}
-					onClick={(e) => {
-						e.stopPropagation();
-						onIconClick(item);
-					}}
-				>
-					<RemoveIcon />
-				</span>
+				{allowEdit && (
+					<span className="item-icon edit-icon" onClick={handleEditClick}>
+						<EditIcon />
+					</span>
+				)}
+				{allowDelete && (
+					<span
+						className={`item-icon remove-icon ${
+							classState ? classState : "primary"
+						}`}
+						onClick={(e) => {
+							e.stopPropagation();
+							onIconClick(item);
+						}}
+					>
+						<RemoveIcon />
+					</span>
+				)}
 			</li>
-			{isEditOpen && selectedItem && (
+			{allowEdit && isEditOpen && selectedItem && (
 				<EditComponent
 					isOpen={isEditOpen}
 					onClose={() => setIsEditOpen(false)}

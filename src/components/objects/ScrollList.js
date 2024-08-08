@@ -13,6 +13,8 @@ function ScrollList({
 	classNameItems,
 	classStateItems,
 	EditComponent,
+	allowEdit = true,
+	allowDelete = true,
 }) {
 	return (
 		<div
@@ -30,6 +32,8 @@ function ScrollList({
 						className={`${classNameItems ? classNameItems : ""}`}
 						classState={`${classStateItems ? classStateItems : ""}`}
 						EditComponent={EditComponent}
+						allowDelete={allowDelete}
+						allowEdit={allowEdit}
 					/>
 				))}
 			</ul>

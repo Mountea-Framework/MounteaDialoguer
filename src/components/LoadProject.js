@@ -1,11 +1,13 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
 import Button from "./objects/Button";
 import AppContext from "../AppContext";
 import FileDrop from "./objects/FileDrop";
+import { getDB } from "../indexedDB";
 import { FileContext } from "./../FileProvider";
+import { useProject, ProjectProvider } from "../helpers/projectManager";
 
 import "../componentStyles/LoadProject.css";
 
@@ -13,11 +15,25 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	const { setShowLandingPage } = useContext(AppContext);
 	const { handleFileChange, setProjectDataRef, onSelectProjectRef } =
 		useContext(FileContext);
+	const { projects, deleteProject } = useProject();
+	const [filteredProjects, setFilteredProjects] = useState([]);
 
 	useEffect(() => {
 		setProjectDataRef.current = setProjectData;
 		onSelectProjectRef.current = onSelectProject;
-	}, [setProjectData, onSelectProject, setProjectDataRef, onSelectProjectRef]);
+
+		const currentGuid = localStorage.getItem("project-guid");
+
+		setFilteredProjects(
+			projects.filter((project) => project.guid !== currentGuid)
+		);
+	}, [
+		projects,
+		setProjectData,
+		onSelectProject,
+		setProjectDataRef,
+		onSelectProjectRef,
+	]);
 
 	const handleContinueClick = () => {
 		if (selectedProject) {
@@ -25,13 +41,37 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		}
 	};
 
+	const handleSelectProject = async (selectedItem) => {
+		const selectedGuid = selectedItem.value;
+		const db = await getDB();
+		const tx = db.transaction("projects", "readonly");
+		const store = tx.objectStore("projects");
+		const selectedProjectData = await store.get(selectedGuid);
+
+		if (selectedProjectData) {
+			setProjectData(selectedProjectData);
+			onSelectProject(selectedGuid);
+		}
+	};
+
+	const handleDeleteProject = async (selectedItem) => {
+		const selectedGuid = selectedItem.value;
+		deleteProject(selectedGuid);
+	};
+
 	return (
 		<div className="load-project">
 			<Title level="2" children="Load Project" className="secondary-heading" />
 			<ScrollList
-				selectedProject={selectedProject}
-				onSelectProject={onSelectProject}
-				classState={"base"}
+				classState="none"
+				classStateItems="none"
+				items={filteredProjects.map((project) => ({
+					displayName: project.displayName,
+					value: project.guid,
+				}))}
+				onSelect={handleSelectProject}
+				allowEdit={false}
+				onIconClick={handleDeleteProject}
 			/>
 			<FileDrop
 				onChange={handleFileChange}
@@ -51,4 +91,8 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	);
 }
 
-export default LoadProject;
+export default (props) => (
+	<ProjectProvider>
+		<LoadProject {...props} />
+	</ProjectProvider>
+);
