@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-
+import { useAutoSave } from "../../hooks/useAutoSave";
 import Button from "../objects/Button";
 import TextBlock from "../objects/Textblock";
 import FileDrop from "../objects/FileDrop";
@@ -15,8 +15,8 @@ const DialogueRow = ({
 	onAudioChange,
 	onDelete,
 }) => {
-
 	const fileDropRef = useRef(null);
+	const { saveFileToIndexedDB } = useAutoSave();
 
 	const handleClearFileDrop = () => {
 		if (fileDropRef.current) {
@@ -28,11 +28,21 @@ const DialogueRow = ({
 		onTextChange(index, value);
 	};
 
-	const handleAudioChange = (e) => {
+	const handleAudioChange = async (e) => {
 		const file = e.target.files[0];
 		if (file) {
 			const filePath = `audio/${id}/${file.name}`;
-			onAudioChange(index, { ...file, path: filePath });
+
+			// Read the file and save to IndexedDB using the helper function
+			const reader = new FileReader();
+			reader.onload = async () => {
+				const fileData = reader.result;
+				await saveFileToIndexedDB(filePath, fileData);
+
+				// Update the parent component with the file path
+				onAudioChange(index, { ...file, path: filePath });
+			};
+			reader.readAsArrayBuffer(file);
 		}
 	};
 
@@ -61,7 +71,7 @@ const DialogueRow = ({
 				<div className="dialogue-row-data-audio-row">
 					<FileDrop
 						ref={fileDropRef}
-						onChange={handleAudioChange}//{(e) => onAudioChange(index, e.target.files[0])}
+						onChange={handleAudioChange}
 						primaryText="Select audio file"
 						accept="audio/x-wav"
 						id="dialogueRowAudioSelection"

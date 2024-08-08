@@ -2,6 +2,38 @@ import { useEffect } from "react";
 import { getDB } from "../indexedDB";
 import { v4 as uuidv4 } from "uuid";
 
+const saveFileToIndexedDB = async (filePath, fileData) => {
+	const db = await getDB();
+	const guid = localStorage.getItem("project-guid");
+	const tx = db.transaction("projects", "readwrite");
+	const store = tx.objectStore("projects");
+
+	try {
+		const project = await store.get(guid);
+
+		// Ensure files array exists
+		if (!project.files) {
+			project.files = [];
+		}
+
+		// Add or update the file entry in the project
+		const existingFileIndex = project.files.findIndex(
+			(f) => f.path === filePath
+		);
+		if (existingFileIndex >= 0) {
+			project.files[existingFileIndex].data = fileData;
+		} else {
+			project.files.push({ path: filePath, data: fileData });
+		}
+
+		await store.put(project);
+		await tx.done;
+	} catch (error) {
+		console.error("Error saving file data:", error);
+		tx.abort();
+	}
+};
+
 const saveProjectToIndexedDB = async (newData) => {
 	const db = await getDB();
 	const guid = localStorage.getItem("project-guid");
@@ -9,12 +41,8 @@ const saveProjectToIndexedDB = async (newData) => {
 	const store = tx.objectStore("projects");
 
 	try {
-		// Get existing data
 		const existingData = await store.get(guid);
 
-		console.log(newData);
-
-		// Helper function to merge arrays based on a key
 		const mergeArrays = (existing = [], newItems = [], key = "id") => {
 			const merged = [...existing];
 			newItems.forEach((item) => {
@@ -28,7 +56,6 @@ const saveProjectToIndexedDB = async (newData) => {
 			return merged;
 		};
 
-		// Merge existing data with new data
 		const mergedData = {
 			...existingData,
 			...newData,
@@ -37,10 +64,9 @@ const saveProjectToIndexedDB = async (newData) => {
 			participants: newData.participants || existingData?.participants || [],
 			nodes: mergeArrays(existingData?.nodes, newData.nodes),
 			edges: mergeArrays(existingData?.edges, newData.edges),
-			files: newData.files || existingData?.files || [],
+			files: mergeArrays(existingData?.files, newData.files, "path"),
 		};
 
-		// Save merged data
 		await store.put(mergedData);
 		await tx.done;
 	} catch (error) {
@@ -75,7 +101,7 @@ const useAutoSave = (
 		saveProjectToIndexedDB(projectData);
 	}, [dialogueName, categories, participants, nodes, edges, files]);
 
-	return { saveProjectToIndexedDB };
+	return { saveProjectToIndexedDB, saveFileToIndexedDB };
 };
 
-export { useAutoSave, saveProjectToIndexedDB };
+export { useAutoSave, saveProjectToIndexedDB, saveFileToIndexedDB };
