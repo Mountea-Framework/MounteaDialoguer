@@ -1,4 +1,9 @@
-import React, { useState, useImperativeHandle, forwardRef } from "react";
+import React, {
+	useState,
+	useImperativeHandle,
+	forwardRef,
+	useEffect,
+} from "react";
 
 const FileDrop = forwardRef(
 	(
@@ -10,15 +15,27 @@ const FileDrop = forwardRef(
 			id,
 			containerClassName,
 			textClassName,
+			initialFile,
 		},
 		ref
 	) => {
 		const [fileName, setFileName] = useState("");
 
+		useEffect(() => {
+			if (initialFile && initialFile.name) {
+				setFileName(initialFile.name);
+			} else {
+				setFileName("");
+			}
+		}, [initialFile]);
+
 		useImperativeHandle(ref, () => ({
 			clearFile: () => {
 				setFileName("");
 				document.getElementById(id).value = null;
+			},
+			setFile: (file) => {
+				setFileName(file && file.name ? file.name : "");
 			},
 		}));
 

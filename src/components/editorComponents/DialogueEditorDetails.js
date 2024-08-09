@@ -167,25 +167,6 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
-	const handleConfirmChanges = () => {
-		if (selectedNode) {
-			setNodes((nds) =>
-				nds.map((node) =>
-					node.id === selectedNode.id
-						? {
-								...node,
-								data: {
-									...node.data,
-									title: tempNodeData.title,
-									additionalInfo: tempNodeData.additionalInfo,
-								},
-						  }
-						: node
-				)
-			);
-		}
-	};
-
 	return (
 		<div className="dialogue-editor-details background-secondary">
 			<Title

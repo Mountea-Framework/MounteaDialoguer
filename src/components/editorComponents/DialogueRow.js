@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import Button from "../objects/Button";
 import TextBlock from "../objects/Textblock";
@@ -17,6 +17,14 @@ const DialogueRow = ({
 }) => {
 	const fileDropRef = useRef(null);
 	const { saveFileToIndexedDB, deleteFileFromIndexedDB } = useAutoSave();
+	const [currentAudio, setCurrentAudio] = useState(audio);
+
+	useEffect(() => {
+		setCurrentAudio(audio);
+		if (fileDropRef.current && audio) {
+			fileDropRef.current.setFile(audio);
+		}
+	}, [audio]);
 
 	const handleClearFileDrop = async () => {
 		onAudioChange(index, null); // Clear the audio from the parent component
@@ -43,8 +51,20 @@ const DialogueRow = ({
 				const fileData = reader.result;
 				await saveFileToIndexedDB(filePath, fileData);
 
-				// Update the parent component with the file path
-				onAudioChange(index, { ...file, path: filePath });
+				// Create a new audio object with the file and path
+				const newAudio = { ...file, path: filePath };
+
+				// Update the parent component with the new audio
+				onAudioChange(index, newAudio);
+
+				// Update the local state
+				setCurrentAudio(newAudio);
+
+				// Update the FileDrop component
+				if (fileDropRef.current) {
+					fileDropRef.current.setFile(newAudio);
+					fileDropRef.current.set
+				}
 			};
 			reader.readAsArrayBuffer(file);
 		}
@@ -78,7 +98,8 @@ const DialogueRow = ({
 						onChange={handleAudioChange}
 						primaryText="Select audio file"
 						accept="audio/x-wav"
-						id="dialogueRowAudioSelection"
+						id={`dialogueRowAudioSelection-${id}`}
+						initialFile={currentAudio}
 					/>
 					<Button
 						onClick={handleClearFileDrop}
