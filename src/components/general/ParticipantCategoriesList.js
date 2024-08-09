@@ -19,7 +19,7 @@ function ParticipantCategoriesList() {
 	};
 
 	const handleEditCategory = (editedCategory, originalCategory) => {
-		editCategory(editedCategory, originalCategory);
+		editCategory(editedCategory, editedCategory);
 	};
 
 	return (

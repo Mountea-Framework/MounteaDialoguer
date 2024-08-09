@@ -13,7 +13,7 @@ function DialogueParticipantsList() {
 	};
 
 	const handleEditParticipant = (editedParticipant, originalParticipant) => {
-		editParticipant(editedParticipant, originalParticipant);
+		editParticipant(editedParticipant, editedParticipant);
 	};
 
 	const combinedParticipants = participants.map((participant) => ({
