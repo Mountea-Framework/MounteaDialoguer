@@ -15,26 +15,29 @@ const DialogueRow = ({
 	onAudioChange,
 	onDelete,
 }) => {
-	const fileDropRef = useRef(null);
-	const { saveFileToIndexedDB, deleteFileFromIndexedDB } = useAutoSave();
-	const [currentAudio, setCurrentAudio] = useState(audio);
+	const [fileName, setFileName] = useState(audio?.name || "");
 
-	useEffect(() => {
-		setCurrentAudio(audio);
-		if (fileDropRef.current && audio) {
-			fileDropRef.current.setFile(audio);
-		}
-	}, [audio]);
+	const { saveFileToIndexedDB, deleteFileFromIndexedDB } = useAutoSave();
 
 	const handleClearFileDrop = async () => {
 		onAudioChange(index, null); // Clear the audio from the parent component
-		if (fileDropRef.current) {
-			fileDropRef.current.clearFile();
-		}
+		setFileName(""); // Clear the filename in the state
+
 		if (audio?.path) {
 			await deleteFileFromIndexedDB(audio.path);
 		}
 	};
+
+	useEffect(() => {
+		// Update fileName whenever a new audio prop is passed in
+		if (audio) {
+			if (typeof audio === "object" && audio.path) {
+				// If audio is an object with a path property, extract the file name from the path
+				const extractedFileName = audio.path.split("/").pop();
+				setFileName(extractedFileName || "");
+			}
+		}
+	}, [audio]);
 
 	const handleTextChange = (name, value) => {
 		onTextChange(index, value);
@@ -43,6 +46,8 @@ const DialogueRow = ({
 	const handleAudioChange = async (e) => {
 		const file = e.target.files[0];
 		if (file) {
+			setFileName(file.name); // Set the filename in the state
+
 			const filePath = `audio/${id}/${file.name}`;
 
 			// Read the file and save to IndexedDB using the helper function
@@ -51,20 +56,8 @@ const DialogueRow = ({
 				const fileData = reader.result;
 				await saveFileToIndexedDB(filePath, fileData);
 
-				// Create a new audio object with the file and path
 				const newAudio = { ...file, path: filePath };
-
-				// Update the parent component with the new audio
-				onAudioChange(index, newAudio);
-
-				// Update the local state
-				setCurrentAudio(newAudio);
-
-				// Update the FileDrop component
-				if (fileDropRef.current) {
-					fileDropRef.current.setFile(newAudio);
-					fileDropRef.current.set
-				}
+				onAudioChange(index, newAudio); // Update the audio in parent component
 			};
 			reader.readAsArrayBuffer(file);
 		}
@@ -94,12 +87,11 @@ const DialogueRow = ({
 				/>
 				<div className="dialogue-row-data-audio-row">
 					<FileDrop
-						ref={fileDropRef}
 						onChange={handleAudioChange}
 						primaryText="Select audio file"
 						accept="audio/x-wav"
 						id={`dialogueRowAudioSelection-${id}`}
-						initialFile={currentAudio}
+						fileName={fileName} // Pass the filename to FileDrop
 					/>
 					<Button
 						onClick={handleClearFileDrop}
