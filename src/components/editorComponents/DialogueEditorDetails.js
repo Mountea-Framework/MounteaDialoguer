@@ -145,7 +145,7 @@ function DialogueEditorDetails({ setNodes }) {
 	const importDialogueRows = () => {};
 
 	const processExportDialogueRows = () => {
-		const projectGuid = localStorage.getItem("project-guid");
+		const projectGuid = sessionStorage.getItem("project-guid");
 		if (projectGuid) {
 			exportDialogueRows(projectGuid);
 		} else {

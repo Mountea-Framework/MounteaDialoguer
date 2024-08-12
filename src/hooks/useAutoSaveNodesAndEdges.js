@@ -4,7 +4,7 @@ import { getDB } from "../indexedDB";
 const saveNodesAndEdgesToIndexedDB = async (nodes, edges) => {
 	const db = await getDB();
 	const tx = db.transaction("projects", "readwrite");
-	const guid = localStorage.getItem("project-guid");
+	const guid = sessionStorage.getItem("project-guid");
 	const project = await tx.objectStore("projects").get(guid);
 
 	project.nodes = nodes.map((node) => ({

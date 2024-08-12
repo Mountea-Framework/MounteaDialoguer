@@ -23,7 +23,7 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 
 	useEffect(() => {
 		if (categories.length || participants.length) {
-			const guid = localStorage.getItem("project-guid");
+			const guid = sessionStorage.getItem("project-guid");
 			const dialogueName = name;
 			saveProjectToIndexedDB({
 				guid,
@@ -35,7 +35,7 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 
 	const handleCategoriesUpdate = (newCategories) => {
 		setCategories(newCategories);
-		const guid = localStorage.getItem("project-guid");
+		const guid = sessionStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
 			categories: newCategories,
@@ -44,7 +44,7 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 
 	const handleParticipantsUpdate = (newParticipants) => {
 		setParticipants(newParticipants);
-		const guid = localStorage.getItem("project-guid");
+		const guid = sessionStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
 			participants: newParticipants,

@@ -33,7 +33,7 @@ const FileProvider = ({ children }) => {
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
 			setError(null);
-			localStorage.removeItem("project-guid");
+			sessionStorage.removeItem("project-guid");
 			sessionStorage.clear();
 		};
 
@@ -200,7 +200,7 @@ const FileProvider = ({ children }) => {
 
 	const handleExportCategories = async () => {
 		try {
-			const projectGuid = localStorage.getItem("project-guid");
+			const projectGuid = sessionStorage.getItem("project-guid");
 			if (!projectGuid) {
 				throw new Error("No project GUID found in local storage.");
 			}
@@ -213,7 +213,7 @@ const FileProvider = ({ children }) => {
 
 	const handleExportParticipants = async () => {
 		try {
-			const projectGuid = localStorage.getItem("project-guid");
+			const projectGuid = sessionStorage.getItem("project-guid");
 			if (!projectGuid) {
 				throw new Error("No project GUID found in local storage.");
 			}
@@ -226,7 +226,7 @@ const FileProvider = ({ children }) => {
 
 	const handleExportDialogueRows = async () => {
 		try {
-			const projectGuid = localStorage.getItem("project-guid");
+			const projectGuid = sessionStorage.getItem("project-guid");
 			if (!projectGuid) {
 				throw new Error("No project GUID found in local storage.");
 			}
@@ -239,7 +239,7 @@ const FileProvider = ({ children }) => {
 
 	const handleExportProject = async () => {
 		try {
-			const projectGuid = localStorage.getItem("project-guid");
+			const projectGuid = sessionStorage.getItem("project-guid");
 			if (!projectGuid) {
 				throw new Error("No project GUID found in local storage.");
 			}

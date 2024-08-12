@@ -30,8 +30,8 @@ function NewProjectDetails({ projectData, onReturn }) {
 	);
 
 	useEffect(() => {
-		if (!localStorage.getItem("project-guid")) {
-			localStorage.setItem("project-guid", uuidv4());
+		if (!sessionStorage.getItem("project-guid")) {
+			sessionStorage.setItem("project-guid", uuidv4());
 		}
 	}, []);
 
@@ -39,7 +39,7 @@ function NewProjectDetails({ projectData, onReturn }) {
 		const db = await getDB();
 		const tx = db.transaction("projects", "readwrite");
 		const projectsStore = tx.objectStore("projects");
-		const guid = localStorage.getItem("project-guid");
+		const guid = sessionStorage.getItem("project-guid");
 		await projectsStore.delete(guid);
 		await tx.done;
 
@@ -50,7 +50,7 @@ function NewProjectDetails({ projectData, onReturn }) {
 
 	const handleCategoriesUpdate = (newCategories) => {
 		setCategories(newCategories);
-		const guid = localStorage.getItem("project-guid");
+		const guid = sessionStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
 			categories: newCategories,
@@ -59,7 +59,7 @@ function NewProjectDetails({ projectData, onReturn }) {
 
 	const handleParticipantsUpdate = (newParticipants) => {
 		setParticipants(newParticipants);
-		const guid = localStorage.getItem("project-guid");
+		const guid = sessionStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
 			participants: newParticipants,

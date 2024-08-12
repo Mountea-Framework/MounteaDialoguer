@@ -14,7 +14,7 @@ export const ProjectProvider = ({ children }) => {
 			const tx = db.transaction("projects", "readonly");
 			const store = tx.objectStore("projects");
 			const allProjects = await store.getAll();
-			const currentGuid = localStorage.getItem("project-guid");
+			const currentGuid = sessionStorage.getItem("project-guid");
 
 			const filteredProjects = allProjects.filter(
 				(project) => project.guid !== currentGuid

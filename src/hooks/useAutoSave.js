@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const saveFileToIndexedDB = async (filePath, fileData) => {
 	const db = await getDB();
-	const guid = localStorage.getItem("project-guid");
+	const guid = sessionStorage.getItem("project-guid");
 	const tx = db.transaction("projects", "readwrite");
 	const store = tx.objectStore("projects");
 
@@ -36,7 +36,7 @@ const saveFileToIndexedDB = async (filePath, fileData) => {
 
 const deleteFileFromIndexedDB = async (filePath) => {
 	const db = await getDB();
-	const guid = localStorage.getItem("project-guid");
+	const guid = sessionStorage.getItem("project-guid");
 	const tx = db.transaction("projects", "readwrite");
 	const store = tx.objectStore("projects");
 
@@ -56,7 +56,7 @@ const deleteFileFromIndexedDB = async (filePath) => {
 
 const saveProjectToIndexedDB = async (newData) => {
 	const db = await getDB();
-	const guid = localStorage.getItem("project-guid");
+	const guid = sessionStorage.getItem("project-guid");
 	const tx = db.transaction("projects", "readwrite");
 	const store = tx.objectStore("projects");
 
@@ -104,8 +104,8 @@ const useAutoSave = (
 	files
 ) => {
 	useEffect(() => {
-		const guid = localStorage.getItem("project-guid") || uuidv4();
-		localStorage.setItem("project-guid", guid);
+		const guid = sessionStorage.getItem("project-guid") || uuidv4();
+		sessionStorage.setItem("project-guid", guid);
 
 		const projectData = {
 			guid,

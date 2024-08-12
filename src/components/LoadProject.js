@@ -22,7 +22,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		setProjectDataRef.current = setProjectData;
 		onSelectProjectRef.current = onSelectProject;
 
-		const currentGuid = localStorage.getItem("project-guid");
+		const currentGuid = sessionStorage.getItem("project-guid");
 
 		setFilteredProjects(
 			projects.filter((project) => project.guid !== currentGuid)

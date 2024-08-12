@@ -12,7 +12,7 @@ export const processImportedCategories = (
 			const db = await getDB();
 			const transaction = db.transaction(["projects"], "readonly");
 			const projectsStore = transaction.objectStore("projects");
-			const guid = localStorage.getItem("project-guid");
+			const guid = sessionStorage.getItem("project-guid");
 			const projectData = await projectsStore.get(guid);
 
 			if (!projectData) {
