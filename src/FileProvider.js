@@ -74,7 +74,7 @@ const FileProvider = ({ children }) => {
 				validCategories
 			);
 			validateNodes(nodes);
-			validateEdges(edges);
+			validateEdges(edges, nodes);
 			validateDialogueRows(dialogueRows);
 
 			const dialogueMetadata = JSON.parse(

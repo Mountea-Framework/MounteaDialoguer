@@ -1,4 +1,4 @@
-// validationHelpers.js
+import { validate as uuidValidate } from "uuid";
 
 export const validateCategories = (categories) => {
 	if (!Array.isArray(categories)) {
@@ -109,32 +109,99 @@ export const validateParticipants = (participants, categories) => {
 export const validateNodes = (nodes) => {
 	if (!Array.isArray(nodes)) {
 		throw new Error("Nodes must be an array");
-		return false;
 	}
 
 	const invalidEntries = [];
 	const validNodes = [];
+	const nodeIds = new Set();
 
-	// First pass
 	nodes.forEach((node) => {
-		if (!node.id || node.id === "00000000-0000-0000-0000-000000000000" || node.id === "" || !node.type) {
-			invalidEntries.push(node);
-		} else {
-			validNodes.push(node);
+		const { id, type } = node;
+
+		// Check if ID is valid and unique but ignore StartNode
+		if (
+			!id ||
+			(!uuidValidate(id) && id !== "00000000-0000-0000-0000-000000000001")
+		) {
+			invalidEntries.push({ node, error: "Invalid or missing ID" });
+			return;
 		}
+
+		if (nodeIds.has(id)) {
+			invalidEntries.push({ node, error: "Duplicate ID" });
+			return;
+		}
+		nodeIds.add(id);
+
+		// Check if type is a valid string
+		if (!type || typeof type !== "string") {
+			invalidEntries.push({ node, error: "Invalid or missing type" });
+			return;
+		}
+
+		// If all checks pass, add to validNodes
+		validNodes.push(node);
 	});
 
-	return true;
-	// Add more specific node validations here
+	if (invalidEntries.length > 0) {
+		throw new Error(`Invalid nodes found: ${JSON.stringify(invalidEntries)}`);
+	}
+
+	return validNodes;
 };
 
-export const validateEdges = (edges) => {
+export const validateEdges = (edges, nodes) => {
 	if (!Array.isArray(edges)) {
 		throw new Error("Edges must be an array");
-		return false;
 	}
-	return true;
-	// Add more specific edge validations here
+
+	const invalidEntries = [];
+	const validEdges = [];
+	const edgeIds = new Set();
+	const nodeIds = new Set(nodes.map((node) => node.id)); // Collect all valid node IDs
+
+	edges.forEach((edge) => {
+		const { id, source, target, type } = edge;
+
+		// Check if ID is valid and unique
+		if (!id) {
+			invalidEntries.push({ edge, error: "Invalid or missing ID" });
+			return;
+		}
+
+		if (edgeIds.has(id)) {
+			invalidEntries.push({ edge, error: "Duplicate ID" });
+			return;
+		}
+		edgeIds.add(id);
+
+		// Check if source exists in nodes
+		if (!source || !nodeIds.has(source)) {
+			invalidEntries.push({ edge, error: "Invalid or missing source" });
+			return;
+		}
+
+		// Check if target exists in nodes
+		if (!target || !nodeIds.has(target)) {
+			invalidEntries.push({ edge, error: "Invalid or missing target" });
+			return;
+		}
+
+		// Check if type is a valid string
+		if (!type || typeof type !== "string") {
+			invalidEntries.push({ edge, error: "Invalid or missing type" });
+			return;
+		}
+
+		// If all checks pass, add to validEdges
+		validEdges.push(edge);
+	});
+
+	if (invalidEntries.length > 0) {
+		throw new Error(`Invalid edges found: ${JSON.stringify(invalidEntries)}`);
+	}
+
+	return validEdges;
 };
 
 export const validateDialogueRows = (dialogueRows) => {
@@ -147,5 +214,5 @@ export const validateDialogueRows = (dialogueRows) => {
 };
 
 export const validateAudioFolder = (folderPath) => {
-    return true;
-}
+	return true;
+};
