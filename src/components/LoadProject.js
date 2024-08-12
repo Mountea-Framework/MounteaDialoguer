@@ -60,25 +60,31 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	};
 
 	return (
-		<div className="load-project">
-			<Title level="2" children="Load Project" className="secondary-heading" />
-			<ScrollList
-				classState="none"
-				classStateItems="none"
-				items={filteredProjects.map((project) => ({
-					displayName: project.displayName,
-					value: project.guid,
-				}))}
-				onSelect={handleSelectProject}
-				allowEdit={false}
-				onIconClick={handleDeleteProject}
-			/>
-			<FileDrop
-				onChange={handleFileChange}
-				primaryText="Drag and drop a .mnteadlg file here or click to select"
-				accept=".mnteadlg"
-				id="projectFileInput"
-			/>
+		<div className="load-project-wrapper">
+			<div className="load-project">
+				<Title
+					level="2"
+					children="Load Project"
+					className="secondary-heading"
+				/>
+				<ScrollList
+					classState="none"
+					classStateItems="none"
+					items={filteredProjects.map((project) => ({
+						displayName: project.displayName,
+						value: project.guid,
+					}))}
+					onSelect={handleSelectProject}
+					allowEdit={false}
+					onIconClick={handleDeleteProject}
+				/>
+				<FileDrop
+					onChange={handleFileChange}
+					primaryText="Drag and drop a .mnteadlg file here or click to select"
+					accept=".mnteadlg"
+					id="projectFileInput"
+				/>
+			</div>
 			<Button
 				onClick={handleContinueClick}
 				disabled={!selectedProject}

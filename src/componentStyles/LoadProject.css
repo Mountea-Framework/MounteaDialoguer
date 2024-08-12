@@ -1,38 +1,50 @@
 .new-project-page {
-  padding: 20px;
-  border-radius: 10px;
-  text-align: center;
+	padding: 20px;
+	border-radius: 10px;
+	text-align: center;
+}
+
+.load-project-wrapper {
+	display: flex;
+	height: 100%;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-content: stretch;
+	align-items: stretch;
+	justify-content: flex-end;
+	overflow: hidden;
 }
 
 .load-project {
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-content: stretch;
-  align-items: stretch;
-  justify-content: flex-end;
+	display: flex;
+	height: 90%;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-content: stretch;
+	align-items: stretch;
+	justify-content: flex-end;
+	overflow: hidden;
 }
 
 .file-drop-area {
-  border: 2px dashed var(--primary-disabled);
-  border-radius: 5px;
-  padding: 20px;
-  margin-top: 20px;
-  cursor: pointer;
+	border: 2px dashed var(--primary-disabled);
+	border-radius: 5px;
+	padding: 20px;
+	margin-top: 20px;
+	cursor: pointer;
 
-  transition: border-color var(--transition-duration) var(--transition-easing);
+	transition: border-color var(--transition-duration) var(--transition-easing);
 }
 
 .file-drop-area:hover {
-  border-color: var(--primary-hovered);
+	border-color: var(--primary-hovered);
 }
 
 .file-drop-area input[type="file"] {
-  display: none;
+	display: none;
 }
 
 .file-drop-area p {
-  margin: 0;
-  color: var(--primary-disabled);
+	margin: 0;
+	color: var(--primary-disabled);
 }

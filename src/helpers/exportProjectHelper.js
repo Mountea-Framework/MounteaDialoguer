@@ -17,6 +17,14 @@ export const exportProject = async (projectGuid) => {
 
 		const zip = new JSZip();
 
+		// Export Dialogue metadata (dialogueName and modifiedOnDate)
+		const dialogueData = {
+			dialogueName: projectData.dialogueName,
+			modifiedOnDate: new Date().toISOString(),
+		};
+		const dialogueDataJson = JSON.stringify(dialogueData, null, 2);
+		zip.file("dialogueData.json", dialogueDataJson);
+
 		// Export categories
 		const categories = projectData.categories || [];
 		const categoriesJson = JSON.stringify(categories, null, 2);

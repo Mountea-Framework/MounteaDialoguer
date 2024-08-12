@@ -9,6 +9,13 @@ import {
 	importParticipants,
 	processImportedParticipants,
 } from "./helpers/importParticipantsHelper";
+import {
+	validateCategories,
+	validateParticipants,
+	validateNodes,
+	validateEdges,
+	validateDialogueRows,
+} from "./helpers/validationHelpers";
 import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
 import { exportDialogueRows } from "./helpers/exportDialogueRowsHelper";
@@ -43,45 +50,49 @@ const FileProvider = ({ children }) => {
 	const validateMnteadlgFile = async (file) => {
 		try {
 			const zip = await JSZip.loadAsync(file);
-			const dialogueJsonFile = zip.file("dialogueJson.json");
-			if (!dialogueJsonFile) {
-				setError("Invalid .mnteadlg file: missing dialogueJson.json");
-				return false;
-			}
-			const dialogueJsonContent = await dialogueJsonFile.async("string");
-			const dialogueJson = JSON.parse(dialogueJsonContent);
 
-			// Check the required properties
-			if (!dialogueJson.name) {
-				setError("Missing dialogue name");
-				return false;
-			}
+			const categoriesJson = await zip.file("categories.json").async("string");
+			const participantsJson = await zip
+				.file("participants.json")
+				.async("string");
+			const nodesJson = await zip.file("nodes.json").async("string");
+			const edgesJson = await zip.file("edges.json").async("string");
+			const dialogueRowsJson = await zip
+				.file("dialogueRows.json")
+				.async("string");
 
-			if (!Array.isArray(dialogueJson.categories)) {
-				setError("Categories must be an array");
-				return false;
-			}
+			const categories = JSON.parse(categoriesJson);
+			const participants = JSON.parse(participantsJson);
+			const nodes = JSON.parse(nodesJson);
+			const edges = JSON.parse(edgesJson);
+			const dialogueRows = JSON.parse(dialogueRowsJson);
 
-			if (!Array.isArray(dialogueJson.participants)) {
-				setError("Participants must be an array");
-				return false;
-			}
+			const validCategories = validateCategories(categories);
+			const validParticipants = validateParticipants(
+				participants,
+				validCategories
+			);
+			validateNodes(nodes);
+			validateEdges(edges);
+			validateDialogueRows(dialogueRows);
 
-			if (dialogueJson.categories.length === 0) {
-				setError("Categories cannot be empty");
-				return false;
-			}
-
-			if (dialogueJson.participants.length === 0) {
-				setError("Participants cannot be empty");
-				return false;
-			}
+			const dialogueMetadata = JSON.parse(
+				await zip.file("dialogueData.json").async("string")
+			);
 
 			setError(null);
-			return dialogueJson;
+			return {
+				categories: validCategories,
+				participants: validParticipants,
+				nodes,
+				edges,
+				dialogueRows,
+				dialogueMetadata,
+			};
 		} catch (e) {
-			setError("Error reading .mnteadlg file");
+			setError(`Error reading .mnteadlg file: ${e.message}`);
 			console.error(e);
+			alert(e.message);
 			return false;
 		}
 	};
@@ -102,15 +113,16 @@ const FileProvider = ({ children }) => {
 			const validatedData = await validateMnteadlgFile(file);
 			if (validatedData) {
 				setFile(file);
-				onSelectProject(file.name);
-				const projectTitle = validatedData.name || "UntitledProject";
+				onSelectProject(validatedData.dialogueMetadata.dialogueName);
+				const projectTitle =
+					validatedData.dialogueMetadata.dialogueName || "UntitledProject";
 				const projectData = { ...validatedData, title: projectTitle };
-				setProjectData(projectData);
 
-				const db = await getDB();
-				const tx = db.transaction("projects", "readwrite");
-				await tx.objectStore("projects").put(projectData);
-				await tx.done;
+				// Store the project data in sessionStorage
+				sessionStorage.setItem("selectedProject", JSON.stringify(projectData));
+
+				// Update your React state or any other logic that depends on projectData
+				setProjectData(projectData);
 			}
 		} else {
 			alert("Please select a .mnteadlg file");
