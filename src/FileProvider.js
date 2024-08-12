@@ -15,6 +15,7 @@ import {
 	validateNodes,
 	validateEdges,
 	validateDialogueRows,
+	validateAudioFolder,
 } from "./helpers/validationHelpers";
 import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
@@ -51,6 +52,8 @@ const FileProvider = ({ children }) => {
 	const validateMnteadlgFile = async (file) => {
 		try {
 			const zip = await JSZip.loadAsync(file);
+
+			validateAudioFolder(zip);
 
 			const categoriesJson = await zip.file("categories.json").async("string");
 			const participantsJson = await zip

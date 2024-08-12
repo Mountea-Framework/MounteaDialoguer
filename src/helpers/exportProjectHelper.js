@@ -73,7 +73,7 @@ export const exportProject = async (projectGuid) => {
 		zip.file("dialogueRows.json", dialogueRowsJson);
 
 		const zipBlob = await zip.generateAsync({ type: "blob" });
-		downloadFile(zipBlob, `${projectData.dialogueName}_Project.mnteadlg`);
+		downloadFile(zipBlob, `${projectData.dialogueName}.mnteadlg`);
 	} catch (error) {
 		console.error("Failed to export project:", error);
 		throw error;

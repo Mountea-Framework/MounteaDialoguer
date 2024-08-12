@@ -248,6 +248,16 @@ export const validateDialogueRows = (dialogueRows, nodes) => {
 	return validDialogueRows;
 };
 
-export const validateAudioFolder = (folderPath) => {
+export const validateAudioFolder = async (zip) => {
+	const audioFolderPath = "audio/";
+
+	// Check if the folder exists in the zip
+	const audioFolderExists = zip.folder(audioFolderPath);
+	if (!audioFolderExists) {
+		throw new Error(
+			`The folder "${audioFolderPath}" does not exist in the archive.`
+		);
+	}
+
 	return true;
 };
