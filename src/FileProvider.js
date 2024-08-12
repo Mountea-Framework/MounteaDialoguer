@@ -34,6 +34,7 @@ const FileProvider = ({ children }) => {
 		const handleBeforeUnload = (e) => {
 			setError(null);
 			localStorage.removeItem("project-guid");
+			sessionStorage.clear();
 		};
 
 		window.addEventListener("beforeunload", handleBeforeUnload);
