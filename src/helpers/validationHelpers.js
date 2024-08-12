@@ -204,13 +204,48 @@ export const validateEdges = (edges, nodes) => {
 	return validEdges;
 };
 
-export const validateDialogueRows = (dialogueRows) => {
+export const validateDialogueRows = (dialogueRows, nodes) => {
 	if (!Array.isArray(dialogueRows)) {
 		throw new Error("DialogueRows must be an array");
-		return false;
 	}
-	return true;
-	// Add more specific dialogue row validations here
+
+	const invalidEntries = [];
+	const validDialogueRows = [];
+	const dialogueRowIds = new Set();
+	const nodeIds = new Set(nodes.map((node) => node.id)); // Collect all valid node IDs
+
+	dialogueRows.forEach((row) => {
+		const { id, nodeId } = row;
+
+		// Check if ID is valid and unique
+		if (!id || !uuidValidate(id)) {
+			invalidEntries.push({ row, error: "Invalid or missing ID" });
+			return;
+		}
+
+		if (dialogueRowIds.has(id)) {
+			invalidEntries.push({ row, error: "Duplicate ID" });
+			return;
+		}
+		dialogueRowIds.add(id);
+
+		// Check if nodeId exists in nodes
+		if (!nodeId || !nodeIds.has(nodeId)) {
+			invalidEntries.push({ row, error: "Invalid or missing nodeId" });
+			return;
+		}
+
+		// If all checks pass, add to validDialogueRows
+		validDialogueRows.push(row);
+	});
+
+	if (invalidEntries.length > 0) {
+		throw new Error(
+			`Invalid dialogue rows found: ${JSON.stringify(invalidEntries)}`
+		);
+	}
+
+	return validDialogueRows;
 };
 
 export const validateAudioFolder = (folderPath) => {

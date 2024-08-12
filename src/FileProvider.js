@@ -75,7 +75,7 @@ const FileProvider = ({ children }) => {
 			);
 			validateNodes(nodes);
 			validateEdges(edges, nodes);
-			validateDialogueRows(dialogueRows);
+			validateDialogueRows(dialogueRows, nodes);
 
 			const dialogueMetadata = JSON.parse(
 				await zip.file("dialogueData.json").async("string")
