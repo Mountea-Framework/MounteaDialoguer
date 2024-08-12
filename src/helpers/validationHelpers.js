@@ -251,9 +251,17 @@ export const validateDialogueRows = (dialogueRows, nodes) => {
 export const validateAudioFolder = async (zip) => {
 	const audioFolderPath = "audio/";
 
-	// Check if the folder exists in the zip
-	const audioFolderExists = zip.folder(audioFolderPath);
-	if (!audioFolderExists) {
+	// Get all file paths in the zip
+	const files = Object.keys(zip.files);
+
+	// Check if any file path starts with 'audio/' or if there's a placeholder for an empty directory
+	const folderExists = files.some(
+		(filePath) =>
+			filePath === `${audioFolderPath}` ||
+			filePath.startsWith(`${audioFolderPath}/`)
+	);
+
+	if (!folderExists) {
 		throw new Error(
 			`The folder "${audioFolderPath}" does not exist in the archive.`
 		);
