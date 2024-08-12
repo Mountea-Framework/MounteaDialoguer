@@ -1,23 +1,39 @@
 import { getDB } from "../indexedDB";
 import JSZip from "jszip";
+import { exportCategories } from "./exportCategoriesHelper";
+import { exportParticipants } from "./exportParticipantsHelper";
+import { fetchAudioFile } from "./exportDialogueRowsHelper";
 
-// Helper to export dialogue rows and audio files as a ZIP
-export const exportDialogueRows = async (projectGuid) => {
+export const exportProject = async (projectGuid) => {
 	try {
 		const db = await getDB();
 		const transaction = db.transaction(["projects"], "readonly");
 		const projectsStore = transaction.objectStore("projects");
 		const projectData = await projectsStore.get(projectGuid);
 
-		if (!projectData || !projectData.nodes) {
-			throw new Error("No nodes found in the project.");
+		if (!projectData) {
+			throw new Error("Project not found.");
 		}
 
-		const dialogueRows = [];
 		const zip = new JSZip();
+
+		// Export categories
+		const categories = projectData.categories || [];
+		const categoriesJson = JSON.stringify(categories, null, 2);
+		zip.file("categories.json", categoriesJson);
+
+		// Export participants
+		const participants = projectData.participants || [];
+		const participantsJson = JSON.stringify(participants, null, 2);
+		zip.file("participants.json", participantsJson);
+
+		// Prepare the nodes for export
+		const nodes = projectData.nodes || [];
+		const edges = projectData.edges || [];
+		const dialogueRows = [];
 		const audioFolder = zip.folder("audio");
 
-		for (const node of projectData.nodes) {
+		for (const node of nodes) {
 			const nodeDialogueRows = node.data?.additionalInfo?.dialogueRows || [];
 
 			for (const row of nodeDialogueRows) {
@@ -40,30 +56,20 @@ export const exportDialogueRows = async (projectGuid) => {
 			}
 		}
 
-		const jsonString = JSON.stringify({ dialogueRows }, null, 2);
-		zip.file(`${projectData.dialogueName}_dialogueRows.json`, jsonString);
+		const nodesJson = JSON.stringify(nodes, null, 2);
+		const edgesJson = JSON.stringify(edges, null, 2);
+		const dialogueRowsJson = JSON.stringify(dialogueRows, null, 2);
+
+		zip.file("nodes.json", nodesJson);
+		zip.file("edges.json", edgesJson);
+		zip.file("dialogueRows.json", dialogueRowsJson);
 
 		const zipBlob = await zip.generateAsync({ type: "blob" });
-		downloadFile(zipBlob, `${projectData.dialogueName}_dialogueRows.zip`);
+		downloadFile(zipBlob, `${projectData.dialogueName}_Project.mnteadlg`);
 	} catch (error) {
-		console.error("Failed to export dialogue rows:", error);
+		console.error("Failed to export project:", error);
 		throw error;
 	}
-};
-
-// Fetch the audio file data from IndexedDB
-export const fetchAudioFile = async (db, projectGuid, filePath) => {
-	const transaction = db.transaction(["projects"], "readonly");
-	const projectsStore = transaction.objectStore("projects");
-	const projectData = await projectsStore.get(projectGuid);
-
-	if (projectData && projectData.files) {
-		const file = projectData.files.find((f) => f.path === filePath);
-		if (file) {
-			return file.data;
-		}
-	}
-	throw new Error(`Audio file not found: ${filePath}`);
 };
 
 // Utility function to trigger download

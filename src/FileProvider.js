@@ -11,7 +11,8 @@ import {
 } from "./helpers/importParticipantsHelper";
 import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
-import { exportDialogueRows, handleExportDialogueRows } from "./helpers/exportDialogueRowsHelper";
+import { exportDialogueRows } from "./helpers/exportDialogueRowsHelper";
+import { exportProject } from "./helpers/exportProjectHelper";
 
 const FileContext = createContext();
 
@@ -36,47 +37,7 @@ const FileProvider = ({ children }) => {
 	}, []);
 
 	const generateFile = async () => {
-		const db = await getDB();
-		const transaction = db.transaction(["projects"], "readonly");
-		const projectsStore = transaction.objectStore("projects");
-		const guid = localStorage.getItem("project-guid");
-		const projectData = await projectsStore.get(guid);
-
-		const jsonData = {
-			name: projectData.dialogueName || "UntitledProject",
-			categories: projectData.categories || [],
-			participants: projectData.participants || [],
-			nodes: projectData.nodes || [],
-			edges: projectData.edges || [],
-			files: projectData.files || [],
-		};
-
-		const zip = new JSZip();
-		zip.file("dialogueJson.json", JSON.stringify(jsonData));
-		zip.folder("audio"); // TODO: Actually add audio files once supported
-
-		try {
-			const content = await zip.generateAsync({ type: "blob" });
-
-			const options = {
-				suggestedName: `${jsonData.name}`,
-				types: [
-					{
-						description: "Mountea Dialogue Files",
-						accept: { "application/mnteadlg": [".mnteadlg"] },
-					},
-				],
-			};
-
-			const handle = await window.showSaveFilePicker(options);
-			const writable = await handle.createWritable();
-			await writable.write(content);
-			await writable.close();
-
-			setError(null);
-		} catch (e) {
-			setError("Error generating .mnteadlg file or saving it.");
-		}
+		handleExportProject();
 	};
 
 	const validateMnteadlgFile = async (file) => {
@@ -260,6 +221,19 @@ const FileProvider = ({ children }) => {
 			console.log("Dialogue rows exported successfully.");
 		} catch (error) {
 			console.error("Error exporting dialogue rows:", error);
+		}
+	};
+
+	const handleExportProject = async () => {
+		try {
+			const projectGuid = localStorage.getItem("project-guid");
+			if (!projectGuid) {
+				throw new Error("No project GUID found in local storage.");
+			}
+			await exportProject(projectGuid);
+			console.log("Project exported successfully.");
+		} catch (error) {
+			console.error("Error exporting project:", error);
 		}
 	};
 
