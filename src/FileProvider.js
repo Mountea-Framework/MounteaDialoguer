@@ -53,7 +53,7 @@ const FileProvider = ({ children }) => {
 		try {
 			const zip = await JSZip.loadAsync(file);
 
-			validateAudioFolder(zip);
+			await validateAudioFolder(zip);
 
 			const categoriesJson = await zip.file("categories.json").async("string");
 			const participantsJson = await zip
