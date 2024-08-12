@@ -9,6 +9,8 @@ import {
 	importParticipants,
 	processImportedParticipants,
 } from "./helpers/importParticipantsHelper";
+import { exportCategories } from "./helpers/exportCategoriesHelper";
+import { exportParticipants } from "./helpers/exportParticipantsHelper";
 
 const FileContext = createContext();
 
@@ -221,64 +223,30 @@ const FileProvider = ({ children }) => {
 		resetFileInput("participantFileInput"); // Reset the file input element after import
 	};
 
-	const exportCategories = async () => {
-		const db = await getDB();
-		const guid = localStorage.getItem("project-guid");
-		const projectStore = await db.get("projects", guid);
-
-		if (!projectStore || !projectStore.categories) {
-			setError("No data found in IndexedDB.");
-			return;
+	const handleExportCategories = async () => {
+		try {
+			const projectGuid = localStorage.getItem("project-guid");
+			if (!projectGuid) {
+				throw new Error("No project GUID found in local storage.");
+			}
+			await exportCategories(projectGuid);
+			console.log("Categories exported successfully.");
+		} catch (error) {
+			console.error("Error exporting categories:", error);
 		}
-
-		const jsonData = {
-			categories: projectStore.categories.map((category) => ({
-				name: category.name,
-				parent: category.parent.split(".").pop(), // Get the last part of the composite parent so import will consume it
-			})),
-		};
-
-		const jsonString = JSON.stringify(jsonData, null, 2);
-		const blob = new Blob([jsonString], { type: "application/json" });
-
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = `${projectStore.dialogueName}_categories.json`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	};
 
-	const exportParticipants = async () => {
-		const db = await getDB();
-		const guid = localStorage.getItem("project-guid");
-		const projectStore = await db.get("projects", guid);
-
-		if (!projectStore || !projectStore.participants) {
-			setError("No data found in IndexedDB.");
-			return;
+	const handleExportParticipants = async () => {
+		try {
+			const projectGuid = localStorage.getItem("project-guid");
+			if (!projectGuid) {
+				throw new Error("No project GUID found in local storage.");
+			}
+			await exportParticipants(projectGuid);
+			console.log("Participants exported successfully.");
+		} catch (error) {
+			console.error("Error exporting participants:", error);
 		}
-
-		const jsonData = {
-			participants: projectStore.participants.map((participant) => ({
-				name: participant.name,
-				category: participant.category.split(".").pop(), // Get the last part of the composite parent so import will consume it
-			})),
-		};
-
-		const jsonString = JSON.stringify(jsonData, null, 2);
-		const blob = new Blob([jsonString], { type: "application/json" });
-
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = `${projectStore.dialogueName}_participants.json`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	};
 
 	return (
@@ -293,8 +261,8 @@ const FileProvider = ({ children }) => {
 				generateFile,
 				importCategories: importCategoriesHandler,
 				importParticipants: importParticipantsHandler,
-				exportCategories,
-				exportParticipants,
+				exportCategories: handleExportCategories,
+				exportParticipants: handleExportParticipants,
 				setProjectDataRef,
 				onSelectProjectRef,
 			}}
