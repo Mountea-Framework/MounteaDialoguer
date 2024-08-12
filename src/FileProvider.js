@@ -11,6 +11,7 @@ import {
 } from "./helpers/importParticipantsHelper";
 import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
+import { exportDialogueRows, handleExportDialogueRows } from "./helpers/exportDialogueRowsHelper";
 
 const FileContext = createContext();
 
@@ -249,6 +250,19 @@ const FileProvider = ({ children }) => {
 		}
 	};
 
+	const handleExportDialogueRows = async () => {
+		try {
+			const projectGuid = localStorage.getItem("project-guid");
+			if (!projectGuid) {
+				throw new Error("No project GUID found in local storage.");
+			}
+			await exportDialogueRows(projectGuid);
+			console.log("Dialogue rows exported successfully.");
+		} catch (error) {
+			console.error("Error exporting dialogue rows:", error);
+		}
+	};
+
 	return (
 		<FileContext.Provider
 			value={{
@@ -263,6 +277,7 @@ const FileProvider = ({ children }) => {
 				importParticipants: importParticipantsHandler,
 				exportCategories: handleExportCategories,
 				exportParticipants: handleExportParticipants,
+				exportDialogueRows: handleExportDialogueRows,
 				setProjectDataRef,
 				onSelectProjectRef,
 			}}

@@ -3,6 +3,7 @@ import { CSSTransition } from "react-transition-group";
 import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
+import { FileProvider, FileContext } from "../../FileProvider";
 import AppContext from "../../AppContext";
 import Title from "../objects/Title";
 import Dropdown from "../objects/Dropdown";
@@ -20,6 +21,7 @@ import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
 function DialogueEditorDetails({ setNodes }) {
 	const { selectedNode } = useSelection();
+	const { exportDialogueRows } = useContext(FileContext);
 	const { participants } = useContext(AppContext);
 	const [tempNodeData, setTempNodeData] = useState({
 		title: "",
@@ -142,7 +144,9 @@ function DialogueEditorDetails({ setNodes }) {
 
 	const importDialogueRows = () => {};
 
-	const exportDialogueRows = () => {};
+	const processExportDialogueRows = () => {
+		exportDialogueRows();
+	  };
 
 	const resetDialogueRows = () => {
 		setTempNodeData((prevData) => ({
@@ -260,7 +264,7 @@ function DialogueEditorDetails({ setNodes }) {
 												</Button>
 												<Button
 													abbrTitle={"Export Dialogue Rows (JSON)"}
-													onClick={exportDialogueRows}
+													onClick={processExportDialogueRows}
 													className="circle-button dialogue-row-button"
 												>
 													<span className={`export-icon icon`}>
