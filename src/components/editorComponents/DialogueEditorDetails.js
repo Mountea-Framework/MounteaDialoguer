@@ -145,8 +145,13 @@ function DialogueEditorDetails({ setNodes }) {
 	const importDialogueRows = () => {};
 
 	const processExportDialogueRows = () => {
-		exportDialogueRows();
-	  };
+		const projectGuid = localStorage.getItem("project-guid");
+		if (projectGuid) {
+			exportDialogueRows(projectGuid);
+		} else {
+			console.error("No project GUID found in local storage.");
+		}
+	};
 
 	const resetDialogueRows = () => {
 		setTempNodeData((prevData) => ({
