@@ -116,7 +116,7 @@ const FileProvider = ({ children }) => {
 		if (file) {
 			const validatedData = await validateMnteadlgFile(file);
 			if (validatedData) {
-				setFile(file);
+				setFile(file.name); // Store the file name
 				onSelectProject(validatedData.dialogueMetadata.dialogueName);
 				const projectTitle =
 					validatedData.dialogueMetadata.dialogueName || "UntitledProject";

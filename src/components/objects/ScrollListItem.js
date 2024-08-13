@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
 import { ReactComponent as EditIcon } from "../../icons/editoIcon.svg";
@@ -16,7 +16,10 @@ function ScrollListItem({
 	allowEdit = true,
 	allowDelete = true,
 	allowClick = true,
+	allowSelection = false,
+	isSelected = false,
 }) {
+	useEffect(() => {}, [item, isSelected]);
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [selectedItem, setSelectedItem] = useState(null);
 
@@ -40,7 +43,7 @@ function ScrollListItem({
 			<li
 				className={`${classState ? classState : "primary"} ${
 					className ? className : "scroll-list-item"
-				}`}
+				} ${isSelected && allowSelection ? "selected" : ""}`}
 				onClick={allowClick ? handleItemClick : undefined}
 			>
 				<span className="item-text">

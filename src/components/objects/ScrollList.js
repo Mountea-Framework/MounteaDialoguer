@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 
 import ScrollListItem from "./ScrollListItem";
 
@@ -15,7 +15,18 @@ function ScrollList({
 	EditComponent,
 	allowEdit = true,
 	allowDelete = true,
+	allowSelection,
 }) {
+	const [selectedItem, setSelectedItem] = useState(null);
+
+	const handleSelect = useCallback(
+		(item) => {
+			setSelectedItem(item);
+			onSelect(item);
+		},
+		[onSelect]
+	);
+
 	return (
 		<div
 			className={`${classState ? classState : "primary"} ${
@@ -23,19 +34,25 @@ function ScrollList({
 			}`}
 		>
 			<ul>
-				{items.map((item, index) => (
-					<ScrollListItem
-						key={index}
-						item={item}
-						onSelect={onSelect}
-						onIconClick={onIconClick}
-						className={`${classNameItems ? classNameItems : ""}`}
-						classState={`${classStateItems ? classStateItems : ""}`}
-						EditComponent={EditComponent}
-						allowDelete={allowDelete}
-						allowEdit={allowEdit}
-					/>
-				))}
+				{items.map((item, index) => {
+					const isItemSelected = selectedItem?.value === item?.value;
+
+					return (
+						<ScrollListItem
+							key={index}
+							item={item}
+							onSelect={handleSelect}
+							onIconClick={onIconClick}
+							className={`${classNameItems ? classNameItems : ""}`}
+							classState={`${classStateItems ? classStateItems : ""}`}
+							isSelected={isItemSelected}
+							EditComponent={EditComponent}
+							allowDelete={allowDelete}
+							allowEdit={allowEdit}
+							allowSelection={allowSelection}
+						/>
+					);
+				})}
 			</ul>
 		</div>
 	);

@@ -1,49 +1,55 @@
 .scroll-list-item {
-  font-family: Poppins, Segoe UI, sans-serif;
-  padding: 10px;
-  cursor: pointer;
-  font-size: small;
-  border-radius: 5px;
-  border: 1px solid transparent;
-  background-color: var(--primary-normal);
-  color: var(--primary-text);
-  pointer-events: auto;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+	font-family: Poppins, Segoe UI, sans-serif;
+	padding: 10px;
+	cursor: pointer;
+	font-size: small;
+	border-radius: 5px;
+	border: 1px solid transparent;
+	background-color: var(--primary-normal);
+	color: var(--primary-text);
+	pointer-events: auto;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 }
 
 .item-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .item-icon {
-  visibility: hidden;
+	visibility: hidden;
 }
 
 svg {
-  height: min(2rem, 16px);
-  width: auto;
+	height: min(2rem, 16px);
+	width: auto;
 
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 svg:hover {
-  fill: var(--primary-hovered);
+	fill: var(--primary-hovered);
 }
 
 .scroll-list-item:hover .item-icon {
-  visibility: visible;
+	visibility: visible;
 }
 
 .scroll-list-item:hover {
-  color: var(--primary-hovered);
-  transition: color var(--transition-duration) var(--transition-easing);
+	color: var(--primary-hovered);
+	transition: color var(--transition-duration) var(--transition-easing);
+}
+
+.scroll-list-item:focus,
+.scroll-list-item:active,
+.selected {
+	color: var(--primary-focus);
 }

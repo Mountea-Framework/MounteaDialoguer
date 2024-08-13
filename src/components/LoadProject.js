@@ -13,7 +13,7 @@ import "../componentStyles/LoadProject.css";
 
 function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	const { setShowLandingPage } = useContext(AppContext);
-	const { handleFileChange, setProjectDataRef, onSelectProjectRef } =
+	const { handleFileChange, setProjectDataRef, onSelectProjectRef, file } =
 		useContext(FileContext);
 	const { projects, deleteProject } = useProject();
 	const [filteredProjects, setFilteredProjects] = useState([]);
@@ -77,12 +77,14 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 					onSelect={handleSelectProject}
 					allowEdit={false}
 					onIconClick={handleDeleteProject}
+					allowSelection={true}
 				/>
 				<FileDrop
 					onChange={handleFileChange}
 					primaryText="Drag and drop a .mnteadlg file here or click to select"
 					accept=".mnteadlg"
 					id="projectFileInput"
+					fileName={file}
 				/>
 			</div>
 			<Button
