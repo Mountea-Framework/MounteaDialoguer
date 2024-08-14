@@ -21,7 +21,10 @@ function ScrollList({
 }) {
 	const handleSelect = useCallback(
 		(item) => {
-			onSelectItem(item);
+			console.log("Handle Select");
+			if (onSelectItem) {
+				onSelectItem(item);
+			}
 			onSelect(item);
 		},
 		[onSelect, onSelectItem]
