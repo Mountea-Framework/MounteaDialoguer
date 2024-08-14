@@ -16,6 +16,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	const { projects, deleteProject } = useProject();
 	const [filteredProjects, setFilteredProjects] = useState([]);
 	const [selectedListItem, setSelectedListItem] = useState(null);
+	const [fileName, setFileName] = useState("");
 
 	const {
 		handleFileChange: contextHandleFileChange,
@@ -26,21 +27,28 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 
 	const handleFileChange = useCallback(
 		(event) => {
-			console.log("LoadProject: handleFileChange called");
-			contextHandleFileChange(event);
+			const file = event.target.files[0];
+			if (file) {
+				setFileName(file.name);
+				contextHandleFileChange(event);
+			}
 		},
 		[contextHandleFileChange]
 	);
 
 	const handleFileChangeAndResetSelection = useCallback(
 		(event) => {
-			console.log("Will reset Scroll List");
 			onSelectProject(null);
 			setSelectedListItem(null);
 			handleFileChange(event);
 		},
 		[onSelectProject, handleFileChange]
 	);
+
+	const clearFileDrop = useCallback(() => {
+		setFileName("");
+
+	}, []);
 
 	useEffect(() => {
 		setProjectDataRef.current = setProjectData;
@@ -73,9 +81,15 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		const selectedProjectData = await store.get(selectedGuid);
 
 		if (selectedProjectData) {
+			clearFileDrop();
+			sessionStorage.removeItem("selectedProject");
+			// TODO: replace Session Context file with the selected one and store
+
 			setProjectData(selectedProjectData);
 			onSelectProject(selectedGuid);
 			setSelectedListItem(selectedItem);
+
+			
 		}
 	};
 
@@ -111,7 +125,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 					primaryText="Drag and drop a .mnteadlg file here or click to select"
 					accept=".mnteadlg"
 					id="projectFileInput"
-					fileName={file}
+					fileName={fileName}
 				/>
 			</div>
 			<Button
