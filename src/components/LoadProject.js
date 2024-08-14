@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
@@ -13,10 +13,34 @@ import "../componentStyles/LoadProject.css";
 
 function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	const { setShowLandingPage } = useContext(AppContext);
-	const { handleFileChange, setProjectDataRef, onSelectProjectRef, file } =
-		useContext(FileContext);
 	const { projects, deleteProject } = useProject();
 	const [filteredProjects, setFilteredProjects] = useState([]);
+	const [selectedListItem, setSelectedListItem] = useState(null);
+
+	const {
+		handleFileChange: contextHandleFileChange,
+		setProjectDataRef,
+		onSelectProjectRef,
+		file,
+	} = useContext(FileContext);
+
+	const handleFileChange = useCallback(
+		(event) => {
+			console.log("LoadProject: handleFileChange called");
+			contextHandleFileChange(event);
+		},
+		[contextHandleFileChange]
+	);
+
+	const handleFileChangeAndResetSelection = useCallback(
+		(event) => {
+			console.log("Will reset Scroll List");
+			onSelectProject(null);
+			setSelectedListItem(null);
+			handleFileChange(event);
+		},
+		[onSelectProject, handleFileChange]
+	);
 
 	useEffect(() => {
 		setProjectDataRef.current = setProjectData;
@@ -51,6 +75,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		if (selectedProjectData) {
 			setProjectData(selectedProjectData);
 			onSelectProject(selectedGuid);
+			setSelectedListItem(selectedItem);
 		}
 	};
 
@@ -78,9 +103,11 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 					allowEdit={false}
 					onIconClick={handleDeleteProject}
 					allowSelection={true}
+					selectedItem={selectedListItem}
+					onSelectItem={setSelectedListItem}
 				/>
 				<FileDrop
-					onChange={handleFileChange}
+					onChange={handleFileChangeAndResetSelection}
 					primaryText="Drag and drop a .mnteadlg file here or click to select"
 					accept=".mnteadlg"
 					id="projectFileInput"

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
 
 import ScrollListItem from "./ScrollListItem";
 
@@ -16,15 +16,15 @@ function ScrollList({
 	allowEdit = true,
 	allowDelete = true,
 	allowSelection,
+	selectedItem,
+	onSelectItem,
 }) {
-	const [selectedItem, setSelectedItem] = useState(null);
-
 	const handleSelect = useCallback(
 		(item) => {
-			setSelectedItem(item);
+			onSelectItem(item);
 			onSelect(item);
 		},
-		[onSelect]
+		[onSelect, onSelectItem]
 	);
 
 	return (
