@@ -25,3 +25,5 @@ yarn-error.log*
 
 # File extensions
 *.zip
+*.mnteadlg
+/TestingData/TestingExport_Broken/*
