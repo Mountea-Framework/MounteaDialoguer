@@ -1,8 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
-
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
-import Button from "./objects/Button";
 import AppContext from "../AppContext";
 import FileDrop from "./objects/FileDrop";
 import { getDB } from "../indexedDB";
@@ -12,7 +10,6 @@ import { useProject, ProjectProvider } from "../helpers/projectManager";
 import "../componentStyles/LoadProject.css";
 
 function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
-	const { setShowLandingPage } = useContext(AppContext);
 	const { projects, deleteProject } = useProject();
 	const [filteredProjects, setFilteredProjects] = useState([]);
 	const [selectedListItem, setSelectedListItem] = useState(null);
@@ -47,7 +44,6 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 
 	const clearFileDrop = useCallback(() => {
 		setFileName("");
-
 	}, []);
 
 	useEffect(() => {
@@ -67,12 +63,6 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		onSelectProjectRef,
 	]);
 
-	const handleContinueClick = () => {
-		if (selectedProject) {
-			setShowLandingPage(false);
-		}
-	};
-
 	const handleSelectProject = async (selectedItem) => {
 		const selectedGuid = selectedItem.value;
 		const db = await getDB();
@@ -82,15 +72,31 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 
 		if (selectedProjectData) {
 			clearFileDrop();
-			sessionStorage.removeItem("selectedProject");
-			// TODO: replace Session Context file with the selected one and store
 
-			setProjectData(selectedProjectData);
+			const transformedData = transformProjectData(selectedProjectData);
+
+			// Store the selected project in session storage
+			sessionStorage.setItem(
+				"selectedProject",
+				JSON.stringify(transformedData)
+			);
+
+			setProjectData(transformedData);
 			onSelectProject(selectedGuid);
 			setSelectedListItem(selectedItem);
-
-			
 		}
+	};
+
+	const transformProjectData = (dbProjectData) => {
+		return {
+			dialogueName: dbProjectData.dialogueName,
+			guid: dbProjectData.guid,
+			categories: dbProjectData.categories || [],
+			participants: dbProjectData.participants || [],
+			nodes: dbProjectData.nodes || [],
+			edges: dbProjectData.edges || [],
+			files: dbProjectData.files || [],
+		};
 	};
 
 	const handleDeleteProject = async (selectedItem) => {
@@ -128,14 +134,6 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 					fileName={fileName}
 				/>
 			</div>
-			<Button
-				onClick={handleContinueClick}
-				disabled={!selectedProject}
-				containerClassName={"landing-page-button-container"}
-				className={"custom-button landing-page-button"}
-			>
-				Load Project
-			</Button>
 		</div>
 	);
 }

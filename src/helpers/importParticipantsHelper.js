@@ -34,7 +34,6 @@ export const processImportedParticipants = (
 			};
 
 			const mergedData = await mergeWithExistingData(updatedProjectData);
-			console.log(mergedData);
 
 			await saveProjectToIndexedDB(mergedData);
 

@@ -7,6 +7,12 @@ export const AppProvider = ({ children }) => {
 	const [participants, setParticipants] = useState([]);
 	const [showLandingPage, setShowLandingPage] = useState(true);
 
+	const loadProject = (project) => {
+		setCategories(project.categories || []);
+		setParticipants(project.participants || []);
+		setShowLandingPage(false);
+	};
+
 	const addCategory = (newCategory) => {
 		if (!isDuplicateCategory(newCategory)) {
 			setCategories((prevCategories) => [...prevCategories, newCategory]);
@@ -244,6 +250,7 @@ export const AppProvider = ({ children }) => {
 				setCategories,
 				showLandingPage,
 				setShowLandingPage,
+				loadProject,
 			}}
 		>
 			{children}

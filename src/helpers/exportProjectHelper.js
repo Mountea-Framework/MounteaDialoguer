@@ -19,6 +19,7 @@ export const exportProject = async (projectGuid) => {
 
 		// Export Dialogue metadata (dialogueName and modifiedOnDate)
 		const dialogueData = {
+			dialogueGuid: projectData.guid,
 			dialogueName: projectData.dialogueName,
 			modifiedOnDate: new Date().toISOString(),
 		};
