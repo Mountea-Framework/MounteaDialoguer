@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 
 import { useNodesState, useEdgesState } from "reactflow";
 
@@ -21,9 +21,20 @@ const initialNodes = [
 
 const initialEdges = [];
 
-function DialogueEditor() {
-	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+function DialogueEditor({ projectData }) {
+	const [nodes, setNodes, onNodesChange] = useNodesState(
+		projectData?.nodes || initialNodes
+	);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(
+		projectData?.edges || initialEdges
+	);
+
+	useEffect(() => {
+		if (projectData) {
+			setNodes(projectData.nodes || initialNodes);
+			setEdges(projectData.edges || initialEdges);
+		}
+	}, [projectData, setNodes, setEdges]);
 
 	return (
 		<div className="dialogue-editor">

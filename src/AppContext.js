@@ -8,6 +8,7 @@ export const AppProvider = ({ children }) => {
 	const [showLandingPage, setShowLandingPage] = useState(true);
 
 	const loadProject = (project) => {
+
 		setCategories(project.categories || []);
 		setParticipants(project.participants || []);
 		setShowLandingPage(false);

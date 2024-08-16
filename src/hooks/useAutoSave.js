@@ -106,6 +106,7 @@ const useAutoSave = (
 	useEffect(() => {
 		const guid = sessionStorage.getItem("project-guid") || uuidv4();
 		sessionStorage.setItem("project-guid", guid);
+		
 
 		const projectData = {
 			guid,

@@ -9,9 +9,15 @@ import "../componentStyles/DialogueCanvas.css";
 const DialogueCanvas = () => {
 	const { showLandingPage } = useContext(AppContext);
 
+	const storedProject = JSON.parse(sessionStorage.getItem("selectedProject"));
+
 	return (
 		<div className="dialogue-canvas">
-			{showLandingPage ? <LandingPage /> : <DialogueEditor />}
+			{showLandingPage ? (
+				<LandingPage />
+			) : (
+				<DialogueEditor projectData={storedProject} />
+			)}
 		</div>
 	);
 };

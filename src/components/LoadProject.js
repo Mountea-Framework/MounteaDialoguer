@@ -72,6 +72,7 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 
 		if (selectedProjectData) {
 			clearFileDrop();
+			
 
 			const transformedData = transformProjectData(selectedProjectData);
 

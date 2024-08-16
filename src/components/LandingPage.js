@@ -19,6 +19,7 @@ function LandingPage() {
 	});
 
 	const onSelectProject = (projectGuid) => {
+		console.log(`selectedGuid: ${projectGuid}`);
 		setSelectedProjectGuid(projectGuid);
 	};
 
@@ -39,15 +40,14 @@ function LandingPage() {
 	};
 
 	const handleLoadProject = () => {
-		if (selectedProjectGuid) {
-			const storedProject = JSON.parse(
-				sessionStorage.getItem("selectedProject")
-			);
-			if (storedProject && storedProject.guid === selectedProjectGuid) {
-				loadProject(storedProject);
-			} else {
-				console.error("Selected project not found in session storage");
-			}
+		
+		const storedProject = JSON.parse(sessionStorage.getItem("selectedProject"));
+		if (storedProject) {
+			console.log(storedProject);
+			sessionStorage.setItem("project-guid", storedProject.guid);
+			loadProject(storedProject);
+		} else {
+			console.error("Selected project not found in session storage");
 		}
 	};
 
