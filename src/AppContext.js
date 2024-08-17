@@ -190,7 +190,7 @@ export const AppProvider = ({ children }) => {
 		participants.some(
 			(p) => p.name === participant.name && p.category === participant.category
 		);
-
+/*
 	const findDuplicateCategory = (category) =>
 		categories.find(
 			(cat) => cat.name === category.name && cat.parent === category.parent
@@ -201,13 +201,13 @@ export const AppProvider = ({ children }) => {
 			`Duplicate category found: name="${category.name}", parent="${category.parent}".`
 		);
 	};
-
+*/
 	const logDuplicateParticipant = (participant) => {
 		console.log(
 			`Duplicate participant found: name="${participant.name}", category="${participant.category}".`
 		);
 	};
-
+/*
 	const removeOriginalCategory = (originalCategory) => {
 		setCategories((prevCategories) =>
 			prevCategories.filter(
@@ -230,7 +230,7 @@ export const AppProvider = ({ children }) => {
 			)
 		);
 	};
-
+*/
 	const deduplicateArray = (array) =>
 		Array.from(new Set(array.map((item) => JSON.stringify(item)))).map((item) =>
 			JSON.parse(item)

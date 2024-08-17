@@ -8,7 +8,7 @@ import Button from "./objects/Button";
 import "../componentStyles/LandingPage.css";
 
 function LandingPage() {
-	const { showLandingPage, setShowLandingPage, loadProject } =
+	const { setShowLandingPage, loadProject } =
 		useContext(AppContext);
 	const [selectedProjectGuid, setSelectedProjectGuid] = useState(null);
 	const [page, setPage] = useState("newProject");

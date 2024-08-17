@@ -24,7 +24,7 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 	useEffect(() => {
 		if (categories.length || participants.length) {
 			const guid = sessionStorage.getItem("project-guid");
-			const dialogueName = name;
+			/*const dialogueName = name;*/
 			saveProjectToIndexedDB({
 				guid,
 				categories,

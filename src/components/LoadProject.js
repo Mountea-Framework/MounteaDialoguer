@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
 import Title from "./objects/Title";
 import ScrollList from "./objects/ScrollList";
-import AppContext from "../AppContext";
 import FileDrop from "./objects/FileDrop";
 import { getDB } from "../indexedDB";
 import { FileContext } from "./../FileProvider";
@@ -19,7 +18,6 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 		handleFileChange: contextHandleFileChange,
 		setProjectDataRef,
 		onSelectProjectRef,
-		file,
 	} = useContext(FileContext);
 
 	const handleFileChange = useCallback(
@@ -72,7 +70,6 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 
 		if (selectedProjectData) {
 			clearFileDrop();
-			
 
 			const transformedData = transformProjectData(selectedProjectData);
 
@@ -139,8 +136,10 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	);
 }
 
-export default (props) => (
+const LoadProjectWithProvider = (props) => (
 	<ProjectProvider>
 		<LoadProject {...props} />
 	</ProjectProvider>
 );
+
+export default LoadProjectWithProvider;

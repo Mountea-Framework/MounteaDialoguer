@@ -3,7 +3,7 @@ import { CSSTransition } from "react-transition-group";
 import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
-import { FileProvider, FileContext } from "../../FileProvider";
+import { FileContext } from "../../FileProvider";
 import AppContext from "../../AppContext";
 import Title from "../objects/Title";
 import Dropdown from "../objects/Dropdown";

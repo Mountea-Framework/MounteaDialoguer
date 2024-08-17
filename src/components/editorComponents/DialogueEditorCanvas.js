@@ -7,8 +7,6 @@ import React, {
 	useMemo,
 } from "react";
 import ReactFlow, {
-	useNodesState,
-	useEdgesState,
 	Controls,
 	reconnectEdge,
 	addEdge,
@@ -75,12 +73,6 @@ const DialogueEditorCanvas = ({
 
 	const deleteKeyPressed = useKeyPress("Delete");
 
-	useEffect(() => {
-		if (deleteKeyPressed && selectedNode) {
-			handleDeleteNode(selectedNode.id);
-		}
-	}, [deleteKeyPressed, selectedNode]);
-
 	const handleDeleteNode = useCallback(
 		(nodeId) => {
 			setNodes((nds) => nds.filter((node) => node.id !== nodeId));
@@ -93,6 +85,12 @@ const DialogueEditorCanvas = ({
 		},
 		[setNodes, setEdges, selectedNode, selectNode]
 	);
+
+	useEffect(() => {
+		if (deleteKeyPressed && selectedNode) {
+			handleDeleteNode(selectedNode.id);
+		}
+	}, [deleteKeyPressed, selectedNode, handleDeleteNode]);
 
 	const onNodesDelete = useCallback(
 		(nodesToDelete) => {
@@ -225,8 +223,9 @@ const DialogueEditorCanvas = ({
 	const onReconnect = useCallback(
 		(oldEdge, newConnection) =>
 			setEdges((els) => reconnectEdge(oldEdge, newConnection, els)),
-		[]
+		[setEdges]
 	);
+
 	const onConnect = useCallback(
 		(connection) => {
 			const edge = { ...connection, type: "customEdge" };

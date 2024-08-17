@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import ContentEditable from "react-contenteditable";
 import "../../componentStyles/objects/Textblock.css";
 
@@ -40,13 +40,16 @@ function TextBlock({
 		}
 	};
 
-	const handleSuggestionClick = (suggestion) => {
-		const newValue = html.replace(/\${$/, `\${${suggestion}}`);
-		setHtml(newValue);
-		onChange(name, newValue);
-		setShowSuggestions(false);
-		contentEditableRef.current.focus();
-	};
+	const handleSuggestionClick = useCallback(
+		(suggestion) => {
+			const newValue = html.replace(/\${$/, `\${${suggestion}}`);
+			setHtml(newValue);
+			onChange(name, newValue);
+			setShowSuggestions(false);
+			contentEditableRef.current.focus();
+		},
+		[html, name, onChange]
+	);
 
 	const handleChange = (evt) => {
 		let newValue = evt.target.value;
@@ -69,6 +72,30 @@ function TextBlock({
 		const regex = /\$\{(.*?)\}/g;
 		return text.replace(regex, '<span class="variable-highlight">$&</span>');
 	};
+
+	const handleKeyDown = useCallback(
+		(event) => {
+			if (!showSuggestions) return;
+
+			if (event.key === "ArrowDown") {
+				setSuggestionIndex((prevIndex) =>
+					prevIndex < suggestions.length - 1 ? prevIndex + 1 : prevIndex
+				);
+			} else if (event.key === "ArrowUp") {
+				setSuggestionIndex((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : 0));
+			} else if (event.key === "Enter" && suggestionIndex >= 0) {
+				handleSuggestionClick(suggestions[suggestionIndex]);
+			}
+		},
+		[showSuggestions, suggestionIndex, handleSuggestionClick]
+	);
+
+	useEffect(() => {
+		window.addEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [handleKeyDown]);
 
 	if (!useSuggestions) {
 		return (

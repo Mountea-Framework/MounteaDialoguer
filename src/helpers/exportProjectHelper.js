@@ -1,7 +1,7 @@
 import { getDB } from "../indexedDB";
 import JSZip from "jszip";
-import { exportCategories } from "./exportCategoriesHelper";
-import { exportParticipants } from "./exportParticipantsHelper";
+/*import { exportCategories } from "./exportCategoriesHelper";
+import { exportParticipants } from "./exportParticipantsHelper";*/
 import { fetchAudioFile } from "./exportDialogueRowsHelper";
 
 export const exportProject = async (projectGuid) => {

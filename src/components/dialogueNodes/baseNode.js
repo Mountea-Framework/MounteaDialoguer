@@ -23,6 +23,9 @@ const BaseNode = ({ id, data, selected }) => {
 	} = data;
 	const { setNodes, setEdges } = useReactFlow();
 
+	console.log(canCreate);
+	console.log(additionalInfo);
+
 	useEffect(() => {
 		setNodeTitle(data.title);
 	}, [data.title]);
