@@ -47,8 +47,11 @@ function ScrollListItem({
 				onClick={allowClick ? handleItemClick : undefined}
 			>
 				<span className="item-text">
-					{item.displayName || item.name || item}
+					{typeof item === "object" && (item.displayName || item.name)
+						? item.displayName || item.name
+						: String(item)}
 				</span>
+
 				{allowEdit && (
 					<span className="item-icon edit-icon" onClick={handleEditClick}>
 						<EditIcon />

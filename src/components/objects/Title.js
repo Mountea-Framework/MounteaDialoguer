@@ -33,9 +33,4 @@ Title.propTypes = {
 	maxLength: PropTypes.number,
 };
 
-Title.defaultProps = {
-	level: 1,
-	maxLength: null,
-};
-
 export default Title;
