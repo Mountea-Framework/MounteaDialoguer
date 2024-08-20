@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { ReactFlowProvider } from "reactflow";
 
 import LandingPage from "./components/LandingPage";
@@ -13,17 +13,6 @@ import "./base/ColorPalette.css";
 import "./base/BaseStyle.css";
 
 function App() {
-	useEffect(() => {
-		function handleContextMenu(e) {
-			e.preventDefault();
-		}
-		const rootElement = document.getElementById("App");
-		rootElement.addEventListener("contextmenu", handleContextMenu);
-		return () => {
-			rootElement.removeEventListener("contextmenu", handleContextMenu);
-		};
-	}, []);
-
 	return (
 		<AppProvider>
 			<FileProvider>
