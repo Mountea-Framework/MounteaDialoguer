@@ -208,14 +208,14 @@ const DialogueEditorCanvas = ({
 		}
 	};
 
-	const handleSpawnNode = (type) => {
+	const handleSpawnNode = (type, label) => {
 		const projectedPosition = project(contextMenuPosition);
 		const newNode = {
 			id: uuidv4(),
 			type: type,
 			position: { x: projectedPosition.x, y: projectedPosition.y },
 			data: {
-				title: `${type.charAt(0).toUpperCase() + type.slice(1)}`,
+				title: label, //`${type.charAt(0).toUpperCase() + type.slice(1)}`,
 				setEdges: setEdges,
 				selected: false,
 				isDragging: false,
