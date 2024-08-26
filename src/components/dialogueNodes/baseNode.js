@@ -18,7 +18,9 @@ const BaseNode = ({ id, data, selected }) => {
 		targetHandle,
 		sourceHandle,
 		canDelete = true,
+		// eslint-disable-next-line no-unused-vars
 		canCreate = true,
+		// eslint-disable-next-line no-unused-vars
 		additionalInfo,
 		isDragging,
 	} = data;
