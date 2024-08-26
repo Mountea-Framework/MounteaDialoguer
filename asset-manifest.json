@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/MounteaDialoguer/static/css/main.907810b8.css",
-    "main.js": "/MounteaDialoguer/static/js/main.e0934feb.js",
+    "main.css": "/MounteaDialoguer/static/css/main.713d1fa7.css",
+    "main.js": "/MounteaDialoguer/static/js/main.22a03533.js",
     "static/media/discordIcon.svg": "/MounteaDialoguer/static/media/discordIcon.7206e74b78457b25faedba58ae12b70a.svg",
     "index.html": "/MounteaDialoguer/index.html",
     "static/media/editoIcon.svg": "/MounteaDialoguer/static/media/editoIcon.4f46b93969c652931a7721b19e66cdd0.svg",
@@ -17,11 +17,11 @@
     "static/media/deleteIcon.svg": "/MounteaDialoguer/static/media/deleteIcon.4ae3b916a114532f94a30abe07a89313.svg",
     "static/media/removeIcon.svg": "/MounteaDialoguer/static/media/removeIcon.fb4cabc3dd433946ff0b50f2c1f39c67.svg",
     "static/media/addIcon.svg": "/MounteaDialoguer/static/media/addIcon.f29ad617d36abaeb6499cb02f0a066e6.svg",
-    "main.907810b8.css.map": "/MounteaDialoguer/static/css/main.907810b8.css.map",
-    "main.e0934feb.js.map": "/MounteaDialoguer/static/js/main.e0934feb.js.map"
+    "main.713d1fa7.css.map": "/MounteaDialoguer/static/css/main.713d1fa7.css.map",
+    "main.22a03533.js.map": "/MounteaDialoguer/static/js/main.22a03533.js.map"
   },
   "entrypoints": [
-    "static/css/main.907810b8.css",
-    "static/js/main.e0934feb.js"
+    "static/css/main.713d1fa7.css",
+    "static/js/main.22a03533.js"
   ]
 }
