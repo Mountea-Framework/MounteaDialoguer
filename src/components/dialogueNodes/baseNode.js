@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Handle, useReactFlow } from "reactflow";
 import { Tooltip } from "react-tooltip";
 import { useKeyPress } from "@reactflow/core";
-import { getDB } from "../../indexedDB"; // Import the getDB function
+import { getDB } from "../../indexedDB";
 
 import Title from "../objects/Title";
 import Button from "../objects/Button";
@@ -20,6 +20,7 @@ const BaseNode = ({ id, data, selected }) => {
 		sourceHandle,
 		canDelete = true,
 		isDragging,
+		version,
 	} = data;
 	const { setNodes, setEdges } = useReactFlow();
 	const deleteKeyPressed = useKeyPress("Delete");
@@ -34,6 +35,11 @@ const BaseNode = ({ id, data, selected }) => {
 		}
 		return false;
 	}, [canDelete, id, setNodes, setEdges]);
+
+	useEffect(() => {
+		setNodeTitle(data.title);
+		console.log(`Node ${data.id} with name ${data.title} has version ${version}`);
+	}, [data.title, version]);
 
 	useEffect(() => {
 		if (deleteKeyPressed && selected && canDelete) {
@@ -102,4 +108,4 @@ const BaseNode = ({ id, data, selected }) => {
 	);
 };
 
-export default BaseNode;
+export default React.memo(BaseNode);

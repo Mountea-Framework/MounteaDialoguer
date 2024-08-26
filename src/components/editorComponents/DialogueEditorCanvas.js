@@ -104,29 +104,59 @@ const DialogueEditorCanvas = ({
 		[onNodesChange, selectedNode, selectNode, setNodes]
 	);
 
-	const handleNodeClick = (event, node) => {
-		if (selectedNode?.id !== node.id) {
-			selectNode(node);
-			setNodes((nds) =>
-				nds.map((n) =>
-					n.id === node.id
-						? { ...n, data: { ...n.data, selected: true, isDragging } }
-						: { ...n, data: { ...n.data, selected: false, isDragging } }
-				)
-			);
-		}
-	};
+	const handleNodeClick = useCallback(
+		(event, node) => {
+			if (selectedNode?.id !== node.id) {
+				selectNode(node);
+				setNodes((nds) => {
+					const needsUpdate = nds.some(
+						(n) =>
+							(n.id === node.id && !n.data.selected) ||
+							(n.id !== node.id && n.data.selected)
+					);
 
-	const handleNodeDoubleClick = (event, node) => {
-		selectNode(node);
-		setNodes((nds) =>
-			nds.map((n) =>
-				n.id === node.id
-					? { ...n, data: { ...n.data, selected: true, isDragging } }
-					: { ...n, data: { ...n.data, selected: false, isDragging } }
-			)
-		);
-	};
+					if (needsUpdate) {
+						return nds.map((n) => ({
+							...n,
+							data: {
+								...n.data,
+								selected: n.id === node.id,
+								isDragging,
+							},
+						}));
+					}
+					return nds;
+				});
+			}
+		},
+		[selectedNode, selectNode, setNodes, isDragging]
+	);
+
+	const handleNodeDoubleClick = useCallback(
+		(event, node) => {
+			selectNode(node);
+			setNodes((nds) => {
+				const needsUpdate = nds.some(
+					(n) =>
+						(n.id === node.id && !n.data.selected) ||
+						(n.id !== node.id && n.data.selected)
+				);
+
+				if (needsUpdate) {
+					return nds.map((n) => ({
+						...n,
+						data: {
+							...n.data,
+							selected: n.id === node.id,
+							isDragging,
+						},
+					}));
+				}
+				return nds;
+			});
+		},
+		[selectNode, setNodes, isDragging]
+	);
 
 	const handlePaneContextMenu = (event) => {
 		event.preventDefault();
@@ -236,6 +266,28 @@ const DialogueEditorCanvas = ({
 		);
 	}, []);
 
+	const [nodeVersion, setNodeVersion] = useState({});
+
+	const forceNodeUpdate = useCallback((nodeId) => {
+		console.log("I will updated selected node!");
+		setNodeVersion((prev) => ({
+			...prev,
+			[nodeId]: (prev[nodeId] || 0) + 1,
+		}));
+	}, []);
+
+	const memoizedNodes = useMemo(() => {
+		return nodes.map((node) => ({
+			...node,
+			data: {
+				...node.data,
+				isDragging,
+				version: nodeVersion[node.id] || 0,
+				forceNodeUpdate,
+			},
+		}));
+	}, [nodes, isDragging, nodeVersion, forceNodeUpdate]);
+
 	return (
 		<div
 			className="dialogue-editor-canvas background-transparent-primary"
@@ -244,10 +296,7 @@ const DialogueEditorCanvas = ({
 			onClick={handlePaneClick}
 		>
 			<ReactFlow
-				nodes={nodes.map((node) => ({
-					...node,
-					data: { ...node.data, isDragging },
-				}))}
+				nodes={memoizedNodes}
 				edges={edges}
 				onNodesChange={handleNodesChange}
 				onEdgesChange={onEdgesChange}

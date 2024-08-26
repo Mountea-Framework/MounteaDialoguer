@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, {
+	useState,
+	useEffect,
+	useContext,
+	useCallback,
+	useRef,
+} from "react";
 import { CSSTransition } from "react-transition-group";
 import { v4 as uuidv4 } from "uuid";
 
@@ -6,6 +12,7 @@ import { useSelection } from "../../contexts/SelectionContext";
 import { FileContext } from "../../FileProvider";
 import AppContext from "../../AppContext";
 import { useAutoSave } from "../../hooks/useAutoSave";
+import debounce from "../../helpers/debounce";
 
 import Title from "../objects/Title";
 import Dropdown from "../objects/Dropdown";
@@ -35,6 +42,23 @@ function DialogueEditorDetails({ setNodes }) {
 
 	const { saveProjectToIndexedDB } = useAutoSave();
 
+	const debouncedForceUpdateRef = useRef();
+	const debouncedSaveToIndexedDBRef = useRef();
+
+	useEffect(() => {
+		debouncedForceUpdateRef.current = debounce((nodeId) => {
+			if (selectedNode && selectedNode.data.forceNodeUpdate) {
+				selectedNode.data.forceNodeUpdate(nodeId);
+			}
+		}, 100);
+
+		debouncedSaveToIndexedDBRef.current = debounce((nodeData) => {
+			saveProjectToIndexedDB({
+				nodes: [nodeData],
+			});
+		}, 200);
+	}, [selectedNode, saveProjectToIndexedDB]);
+
 	const participantOptions = participants.map((participant) => ({
 		value: JSON.stringify({
 			name: participant.name,
@@ -56,7 +80,6 @@ function DialogueEditorDetails({ setNodes }) {
 				},
 			});
 		} else {
-			// Reset tempNodeData when no node is selected
 			setTempNodeData({
 				title: "",
 				additionalInfo: {
@@ -83,6 +106,21 @@ function DialogueEditorDetails({ setNodes }) {
 						: node
 				)
 			);
+
+			if (debouncedSaveToIndexedDBRef.current) {
+				debouncedSaveToIndexedDBRef.current({
+					id: selectedNode.id,
+					data: {
+						...selectedNode.data,
+						title: tempNodeData.title,
+						additionalInfo: tempNodeData.additionalInfo,
+					},
+				});
+			}
+
+			if (debouncedForceUpdateRef.current) {
+				debouncedForceUpdateRef.current(selectedNode.id);
+			}
 		}
 	}, [selectedNode, tempNodeData, setNodes]);
 
@@ -91,21 +129,6 @@ function DialogueEditorDetails({ setNodes }) {
 			...prevData,
 			[name]: value,
 		}));
-
-		// Save changes to IndexedDB
-		if (selectedNode) {
-			saveProjectToIndexedDB({
-				nodes: [
-					{
-						id: selectedNode.id,
-						data: {
-							...selectedNode.data,
-							[name]: value,
-						},
-					},
-				],
-			});
-		}
 	};
 
 	const handleParticipantInputChange = (name, value) => {
@@ -161,7 +184,9 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
-	const importDialogueRows = () => {};
+	const importDialogueRows = () => {
+		// Implementation for importing dialogue rows
+	};
 
 	const processExportDialogueRows = () => {
 		const projectGuid = sessionStorage.getItem("project-guid");
