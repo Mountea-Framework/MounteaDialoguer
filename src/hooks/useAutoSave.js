@@ -2,58 +2,6 @@ import { useEffect } from "react";
 import { getDB } from "../indexedDB";
 import { v4 as uuidv4 } from "uuid";
 
-const saveFileToIndexedDB = async (filePath, fileData) => {
-	const db = await getDB();
-	const guid = sessionStorage.getItem("project-guid");
-	const tx = db.transaction("projects", "readwrite");
-	const store = tx.objectStore("projects");
-
-	try {
-		const project = await store.get(guid);
-
-		// Ensure files array exists
-		if (!project.files) {
-			project.files = [];
-		}
-
-		// Add or update the file entry in the project
-		const existingFileIndex = project.files.findIndex(
-			(f) => f.path === filePath
-		);
-		if (existingFileIndex >= 0) {
-			project.files[existingFileIndex].data = fileData;
-		} else {
-			project.files.push({ path: filePath, data: fileData });
-		}
-
-		await store.put(project);
-		await tx.done;
-	} catch (error) {
-		console.error("Error saving file data:", error);
-		tx.abort();
-	}
-};
-
-const deleteFileFromIndexedDB = async (filePath) => {
-	const db = await getDB();
-	const guid = sessionStorage.getItem("project-guid");
-	const tx = db.transaction("projects", "readwrite");
-	const store = tx.objectStore("projects");
-
-	try {
-		const project = await store.get(guid);
-
-		// Remove the file entry from the project
-		project.files = project.files.filter((f) => f.path !== filePath);
-
-		await store.put(project);
-		await tx.done;
-	} catch (error) {
-		console.error("Error deleting file data:", error);
-		tx.abort();
-	}
-};
-
 const saveProjectToIndexedDB = async (newData) => {
 	const db = await getDB();
 	const guid = sessionStorage.getItem("project-guid");
@@ -76,15 +24,45 @@ const saveProjectToIndexedDB = async (newData) => {
 			return merged;
 		};
 
+		// Function to remove non-serializable data
+		const removeNonSerializable = (obj) => {
+			const newObj = {};
+			for (let key in obj) {
+				if (obj.hasOwnProperty(key)) {
+					if (typeof obj[key] !== "function" && typeof obj[key] !== "symbol") {
+						if (Array.isArray(obj[key])) {
+							newObj[key] = obj[key].map((item) =>
+								typeof item === "object" && item !== null
+									? removeNonSerializable(item)
+									: item
+							);
+						} else if (typeof obj[key] === "object" && obj[key] !== null) {
+							newObj[key] = removeNonSerializable(obj[key]);
+						} else {
+							newObj[key] = obj[key];
+						}
+					}
+				}
+			}
+			return newObj;
+		};
+
+		// Apply removeNonSerializable to newData and existingData
+		const cleanNewData = removeNonSerializable(newData);
+		const cleanExistingData = removeNonSerializable(existingData);
+
 		const mergedData = {
-			...existingData,
-			...newData,
-			dialogueName: newData.dialogueName || existingData?.dialogueName,
-			categories: newData.categories || existingData?.categories || [],
-			participants: newData.participants || existingData?.participants || [],
-			nodes: mergeArrays(existingData?.nodes, newData.nodes),
-			edges: mergeArrays(existingData?.edges, newData.edges),
-			files: mergeArrays(existingData?.files, newData.files, "path"),
+			...cleanExistingData,
+			...cleanNewData,
+			dialogueName:
+				cleanNewData.dialogueName || cleanExistingData?.dialogueName,
+			categories:
+				cleanNewData.categories || cleanExistingData?.categories || [],
+			participants:
+				cleanNewData.participants || cleanExistingData?.participants || [],
+			nodes: mergeArrays(cleanExistingData?.nodes, cleanNewData.nodes),
+			edges: mergeArrays(cleanExistingData?.edges, cleanNewData.edges),
+			files: mergeArrays(cleanExistingData?.files, cleanNewData.files, "path"),
 		};
 
 		await store.put(mergedData);
@@ -106,7 +84,6 @@ const useAutoSave = (
 	useEffect(() => {
 		const guid = sessionStorage.getItem("project-guid") || uuidv4();
 		sessionStorage.setItem("project-guid", guid);
-		
 
 		const projectData = {
 			guid,
@@ -122,7 +99,7 @@ const useAutoSave = (
 		saveProjectToIndexedDB(projectData);
 	}, [dialogueName, categories, participants, nodes, edges, files]);
 
-	return { saveProjectToIndexedDB, saveFileToIndexedDB, deleteFileFromIndexedDB };
+	return { saveProjectToIndexedDB };
 };
 
-export { useAutoSave, saveProjectToIndexedDB, saveFileToIndexedDB, deleteFileFromIndexedDB };
+export { useAutoSave, saveProjectToIndexedDB };

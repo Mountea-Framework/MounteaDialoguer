@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Handle, useReactFlow } from "reactflow";
 import { Tooltip } from "react-tooltip";
 import { useKeyPress } from "@reactflow/core";
+import { getDB } from "../../indexedDB"; // Import the getDB function
 
 import Title from "../objects/Title";
 import Button from "../objects/Button";
@@ -18,10 +19,6 @@ const BaseNode = ({ id, data, selected }) => {
 		targetHandle,
 		sourceHandle,
 		canDelete = true,
-		// eslint-disable-next-line no-unused-vars
-		canCreate = true,
-		// eslint-disable-next-line no-unused-vars
-		additionalInfo,
 		isDragging,
 	} = data;
 	const { setNodes, setEdges } = useReactFlow();
@@ -45,8 +42,20 @@ const BaseNode = ({ id, data, selected }) => {
 	}, [deleteKeyPressed, selected, canDelete, handleDeleteNode]);
 
 	useEffect(() => {
-		setNodeTitle(data.title);
-	}, [data.title]);
+		const updateNodeFromIndexedDB = async () => {
+			const db = await getDB();
+			const tx = db.transaction("projects", "readonly");
+			const guid = sessionStorage.getItem("project-guid");
+			const project = await tx.objectStore("projects").get(guid);
+
+			const updatedNode = project.nodes.find((node) => node.id === id);
+			if (updatedNode && updatedNode.data.title !== nodeTitle) {
+				setNodeTitle(updatedNode.data.title);
+			}
+		};
+
+		updateNodeFromIndexedDB();
+	}, [id, nodeTitle]);
 
 	const handleDeleteButtonClick = (event) => {
 		event.stopPropagation();
@@ -58,7 +67,7 @@ const BaseNode = ({ id, data, selected }) => {
 			ref={nodeRef}
 			className={`custom-node-border ${selected ? "highlight" : ""}`}
 			data-tooltip-id={`tooltip-${id}`}
-			data-tooltip-content={`Node title: ${data.title}`}
+			data-tooltip-content={`Node title: ${nodeTitle}`}
 		>
 			{canDelete && (
 				<Button

@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from "uuid";
 import { useSelection } from "../../contexts/SelectionContext";
 import { FileContext } from "../../FileProvider";
 import AppContext from "../../AppContext";
+import { useAutoSave } from "../../hooks/useAutoSave";
+
 import Title from "../objects/Title";
 import Dropdown from "../objects/Dropdown";
 import TextInput from "../objects/TextInput";
@@ -30,6 +32,8 @@ function DialogueEditorDetails({ setNodes }) {
 			dialogueRows: [],
 		},
 	});
+
+	const { saveProjectToIndexedDB } = useAutoSave();
 
 	const participantOptions = participants.map((participant) => ({
 		value: JSON.stringify({
@@ -87,6 +91,21 @@ function DialogueEditorDetails({ setNodes }) {
 			...prevData,
 			[name]: value,
 		}));
+
+		// Save changes to IndexedDB
+		if (selectedNode) {
+			saveProjectToIndexedDB({
+				nodes: [
+					{
+						id: selectedNode.id,
+						data: {
+							...selectedNode.data,
+							[name]: value,
+						},
+					},
+				],
+			});
+		}
 	};
 
 	const handleParticipantInputChange = (name, value) => {
