@@ -1,10 +1,4 @@
-import React, {
-	useState,
-	useEffect,
-	useContext,
-	useCallback,
-	useRef,
-} from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { CSSTransition } from "react-transition-group";
 import { v4 as uuidv4 } from "uuid";
 
@@ -50,13 +44,13 @@ function DialogueEditorDetails({ setNodes }) {
 			if (selectedNode && selectedNode.data.forceNodeUpdate) {
 				selectedNode.data.forceNodeUpdate(nodeId);
 			}
-		}, 100);
+		}, 500);
 
 		debouncedSaveToIndexedDBRef.current = debounce((nodeData) => {
 			saveProjectToIndexedDB({
 				nodes: [nodeData],
 			});
-		}, 200);
+		}, 500);
 	}, [selectedNode, saveProjectToIndexedDB]);
 
 	const participantOptions = participants.map((participant) => ({
@@ -125,6 +119,12 @@ function DialogueEditorDetails({ setNodes }) {
 	}, [selectedNode, tempNodeData, setNodes]);
 
 	const handleInputChange = (name, value) => {
+		/*sessionStorage.setItem(
+			`${selectedNode.id}`,
+			JSON.stringify({
+				title: value,
+			})
+		);*/
 		setTempNodeData((prevData) => ({
 			...prevData,
 			[name]: value,

@@ -12,7 +12,7 @@ import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
 import "../../componentStyles/dialogueNodes/customNode.css";
 
 const BaseNode = ({ id, data, selected }) => {
-	const [nodeTitle, setNodeTitle] = useState(data.title);
+	
 	const nodeRef = useRef(null);
 	const {
 		customClassName,
@@ -22,6 +22,7 @@ const BaseNode = ({ id, data, selected }) => {
 		isDragging,
 		version,
 	} = data;
+	const [nodeTitle, setNodeTitle] = useState(data.title);
 	const { setNodes, setEdges } = useReactFlow();
 	const deleteKeyPressed = useKeyPress("Delete");
 
@@ -38,7 +39,6 @@ const BaseNode = ({ id, data, selected }) => {
 
 	useEffect(() => {
 		setNodeTitle(data.title);
-		console.log(`Node ${data.id} with name ${data.title} has version ${version}`);
 	}, [data.title, version]);
 
 	useEffect(() => {

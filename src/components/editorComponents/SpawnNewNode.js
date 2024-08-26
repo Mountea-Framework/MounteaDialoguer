@@ -8,7 +8,6 @@ const spawnNodeTypesMap = {
 	leadNode: "Lead Node",
 	answerNode: "Answer Node",
 	closeDialogueNode: "Close Dialogue Node",
-	closeDialogueAutomaticNode: "Auto Close Dialogue Node",
 	jumpToNode: "Jump To Node",
 };
 
