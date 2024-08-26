@@ -56,6 +56,7 @@ const DialogueEditorCanvas = ({
   onNodesChange,
   onEdgesChange,
 }) => {
+  const { getNode } = useReactFlow();
   const { name, categories, participants } = useContext(AppContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({
@@ -165,17 +166,17 @@ const DialogueEditorCanvas = ({
     selectNode(null);
   };
 
-  const handlePaneClick = (event) => {
+  const handlePaneClick = useCallback((event) => {
     if (event.target === event.currentTarget) {
       selectNode(null);
       setNodes((nds) =>
         nds.map((n) => ({
           ...n,
-          data: { ...n.data, selected: false, isDragging },
+          data: { ...n.data, selected: false, isDragging: false },
         }))
       );
     }
-  };
+  });
 
   const handleDragNode = (event, node) => {
     setIsDragging(true); // Set dragging state
@@ -205,6 +206,10 @@ const DialogueEditorCanvas = ({
         }))
       );
     }
+  };
+
+  const isValidConnection = (connection) => {
+    return connection.source !== connection.target;
   };
 
   const handleSpawnNode = (type, label) => {
@@ -255,19 +260,35 @@ const DialogueEditorCanvas = ({
       if (targetIsPane && !connectHandledRef.current) {
         handlePaneContextMenu(event);
       } else if (targetIsNode && !connectHandledRef.current) {
-        // If connection ended on a Node I want to check if it is already connected
-        // if not and try to connect
+        const targetNodeId = event.target.dataset.id;
+        const sourceNodeId = connectStartRef.current?.nodeId;
+        console.log(targetNodeId);
+        if (
+          sourceNodeId &&
+          targetNodeId &&
+          isValidConnection(sourceNodeId, targetNodeId)
+        ) {
+          const sourceNode = getNode(sourceNodeId);
+          const targetNode = getNode(targetNodeId);
+
+          if (sourceNode && targetNode) {
+            const newConnection = {
+              id: `e${sourceNodeId}-${targetNodeId}`,
+              source: sourceNodeId,
+              target: targetNodeId,
+              sourceHandle: connectStartRef.current.handleType,
+              targetHandle: "target",
+            };
+            onConnect(newConnection);
+          }
+        }
       }
 
       connectStartRef.current = null;
       connectHandledRef.current = false;
     },
-    [handlePaneContextMenu]
+    [handlePaneContextMenu, isValidConnection, getNode, onConnect]
   );
-
-  const isValidConnection = (connection) => {
-    return connection.source !== connection.target;
-  };
 
   useAutoSaveNodesAndEdges(nodes, edges);
   useAutoSave(name, categories, participants);
