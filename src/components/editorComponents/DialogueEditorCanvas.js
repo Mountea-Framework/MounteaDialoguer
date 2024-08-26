@@ -322,7 +322,6 @@ const DialogueEditorCanvas = ({
   const [nodeVersion, setNodeVersion] = useState({});
 
   const forceNodeUpdate = useCallback((nodeId) => {
-    console.log("I will updated selected node!");
     setNodeVersion((prev) => ({
       ...prev,
       [nodeId]: (prev[nodeId] || 0) + 1,
