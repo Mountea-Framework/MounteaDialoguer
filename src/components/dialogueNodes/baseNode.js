@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Handle, useReactFlow } from "reactflow";
 import { Tooltip } from "react-tooltip";
+import { useKeyPress } from "@reactflow/core";
 
 import Title from "../objects/Title";
 import Button from "../objects/Button";
@@ -22,33 +23,40 @@ const BaseNode = ({ id, data, selected }) => {
 		isDragging,
 	} = data;
 	const { setNodes, setEdges } = useReactFlow();
+	const deleteKeyPressed = useKeyPress("Delete");
 
-	console.log(canCreate);
-	console.log(additionalInfo);
+	const handleDeleteNode = useCallback(() => {
+		if (canDelete) {
+			setNodes((nds) => nds.filter((node) => node.id !== id));
+			setEdges((eds) =>
+				eds.filter((edge) => edge.source !== id && edge.target !== id)
+			);
+			return true; // Node was deleted
+		}
+		return false; // Node was not deleted
+	}, [canDelete, id, setNodes, setEdges]);
+
+	useEffect(() => {
+		if (deleteKeyPressed && selected && canDelete) {
+			handleDeleteNode();
+		}
+	}, [deleteKeyPressed, selected, canDelete, handleDeleteNode]);
 
 	useEffect(() => {
 		setNodeTitle(data.title);
 	}, [data.title]);
 
 	const handleDeleteButtonClick = (event) => {
-		event.stopPropagation(); // Prevent the click event from bubbling up
+		event.stopPropagation();
 		handleDeleteNode();
-	};
-
-	const handleDeleteNode = () => {
-		setNodes((nds) => nds.filter((node) => node.id !== id));
-		setEdges((eds) =>
-			eds.filter((edge) => edge.source !== id && edge.target !== id)
-		);
-		data.onDeleteNode(id);
 	};
 
 	return (
 		<div
 			ref={nodeRef}
 			className={`custom-node-border ${selected ? "highlight" : ""}`}
-			data-tooltip-id={`tooltip-${id}`} // Add a unique id for the tooltip
-			data-tooltip-content={`Node title: ${data.title}`} // Add content for the tooltip
+			data-tooltip-id={`tooltip-${id}`}
+			data-tooltip-content={`Node title: ${data.title}`}
 		>
 			{canDelete && (
 				<Button

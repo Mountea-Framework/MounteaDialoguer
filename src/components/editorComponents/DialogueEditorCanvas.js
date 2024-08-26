@@ -13,7 +13,6 @@ import ReactFlow, {
 	SelectionMode,
 	useReactFlow,
 } from "reactflow";
-import { useKeyPress } from "@reactflow/core";
 import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
@@ -70,27 +69,6 @@ const DialogueEditorCanvas = ({
 
 	const reactFlowWrapper = useRef(null);
 	const { project } = useReactFlow();
-
-	const deleteKeyPressed = useKeyPress("Delete");
-
-	const handleDeleteNode = useCallback(
-		(nodeId) => {
-			setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-			setEdges((eds) =>
-				eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
-			);
-			if (selectedNode && selectedNode.id === nodeId) {
-				selectNode(null);
-			}
-		},
-		[setNodes, setEdges, selectedNode, selectNode]
-	);
-
-	useEffect(() => {
-		if (deleteKeyPressed && selectedNode) {
-			handleDeleteNode(selectedNode.id);
-		}
-	}, [deleteKeyPressed, selectedNode, handleDeleteNode]);
 
 	const onNodesDelete = useCallback(
 		(nodesToDelete) => {
@@ -213,7 +191,6 @@ const DialogueEditorCanvas = ({
 				setEdges: setEdges,
 				selected: false,
 				isDragging: false,
-				onDeleteNode: handleDeleteNode,
 			},
 		};
 		setNodes((nds) => nds.concat(newNode));
