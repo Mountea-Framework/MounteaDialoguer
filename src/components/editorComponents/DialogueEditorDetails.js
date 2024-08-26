@@ -63,6 +63,7 @@ function DialogueEditorDetails({ setNodes }) {
 		}, 500);
 	}, [selectedNode, saveProjectToIndexedDB]);
 
+	/* Not sure if still needed after the form refactoring
 	const participantOptions = participants.map((participant) => ({
 		value: JSON.stringify({
 			name: participant.name,
@@ -70,6 +71,7 @@ function DialogueEditorDetails({ setNodes }) {
 		}),
 		label: `${participant.name} (${participant.category})`,
 	}));
+	*/
 
 	useEffect(() => {
 		if (selectedNode) {
@@ -135,6 +137,7 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
+	/* Not sure if needed after the form refactoring
 	const handleParticipantInputChange = (name, value) => {
 		try {
 			const parsedValue = JSON.parse(value);
@@ -149,6 +152,7 @@ function DialogueEditorDetails({ setNodes }) {
 			console.error("Error parsing participant value:", error);
 		}
 	};
+	*/
 
 	const handleDialogueRowTextChange = (index, text) => {
 		const updatedDialogueRows = [...tempNodeData.additionalInfo.dialogueRows];

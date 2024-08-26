@@ -158,25 +158,31 @@ const DialogueEditorCanvas = ({
     [selectNode, setNodes, isDragging]
   );
 
-  const handlePaneContextMenu = (event) => {
-    event.preventDefault();
-    const { clientX, clientY } = event;
-    setContextMenuPosition({ x: clientX, y: clientY });
-    setIsModalOpen(true);
-    selectNode(null);
-  };
-
-  const handlePaneClick = useCallback((event) => {
-    if (event.target === event.currentTarget) {
+  const handlePaneContextMenu = useCallback(
+    (event) => {
+      event.preventDefault();
+      const { clientX, clientY } = event;
+      setContextMenuPosition({ x: clientX, y: clientY });
+      setIsModalOpen(true);
       selectNode(null);
-      setNodes((nds) =>
-        nds.map((n) => ({
-          ...n,
-          data: { ...n.data, selected: false, isDragging: false },
-        }))
-      );
-    }
-  });
+    },
+    [selectNode]
+  );
+
+  const handlePaneClick = useCallback(
+    (event) => {
+      if (event.target === event.currentTarget) {
+        selectNode(null);
+        setNodes((nds) =>
+          nds.map((n) => ({
+            ...n,
+            data: { ...n.data, selected: false, isDragging: false },
+          }))
+        );
+      }
+    },
+    [selectNode, setNodes]
+  );
 
   const handleDragNode = (event, node) => {
     setIsDragging(true); // Set dragging state
@@ -208,9 +214,9 @@ const DialogueEditorCanvas = ({
     }
   };
 
-  const isValidConnection = (connection) => {
+  const isValidConnection = useCallback((connection) => {
     return connection.source !== connection.target;
-  };
+  }, []);
 
   const handleSpawnNode = (type, label) => {
     const projectedPosition = project(contextMenuPosition);
@@ -348,10 +354,10 @@ const DialogueEditorCanvas = ({
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onNodesDelete={onNodesDelete}
+        isValidConnection={isValidConnection}
         onConnect={onConnect}
         onConnectEnd={handleConnectEnd}
         onConnectStart={onConnectStart}
-        isValidConnection={isValidConnection}
         snapToGrid
         snapGrid={[10, 10]}
         onReconnect={onReconnect}
@@ -362,6 +368,8 @@ const DialogueEditorCanvas = ({
         fitView
         selectionOnDrag
         panOnDrag={panOnDrag}
+        zoomOnDoubleClick={false}
+        onDoubleClick={handlePaneContextMenu}
         selectionMode={SelectionMode.Partial}
         onNodeDoubleClick={handleNodeDoubleClick}
         onNodeClick={handleNodeClick}
