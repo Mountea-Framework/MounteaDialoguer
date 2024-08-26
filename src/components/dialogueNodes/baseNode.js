@@ -31,9 +31,9 @@ const BaseNode = ({ id, data, selected }) => {
 			setEdges((eds) =>
 				eds.filter((edge) => edge.source !== id && edge.target !== id)
 			);
-			return true; // Node was deleted
+			return true;
 		}
-		return false; // Node was not deleted
+		return false;
 	}, [canDelete, id, setNodes, setEdges]);
 
 	useEffect(() => {

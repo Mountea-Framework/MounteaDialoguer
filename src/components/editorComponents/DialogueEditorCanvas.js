@@ -28,7 +28,6 @@ import StartNode from "../dialogueNodes/startNode";
 import LeadNode from "../dialogueNodes/leadNode";
 import AnswerNode from "../dialogueNodes/answerNode";
 import CloseDialogueNode from "../dialogueNodes/closeDialogueNode";
-import CloseDialogueAutomaticNode from "../dialogueNodes/closeDialogueAutomaticNode";
 import JumpToNode from "../dialogueNodes/jumpToNode";
 
 import "reactflow/dist/style.css";
@@ -40,7 +39,6 @@ const nodeTypes = {
 	leadNode: LeadNode,
 	answerNode: AnswerNode,
 	closeDialogueNode: CloseDialogueNode,
-	closeDialogueAutomaticNode: CloseDialogueAutomaticNode,
 	jumpToNode: JumpToNode,
 };
 
