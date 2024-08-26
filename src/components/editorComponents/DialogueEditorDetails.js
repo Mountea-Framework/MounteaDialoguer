@@ -15,6 +15,8 @@ import Button from "../objects/Button";
 import ReadOnlyText from "../objects/ReadOnlyText";
 import DialogueRow from "./DialogueRow";
 
+import nodeFormConfig from "../../config/nodeForm.json";
+
 import { ReactComponent as AddIcon } from "../../icons/addIcon.svg";
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 import { ReactComponent as ImportIcon } from "../../icons/uploadIcon.svg";
@@ -38,6 +40,14 @@ function DialogueEditorDetails({ setNodes }) {
 
 	const debouncedForceUpdateRef = useRef();
 	const debouncedSaveToIndexedDBRef = useRef();
+
+	useEffect(() => {
+		if (selectedNode) {
+			setTempNodeData(selectedNode.data);
+		} else {
+			setTempNodeData({});
+		}
+	}, [selectedNode]);
 
 	useEffect(() => {
 		debouncedForceUpdateRef.current = debounce((nodeId) => {
@@ -119,12 +129,6 @@ function DialogueEditorDetails({ setNodes }) {
 	}, [selectedNode, tempNodeData, setNodes]);
 
 	const handleInputChange = (name, value) => {
-		/*sessionStorage.setItem(
-			`${selectedNode.id}`,
-			JSON.stringify({
-				title: value,
-			})
-		);*/
 		setTempNodeData((prevData) => ({
 			...prevData,
 			[name]: value,
@@ -220,164 +224,114 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
+	const renderField = (field) => {
+		switch (field.type) {
+			case "text":
+				return (
+					<TextInput
+						key={field.name}
+						title={field.label}
+						placeholder={tempNodeData[field.name]}
+						name={field.name}
+						value={tempNodeData[field.name]}
+						onChange={handleInputChange}
+						maxLength={field.maxLength}
+						readOnly={field.readOnly}
+					/>
+				);
+			case "dropdown":
+				return (
+					<Dropdown
+						key={field.name}
+						name={field.name}
+						placeholder={`select ${field.name}`}
+						value={JSON.stringify(tempNodeData[field.name])}
+						onChange={handleInputChange}
+						options={participants.map((p) => ({
+							value: JSON.stringify(p),
+							label: `${p.name} (${p.category})`,
+						}))}
+						required={true}
+					/>
+				);
+			case "dialogueRows":
+				return (
+					<div key={field.name} className="node-info-panel">
+						<div className="dialogue-row-buttons-control">
+							<Button
+								abbrTitle="Add new Dialogue Row"
+								onClick={addDialogueRow}
+								className="circle-button dialogue-row-button"
+							>
+								<span className="add-icon icon">
+									<AddIcon />
+								</span>
+							</Button>
+							<Button
+								abbrTitle="Import Dialogue Rows (JSON)\nCurrent rows will be overridden!"
+								onClick={importDialogueRows}
+								className="circle-button dialogue-row-button"
+							>
+								<span className="import-icon icon">
+									<ImportIcon />
+								</span>
+							</Button>
+							<Button
+								abbrTitle="Export Dialogue Rows (JSON)"
+								onClick={processExportDialogueRows}
+								className="circle-button dialogue-row-button"
+							>
+								<span className="export-icon icon">
+									<ExportIcon />
+								</span>
+							</Button>
+							<Button
+								abbrTitle="Delete all Dialogue Rows"
+								onClick={resetDialogueRows}
+								className="circle-button dialogue-row-button"
+							>
+								<span className="remove-icon icon">
+									<DeleteIcon />
+								</span>
+							</Button>
+						</div>
+						<div className="dialogue-row-area">
+							{tempNodeData.additionalInfo?.dialogueRows?.map((row, index) => (
+								<DialogueRow
+									id={row.id}
+									key={row.id}
+									index={index}
+									text={row.text}
+									audio={row.audio}
+									onTextChange={handleDialogueRowTextChange}
+									onAudioChange={handleDialogueRowAudioChange}
+									onDelete={deleteDialogueRow}
+								/>
+							))}
+						</div>
+					</div>
+				);
+			default:
+				return null;
+		}
+	};
+
+	const nodeType = selectedNode
+		? selectedNode.type || "defaultNode"
+		: "defaultNode";
+	const config = nodeFormConfig[nodeType] || nodeFormConfig.defaultNode;
+
 	return (
 		<div className="dialogue-editor-details background-secondary">
 			<Title
 				level="3"
 				children="Details"
 				className="tertiary-heading"
-				classState={"tertiary"}
+				classState="tertiary"
 			/>
-
 			<div className="node-details">
 				{selectedNode ? (
-					selectedNode.type !== "startNode" ? (
-						<div>
-							<div className="node-details-generic">
-								<div className="node-details-c1">
-									<Title
-										level="4"
-										children="Node Title"
-										className="tertiary-heading"
-										classState={"tertiary"}
-									/>
-									<div />
-								</div>
-								<div className="node-details-c2">
-									<TextInput
-										title="Node Title"
-										placeholder={tempNodeData.title}
-										name="title"
-										value={tempNodeData.title}
-										onChange={(name, value) => handleInputChange(name, value)}
-										maxLength={32}
-										readOnly={false}
-									/>
-								</div>
-							</div>
-							<div className="node-details-specific">
-								<Title
-									level="4"
-									children="Node Info"
-									className="tertiary-heading"
-									classState={"tertiary"}
-								/>
-								{selectedNode.type !== "jumpToNode" ? (
-									<div className="node-details-specific-tab">
-										<div className="node-info-panel participant-selector">
-											<Title
-												level="5"
-												children="Participant"
-												className="tertiary-heading"
-												classState={"tertiary"}
-											/>
-											<Dropdown
-												name="participant"
-												placeholder="select participant"
-												value={JSON.stringify(
-													tempNodeData.additionalInfo.participant
-												)}
-												onChange={handleParticipantInputChange}
-												options={participantOptions}
-												required={true}
-											/>
-										</div>
-										<div className="node-info-panel ">
-											<Title
-												level="5"
-												children="Dialogue Rows"
-												className="tertiary-heading"
-												classState={"tertiary"}
-											/>
-
-											<div className="dialogue-row-buttons-control">
-												<Button
-													abbrTitle={"Add new Dialogue Row"}
-													onClick={addDialogueRow}
-													className="circle-button dialogue-row-button"
-												>
-													<span className={`add-icon icon`}>
-														<AddIcon />
-													</span>
-												</Button>
-												<Button
-													abbrTitle={
-														"Import Dialogue Rows (JSON)\nCurrent rows will be overriden!"
-													}
-													onClick={importDialogueRows}
-													className="circle-button dialogue-row-button"
-												>
-													<span className={`import-icon icon`}>
-														<ImportIcon />
-													</span>
-												</Button>
-												<Button
-													abbrTitle={"Export Dialogue Rows (JSON)"}
-													onClick={processExportDialogueRows}
-													className="circle-button dialogue-row-button"
-												>
-													<span className={`export-icon icon`}>
-														<ExportIcon />
-													</span>
-												</Button>
-
-												<Button
-													abbrTitle={"Delete all Dialogue Rows"}
-													onClick={resetDialogueRows}
-													className="circle-button dialogue-row-button"
-												>
-													<span className={`remove-icon icon`}>
-														<DeleteIcon />
-													</span>
-												</Button>
-											</div>
-										</div>
-										<div className="dialogue-row-area">
-											{tempNodeData.additionalInfo.dialogueRows.map(
-												(row, index) => (
-													<DialogueRow
-														id={row.id}
-														key={index}
-														index={index}
-														text={row.text}
-														audio={row.audio}
-														onTextChange={handleDialogueRowTextChange}
-														onAudioChange={handleDialogueRowAudioChange}
-														onDelete={deleteDialogueRow}
-													/>
-												)
-											)}
-										</div>
-									</div>
-								) : (
-									<div></div>
-								)}
-							</div>
-						</div>
-					) : (
-						<div className="node-details-generic">
-							<div className="node-details-c1">
-								<Title
-									level="4"
-									children="Node Title"
-									className="tertiary-heading"
-									classState={"tertiary"}
-								/>
-								<div />
-							</div>
-							<div className="node-details-c2">
-								<TextInput
-									title="Node Title"
-									placeholder={tempNodeData.title}
-									name="title"
-									value={tempNodeData.title}
-									onChange={(name, value) => handleInputChange(name, value)}
-									maxLength={32}
-									readOnly={true}
-								/>
-							</div>
-						</div>
-					)
+					<div>{config.fields.map(renderField)}</div>
 				) : (
 					<CSSTransition
 						in={!selectedNode}
@@ -385,7 +339,7 @@ function DialogueEditorDetails({ setNodes }) {
 						classNames="fade"
 						unmountOnExit
 					>
-						<ReadOnlyText value={"No node selected"} />
+						<ReadOnlyText value="No node selected" />
 					</CSSTransition>
 				)}
 			</div>

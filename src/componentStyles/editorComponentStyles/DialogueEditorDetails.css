@@ -53,11 +53,12 @@
 .dialogue-row-buttons-control {
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
-	flex-direction: row;
+	justify-content: space-between;
 	align-content: center;
 	gap: 15%;
-	flex: 0.3;
+	flex: 0.3 1;
+	flex-wrap: nowrap;
+	flex-direction: row;
 }
 
 .node-details-confirmation {
@@ -66,12 +67,12 @@
 
 .node-info-panel {
 	display: flex;
-	align-content: center;
+	align-content: stretch;
 	justify-content: space-between;
-	align-items: center;
+	align-items: stretch;
 	justify-items: start;
 	gap: 5px;
-	flex-direction: row;
+	flex-direction: column;
 	flex-wrap: nowrap;
 }
 

@@ -1,0 +1,86 @@
+{
+	"startNode": {
+		"fields": [
+			{
+				"type": "text",
+				"name": "title",
+				"label": "Node Title",
+				"maxLength": 32,
+				"readOnly": true
+			}
+		]
+	},
+	"leadNode": {
+		"fields": [
+			{
+				"type": "text",
+				"name": "title",
+				"label": "Node Title",
+				"maxLength": 32
+			},
+			{
+				"type": "dropdown",
+				"name": "participant",
+				"label": "Participant",
+				"options": "participantOptions"
+			},
+			{
+				"type": "dialogueRows",
+				"name": "dialogueRows",
+				"label": "Dialogue Rows"
+			}
+		]
+	},
+	"answerNode": {
+		"fields": [
+			{
+				"type": "text",
+				"name": "title",
+				"label": "Node Title",
+				"maxLength": 32
+			},
+			{
+				"type": "dropdown",
+				"name": "participant",
+				"label": "Participant",
+				"options": "participantOptions"
+			},
+			{
+				"type": "dialogueRows",
+				"name": "dialogueRows",
+				"label": "Dialogue Rows"
+			}
+		]
+	},
+	"closeDialogueNode": {
+		"fields": [
+			{
+				"type": "text",
+				"name": "title",
+				"label": "Node Title",
+				"maxLength": 32
+			},
+			{
+				"type": "dropdown",
+				"name": "participant",
+				"label": "Participant",
+				"options": "participantOptions"
+			},
+			{
+				"type": "dialogueRows",
+				"name": "dialogueRows",
+				"label": "Dialogue Rows"
+			}
+		]
+	},
+	"jumpToNode": {
+		"fields": [
+			{
+				"type": "text",
+				"name": "title",
+				"label": "Node Title",
+				"maxLength": 32
+			}
+		]
+	}
+}

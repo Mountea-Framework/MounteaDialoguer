@@ -18,13 +18,13 @@ function TextBlock({
 	isRequired,
 	useSuggestions,
 }) {
-	const [html, setHtml] = useState(value);
+	const [html, setHtml] = useState(value || "");
 	const [showSuggestions, setShowSuggestions] = useState(false);
 	const [suggestionIndex, setSuggestionIndex] = useState(-1);
 	const contentEditableRef = useRef(null);
 
 	useEffect(() => {
-		setHtml(value);
+		setHtml(value || "");
 	}, [value]);
 
 	const handleInputChange = (e) => {
@@ -32,7 +32,6 @@ function TextBlock({
 		setHtml(newValue);
 		onChange(name, newValue);
 
-		// Detect if the user has typed "${"
 		if (useSuggestions && newValue.endsWith("${")) {
 			setShowSuggestions(true);
 		} else {
@@ -53,14 +52,11 @@ function TextBlock({
 
 	const handleChange = (evt) => {
 		let newValue = evt.target.value;
-
-		// Sanitize input to remove existing highlights
 		newValue = newValue.replace(/<\/?span[^>]*>/g, "");
 
 		setHtml(newValue);
 		onChange(name, newValue);
 
-		// Detect if the user has typed "${"
 		if (useSuggestions && newValue.endsWith("${")) {
 			setShowSuggestions(true);
 		} else {
@@ -69,6 +65,7 @@ function TextBlock({
 	};
 
 	const formatText = (text) => {
+		if (!text) return "";
 		const regex = /\$\{(.*?)\}/g;
 		return text.replace(regex, '<span class="variable-highlight">$&</span>');
 	};
@@ -102,7 +99,7 @@ function TextBlock({
 			<div className="textblock">
 				<textarea
 					name={name}
-					value={value}
+					value={html}
 					onChange={(e) => handleInputChange(e)}
 					placeholder={placeholder}
 					className={`${classState ? classState : "primary"} ${
