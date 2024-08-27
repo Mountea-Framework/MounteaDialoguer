@@ -50,6 +50,10 @@
 	margin-left: 15px;
 }
 
+.node-details .dropdown-container {
+	margin: 10px 0 10px 0;
+}
+
 .dialogue-row-buttons-control {
 	align-content: center;
 	align-items: center;
