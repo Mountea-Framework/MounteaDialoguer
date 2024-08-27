@@ -51,14 +51,15 @@
 }
 
 .dialogue-row-buttons-control {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
 	align-content: center;
-	gap: 15%;
+	align-items: center;
+	display: flex;
 	flex: 0.3 1;
-	flex-wrap: nowrap;
 	flex-direction: row;
+	flex-wrap: nowrap;
+	gap: 12%;
+	justify-content: flex-start;
+	margin: 10px 0 10px 0;
 }
 
 .node-details-confirmation {
@@ -90,7 +91,7 @@
 	width: 100%;
 	gap: 15px;
 	overflow-y: scroll;
-	height: clamp(48vh, calc(48vh + ((100vh - 1080px))), 60vh);
+	height: clamp(60vh, calc(48vh + ((100vh - 1080px))), 60vh);
 	padding: 10px;
 	padding-left: 0px;
 }
