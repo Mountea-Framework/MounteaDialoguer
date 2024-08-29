@@ -73,6 +73,58 @@ const saveProjectToIndexedDB = async (newData) => {
 	}
 };
 
+const saveFileToIndexedDB = async (filePath, fileData) => {
+	const db = await getDB();
+	const guid = sessionStorage.getItem("project-guid");
+	const tx = db.transaction("projects", "readwrite");
+	const store = tx.objectStore("projects");
+
+	try {
+		const project = await store.get(guid);
+
+		// Ensure files array exists
+		if (!project.files) {
+			project.files = [];
+		}
+
+		// Add or update the file entry in the project
+		const existingFileIndex = project.files.findIndex(
+			(f) => f.path === filePath
+		);
+		if (existingFileIndex >= 0) {
+			project.files[existingFileIndex].data = fileData;
+		} else {
+			project.files.push({ path: filePath, data: fileData });
+		}
+
+		await store.put(project);
+		await tx.done;
+	} catch (error) {
+		console.error("Error saving file data:", error);
+		tx.abort();
+	}
+};
+
+const deleteFileFromIndexedDB = async (filePath) => {
+	const db = await getDB();
+	const guid = sessionStorage.getItem("project-guid");
+	const tx = db.transaction("projects", "readwrite");
+	const store = tx.objectStore("projects");
+
+	try {
+		const project = await store.get(guid);
+
+		// Remove the file entry from the project
+		project.files = project.files.filter((f) => f.path !== filePath);
+
+		await store.put(project);
+		await tx.done;
+	} catch (error) {
+		console.error("Error deleting file data:", error);
+		tx.abort();
+	}
+};
+
 const useAutoSave = (
 	dialogueName,
 	categories,
@@ -102,4 +154,4 @@ const useAutoSave = (
 	return { saveProjectToIndexedDB };
 };
 
-export { useAutoSave, saveProjectToIndexedDB };
+export { useAutoSave, saveProjectToIndexedDB, saveFileToIndexedDB, deleteFileFromIndexedDB };
