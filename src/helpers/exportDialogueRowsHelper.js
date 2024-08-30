@@ -12,9 +12,14 @@ export const exportDialogueRows = async (projectGuid) => {
 			throw new Error("No nodes found in the project.");
 		}
 
+		console.log("Project data retrieved:", projectData);
+
 		const dialogueRows = [];
 		const zip = new JSZip();
 		const audioFolder = zip.folder("audio");
+
+		let totalAudioFiles = 0;
+		let successfullyAddedAudioFiles = 0;
 
 		for (const node of projectData.nodes) {
 			const nodeDialogueRows = node.data?.additionalInfo?.dialogueRows || [];
@@ -28,16 +33,26 @@ export const exportDialogueRows = async (projectGuid) => {
 				});
 
 				if (row.audio?.path) {
+					totalAudioFiles++;
 					try {
 						const audioData = await fetchAudioFile(
 							db,
 							projectGuid,
 							row.audio.path
 						);
-						const subFolder = audioFolder.folder(row.id); // Create subfolder named after the row id
-						subFolder.file(row.audio.path.split("/").pop(), audioData, {
-							binary: true,
-						});
+						if (audioData) {
+							const subFolder = audioFolder.folder(row.id);
+							const fileName = row.audio.path.split("/").pop();
+							subFolder.file(fileName, audioData, { binary: true });
+							successfullyAddedAudioFiles++;
+							console.log(
+								`Added audio file: ${fileName}, size: ${audioData.size} bytes`
+							);
+						} else {
+							console.warn(
+								`No audio data found for row ${row.id}, file path: ${row.audio.path}`
+							);
+						}
 					} catch (error) {
 						console.warn(
 							`Failed to export audio file for row ${row.id}: ${error.message}`
@@ -47,11 +62,25 @@ export const exportDialogueRows = async (projectGuid) => {
 			}
 		}
 
+		console.log(`Total audio files: ${totalAudioFiles}`);
+		console.log(
+			`Successfully added audio files: ${successfullyAddedAudioFiles}`
+		);
+
 		const jsonString = JSON.stringify({ dialogueRows }, null, 2);
 		zip.file(`${projectData.dialogueName}_dialogueRows.json`, jsonString);
 
+		console.log("Generating zip file...");
 		const zipBlob = await zip.generateAsync({ type: "blob" });
+		console.log(`Zip file generated. Size: ${zipBlob.size} bytes`);
+
+		if (zipBlob.size === 0) {
+			console.error("Generated zip file is empty!");
+			throw new Error("Generated zip file is empty");
+		}
+
 		downloadFile(zipBlob, `${projectData.dialogueName}_dialogueRows.zip`);
+		console.log("Download initiated.");
 	} catch (error) {
 		console.error("Failed to export dialogue rows:", error);
 		throw error;
@@ -72,25 +101,23 @@ export const fetchAudioFile = async (db, projectGuid, filePath) => {
 
 		const file = projectData.files.find((f) => f.path === filePath);
 
-		if (!file || !file.data) {
+		if (!file) {
 			throw new Error(`Audio file not found: ${filePath}`);
 		}
-		
-		if (file.data instanceof Blob || file.data instanceof ArrayBuffer) {
-			return file.data;
+
+		console.log("File object:", file);
+
+		if (!file.data || file.data.byteLength === 0) {
+			console.warn(`File data is empty for file: ${filePath}`);
+			return null;
 		}
 
-		if (typeof file.data === "string") {
-			const byteCharacters = atob(file.data);
-			const byteNumbers = new Array(byteCharacters.length);
-			for (let i = 0; i < byteCharacters.length; i++) {
-				byteNumbers[i] = byteCharacters.charCodeAt(i);
-			}
-			const byteArray = new Uint8Array(byteNumbers);
-			return new Blob([byteArray], { type: "audio/wav" });
-		}
+		console.log(`File data type: ${file.data.constructor.name}`);
+		console.log(`File data length: ${file.data.byteLength} bytes`);
 
-		throw new Error(`Unexpected data type for audio file: ${typeof file.data}`);
+		const audioBlob = new Blob([file.data], { type: "audio/wav" });
+		console.log(`Created audio Blob. Size: ${audioBlob.size} bytes`);
+		return audioBlob;
 	} catch (error) {
 		console.error("Error fetching audio file:", error);
 		throw error;

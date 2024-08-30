@@ -82,23 +82,43 @@ const saveFileToIndexedDB = async (filePath, fileData) => {
 	try {
 		const project = await store.get(guid);
 
-		// Ensure files array exists
 		if (!project.files) {
 			project.files = [];
 		}
 
-		// Add or update the file entry in the project
+		let arrayBuffer;
+		if (fileData instanceof Blob || fileData instanceof File) {
+			arrayBuffer = await fileData.arrayBuffer();
+		} else if (fileData instanceof ArrayBuffer) {
+			arrayBuffer = fileData;
+		} else if (typeof fileData === "string") {
+			// Assume it's already a base64 string
+			arrayBuffer = Uint8Array.from(atob(fileData), (c) =>
+				c.charCodeAt(0)
+			).buffer;
+		} else {
+			throw new Error(`Unsupported file data type: ${typeof fileData}`);
+		}
+
 		const existingFileIndex = project.files.findIndex(
 			(f) => f.path === filePath
 		);
 		if (existingFileIndex >= 0) {
-			project.files[existingFileIndex].data = fileData;
+			project.files[existingFileIndex].data = arrayBuffer;
 		} else {
-			project.files.push({ path: filePath, data: fileData });
+			project.files.push({ path: filePath, data: arrayBuffer });
 		}
+
+		console.log(`Saving file: ${filePath}`);
+		console.log(
+			`File data type: ${fileData instanceof Blob ? "Blob" : typeof fileData}`
+		);
+		console.log(`ArrayBuffer length: ${arrayBuffer.byteLength}`);
 
 		await store.put(project);
 		await tx.done;
+
+		console.log(`File saved successfully: ${filePath}`);
 	} catch (error) {
 		console.error("Error saving file data:", error);
 		tx.abort();
@@ -154,4 +174,9 @@ const useAutoSave = (
 	return { saveProjectToIndexedDB };
 };
 
-export { useAutoSave, saveProjectToIndexedDB, saveFileToIndexedDB, deleteFileFromIndexedDB };
+export {
+	useAutoSave,
+	saveProjectToIndexedDB,
+	saveFileToIndexedDB,
+	deleteFileFromIndexedDB,
+};

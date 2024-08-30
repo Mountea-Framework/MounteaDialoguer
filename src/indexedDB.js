@@ -12,11 +12,7 @@ const openDatabase = async () => {
 						db.createObjectStore("projects", { keyPath: "guid" });
 					}
 				}
-				if (oldVersion < 2) {
-					if (!db.objectStoreNames.contains("files")) {
-						db.createObjectStore("files", { keyPath: "path" });
-					}
-				}
+				
 			},
 		});
 	}
