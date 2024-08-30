@@ -8,18 +8,15 @@ export const exportDialogueRows = async (projectGuid) => {
 		const projectsStore = transaction.objectStore("projects");
 		const projectData = await projectsStore.get(projectGuid);
 
+		console.log("Retrieved project data for export:", projectData);
+
 		if (!projectData || !projectData.nodes) {
 			throw new Error("No nodes found in the project.");
 		}
 
-		console.log("Project data retrieved:", projectData);
-
 		const dialogueRows = [];
 		const zip = new JSZip();
 		const audioFolder = zip.folder("audio");
-
-		let totalAudioFiles = 0;
-		let successfullyAddedAudioFiles = 0;
 
 		for (const node of projectData.nodes) {
 			const nodeDialogueRows = node.data?.additionalInfo?.dialogueRows || [];
@@ -33,8 +30,8 @@ export const exportDialogueRows = async (projectGuid) => {
 				});
 
 				if (row.audio?.path) {
-					totalAudioFiles++;
 					try {
+						console.log(`Fetching audio file: ${row.audio.path}`);
 						const audioData = await fetchAudioFile(
 							db,
 							projectGuid,
@@ -44,9 +41,8 @@ export const exportDialogueRows = async (projectGuid) => {
 							const subFolder = audioFolder.folder(row.id);
 							const fileName = row.audio.path.split("/").pop();
 							subFolder.file(fileName, audioData, { binary: true });
-							successfullyAddedAudioFiles++;
 							console.log(
-								`Added audio file: ${fileName}, size: ${audioData.size} bytes`
+								`Added audio file to zip: ${fileName}, size: ${audioData.size} bytes`
 							);
 						} else {
 							console.warn(
@@ -61,11 +57,6 @@ export const exportDialogueRows = async (projectGuid) => {
 				}
 			}
 		}
-
-		console.log(`Total audio files: ${totalAudioFiles}`);
-		console.log(
-			`Successfully added audio files: ${successfullyAddedAudioFiles}`
-		);
 
 		const jsonString = JSON.stringify({ dialogueRows }, null, 2);
 		zip.file(`${projectData.dialogueName}_dialogueRows.json`, jsonString);
@@ -93,6 +84,8 @@ export const fetchAudioFile = async (db, projectGuid, filePath) => {
 		const projectsStore = transaction.objectStore("projects");
 		const projectData = await projectsStore.get(projectGuid);
 
+		console.log("Retrieved project data:", projectData);
+
 		if (!projectData || !projectData.files) {
 			throw new Error(
 				`Project or files not found for project GUID: ${projectGuid}`
@@ -105,17 +98,31 @@ export const fetchAudioFile = async (db, projectGuid, filePath) => {
 			throw new Error(`Audio file not found: ${filePath}`);
 		}
 
-		console.log("File object:", file);
+		console.log("Found file object:", file);
+		console.log("File data type:", typeof file.data);
 
-		if (!file.data || file.data.byteLength === 0) {
-			console.warn(`File data is empty for file: ${filePath}`);
-			return null;
+		let arrayBufferData;
+
+		if (
+			file.data &&
+			file.data.type === "ArrayBuffer" &&
+			Array.isArray(file.data.buffer)
+		) {
+			arrayBufferData = new Uint8Array(file.data.buffer).buffer;
+		} else {
+			throw new Error(
+				`Invalid file data format: ${JSON.stringify(file.data).slice(
+					0,
+					100
+				)}...`
+			);
 		}
 
-		console.log(`File data type: ${file.data.constructor.name}`);
-		console.log(`File data length: ${file.data.byteLength} bytes`);
+		console.log("Array buffer length:", arrayBufferData.byteLength);
 
-		const audioBlob = new Blob([file.data], { type: "audio/wav" });
+		const audioBlob = new Blob([new Uint8Array(arrayBufferData)], {
+			type: "audio/wav",
+		});
 		console.log(`Created audio Blob. Size: ${audioBlob.size} bytes`);
 		return audioBlob;
 	} catch (error) {

@@ -47,9 +47,31 @@ const saveProjectToIndexedDB = async (newData) => {
 			return newObj;
 		};
 
+		// Separate file data before cleaning
+		const fileData = newData.files || [];
+		const newDataWithoutFiles = { ...newData, files: undefined };
+
 		// Apply removeNonSerializable to newData and existingData
-		const cleanNewData = removeNonSerializable(newData);
+		const cleanNewData = removeNonSerializable(newDataWithoutFiles);
 		const cleanExistingData = removeNonSerializable(existingData);
+
+		// Merge file data separately, preserving ArrayBuffers
+		const mergedFiles = mergeArrays(
+			cleanExistingData?.files || [],
+			fileData,
+			"path"
+		).map((file) => {
+			if (file.data instanceof ArrayBuffer) {
+				return {
+					...file,
+					data: {
+						type: "ArrayBuffer",
+						buffer: Array.from(new Uint8Array(file.data)),
+					},
+				};
+			}
+			return file;
+		});
 
 		const mergedData = {
 			...cleanExistingData,
@@ -62,11 +84,12 @@ const saveProjectToIndexedDB = async (newData) => {
 				cleanNewData.participants || cleanExistingData?.participants || [],
 			nodes: mergeArrays(cleanExistingData?.nodes, cleanNewData.nodes),
 			edges: mergeArrays(cleanExistingData?.edges, cleanNewData.edges),
-			files: mergeArrays(cleanExistingData?.files, cleanNewData.files, "path"),
+			files: mergedFiles,
 		};
 
 		await store.put(mergedData);
 		await tx.done;
+		console.log("Project saved successfully with file data preserved.");
 	} catch (error) {
 		console.error("Error saving project data:", error);
 		tx.abort();
@@ -80,7 +103,8 @@ const saveFileToIndexedDB = async (filePath, fileData) => {
 	const store = tx.objectStore("projects");
 
 	try {
-		const project = await store.get(guid);
+		let project = await store.get(guid);
+		console.log("Retrieved project:", project);
 
 		if (!project.files) {
 			project.files = [];
@@ -89,34 +113,62 @@ const saveFileToIndexedDB = async (filePath, fileData) => {
 		let arrayBuffer;
 		if (fileData instanceof Blob || fileData instanceof File) {
 			arrayBuffer = await fileData.arrayBuffer();
+			console.log("Converted Blob/File to ArrayBuffer");
 		} else if (fileData instanceof ArrayBuffer) {
 			arrayBuffer = fileData;
+			console.log("Data is already an ArrayBuffer");
 		} else if (typeof fileData === "string") {
-			// Assume it's already a base64 string
-			arrayBuffer = Uint8Array.from(atob(fileData), (c) =>
-				c.charCodeAt(0)
-			).buffer;
+			const binaryString = atob(fileData);
+			arrayBuffer = new ArrayBuffer(binaryString.length);
+			const uint8Array = new Uint8Array(arrayBuffer);
+			for (let i = 0; i < binaryString.length; i++) {
+				uint8Array[i] = binaryString.charCodeAt(i);
+			}
+			console.log("Converted base64 string to ArrayBuffer");
 		} else {
 			throw new Error(`Unsupported file data type: ${typeof fileData}`);
 		}
+
+		const uint8Array = new Uint8Array(arrayBuffer);
+		const serializedData = Array.from(uint8Array);
 
 		const existingFileIndex = project.files.findIndex(
 			(f) => f.path === filePath
 		);
 		if (existingFileIndex >= 0) {
-			project.files[existingFileIndex].data = arrayBuffer;
+			project.files[existingFileIndex] = {
+				path: filePath,
+				data: {
+					type: "ArrayBuffer",
+					buffer: serializedData,
+				},
+			};
 		} else {
-			project.files.push({ path: filePath, data: arrayBuffer });
+			project.files.push({
+				path: filePath,
+				data: {
+					type: "ArrayBuffer",
+					buffer: serializedData,
+				},
+			});
 		}
 
 		console.log(`Saving file: ${filePath}`);
-		console.log(
-			`File data type: ${fileData instanceof Blob ? "Blob" : typeof fileData}`
-		);
-		console.log(`ArrayBuffer length: ${arrayBuffer.byteLength}`);
+		console.log(`Original file data type: ${fileData.constructor.name}`);
+		console.log(`Stored ArrayBuffer length: ${arrayBuffer.byteLength} bytes`);
 
 		await store.put(project);
 		await tx.done;
+
+		// Verify the saved data
+		const verifyTx = db.transaction("projects", "readonly");
+		const verifyStore = verifyTx.objectStore("projects");
+		const verifiedProject = await verifyStore.get(guid);
+		const verifiedFile = verifiedProject.files.find((f) => f.path === filePath);
+		console.log("Verified saved file data:", verifiedFile);
+		console.log(
+			`Verified data length: ${verifiedFile.data.buffer.length} bytes`
+		);
 
 		console.log(`File saved successfully: ${filePath}`);
 	} catch (error) {
