@@ -54,13 +54,21 @@ export const exportProject = async (projectGuid) => {
 				});
 
 				if (row.audio?.path) {
-					const audioData = await fetchAudioFile(
-						db,
-						projectGuid,
-						row.audio.path
-					);
-					const subFolder = audioFolder.folder(row.id); // Create subfolder named after the row id
-					subFolder.file(row.audio.path.split("/").pop(), audioData);
+					try {
+						const audioData = await fetchAudioFile(
+							db,
+							projectGuid,
+							row.audio.path
+						);
+						const subFolder = audioFolder.folder(row.id);
+						subFolder.file(row.audio.path.split("/").pop(), audioData, {
+							binary: true,
+						});
+					} catch (error) {
+						console.warn(
+							`Failed to export audio file for row ${row.id}: ${error.message}`
+						);
+					}
 				}
 			}
 		}

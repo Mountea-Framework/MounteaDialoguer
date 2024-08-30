@@ -1,7 +1,6 @@
 import { getDB } from "../indexedDB";
 import JSZip from "jszip";
 
-// Helper to export dialogue rows and audio files as a ZIP
 export const exportDialogueRows = async (projectGuid) => {
 	try {
 		const db = await getDB();
@@ -29,13 +28,21 @@ export const exportDialogueRows = async (projectGuid) => {
 				});
 
 				if (row.audio?.path) {
-					const audioData = await fetchAudioFile(
-						db,
-						projectGuid,
-						row.audio.path
-					);
-					const subFolder = audioFolder.folder(row.id); // Create subfolder named after the row id
-					subFolder.file(row.audio.path.split("/").pop(), audioData);
+					try {
+						const audioData = await fetchAudioFile(
+							db,
+							projectGuid,
+							row.audio.path
+						);
+						const subFolder = audioFolder.folder(row.id); // Create subfolder named after the row id
+						subFolder.file(row.audio.path.split("/").pop(), audioData, {
+							binary: true,
+						});
+					} catch (error) {
+						console.warn(
+							`Failed to export audio file for row ${row.id}: ${error.message}`
+						);
+					}
 				}
 			}
 		}
@@ -51,22 +58,45 @@ export const exportDialogueRows = async (projectGuid) => {
 	}
 };
 
-// Fetch the audio file data from IndexedDB
 export const fetchAudioFile = async (db, projectGuid, filePath) => {
-	const transaction = db.transaction(["projects"], "readonly");
-	const projectsStore = transaction.objectStore("projects");
-	const projectData = await projectsStore.get(projectGuid);
+	try {
+		const transaction = db.transaction(["projects"], "readonly");
+		const projectsStore = transaction.objectStore("projects");
+		const projectData = await projectsStore.get(projectGuid);
 
-	if (projectData && projectData.files) {
+		if (!projectData || !projectData.files) {
+			throw new Error(
+				`Project or files not found for project GUID: ${projectGuid}`
+			);
+		}
+
 		const file = projectData.files.find((f) => f.path === filePath);
-		if (file) {
+
+		if (!file || !file.data) {
+			throw new Error(`Audio file not found: ${filePath}`);
+		}
+		
+		if (file.data instanceof Blob || file.data instanceof ArrayBuffer) {
 			return file.data;
 		}
+
+		if (typeof file.data === "string") {
+			const byteCharacters = atob(file.data);
+			const byteNumbers = new Array(byteCharacters.length);
+			for (let i = 0; i < byteCharacters.length; i++) {
+				byteNumbers[i] = byteCharacters.charCodeAt(i);
+			}
+			const byteArray = new Uint8Array(byteNumbers);
+			return new Blob([byteArray], { type: "audio/wav" });
+		}
+
+		throw new Error(`Unexpected data type for audio file: ${typeof file.data}`);
+	} catch (error) {
+		console.error("Error fetching audio file:", error);
+		throw error;
 	}
-	throw new Error(`Audio file not found: ${filePath}`);
 };
 
-// Utility function to trigger download
 const downloadFile = (blob, fileName) => {
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");

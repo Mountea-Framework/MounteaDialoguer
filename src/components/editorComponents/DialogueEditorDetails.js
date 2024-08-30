@@ -137,7 +137,6 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
-	/* Not sure if needed after the form refactoring
 	const handleParticipantInputChange = (name, value) => {
 		try {
 			const parsedValue = JSON.parse(value);
@@ -152,7 +151,6 @@ function DialogueEditorDetails({ setNodes }) {
 			console.error("Error parsing participant value:", error);
 		}
 	};
-	*/
 
 	const handleDialogueRowTextChange = (index, text) => {
 		const updatedDialogueRows = [...tempNodeData.additionalInfo.dialogueRows];
@@ -249,8 +247,8 @@ function DialogueEditorDetails({ setNodes }) {
 						key={field.name}
 						name={field.name}
 						placeholder={`select ${field.name}`}
-						value={JSON.stringify(tempNodeData[field.name])}
-						onChange={handleInputChange}
+						value={JSON.stringify(tempNodeData.additionalInfo.participant)}
+						onChange={handleParticipantInputChange}
 						options={participants.map((p) => ({
 							value: JSON.stringify(p),
 							label: `${p.name} (${p.category})`,
