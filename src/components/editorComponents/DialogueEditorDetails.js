@@ -3,7 +3,6 @@ import React, {
 	useEffect,
 	useContext,
 	useRef,
-	useCallback,
 } from "react";
 import { useReactFlow } from "reactflow";
 import { CSSTransition } from "react-transition-group";
@@ -41,6 +40,7 @@ function DialogueEditorDetails({ setNodes }) {
 		additionalInfo: {
 			participant: { name: "Player", category: "" },
 			dialogueRows: [],
+			targetNodeId: "",
 		},
 	});
 
@@ -81,6 +81,7 @@ function DialogueEditorDetails({ setNodes }) {
 						category: "",
 					},
 					dialogueRows: selectedNode.data.additionalInfo?.dialogueRows || [],
+					targetNodeId: selectedNode.data.additionalInfo?.targetNodeId || "",
 				},
 			});
 		} else {
@@ -89,6 +90,7 @@ function DialogueEditorDetails({ setNodes }) {
 				additionalInfo: {
 					participant: { name: "Player", category: "" },
 					dialogueRows: [],
+					targetNodeId: "",
 				},
 			});
 		}
@@ -224,7 +226,7 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
-	const handleTargetChange = useCallback((name, selectedNodeId) => {
+	const handleTargetChange = (name, selectedNodeId) => {
 		console.log(`Selected Node: ${selectedNodeId}`);
 		try {
 			setTempNodeData((prevData) => ({
@@ -237,7 +239,7 @@ function DialogueEditorDetails({ setNodes }) {
 		} catch (error) {
 			console.error("Error updating selectedNodeID: ", error);
 		}
-	}, []);
+	};
 
 	const renderField = (field) => {
 		switch (field.type) {

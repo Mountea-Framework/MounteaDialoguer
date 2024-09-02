@@ -16,6 +16,7 @@ const saveNodesAndEdgesToIndexedDB = async (nodes, edges) => {
 			additionalInfo: {
 				participant: node.data.additionalInfo?.participant || "",
 				dialogueRows: node.data.additionalInfo?.dialogueRows || [],
+				targetNodeId: node.data.additionalInfo?.targetNodeId || "",
 			},
 		},
 	}));
