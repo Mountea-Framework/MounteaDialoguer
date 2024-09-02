@@ -1,9 +1,4 @@
-import React, {
-	useState,
-	useEffect,
-	useContext,
-	useRef,
-} from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useReactFlow } from "reactflow";
 import { CSSTransition } from "react-transition-group";
 import { v4 as uuidv4 } from "uuid";
@@ -31,8 +26,8 @@ import { ReactComponent as ExportIcon } from "../../icons/downloadIcon.svg";
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
 function DialogueEditorDetails({ setNodes }) {
-	const { getNodes } = useReactFlow();
-	const { selectedNode } = useSelection();
+	const { getNodes, getNode, setCenter } = useReactFlow();
+	const { selectedNode, selectNode } = useSelection();
 	const { exportDialogueRows } = useContext(FileContext);
 	const { participants } = useContext(AppContext);
 	const [tempNodeData, setTempNodeData] = useState({
@@ -241,6 +236,32 @@ function DialogueEditorDetails({ setNodes }) {
 		}
 	};
 
+	const handleFocusNode = () => {
+		const targetNodeId = tempNodeData.additionalInfo.targetNodeId;
+		if (targetNodeId) {
+			const node = getNode(targetNodeId);
+			if (node) {
+				// Center on the node
+				setCenter(node.position.x, node.position.y, {
+					zoom: 1.5,
+					duration: 1000,
+				});
+
+				selectNode(node);
+
+				setNodes((nds) =>
+					nds.map((n) => ({
+						...n,
+						data: {
+							...n.data,
+							selected: n.id === targetNodeId,
+						},
+					}))
+				);
+			}
+		}
+	};
+
 	const renderField = (field) => {
 		switch (field.type) {
 			case "text":
@@ -260,24 +281,31 @@ function DialogueEditorDetails({ setNodes }) {
 				if (field.name === "targetNode") {
 					const nodeOptions = getNodes()
 						.filter(
-							(node) =>
-								node.id !== selectedNode.id ||
-								node.data.customClassName !== "start-node"
+							(node) => node.id !== selectedNode.id && node.type !== "startNode"
 						)
 						.map((node) => ({
 							value: node.id,
 							label: node.data.title || `Node ${node.id}`,
 						}));
 					return (
-						<Dropdown
-							key={field.name}
-							name={field.name}
-							placeholder={`Select ${field.label}`}
-							value={tempNodeData.targetNodeId || ""}
-							onChange={handleTargetChange}
-							options={nodeOptions}
-							required={true}
-						/>
+						<div key={field.name} className="target-node-container">
+							<Dropdown
+								key={field.name}
+								name={field.name}
+								placeholder={`Select ${field.label}`}
+								value={tempNodeData.additionalInfo.targetNodeId || ""}
+								onChange={handleTargetChange}
+								options={nodeOptions}
+								required={true}
+							/>
+							<Button
+								onClick={handleFocusNode}
+								className="focus-button"
+								disabled={!tempNodeData.additionalInfo.targetNodeId}
+							>
+								Focus
+							</Button>
+						</div>
 					);
 				} else {
 					return (
