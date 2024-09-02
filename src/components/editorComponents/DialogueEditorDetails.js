@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, {
+	useState,
+	useEffect,
+	useContext,
+	useRef,
+	useCallback,
+} from "react";
+import { useReactFlow } from "reactflow";
 import { CSSTransition } from "react-transition-group";
 import { v4 as uuidv4 } from "uuid";
 
@@ -25,6 +32,7 @@ import { ReactComponent as ExportIcon } from "../../icons/downloadIcon.svg";
 import "../../componentStyles/editorComponentStyles/DialogueEditorDetails.css";
 
 function DialogueEditorDetails({ setNodes }) {
+	const { getNodes } = useReactFlow();
 	const { selectedNode } = useSelection();
 	const { exportDialogueRows } = useContext(FileContext);
 	const { participants } = useContext(AppContext);
@@ -62,16 +70,6 @@ function DialogueEditorDetails({ setNodes }) {
 			});
 		}, 500);
 	}, [selectedNode, saveProjectToIndexedDB]);
-
-	/* Not sure if still needed after the form refactoring
-	const participantOptions = participants.map((participant) => ({
-		value: JSON.stringify({
-			name: participant.name,
-			category: participant.category,
-		}),
-		label: `${participant.name} (${participant.category})`,
-	}));
-	*/
 
 	useEffect(() => {
 		if (selectedNode) {
@@ -226,6 +224,21 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
+	const handleTargetChange = useCallback((name, selectedNodeId) => {
+		console.log(`Selected Node: ${selectedNodeId}`);
+		try {
+			setTempNodeData((prevData) => ({
+				...prevData,
+				additionalInfo: {
+					...prevData.additionalInfo,
+					targetNodeId: selectedNodeId,
+				},
+			}));
+		} catch (error) {
+			console.error("Error updating selectedNodeID: ", error);
+		}
+	}, []);
+
 	const renderField = (field) => {
 		switch (field.type) {
 			case "text":
@@ -242,20 +255,44 @@ function DialogueEditorDetails({ setNodes }) {
 					/>
 				);
 			case "dropdown":
-				return (
-					<Dropdown
-						key={field.name}
-						name={field.name}
-						placeholder={`select ${field.name}`}
-						value={JSON.stringify(tempNodeData.additionalInfo.participant)}
-						onChange={handleParticipantInputChange}
-						options={participants.map((p) => ({
-							value: JSON.stringify(p),
-							label: `${p.name} (${p.category})`,
-						}))}
-						required={true}
-					/>
-				);
+				if (field.name === "targetNode") {
+					const nodeOptions = getNodes()
+						.filter(
+							(node) =>
+								node.id !== selectedNode.id ||
+								node.data.customClassName !== "start-node"
+						)
+						.map((node) => ({
+							value: node.id,
+							label: node.data.title || `Node ${node.id}`,
+						}));
+					return (
+						<Dropdown
+							key={field.name}
+							name={field.name}
+							placeholder={`Select ${field.label}`}
+							value={tempNodeData.targetNodeId || ""}
+							onChange={handleTargetChange}
+							options={nodeOptions}
+							required={true}
+						/>
+					);
+				} else {
+					return (
+						<Dropdown
+							key={field.name}
+							name={field.name}
+							placeholder={`select ${field.name}`}
+							value={JSON.stringify(tempNodeData.additionalInfo.participant)}
+							onChange={handleParticipantInputChange}
+							options={participants.map((p) => ({
+								value: JSON.stringify(p),
+								label: `${p.name} (${p.category})`,
+							}))}
+							required={true}
+						/>
+					);
+				}
 			case "dialogueRows":
 				return (
 					<div key={field.name} className="node-info-panel">

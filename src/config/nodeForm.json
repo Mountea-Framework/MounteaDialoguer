@@ -80,6 +80,12 @@
 				"name": "title",
 				"label": "Node Title",
 				"maxLength": 32
+			},
+			{
+				"type": "dropdown",
+				"name": "targetNode",
+				"label": "Target Node",
+				"options": "nodeOptions"
 			}
 		]
 	}
