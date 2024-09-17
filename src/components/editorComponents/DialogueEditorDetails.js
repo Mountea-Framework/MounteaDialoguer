@@ -35,6 +35,7 @@ function DialogueEditorDetails({ setNodes }) {
 		additionalInfo: {
 			participant: { name: "Player", category: "" },
 			dialogueRows: [],
+			displayName: "Selectable Node",
 			targetNodeId: "",
 		},
 	});
@@ -77,6 +78,8 @@ function DialogueEditorDetails({ setNodes }) {
 					},
 					dialogueRows: selectedNode.data.additionalInfo?.dialogueRows || [],
 					targetNodeId: selectedNode.data.additionalInfo?.targetNodeId || "",
+					displayName:
+						selectedNode.data.additionalInfo?.displayName || "Selectable Node",
 				},
 			});
 		} else {
@@ -86,6 +89,7 @@ function DialogueEditorDetails({ setNodes }) {
 					participant: { name: "Player", category: "" },
 					dialogueRows: [],
 					targetNodeId: "",
+					displayName: "Selectable Node",
 				},
 			});
 		}
@@ -262,21 +266,47 @@ function DialogueEditorDetails({ setNodes }) {
 		}
 	};
 
+	const handleDisplayNameChange = (value) => {
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				displayName: value,
+			},
+		}));
+	};
+
 	const renderField = (field) => {
 		switch (field.type) {
 			case "text":
-				return (
-					<TextInput
-						key={field.name}
-						title={field.label}
-						placeholder={tempNodeData[field.name]}
-						name={field.name}
-						value={tempNodeData[field.name]}
-						onChange={handleInputChange}
-						maxLength={field.maxLength}
-						readOnly={field.readOnly}
-					/>
-				);
+				if (field.name === "displayName") {
+					return (
+						<div key={field.name} className="node-display-name-panel">
+							<TextInput
+								key={field.name}
+								title={field.label}
+								placeholder="Enter display name"
+								name={field.name}
+								value={tempNodeData.additionalInfo.displayName}
+								onChange={(name, value) => handleDisplayNameChange(value)}
+								maxLength={field.maxLength}
+							/>
+						</div>
+					);
+				} else {
+					return (
+						<TextInput
+							key={field.name}
+							title={field.label}
+							placeholder={tempNodeData[field.name]}
+							name={field.name}
+							value={tempNodeData[field.name]}
+							onChange={handleInputChange}
+							maxLength={field.maxLength}
+							readOnly={field.readOnly}
+						/>
+					);
+				}
 			case "dropdown":
 				if (field.name === "targetNode") {
 					const nodeOptions = getNodes()

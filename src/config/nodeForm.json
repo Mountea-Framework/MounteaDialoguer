@@ -19,6 +19,12 @@
 				"maxLength": 32
 			},
 			{
+				"type": "text",
+				"name": "displayName",
+				"label": "Display Name\nThis value should be displayed when Node is selectable in UI.",
+				"maxLength": 64
+			},
+			{
 				"type": "dropdown",
 				"name": "participant",
 				"label": "Participant",
@@ -40,6 +46,12 @@
 				"maxLength": 32
 			},
 			{
+				"type": "text",
+				"name": "displayName",
+				"label": "Display Name\nThis value should be displayed when Node is selectable in UI.",
+				"maxLength": 64
+			},
+			{
 				"type": "dropdown",
 				"name": "participant",
 				"label": "Participant",
@@ -59,6 +71,12 @@
 				"name": "title",
 				"label": "Node Title",
 				"maxLength": 32
+			},
+			{
+				"type": "text",
+				"name": "displayName",
+				"label": "Display Name\nThis value should be displayed when Node is selectable in UI.",
+				"maxLength": 64
 			},
 			{
 				"type": "dropdown",

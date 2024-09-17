@@ -10,7 +10,8 @@ const AnswerNode = (props) => {
 		targetHandle: true,
 		additionalInfo: {
 			participant: props.data.additionalInfo?.participant || "Player",
-			dialogueRows: props.data.additionalInfo?.dialogueRows || [],
+			dialogueRows: props.data.additionalInfo?.dialogueRows || [],			
+			displayName: props.data.additionalInfo?.displayName || "Selectable Player Answer",
 		},
 	};
 

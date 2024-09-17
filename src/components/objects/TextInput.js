@@ -13,6 +13,7 @@ function TextInput({
 	classText,
 	maxLength,
 	isRequired,
+	title,
 }) {
 	const handleInputChange = (e) => {
 		const { name, value } = e.target;
@@ -22,6 +23,7 @@ function TextInput({
 	return (
 		<div className="text-input-container">
 			<input
+				title={title}
 				type="text"
 				name={name}
 				value={value}

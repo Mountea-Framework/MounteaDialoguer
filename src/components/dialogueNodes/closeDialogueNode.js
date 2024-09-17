@@ -10,6 +10,7 @@ const CloseDialogueNode = (props) => {
 		additionalInfo: {
 			participant: props.data.additionalInfo?.participant || "Player",
 			dialogueRows: props.data.additionalInfo?.dialogueRows || [],
+			displayName: props.data.additionalInfo?.displayName || "Selectable Close Node",
 		},
 	};
 

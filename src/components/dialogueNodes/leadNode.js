@@ -11,6 +11,7 @@ const LeadNode = (props) => {
 		additionalInfo: {
 			participant: props.data.additionalInfo?.participant || "NPC",
 			dialogueRows: props.data.additionalInfo?.dialogueRows || [],
+			displayName: props.data.additionalInfo?.displayName || "Selectable NPC Node",
 		},
 	};
 
