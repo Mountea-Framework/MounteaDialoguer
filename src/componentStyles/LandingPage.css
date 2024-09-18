@@ -43,7 +43,7 @@ hr {
 	display: none;
 }
 
-@media (max-width: 750px) or (max-height: 800px) {
+@media (max-width: 750px) or (max-height: 700px) {
 	.desktop-view {
 		display: none;
 		color: red;
