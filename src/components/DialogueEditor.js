@@ -41,7 +41,7 @@ function DialogueEditor({ projectData }) {
 		<div className="dialogue-editor">
 			<div className="dialogue-editor-toolbar-wrapper">
 				<DialogueEditorTooblar />
-				<div className="dialogue-editor-toolbar-spacer background-secondary">
+				<abbr className="dialogue-editor-toolbar-spacer background-secondary" title="Project Title">
 					<Title
 						level="2"
 						children={
@@ -49,7 +49,7 @@ function DialogueEditor({ projectData }) {
 						}
 						className="tertiary-heading project-title"
 					/>
-				</div>
+				</abbr>
 			</div>
 			<div className="dialogue-editor-board">
 				<DialogueEditorCanvas

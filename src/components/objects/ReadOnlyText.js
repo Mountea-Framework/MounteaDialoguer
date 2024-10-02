@@ -2,9 +2,9 @@ import React from "react";
 
 import "../../componentStyles/objects/ReadOnlyText.css";
 
-function ReadOnlyText({ value, classState, classText, maxLength }) {
+function ReadOnlyText({ value, classState, classText, maxLength, containerClass }) {
 	return (
-		<div className="text-readonly-container">
+		<div className={`${containerClass ? containerClass : "text-readonly-container"}`}>
 			<p
 				value={value}
 				className={`${classState ? classState : "primary"} ${
