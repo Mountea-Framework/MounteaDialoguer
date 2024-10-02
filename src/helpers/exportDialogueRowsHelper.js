@@ -27,6 +27,7 @@ export const exportDialogueRows = async (projectGuid) => {
 					text: row.text,
 					audioPath: row.audio?.path || null,
 					nodeId: node.id,
+					duration: row.duration,
 				});
 
 				if (row.audio?.path) {
