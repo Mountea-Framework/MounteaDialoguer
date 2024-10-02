@@ -67,6 +67,7 @@ function NewProjectDetails({ projectData, onReturn }) {
 	};
 
 	const handleContinueClick = () => {
+		sessionStorage.setItem("selectedProject", JSON.stringify(projectData));
 		setShowLandingPage(false);
 	};
 
@@ -117,6 +118,8 @@ function NewProjectDetails({ projectData, onReturn }) {
 		);
 		setParticipants(updatedParticipants);
 	};
+
+	console.log(`[NewProjectDetails] ${JSON.stringify(projectData)}`)
 
 	return (
 		<div className="new-project-details">

@@ -24,6 +24,12 @@ const initialNodes = [
 const initialEdges = [];
 
 function DialogueEditor({ projectData }) {
+	const safeProjectData = projectData || {
+		name: "Untitled Project",
+		nodes: initialNodes,
+		edges: initialEdges,
+	};
+
 	const [nodes, setNodes, onNodesChange] = useNodesState(
 		projectData?.nodes || initialNodes
 	);
@@ -38,6 +44,8 @@ function DialogueEditor({ projectData }) {
 		}
 	}, [projectData, setNodes, setEdges]);
 
+	console.log(`[DialogueEditor] Project data: ${JSON.stringify(safeProjectData)}`);
+
 	return (
 		<div className="dialogue-editor">
 			<div className="dialogue-editor-toolbar-wrapper">
@@ -45,7 +53,7 @@ function DialogueEditor({ projectData }) {
 				<div className="dialogue-editor-toolbar-spacer background-secondary">
 					<Title
 						level="2"
-						children={projectData.dialogueName || "Project title"}
+						children={safeProjectData.name}
 						className="tertiary-heading project-title"
 					/>
 				</div>
