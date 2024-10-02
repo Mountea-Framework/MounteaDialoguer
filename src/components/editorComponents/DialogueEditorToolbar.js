@@ -86,6 +86,7 @@ function DialogueEditorToolbar() {
 				<SettingsIcon className="settings-icon icon" />
 			</Button>
 			<Button
+				abbrTitle={"Open help/info panel"}
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
 				classState={"tertiary"}				

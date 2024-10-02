@@ -232,7 +232,7 @@ button:disabled {
 
 .primary-heading {
 	color: var(--primary-text);
-	font-weight: 1200;
+	font-weight: 900;
 	text-transform: uppercase;
 	text-align: center;
 	background-color: transparent;
@@ -242,7 +242,7 @@ button:disabled {
 
 .secondary-heading {
 	color: var(--secondary-text);
-	font-weight: 900;
+	font-weight: bold;
 	text-transform: uppercase;
 	text-align: center;
 	background-color: transparent;
@@ -252,7 +252,7 @@ button:disabled {
 
 .tertiary-heading {
 	color: var(--tertiary-text);
-	font-weight: 600;
+	font-weight: normal;
 	text-transform: none;
 	text-align: left;
 	background-color: transparent;
@@ -298,8 +298,39 @@ button:disabled {
 	transition: color var(--transition-duration) var(--transition-easing);
 }
 
+.icon-large {
+	width: 30px;
+	height: 30px;
+	pointer-events: none;
+}
+
+.icon-mid {
+	width: 24px;
+	height: 24px;
+	pointer-events: none;
+}
+
 abbr[title] {
 	border-bottom: none !important;
 	cursor: inherit !important;
 	text-decoration: none !important;
+}
+
+a:link {
+	text-decoration: none;
+	color: inherit;
+}
+
+a:visited {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: none;
+	color: var(--primary-text);
+}
+
+a:active {
+	text-decoration: none;
+	color: var(--primary-text);
 }

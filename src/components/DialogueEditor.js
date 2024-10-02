@@ -44,10 +44,10 @@ function DialogueEditor({ projectData }) {
 				<abbr className="dialogue-editor-toolbar-spacer background-secondary" title="Project Title">
 					<Title
 						level="2"
+						className="secondary-heading project-title"
 						children={
 							safeProjectData.name || safeProjectData.dialogueName || "Untitled"
 						}
-						className="tertiary-heading project-title"
 					/>
 				</abbr>
 			</div>

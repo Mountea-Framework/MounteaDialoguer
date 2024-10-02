@@ -7,7 +7,7 @@ import ReadOnlyText from "../objects/ReadOnlyText";
 import projectDetails from "../../config/projectDetails.json";
 
 import {
-	FaKeyboard,
+	FaDiscord,
 	FaLinkedin,
 	FaGithub,
 	FaDonate,
@@ -71,13 +71,24 @@ const InfoModal = ({ isOpen, onClose }) => {
 			icon: <FaDownload className="icon-large" />,
 			url: "https://www.unrealengine.com/marketplace/en-US/product/mountea-framework-dialogue-system",
 		},
+		{
+			text: "Open Support Discord",
+			icon: <FaDiscord className="icon-large" />,
+			url: "https://discord.gg/waYT2cn37z",
+		},
 	];
 
 	return (
 		isOpen && (
-			<Modal onClose={onClose} title="Information" className="info-modal">
+			<Modal
+				onClose={onClose}
+				title="Information"
+				className="info-modal"
+				titleClassName="primary-heading"
+				titleLevel="1"
+			>
 				<div className="shortcuts-section">
-					<Title children={"Shortcuts"} />
+					<Title children={"Shortcuts"} className={`secondary-heading`}/>
 					<div className="shortcuts-grid">
 						{shortcuts.map((shortcut, index) => (
 							<React.Fragment key={index}>
@@ -96,7 +107,7 @@ const InfoModal = ({ isOpen, onClose }) => {
 				</div>
 				<hr />
 				<div className="links-section">
-					<Title children={"Links"} />
+					<Title children={"Links"} className={`secondary-heading`}/>
 					<div className="links-grid">
 						{links.map((link, index) => (
 							<Button
@@ -113,12 +124,12 @@ const InfoModal = ({ isOpen, onClose }) => {
 				</div>
 				<hr />
 				<div className="collapsible-sections">
-					<Title children={"About Project"} />
+					<Title children={"About Project"} className={`secondary-heading`}/>
 					<div
 						className="text-readonly-container collapsible-text-container secondary-text"
 						dangerouslySetInnerHTML={{ __html: aboutText }}
 					/>
-					<Title children={"About Me"} />
+					<Title children={"About Me"} className={`secondary-heading`}/>
 					<div
 						className="text-readonly-container collapsible-text-container secondary-text"
 						dangerouslySetInnerHTML={{ __html: authorText }}

@@ -1,5 +1,7 @@
 .info-modal {
-	overflow: scroll;
+	max-height: 90vh;
+	overflow-y: auto;
+	scrollbar-width: 1px;
 }
 
 .collapsible-sections {
@@ -16,6 +18,7 @@
 	align-items: flex-start;
 	align-content: space-around;
 	gap: 10px;
+	padding-bottom: 10px;
 }
 
 .collapsible {
@@ -64,22 +67,13 @@
 	height: 48px;
 }
 
-.icon-large {
-	width: 32px;
-	height: 32px;
-	pointer-events: none;
-}
-
-.icon-mid {
-	width: 24px;
-	height: 24px;
-	pointer-events: none;
-}
-
 .shortcuts-grid {
 	display: grid;
-	grid-template-columns: 25% 1fr;
+	grid-template-columns: 35% 15% 35% 15%;
 	align-items: center;
+	justify-items: stretch;
+	justify-content: space-evenly;
+	align-content: center;
 }
 
 .shortcut-item {
