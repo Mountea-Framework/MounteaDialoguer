@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext } from "react";
 
 import Modal from "../objects/Modal";
 import ParticipantCategoriesHeader from "../general/ParticipantCategoriesHeader";
@@ -11,34 +11,22 @@ import { useAutoSave } from "../../hooks/useAutoSave";
 import "../../componentStyles/NewProjectDetails.css";
 import "../../componentStyles/editorComponentStyles/DialogueEditorSettings.css";
 
-function DialogueEditorSettings({ isOpen, onClose }) {
+function DialogueEditorSettings({ isOpen, onClose, nodes, edges }) {
 	const { categories, participants, setParticipants, setCategories, name } =
 		useContext(AppContext);
 
-	const { saveProjectToIndexedDB } = useAutoSave(
-		name,
-		categories,
-		participants
-	);
-
-	useEffect(() => {
-		if (categories.length || participants.length) {
-			const guid = sessionStorage.getItem("project-guid");
-			/*const dialogueName = name;*/
-			saveProjectToIndexedDB({
-				guid,
-				categories,
-				participants,
-			});
-		}
-	}, [categories, participants, name, saveProjectToIndexedDB]);
+	const { saveProjectToIndexedDB } = useAutoSave();
 
 	const handleCategoriesUpdate = (newCategories) => {
 		setCategories(newCategories);
 		const guid = sessionStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
+			name,
 			categories: newCategories,
+			participants,
+			nodes,
+			edges,
 		});
 	};
 
@@ -47,7 +35,11 @@ function DialogueEditorSettings({ isOpen, onClose }) {
 		const guid = sessionStorage.getItem("project-guid");
 		saveProjectToIndexedDB({
 			guid,
+			name,
+			categories,
 			participants: newParticipants,
+			nodes,
+			edges,
 		});
 	};
 

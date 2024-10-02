@@ -6,13 +6,16 @@ export const AppProvider = ({ children }) => {
 	const [categories, setCategories] = useState([]);
 	const [participants, setParticipants] = useState([]);
 	const [showLandingPage, setShowLandingPage] = useState(true);
+	const [nodes, setNodes] = useState([]);
+	const [edges, setEdges] = useState([]);
 
 	const loadProject = (project) => {
-
 		setCategories(project.categories || []);
 		setParticipants(project.participants || []);
+		setNodes(project.nodes || []);
+		setEdges(project.edges || []);
 		setShowLandingPage(false);
-	};
+	  };
 
 	const addCategory = (newCategory) => {
 		if (!isDuplicateCategory(newCategory)) {
@@ -190,47 +193,13 @@ export const AppProvider = ({ children }) => {
 		participants.some(
 			(p) => p.name === participant.name && p.category === participant.category
 		);
-/*
-	const findDuplicateCategory = (category) =>
-		categories.find(
-			(cat) => cat.name === category.name && cat.parent === category.parent
-		);
 
-	const logDuplicateCategory = (category) => {
-		console.log(
-			`Duplicate category found: name="${category.name}", parent="${category.parent}".`
-		);
-	};
-*/
 	const logDuplicateParticipant = (participant) => {
 		console.log(
 			`Duplicate participant found: name="${participant.name}", category="${participant.category}".`
 		);
 	};
-/*
-	const removeOriginalCategory = (originalCategory) => {
-		setCategories((prevCategories) =>
-			prevCategories.filter(
-				(category) =>
-					!(
-						category.name === originalCategory.name &&
-						category.parent === originalCategory.parent
-					)
-			)
-		);
-	};
 
-	const updateCategories = (editedCategory, originalCategory) => {
-		setCategories((prevCategories) =>
-			prevCategories.map((category) =>
-				category.name === originalCategory.name &&
-				category.parent === originalCategory.parent
-					? editedCategory
-					: category
-			)
-		);
-	};
-*/
 	const deduplicateArray = (array) =>
 		Array.from(new Set(array.map((item) => JSON.stringify(item)))).map((item) =>
 			JSON.parse(item)
@@ -249,6 +218,8 @@ export const AppProvider = ({ children }) => {
 				editParticipant,
 				setParticipants,
 				setCategories,
+				setNodes,
+				setEdges,
 				showLandingPage,
 				setShowLandingPage,
 				loadProject,

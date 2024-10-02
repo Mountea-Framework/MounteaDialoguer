@@ -12,6 +12,7 @@ const saveProjectToIndexedDB = async (newData) => {
 		const existingData = await store.get(guid);
 
 		const mergeArrays = (existing = [], newItems = [], key = "id") => {
+			if (!newItems) return existing; // Preserve existing data if newItems is undefined
 			const merged = [...existing];
 			newItems.forEach((item) => {
 				const index = merged.findIndex((e) => e[key] === item[key]);
@@ -212,6 +213,11 @@ const useAutoSave = (
 		const projectData = {
 			guid,
 			dialogueName: dialogueName,
+			categories: categories || [],
+			participants: participants || [],
+			nodes: nodes || [],
+			edges: edges || [],
+			files: files || [],
 		};
 
 		if (categories) projectData.categories = categories;
