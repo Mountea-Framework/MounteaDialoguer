@@ -44,8 +44,6 @@ function DialogueEditor({ projectData }) {
 		}
 	}, [projectData, setNodes, setEdges]);
 
-	console.log(`[DialogueEditor] Project data: ${JSON.stringify(safeProjectData)}`);
-
 	return (
 		<div className="dialogue-editor">
 			<div className="dialogue-editor-toolbar-wrapper">
@@ -53,7 +51,9 @@ function DialogueEditor({ projectData }) {
 				<div className="dialogue-editor-toolbar-spacer background-secondary">
 					<Title
 						level="2"
-						children={safeProjectData.name}
+						children={
+							safeProjectData.name || safeProjectData.dialogueName || "Untitled"
+						}
 						className="tertiary-heading project-title"
 					/>
 				</div>
