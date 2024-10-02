@@ -1,8 +1,12 @@
 import React, { /*useRef,*/ useEffect, useState } from "react";
-import { deleteFileFromIndexedDB, saveFileToIndexedDB } from "../../hooks/useAutoSave";
+import {
+	deleteFileFromIndexedDB,
+	saveFileToIndexedDB,
+} from "../../hooks/useAutoSave";
 import Button from "../objects/Button";
 import TextBlock from "../objects/Textblock";
 import FileDrop from "../objects/FileDrop";
+import Slider from "../objects/Slider";
 
 import { ReactComponent as DeleteIcon } from "../../icons/deleteIcon.svg";
 
@@ -10,16 +14,19 @@ const DialogueRow = ({
 	id,
 	index,
 	text,
+	duration,
 	audio,
 	onTextChange,
+	onDurationChange,
 	onAudioChange,
 	onDelete,
 }) => {
 	const [fileName, setFileName] = useState(audio?.name || "");
+	const [localDuration, setLocalDuration] = useState(duration || 0);
 
 	const handleClearFileDrop = async () => {
-		onAudioChange(index, null); // Clear the audio from the parent component
-		setFileName(""); // Clear the filename in the state
+		onAudioChange(index, null);
+		setFileName("");
 
 		if (audio?.path) {
 			await deleteFileFromIndexedDB(audio.path);
@@ -35,8 +42,17 @@ const DialogueRow = ({
 		}
 	}, [audio]);
 
+	useEffect(() => {
+		setLocalDuration(duration || 0);
+	}, [duration]);
+
 	const handleTextChange = (name, value) => {
 		onTextChange(index, value);
+	};
+
+	const handleDurationChange = (name, value) => {
+		setLocalDuration(value);
+		onDurationChange(index, value);
 	};
 
 	const handleAudioChange = async (e) => {
@@ -80,6 +96,19 @@ const DialogueRow = ({
 					startRows={8}
 					useSuggestions={true}
 				/>
+				<div className="dialogue-row-duration">
+					<Slider
+						abbrTitle={`Duration in seconds`}
+						name={`duration-${index}`}
+						value={localDuration}
+						onChange={handleDurationChange}
+						min={0}
+						max={100}
+						step={0.2}
+						className="custom-slider"
+						classState="primary"
+					/>
+				</div>
 				<div className="dialogue-row-data-audio-row">
 					<FileDrop
 						onChange={handleAudioChange}

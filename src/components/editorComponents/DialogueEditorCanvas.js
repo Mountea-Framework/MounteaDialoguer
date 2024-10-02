@@ -17,7 +17,6 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
 import AppContext from "../../AppContext";
-import { useAutoSaveNodesAndEdges } from "../../hooks/useAutoSaveNodesAndEdges";
 import { useAutoSave } from "../../hooks/useAutoSave";
 
 import SpawnNewNode from "./SpawnNewNode";
@@ -296,8 +295,7 @@ const DialogueEditorCanvas = ({
 		[handlePaneContextMenu, isValidConnection, getNode, onConnect]
 	);
 
-	useAutoSaveNodesAndEdges(nodes, edges);
-	useAutoSave(name, categories, participants);
+	useAutoSave(name, categories, participants, nodes, edges);
 
 	useEffect(() => {
 		const handleContextMenu = (event) => {

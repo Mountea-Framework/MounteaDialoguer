@@ -163,6 +163,18 @@ function DialogueEditorDetails({ setNodes }) {
 		}));
 	};
 
+	const handleDialogueRowDurationChange = (index, duration) => {
+		const updatedDialogueRows = [...tempNodeData.additionalInfo.dialogueRows];
+		updatedDialogueRows[index] = { ...updatedDialogueRows[index], duration };
+		setTempNodeData((prevData) => ({
+			...prevData,
+			additionalInfo: {
+				...prevData.additionalInfo,
+				dialogueRows: updatedDialogueRows,
+			},
+		}));
+	};
+
 	const handleDialogueRowAudioChange = (index, audio) => {
 		const updatedDialogueRows = [...tempNodeData.additionalInfo.dialogueRows];
 		updatedDialogueRows[index] = { ...updatedDialogueRows[index], audio };
@@ -401,8 +413,10 @@ function DialogueEditorDetails({ setNodes }) {
 									key={row.id}
 									index={index}
 									text={row.text}
+									duration={row.duration}
 									audio={row.audio}
 									onTextChange={handleDialogueRowTextChange}
+									onDurationChange={handleDialogueRowDurationChange}
 									onAudioChange={handleDialogueRowAudioChange}
 									onDelete={deleteDialogueRow}
 								/>
