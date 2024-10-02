@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 
 import DialogueEditorSettings from "./DialogueEditorSettings";
 import BugReportDialog from "./ReportBug";
+import InfoModal from "./InfoModal";
 import Button from "../../components/objects/Button";
 import { FileContext } from "../../FileProvider";
 
@@ -22,6 +23,7 @@ function DialogueEditorToolbar() {
 	const { generateFile } = useContext(FileContext);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+	const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
 	const handleSave = () => {
 		generateFile();
@@ -33,6 +35,10 @@ function DialogueEditorToolbar() {
 
 	const handleBugReportClick = () => {
 		setIsBugReportOpen(true);
+	};
+
+	const handleHelpClick = () => {
+		setIsInfoModalOpen(true);
 	};
 
 	return (
@@ -82,8 +88,8 @@ function DialogueEditorToolbar() {
 			<Button
 				containerClassName={"toolbar-button-container"}
 				className={"custom-button toolbar-button"}
-				classState={"tertiary"}
-				disabled={true}
+				classState={"tertiary"}				
+				onClick={handleHelpClick}
 			>
 				<HelpIcon className="help-icon icon" />
 			</Button>
@@ -136,6 +142,10 @@ function DialogueEditorToolbar() {
 			<BugReportDialog
 				isOpen={isBugReportOpen}
 				onClose={() => setIsBugReportOpen(false)}
+			/>
+			<InfoModal
+				isOpen={isInfoModalOpen}
+				onClose={() => setIsInfoModalOpen(false)}
 			/>
 		</div>
 	);
