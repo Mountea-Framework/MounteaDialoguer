@@ -88,7 +88,7 @@ const BaseNode = ({ id, data, selected }) => {
 				<Title
 					level="4"
 					children={nodeTitle || ""}
-					className="tertiary-heading"
+					className="secondary-heading"
 					classState={"tertiary"}
 					maxLength={12}
 				/>

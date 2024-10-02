@@ -89,7 +89,12 @@ function DialogueEditorSettings({ isOpen, onClose, nodes, edges }) {
 
 	return (
 		isOpen && (
-			<Modal onClose={onClose} title="Edit Categories and Participants">
+			<Modal
+				onClose={onClose}
+				title="Edit Categories and Participants"
+				titleClassName="secondary-heading"
+				titleLevel="2"
+			>
 				<div className="new-project-details">
 					<div className="headers">
 						<div className="scrollable-sections-header">
