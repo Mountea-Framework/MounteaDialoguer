@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 import "../../componentStyles/objects/Slider.css";
 
@@ -14,10 +14,6 @@ const Slider = ({
 	abbrTitle,
 }) => {
 	const [localValue, setLocalValue] = useState(value);
-
-	useEffect(() => {
-		setLocalValue(value);
-	}, [value]);
 
 	const handleSliderChange = (e) => {
 		const newValue = parseFloat(e.target.value);
@@ -47,6 +43,7 @@ const Slider = ({
 				max={max}
 				step={step}
 				className={`slider ${classState || "primary"}`}
+				disabled={false}
 			/>
 			<input
 				type="number"

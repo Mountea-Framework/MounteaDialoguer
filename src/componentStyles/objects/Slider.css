@@ -13,4 +13,11 @@
 
 .slider {
 	width: 80%;
+	pointer-events: all !important;
+	z-index: 100;
+	cursor: w-resize !important;
+}
+
+.slider:hover:not(:disabled) {
+	box-shadow: none !important;
 }
