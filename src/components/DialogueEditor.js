@@ -6,6 +6,8 @@ import DialogueEditorTooblar from "./editorComponents/DialogueEditorToolbar";
 import DialogueEditorDetails from "./editorComponents/DialogueEditorDetails";
 import DialogueEditorCanvas from "./editorComponents/DialogueEditorCanvas";
 
+import Title from "./objects/Title";
+
 import "../componentStyles/DialogueEditor.css";
 
 const initialNodes = [
@@ -40,7 +42,13 @@ function DialogueEditor({ projectData }) {
 		<div className="dialogue-editor">
 			<div className="dialogue-editor-toolbar-wrapper">
 				<DialogueEditorTooblar />
-				<div className="dialogue-editor-toolbar-spacer background-secondary"></div>
+				<div className="dialogue-editor-toolbar-spacer background-secondary">
+					<Title
+						level="2"
+						children={projectData.dialogueName || "Project title"}
+						className="tertiary-heading project-title"
+					/>
+				</div>
 			</div>
 			<div className="dialogue-editor-board">
 				<DialogueEditorCanvas
