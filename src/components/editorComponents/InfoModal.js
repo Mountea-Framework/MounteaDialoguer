@@ -7,13 +7,18 @@ import ReadOnlyText from "../objects/ReadOnlyText";
 import projectDetails from "../../config/projectDetails.json";
 
 import {
-	FaMousePointer,
 	FaKeyboard,
 	FaLinkedin,
 	FaGithub,
 	FaDonate,
 	FaDownload,
 } from "react-icons/fa";
+import {
+	PiMouseLeftClickFill,
+	PiMouseRightClickFill,
+	PiMouseMiddleClickFill,
+} from "react-icons/pi";
+import { FaDeleteLeft } from "react-icons/fa6";
 
 import "../../componentStyles/editorObjects/InfoModal.css";
 
@@ -28,12 +33,20 @@ const InfoModal = ({ isOpen, onClose }) => {
 
 	const shortcuts = [
 		{
-			icon: <FaMousePointer className="left" />,
+			icon: <PiMouseLeftClickFill className="icon-mid left" />,
 			description: "Left click to select",
 		},
 		{
-			icon: <FaKeyboard className="left" />,
-			description: "Press 'Esc' to close",
+			icon: <PiMouseRightClickFill className="icon-mid left" />,
+			description: "Right click to create new node",
+		},
+		{
+			icon: <PiMouseMiddleClickFill className="icon-mid left" />,
+			description: "Hold to move around",
+		},
+		{
+			icon: <FaDeleteLeft className="icon-mid left" />,
+			description: "Press 'Delete' to close",
 		},
 	];
 
@@ -93,7 +106,7 @@ const InfoModal = ({ isOpen, onClose }) => {
 								className={`circle-button grid-item-button`}
 								onClick={() => window.open(link.url, "_blank")}
 							>
-								{link.icon}
+								<div className="icon-container">{link.icon}</div>
 							</Button>
 						))}
 					</div>

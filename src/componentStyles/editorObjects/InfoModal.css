@@ -70,11 +70,16 @@
 	pointer-events: none;
 }
 
+.icon-mid {
+	width: 24px;
+	height: 24px;
+	pointer-events: none;
+}
+
 .shortcuts-grid {
 	display: grid;
-	grid-template-columns: 25% 25%;
+	grid-template-columns: 25% 1fr;
 	align-items: center;
-	gap: 5px;
 }
 
 .shortcut-item {
