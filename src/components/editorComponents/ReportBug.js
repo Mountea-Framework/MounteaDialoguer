@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
+
 import Modal from "../objects/Modal";
+import Title from "../objects/Title";
 import TextInput from "../objects/TextInput";
 import TextBlock from "../objects/Textblock";
 import Button from "../objects/Button";
+
 import "../../componentStyles/editorObjects/ReportBug.css";
 
 const BugReportDialog = ({ isOpen, onClose }) => {
@@ -74,7 +77,11 @@ const BugReportDialog = ({ isOpen, onClose }) => {
 				<div className="bug-report-dialog">
 					<form onSubmit={handleSubmit} className="bug-report-form">
 						<div>
-							<label className="tertiary-text">Title</label>
+							<Title
+								level={3}
+								children={"Title"}
+								classState={'secondary-heading'}
+							/>
 							<TextInput
 								title="Bug Title"
 								placeholder="New bug title"
@@ -86,7 +93,11 @@ const BugReportDialog = ({ isOpen, onClose }) => {
 							/>
 						</div>
 						<div>
-							<label className="tertiary-text">Description</label>
+							<Title
+								level={3}
+								children={"Description"}
+								classState={'secondary-heading'}
+							/>
 							<TextBlock
 								placeholder="Description"
 								value={description}

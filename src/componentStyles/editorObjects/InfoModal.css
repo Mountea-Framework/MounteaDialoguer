@@ -38,7 +38,7 @@
 
 .links-grid {
 	display: flex;
-	gap: 10px;
+	gap: 15px;
 	grid-template-columns: 1fr 1fr;
 	justify-content: flex-start;
 	align-items: center;
