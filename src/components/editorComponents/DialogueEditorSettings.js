@@ -92,7 +92,7 @@ function DialogueEditorSettings({ isOpen, onClose, nodes, edges }) {
 			<Modal
 				onClose={onClose}
 				title="Edit Categories and Participants"
-				titleClassName="secondary-heading"
+				titleClassName="primary-heading"
 				titleLevel="2"
 			>
 				<div className="new-project-details">

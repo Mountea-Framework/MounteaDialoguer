@@ -68,6 +68,8 @@ const BugReportDialog = ({ isOpen, onClose }) => {
 				onClose={onClose}
 				className={"modal-bug-report"}
 				title="Report a bug"
+				titleClassName="primary-heading"
+				titleLevel="2"
 			>
 				<div className="bug-report-dialog">
 					<form onSubmit={handleSubmit} className="bug-report-form">

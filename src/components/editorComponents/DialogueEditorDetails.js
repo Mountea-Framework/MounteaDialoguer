@@ -439,7 +439,7 @@ function DialogueEditorDetails({ setNodes }) {
 			<Title
 				level="3"
 				children="Details"
-				className="secondary-heading"
+				className="tertiary-heading"
 				classState="tertiary"
 			/>
 			<div className="node-details">

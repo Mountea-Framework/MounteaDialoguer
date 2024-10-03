@@ -11,6 +11,7 @@ import { FileProvider } from "./FileProvider";
 import "./App.css";
 import "./base/ColorPalette.css";
 import "./base/BaseStyle.css";
+import "./base/ReactFlowOverride.css";
 
 function App() {
 	return (
