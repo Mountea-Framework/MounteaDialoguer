@@ -4,6 +4,7 @@
 	align-content: stretch;
 	justify-content: space-between;
 	align-items: stretch;
+	overflow: auto;
 }
 
 .bug-report-dialog {
@@ -23,6 +24,7 @@
 	justify-content: space-between;
 	align-items: stretch;
 	gap: 25px;
+	padding-bottom: 25px;
 }
 
 .textblock textarea {

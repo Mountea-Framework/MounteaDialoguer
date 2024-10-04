@@ -101,7 +101,7 @@ const BugReportDialog = ({ isOpen, onClose }) => {
 							<TextBlock
 								placeholder="Description"
 								value={description}
-								startRows={12}
+								startRows={8}
 								onChange={handleDescriptionChange}
 								name="description"
 								isRequired={true}

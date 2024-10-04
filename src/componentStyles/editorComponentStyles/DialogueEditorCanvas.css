@@ -1,11 +1,3 @@
-/* ---------------------------------------- */
-/*      REACT FLOW WILL BE ATTRIBUTED       */
-/* INVISIBLE BECAUSE MINIMAP IS OVERLAPPING */
-/* ---------------------------------------- */
-.react-flow__attribution {
-	opacity: 0.05;
-}
-
 .modal-overlay .modal-spawn-node {
 	width: min(45%, 850px);
 	height: min(60%, 400px);
@@ -37,4 +29,16 @@
 	width: 100%;
 	height: 100%;
 	border-radius: 10px;
+}
+
+.dialogue-editor-canvas-version {
+	font-weight: bold;
+	color: #ffffff17;
+	position: absolute;
+	padding-right: 5px;
+	text-align: right;
+	top: 1;
+	right: 0;
+	bottom: 0;
+	vertical-align: top;
 }

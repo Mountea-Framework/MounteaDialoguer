@@ -374,6 +374,7 @@ const DialogueEditorCanvas = ({
 				onNodeDragStart={handleDragNode}
 				onNodeDragStop={handleDragNodeEnd}
 			>
+				<p className="dialogue-editor-canvas-version">Alpha Version</p>
 				<Controls />
 			</ReactFlow>
 			<SpawnNewNode

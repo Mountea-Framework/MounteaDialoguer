@@ -18,3 +18,8 @@
 .react-flow__controls-button:hover > svg {
 	fill: var(--primary-hovered);
 }
+
+.react-flow__attribution {
+	background-color: #ffffff4d;
+	border: none;
+}
