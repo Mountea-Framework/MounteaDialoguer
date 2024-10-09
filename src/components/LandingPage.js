@@ -6,6 +6,7 @@ import NewProjectDetails from "./NewProjectDetails";
 import MobileView from "./../components/MobileView";
 import AppContext from "../AppContext";
 import Button from "./objects/Button";
+import { v4 as uuidv4 } from "uuid";
 
 import "../componentStyles/LandingPage.css";
 
@@ -25,7 +26,9 @@ function LandingPage() {
 	};
 
 	const handleNewProjectClick = () => {
-		// setSelectedProject(null);
+		sessionStorage.removeItem("project-guid");
+		sessionStorage.removeItem("selectedProject");
+		setSelectedProjectGuid(uuidv4());
 	};
 
 	const handleContinue = (name) => {

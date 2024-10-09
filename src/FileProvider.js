@@ -15,12 +15,14 @@ import {
 	validateEdges,
 	validateDialogueRows,
 	validateAudioFolder,
+	convertToStandardGuid
 } from "./helpers/validationHelpers";
 import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
 import { exportDialogueRows } from "./helpers/exportDialogueRowsHelper";
 import { exportProject } from "./helpers/exportProjectHelper";
 import { unzip, strFromU8 } from "fflate";
+import { v4 as uuidv4 } from "uuid";
 
 const FileContext = createContext();
 
@@ -123,12 +125,12 @@ const FileProvider = ({ children }) => {
 	const handleFileChange = async (e) => {
 		const setProjectData = setProjectDataRef.current;
 		const onSelectProject = onSelectProjectRef.current;
-
+	
 		if (!setProjectData || !onSelectProject) {
 			console.error("setProjectData or onSelectProject is not set");
 			return;
 		}
-
+	
 		setError(null);
 		setFile(null);
 		const file = e.target.files[0];
@@ -136,20 +138,27 @@ const FileProvider = ({ children }) => {
 			try {
 				const validatedData = await validateMnteadlgFile(file);
 				console.log("Validated Data:", validatedData);
-
+	
 				if (validatedData) {
-					setFile(file.name); // Store the file name
-					onSelectProject(validatedData.dialogueMetadata.dialogueName);
-					const projectTitle =
-						validatedData.dialogueMetadata.dialogueName || "UntitledProject";
-					const projectData = { ...validatedData, title: projectTitle };
+					const projectGuid = convertToStandardGuid(validatedData?.dialogueMetadata?.dialogueGuid) || uuidv4(); // Set GUID if not present
+					sessionStorage.setItem("project-guid", projectGuid);
+	
+					const projectTitle = validatedData?.dialogueMetadata?.dialogueName || "UntitledProject";
 
+					console.log(`Title: ${projectTitle} Guid: ${projectGuid}`)
+	
+					const projectData = {
+						...validatedData,
+						guid: projectGuid,
+						title: projectTitle,
+					};
+	
+					setFile(file.name);
+					onSelectProject(projectTitle); // Set the project title in UI
+					
 					// Store the project data in sessionStorage
-					sessionStorage.setItem(
-						"selectedProject",
-						JSON.stringify(projectData)
-					);
-
+					sessionStorage.setItem("selectedProject", JSON.stringify(projectData));
+	
 					// Update your React state or any other logic that depends on projectData
 					setProjectData(projectData);
 				} else {
@@ -162,6 +171,7 @@ const FileProvider = ({ children }) => {
 			alert("Please select a .mnteadlg file");
 		}
 	};
+	
 
 	const handleDragOver = (e) => {
 		e.preventDefault();

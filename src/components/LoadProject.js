@@ -86,16 +86,22 @@ function LoadProject({ selectedProject, onSelectProject, setProjectData }) {
 	};
 
 	const transformProjectData = (dbProjectData) => {
-		return {
-			dialogueName: dbProjectData.dialogueName,
-			guid: dbProjectData.guid,
+		const transformedData = {
+			guid: dbProjectData.dialogueMetadata?.dialogueGuid || dbProjectData.guid,
+			dialogueName: dbProjectData.dialogueMetadata?.dialogueName || "Untitled Project",
 			categories: dbProjectData.categories || [],
 			participants: dbProjectData.participants || [],
 			nodes: dbProjectData.nodes || [],
 			edges: dbProjectData.edges || [],
 			files: dbProjectData.files || [],
 		};
+	
+		console.log("Transformed Project Data:", transformedData);
+		
+		return transformedData;
 	};
+	
+	
 
 	const handleDeleteProject = async (selectedItem) => {
 		const selectedGuid = selectedItem.value;
