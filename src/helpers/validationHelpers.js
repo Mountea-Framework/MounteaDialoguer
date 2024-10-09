@@ -263,15 +263,18 @@ export const validateEdges = (edges, nodes) => {
 	const validEdges = [];
 	const edgeIds = new Set();
 
-	// Create a set of node IDs for easy lookup
-	const nodeIds = new Set(nodes.map((node) => node.id.trim()));
+	// Create a set of standardized node IDs for easy lookup
+	const nodeIds = new Set(
+		nodes.map((node) => convertToStandardGuid(node.id.trim()))
+	);
 
 	edges.forEach((edge) => {
 		const originalEdge = { ...edge };
 		const { id, source, target, type } = edge;
 
-		const standardizedSourceId = convertToStandardGuid(source);
-		const standardizedTargetId = convertToStandardGuid(target);
+		// Convert edge source and target to standardized GUID format
+		const standardizedSourceId = convertToStandardGuid(source.trim());
+		const standardizedTargetId = convertToStandardGuid(target.trim());
 
 		if (!id) {
 			invalidEntries.push({
@@ -286,18 +289,18 @@ export const validateEdges = (edges, nodes) => {
 			return;
 		}
 
-		if (!source || !nodeIds.has(standardizedSourceId)) {
+		if (!standardizedSourceId || !nodeIds.has(standardizedSourceId)) {
 			invalidEntries.push({
 				edge: originalEdge,
-				error: `Invalid or missing source node reference: ${standardizedSourceId}`,
+				error: `Invalid or missing source node reference: ${source}`,
 			});
 			return;
 		}
 
-		if (!target || !nodeIds.has(standardizedTargetId)) {
+		if (!standardizedTargetId || !nodeIds.has(standardizedTargetId)) {
 			invalidEntries.push({
 				edge: originalEdge,
-				error: `Invalid or missing target node reference: ${standardizedTargetId}`,
+				error: `Invalid or missing target node reference: ${target}`,
 			});
 			return;
 		}
@@ -311,7 +314,12 @@ export const validateEdges = (edges, nodes) => {
 		}
 
 		edgeIds.add(id);
-		validEdges.push(edge);
+		validEdges.push({
+			...edge,
+			source: standardizedSourceId,
+			target: standardizedTargetId,
+			id: convertToStandardGuid(id), // Ensure edge ID is also standardized
+		});
 	});
 
 	if (invalidEntries.length > 0) {
