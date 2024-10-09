@@ -1,7 +1,5 @@
 import { v5 as uuidv5, validate as uuidValidate } from "uuid";
 
-const MY_NAMESPACE = "d9b2d63d-a233-4123-84c1-4390e2f0d11a";
-
 export const convertToStandardGuid = (id) => {
 	if (!id || typeof id !== "string") return null;
 
@@ -11,17 +9,14 @@ export const convertToStandardGuid = (id) => {
 
 		// Check if it's a 32-character hex string
 		if (/^[0-9a-f]{32}$/.test(cleanId)) {
-			// Insert hyphens in correct positions
-			const formattedId = [
+			// Insert hyphens in correct positions without converting to v5 UUID
+			return [
 				cleanId.slice(0, 8),
 				cleanId.slice(8, 12),
 				cleanId.slice(12, 16),
 				cleanId.slice(16, 20),
 				cleanId.slice(20),
 			].join("-");
-
-			// Convert to v5 UUID
-			return uuidv5(formattedId, MY_NAMESPACE);
 		}
 
 		// If it's already a valid UUID, just return it
@@ -268,59 +263,45 @@ export const validateEdges = (edges, nodes) => {
 	const validEdges = [];
 	const edgeIds = new Set();
 
-	// Convert and collect all valid node IDs
-	const nodeIds = new Set();
-	nodes.forEach((node) => {
-		const standardizedId = convertToStandardGuid(node.id);
-		if (standardizedId) {
-			nodeIds.add(standardizedId);
-		}
-	});
+	// Create a set of node IDs for easy lookup
+	const nodeIds = new Set(nodes.map((node) => node.id.trim()));
 
 	edges.forEach((edge) => {
 		const originalEdge = { ...edge };
-		let { id, source, target, type } = edge;
+		const { id, source, target, type } = edge;
 
-		// Convert IDs to standard format
-		const standardizedId = convertToStandardGuid(id);
-		const standardizedSource = convertToStandardGuid(source);
-		const standardizedTarget = convertToStandardGuid(target);
+		const standardizedSourceId = convertToStandardGuid(source);
+		const standardizedTargetId = convertToStandardGuid(target);
 
-		/*
-		if (!standardizedId) {
+		if (!id) {
 			invalidEntries.push({
 				edge: originalEdge,
 				error: "Invalid or missing ID",
 			});
 			return;
 		}
-			*/
 
-		if (edgeIds.has(standardizedId)) {
+		if (edgeIds.has(id)) {
 			invalidEntries.push({ edge: originalEdge, error: "Duplicate ID" });
 			return;
 		}
-		edgeIds.add(standardizedId);
 
-		// Check if source exists in nodes
-		if (!standardizedSource || !nodeIds.has(standardizedSource)) {
+		if (!source || !nodeIds.has(standardizedSourceId)) {
 			invalidEntries.push({
 				edge: originalEdge,
-				error: "Invalid or missing source",
+				error: `Invalid or missing source node reference: ${standardizedSourceId}`,
 			});
 			return;
 		}
 
-		// Check if target exists in nodes
-		if (!standardizedTarget || !nodeIds.has(standardizedTarget)) {
+		if (!target || !nodeIds.has(standardizedTargetId)) {
 			invalidEntries.push({
 				edge: originalEdge,
-				error: "Invalid or missing target",
+				error: `Invalid or missing target node reference: ${standardizedTargetId}`,
 			});
 			return;
 		}
 
-		// Check if type is a valid string
 		if (!type || typeof type !== "string") {
 			invalidEntries.push({
 				edge: originalEdge,
@@ -329,13 +310,8 @@ export const validateEdges = (edges, nodes) => {
 			return;
 		}
 
-		// Add the edge with standardized IDs
-		validEdges.push({
-			...edge,
-			id: standardizedId,
-			source: standardizedSource,
-			target: standardizedTarget,
-		});
+		edgeIds.add(id);
+		validEdges.push(edge);
 	});
 
 	if (invalidEntries.length > 0) {
