@@ -1,5 +1,4 @@
 import React, { createContext, useState, useRef, useEffect } from "react";
-import JSZip from "jszip";
 import { getDB } from "./indexedDB";
 import {
 	importCategories,
@@ -21,6 +20,7 @@ import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
 import { exportDialogueRows } from "./helpers/exportDialogueRowsHelper";
 import { exportProject } from "./helpers/exportProjectHelper";
+import { unzip, strFromU8 } from "fflate";
 
 const FileContext = createContext();
 
@@ -51,48 +51,56 @@ const FileProvider = ({ children }) => {
 
 	const validateMnteadlgFile = async (file) => {
 		try {
-			const zip = await JSZip.loadAsync(file);
+			const arrayBuffer = await file.arrayBuffer();
 
-			await validateAudioFolder(zip);
+			unzip(new Uint8Array(arrayBuffer), async (err, files) => {
+				if (err) {
+					setError(`Error unzipping .mnteadlg file: ${err.message}`);
+					console.error(err);
+					alert(err.message);
+					return false;
+				}
 
-			const categoriesJson = await zip.file("categories.json").async("string");
-			const participantsJson = await zip
-				.file("participants.json")
-				.async("string");
-			const nodesJson = await zip.file("nodes.json").async("string");
-			const edgesJson = await zip.file("edges.json").async("string");
-			const dialogueRowsJson = await zip
-				.file("dialogueRows.json")
-				.async("string");
+				// Extract and parse files
+				const categoriesJson = strFromU8(files["categories.json"]);
+				const participantsJson = strFromU8(files["participants.json"]);
+				const nodesJson = strFromU8(files["nodes.json"]);
+				const edgesJson = strFromU8(files["edges.json"]);
+				const dialogueRowsJson = strFromU8(files["dialogueRows.json"]);
+				const dialogueMetadataJson = strFromU8(files["dialogueData.json"]);
 
-			const categories = JSON.parse(categoriesJson);
-			const participants = JSON.parse(participantsJson);
-			const nodes = JSON.parse(nodesJson);
-			const edges = JSON.parse(edgesJson);
-			const dialogueRows = JSON.parse(dialogueRowsJson);
+				// Parse JSON
+				const categories = JSON.parse(categoriesJson);
+				const participants = JSON.parse(participantsJson);
+				const nodes = JSON.parse(nodesJson);
+				const edges = JSON.parse(edgesJson);
+				const dialogueRows = JSON.parse(dialogueRowsJson);
+				const dialogueMetadata = JSON.parse(dialogueMetadataJson);
 
-			const validCategories = validateCategories(categories);
-			const validParticipants = validateParticipants(
-				participants,
-				validCategories
-			);
-			validateNodes(nodes);
-			validateEdges(edges, nodes);
-			validateDialogueRows(dialogueRows, nodes);
+				// Validation process - store validated results
+				const validCategories = validateCategories(categories);
+				const validParticipants = validateParticipants(
+					participants,
+					validCategories
+				);
+				const validNodes = validateNodes(nodes);
+				const validEdges = validateEdges(edges, validNodes);
+				const validDialogueRows = validateDialogueRows(
+					dialogueRows,
+					validNodes
+				);
 
-			const dialogueMetadata = JSON.parse(
-				await zip.file("dialogueData.json").async("string")
-			);
-
-			setError(null);
-			return {
-				categories: validCategories,
-				participants: validParticipants,
-				nodes,
-				edges,
-				dialogueRows,
-				dialogueMetadata,
-			};
+				// Set error to null and return the structured data with validated arrays
+				setError(null);
+				return {
+					categories: validCategories,
+					participants: validParticipants,
+					nodes: validNodes,
+					edges: validEdges,
+					dialogueRows: validDialogueRows,
+					dialogueMetadata,
+				};
+			});
 		} catch (e) {
 			setError(`Error reading .mnteadlg file: ${e.message}`);
 			console.error(e);

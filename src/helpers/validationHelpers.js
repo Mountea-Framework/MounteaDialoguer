@@ -1,4 +1,39 @@
-import { validate as uuidValidate } from "uuid";
+import { v5 as uuidv5, validate as uuidValidate } from "uuid";
+
+const MY_NAMESPACE = "d9b2d63d-a233-4123-84c1-4390e2f0d11a";
+
+export const convertToStandardGuid = (id) => {
+	if (!id || typeof id !== "string") return null;
+
+	try {
+		// Remove any hyphens and convert to lowercase
+		const cleanId = id.replace(/-/g, "").toLowerCase();
+
+		// Check if it's a 32-character hex string
+		if (/^[0-9a-f]{32}$/.test(cleanId)) {
+			// Insert hyphens in correct positions
+			const formattedId = [
+				cleanId.slice(0, 8),
+				cleanId.slice(8, 12),
+				cleanId.slice(12, 16),
+				cleanId.slice(16, 20),
+				cleanId.slice(20),
+			].join("-");
+
+			// Convert to v5 UUID
+			return uuidv5(formattedId, MY_NAMESPACE);
+		}
+
+		// If it's already a valid UUID, just return it
+		if (uuidValidate(id)) {
+			return id;
+		}
+	} catch (error) {
+		console.error(`Failed to convert GUID: ${id}`, error);
+	}
+
+	return null;
+};
 
 export const validateCategories = (categories) => {
 	if (!Array.isArray(categories)) {
@@ -116,31 +151,39 @@ export const validateNodes = (nodes) => {
 	const nodeIds = new Set();
 
 	nodes.forEach((node) => {
-		const { id, type } = node;
+		const originalNode = { ...node };
+		let { id, type } = node;
 
-		// Check if ID is valid and unique but ignore StartNode
-		if (
-			!id ||
-			(!uuidValidate(id) && id !== "00000000-0000-0000-0000-000000000001")
-		) {
-			invalidEntries.push({ node, error: "Invalid or missing ID" });
+		// Convert ID to standard format
+		const standardizedId = convertToStandardGuid(id);
+
+		if (!standardizedId) {
+			invalidEntries.push({
+				node: originalNode,
+				error: "Invalid or missing ID",
+			});
 			return;
 		}
 
-		if (nodeIds.has(id)) {
-			invalidEntries.push({ node, error: "Duplicate ID" });
+		if (nodeIds.has(standardizedId)) {
+			invalidEntries.push({ node: originalNode, error: "Duplicate ID" });
 			return;
 		}
-		nodeIds.add(id);
+		nodeIds.add(standardizedId);
 
-		// Check if type is a valid string
 		if (!type || typeof type !== "string") {
-			invalidEntries.push({ node, error: "Invalid or missing type" });
+			invalidEntries.push({
+				node: originalNode,
+				error: "Invalid or missing type",
+			});
 			return;
 		}
 
-		// If all checks pass, add to validNodes
-		validNodes.push(node);
+		// Add the node with standardized ID
+		validNodes.push({
+			...node,
+			id: standardizedId,
+		});
 	});
 
 	if (invalidEntries.length > 0) {
@@ -148,6 +191,72 @@ export const validateNodes = (nodes) => {
 	}
 
 	return validNodes;
+};
+
+export const validateDialogueRows = (dialogueRows, nodes) => {
+	if (!Array.isArray(dialogueRows)) {
+		throw new Error("DialogueRows must be an array");
+	}
+
+	if (!Array.isArray(nodes)) {
+		throw new Error("Nodes must be an array");
+	}
+
+	const invalidEntries = [];
+	const validDialogueRows = [];
+	const dialogueRowIds = new Set();
+
+	// Convert and collect all valid node IDs
+	const nodeIds = new Set();
+	nodes.forEach((node) => {
+		const standardizedId = convertToStandardGuid(node.id);
+		if (standardizedId) {
+			nodeIds.add(standardizedId);
+		}
+	});
+
+	dialogueRows.forEach((row) => {
+		const originalRow = { ...row };
+		let { id, nodeId } = row;
+
+		// Convert both IDs to standard format
+		const standardizedId = convertToStandardGuid(id);
+		const standardizedNodeId = convertToStandardGuid(nodeId);
+
+		if (!standardizedId) {
+			invalidEntries.push({ row: originalRow, error: "Invalid or missing ID" });
+			return;
+		}
+
+		if (dialogueRowIds.has(standardizedId)) {
+			invalidEntries.push({ row: originalRow, error: "Duplicate ID" });
+			return;
+		}
+		dialogueRowIds.add(standardizedId);
+
+		if (!standardizedNodeId || !nodeIds.has(standardizedNodeId)) {
+			invalidEntries.push({
+				row: originalRow,
+				error: "Invalid or missing nodeId",
+			});
+			return;
+		}
+
+		// Add the row with standardized IDs
+		validDialogueRows.push({
+			...row,
+			id: standardizedId,
+			nodeId: standardizedNodeId,
+		});
+	});
+
+	if (invalidEntries.length > 0) {
+		throw new Error(
+			`Invalid dialogue rows found: ${JSON.stringify(invalidEntries)}`
+		);
+	}
+
+	return validDialogueRows;
 };
 
 export const validateEdges = (edges, nodes) => {
@@ -158,43 +267,75 @@ export const validateEdges = (edges, nodes) => {
 	const invalidEntries = [];
 	const validEdges = [];
 	const edgeIds = new Set();
-	const nodeIds = new Set(nodes.map((node) => node.id)); // Collect all valid node IDs
+
+	// Convert and collect all valid node IDs
+	const nodeIds = new Set();
+	nodes.forEach((node) => {
+		const standardizedId = convertToStandardGuid(node.id);
+		if (standardizedId) {
+			nodeIds.add(standardizedId);
+		}
+	});
 
 	edges.forEach((edge) => {
-		const { id, source, target, type } = edge;
+		const originalEdge = { ...edge };
+		let { id, source, target, type } = edge;
 
-		// Check if ID is valid and unique
-		if (!id) {
-			invalidEntries.push({ edge, error: "Invalid or missing ID" });
+		// Convert IDs to standard format
+		const standardizedId = convertToStandardGuid(id);
+		const standardizedSource = convertToStandardGuid(source);
+		const standardizedTarget = convertToStandardGuid(target);
+
+		/*
+		if (!standardizedId) {
+			invalidEntries.push({
+				edge: originalEdge,
+				error: "Invalid or missing ID",
+			});
 			return;
 		}
+			*/
 
-		if (edgeIds.has(id)) {
-			invalidEntries.push({ edge, error: "Duplicate ID" });
+		if (edgeIds.has(standardizedId)) {
+			invalidEntries.push({ edge: originalEdge, error: "Duplicate ID" });
 			return;
 		}
-		edgeIds.add(id);
+		edgeIds.add(standardizedId);
 
 		// Check if source exists in nodes
-		if (!source || !nodeIds.has(source)) {
-			invalidEntries.push({ edge, error: "Invalid or missing source" });
+		if (!standardizedSource || !nodeIds.has(standardizedSource)) {
+			invalidEntries.push({
+				edge: originalEdge,
+				error: "Invalid or missing source",
+			});
 			return;
 		}
 
 		// Check if target exists in nodes
-		if (!target || !nodeIds.has(target)) {
-			invalidEntries.push({ edge, error: "Invalid or missing target" });
+		if (!standardizedTarget || !nodeIds.has(standardizedTarget)) {
+			invalidEntries.push({
+				edge: originalEdge,
+				error: "Invalid or missing target",
+			});
 			return;
 		}
 
 		// Check if type is a valid string
 		if (!type || typeof type !== "string") {
-			invalidEntries.push({ edge, error: "Invalid or missing type" });
+			invalidEntries.push({
+				edge: originalEdge,
+				error: "Invalid or missing type",
+			});
 			return;
 		}
 
-		// If all checks pass, add to validEdges
-		validEdges.push(edge);
+		// Add the edge with standardized IDs
+		validEdges.push({
+			...edge,
+			id: standardizedId,
+			source: standardizedSource,
+			target: standardizedTarget,
+		});
 	});
 
 	if (invalidEntries.length > 0) {
@@ -202,50 +343,6 @@ export const validateEdges = (edges, nodes) => {
 	}
 
 	return validEdges;
-};
-
-export const validateDialogueRows = (dialogueRows, nodes) => {
-	if (!Array.isArray(dialogueRows)) {
-		throw new Error("DialogueRows must be an array");
-	}
-
-	const invalidEntries = [];
-	const validDialogueRows = [];
-	const dialogueRowIds = new Set();
-	const nodeIds = new Set(nodes.map((node) => node.id)); // Collect all valid node IDs
-
-	dialogueRows.forEach((row) => {
-		const { id, nodeId } = row;
-
-		// Check if ID is valid and unique
-		if (!id || !uuidValidate(id)) {
-			invalidEntries.push({ row, error: "Invalid or missing ID" });
-			return;
-		}
-
-		if (dialogueRowIds.has(id)) {
-			invalidEntries.push({ row, error: "Duplicate ID" });
-			return;
-		}
-		dialogueRowIds.add(id);
-
-		// Check if nodeId exists in nodes
-		if (!nodeId || !nodeIds.has(nodeId)) {
-			invalidEntries.push({ row, error: "Invalid or missing nodeId" });
-			return;
-		}
-
-		// If all checks pass, add to validDialogueRows
-		validDialogueRows.push(row);
-	});
-
-	if (invalidEntries.length > 0) {
-		throw new Error(
-			`Invalid dialogue rows found: ${JSON.stringify(invalidEntries)}`
-		);
-	}
-
-	return validDialogueRows;
 };
 
 export const validateAudioFolder = async (zip) => {
