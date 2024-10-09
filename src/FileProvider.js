@@ -15,7 +15,7 @@ import {
 	validateEdges,
 	validateDialogueRows,
 	validateAudioFolder,
-	convertToStandardGuid
+	convertToStandardGuid,
 } from "./helpers/validationHelpers";
 import { exportCategories } from "./helpers/exportCategoriesHelper";
 import { exportParticipants } from "./helpers/exportParticipantsHelper";
@@ -125,12 +125,12 @@ const FileProvider = ({ children }) => {
 	const handleFileChange = async (e) => {
 		const setProjectData = setProjectDataRef.current;
 		const onSelectProject = onSelectProjectRef.current;
-	
+
 		if (!setProjectData || !onSelectProject) {
 			console.error("setProjectData or onSelectProject is not set");
 			return;
 		}
-	
+
 		setError(null);
 		setFile(null);
 		const file = e.target.files[0];
@@ -138,29 +138,28 @@ const FileProvider = ({ children }) => {
 			try {
 				const validatedData = await validateMnteadlgFile(file);
 				console.log("Validated Data:", validatedData);
-	
-				if (validatedData) {
-					const projectGuid = convertToStandardGuid(validatedData?.dialogueMetadata?.dialogueGuid) || uuidv4(); // Set GUID if not present
-					sessionStorage.setItem("project-guid", projectGuid);
-	
-					const projectTitle = validatedData?.dialogueMetadata?.dialogueName || "UntitledProject";
 
-					console.log(`Title: ${projectTitle} Guid: ${projectGuid}`)
-	
+				if (validatedData) {
+					setFile(file.name);
+					const projectTitle =
+						validatedData.dialogueMetadata.dialogueName || "Projecto Notitlero";
+					const projectGuid = validatedData.dialogueMetadata.dialogueGuid;
+
 					const projectData = {
 						...validatedData,
+						dialogueName: projectTitle,
 						guid: projectGuid,
-						title: projectTitle,
 					};
-	
-					setFile(file.name);
-					onSelectProject(projectTitle); // Set the project title in UI
-					
+
 					// Store the project data in sessionStorage
-					sessionStorage.setItem("selectedProject", JSON.stringify(projectData));
-	
+					sessionStorage.setItem(
+						"selectedProject",
+						JSON.stringify(projectData)
+					);
+
 					// Update your React state or any other logic that depends on projectData
 					setProjectData(projectData);
+					onSelectProject(projectTitle);
 				} else {
 					console.error("Validated data is null or undefined.");
 				}
@@ -171,7 +170,6 @@ const FileProvider = ({ children }) => {
 			alert("Please select a .mnteadlg file");
 		}
 	};
-	
 
 	const handleDragOver = (e) => {
 		e.preventDefault();

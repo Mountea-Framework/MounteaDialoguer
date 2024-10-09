@@ -7,6 +7,8 @@ import MobileView from "./../components/MobileView";
 import AppContext from "../AppContext";
 import Button from "./objects/Button";
 import { v4 as uuidv4 } from "uuid";
+import { saveProjectToIndexedDB } from "../hooks/useAutoSave";
+import { convertToStandardGuid } from "../helpers/validationHelpers";
 
 import "../componentStyles/LandingPage.css";
 
@@ -46,9 +48,11 @@ function LandingPage() {
 	const handleLoadProject = () => {
 		const storedProject = JSON.parse(sessionStorage.getItem("selectedProject"));
 		if (storedProject) {
+			storedProject.guid = convertToStandardGuid(storedProject.guid);
 			console.log(storedProject);
 			sessionStorage.setItem("project-guid", storedProject.guid);
 			loadProject(storedProject);
+			saveProjectToIndexedDB(storedProject);
 		} else {
 			console.error("Selected project not found in session storage");
 		}

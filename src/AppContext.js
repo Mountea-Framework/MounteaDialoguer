@@ -5,6 +5,7 @@ const AppContext = createContext();
 export const AppProvider = ({ children }) => {
 	const [categories, setCategories] = useState([]);
 	const [participants, setParticipants] = useState([]);
+	const [dialogueName, setDialogueName] = useState("");
 	const [showLandingPage, setShowLandingPage] = useState(true);
 	const [nodes, setNodes] = useState([]);
 	const [edges, setEdges] = useState([]);
@@ -14,6 +15,7 @@ export const AppProvider = ({ children }) => {
 		setParticipants(project.participants || []);
 		setNodes(project.nodes || []);
 		setEdges(project.edges || []);
+		setDialogueName(project.title || "NewProject");
 		setShowLandingPage(false);
 	  };
 
@@ -210,6 +212,7 @@ export const AppProvider = ({ children }) => {
 			value={{
 				categories,
 				participants,
+				dialogueName,
 				addCategory,
 				deleteCategory,
 				deleteParticipant,

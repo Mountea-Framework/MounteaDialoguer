@@ -9,6 +9,8 @@ const saveNodesAndEdgesToIndexedDB = async (nodes, edges) => {
 
 	const updatedProject = {
 		...project,
+		guid: project.guid,
+		dialogueName: project.dialogueName || "Untitled Project",
 		nodes: nodes.map((node) => ({
 			id: node.id,
 			type: node.type,
@@ -32,9 +34,10 @@ const saveNodesAndEdgesToIndexedDB = async (nodes, edges) => {
 		})),
 	};
 
-	// Save updated project with nodes and edges
+	// Save updated project with nodes, edges, title, and GUID
 	await tx.objectStore("projects").put(updatedProject);
 	await tx.done;
+	console.log("Updated project saved with nodes, edges, title, and GUID.");
 };
 
 const useAutoSaveNodesAndEdges = (nodes, edges) => {
