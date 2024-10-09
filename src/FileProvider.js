@@ -53,53 +53,64 @@ const FileProvider = ({ children }) => {
 		try {
 			const arrayBuffer = await file.arrayBuffer();
 
-			unzip(new Uint8Array(arrayBuffer), async (err, files) => {
-				if (err) {
-					setError(`Error unzipping .mnteadlg file: ${err.message}`);
-					console.error(err);
-					alert(err.message);
-					return false;
-				}
+			return new Promise((resolve, reject) => {
+				unzip(new Uint8Array(arrayBuffer), (err, files) => {
+					if (err) {
+						setError(`Error unzipping .mnteadlg file: ${err.message}`);
+						console.error(err);
+						alert(err.message);
+						reject(false);
+					} else {
+						try {
+							// Extract and parse files
+							const categoriesJson = strFromU8(files["categories.json"]);
+							const participantsJson = strFromU8(files["participants.json"]);
+							const nodesJson = strFromU8(files["nodes.json"]);
+							const edgesJson = strFromU8(files["edges.json"]);
+							const dialogueRowsJson = strFromU8(files["dialogueRows.json"]);
+							const dialogueMetadataJson = strFromU8(
+								files["dialogueData.json"]
+							);
 
-				// Extract and parse files
-				const categoriesJson = strFromU8(files["categories.json"]);
-				const participantsJson = strFromU8(files["participants.json"]);
-				const nodesJson = strFromU8(files["nodes.json"]);
-				const edgesJson = strFromU8(files["edges.json"]);
-				const dialogueRowsJson = strFromU8(files["dialogueRows.json"]);
-				const dialogueMetadataJson = strFromU8(files["dialogueData.json"]);
+							// Parse JSON
+							const categories = JSON.parse(categoriesJson);
+							const participants = JSON.parse(participantsJson);
+							const nodes = JSON.parse(nodesJson);
+							const edges = JSON.parse(edgesJson);
+							const dialogueRows = JSON.parse(dialogueRowsJson);
+							const dialogueMetadata = JSON.parse(dialogueMetadataJson);
 
-				// Parse JSON
-				const categories = JSON.parse(categoriesJson);
-				const participants = JSON.parse(participantsJson);
-				const nodes = JSON.parse(nodesJson);
-				const edges = JSON.parse(edgesJson);
-				const dialogueRows = JSON.parse(dialogueRowsJson);
-				const dialogueMetadata = JSON.parse(dialogueMetadataJson);
+							// Validation process - store validated results
+							const validCategories = validateCategories(categories);
+							const validParticipants = validateParticipants(
+								participants,
+								validCategories
+							);
+							const validNodes = validateNodes(nodes);
+							const validEdges = validateEdges(edges, validNodes);
+							const validDialogueRows = validateDialogueRows(
+								dialogueRows,
+								validNodes
+							);
 
-				// Validation process - store validated results
-				const validCategories = validateCategories(categories);
-				const validParticipants = validateParticipants(
-					participants,
-					validCategories
-				);
-				const validNodes = validateNodes(nodes);
-				const validEdges = validateEdges(edges, validNodes);
-				const validDialogueRows = validateDialogueRows(
-					dialogueRows,
-					validNodes
-				);
-
-				// Set error to null and return the structured data with validated arrays
-				setError(null);
-				return {
-					categories: validCategories,
-					participants: validParticipants,
-					nodes: validNodes,
-					edges: validEdges,
-					dialogueRows: validDialogueRows,
-					dialogueMetadata,
-				};
+							// Set error to null and resolve with the structured data
+							setError(null);
+							resolve({
+								categories: validCategories,
+								participants: validParticipants,
+								nodes: validNodes,
+								edges: validEdges,
+								dialogueRows: validDialogueRows,
+								dialogueMetadata,
+							});
+						} catch (parseError) {
+							setError(`Error parsing .mnteadlg file: ${parseError.message}`);
+							console.error(parseError);
+							alert(parseError.message);
+							reject(false);
+						}
+					}
+				});
 			});
 		} catch (e) {
 			setError(`Error reading .mnteadlg file: ${e.message}`);
@@ -122,19 +133,30 @@ const FileProvider = ({ children }) => {
 		setFile(null);
 		const file = e.target.files[0];
 		if (file) {
-			const validatedData = await validateMnteadlgFile(file);
-			if (validatedData) {
-				setFile(file.name); // Store the file name
-				onSelectProject(validatedData.dialogueMetadata.dialogueName);
-				const projectTitle =
-					validatedData.dialogueMetadata.dialogueName || "UntitledProject";
-				const projectData = { ...validatedData, title: projectTitle };
+			try {
+				const validatedData = await validateMnteadlgFile(file);
+				console.log("Validated Data:", validatedData);
 
-				// Store the project data in sessionStorage
-				sessionStorage.setItem("selectedProject", JSON.stringify(projectData));
+				if (validatedData) {
+					setFile(file.name); // Store the file name
+					onSelectProject(validatedData.dialogueMetadata.dialogueName);
+					const projectTitle =
+						validatedData.dialogueMetadata.dialogueName || "UntitledProject";
+					const projectData = { ...validatedData, title: projectTitle };
 
-				// Update your React state or any other logic that depends on projectData
-				setProjectData(projectData);
+					// Store the project data in sessionStorage
+					sessionStorage.setItem(
+						"selectedProject",
+						JSON.stringify(projectData)
+					);
+
+					// Update your React state or any other logic that depends on projectData
+					setProjectData(projectData);
+				} else {
+					console.error("Validated data is null or undefined.");
+				}
+			} catch (error) {
+				console.error("Error validating file:", error);
 			}
 		} else {
 			alert("Please select a .mnteadlg file");
