@@ -1,5 +1,5 @@
 [![Documentation](https://img.shields.io/badge/documentation-github?style=flat&logo=GitHub&labelColor=5a5a5a&color=98c510)](https://github.com/Mountea-Framework/MounteaDialoguer/wiki)
-[![License](https://img.shields.io/github/license/Mountea-Framework/ActorInteractionPlugin)](https://github.com/Mountea-Framework/MounteaDialoguer/blob/master/LICENSE)
+[![license](https://img.shields.io/badge/license-Apache%20License%20++-99c711?labelColor=555555&style=flat&link=https://github.com/Mountea-Framework/MounteaDialoguer/blob/master/LICENSE)](https://github.com/Mountea-Framework/MounteaDialoguer/blob/master/LICENSE)
 [![YouTube](https://img.shields.io/badge/YouTube-Subscribe-red?style=flat&logo=youtube)](https://www.youtube.com/@mounteaframework)
 [![Discord](https://badgen.net/discord/online-members/2vXWEEN?label=&logoColor=ffffff&color=7389D8&icon=discord)](https://discord.com/invite/2vXWEEN)
 [![Discord](https://badgen.net/discord/members/2vXWEEN?label=&logo=discord&logoColor=ffffff&color=7389D8&icon=discord)](https://discord.com/invite/2vXWEEN)
