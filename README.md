@@ -44,101 +44,134 @@ Feel free to test out the released version of our Dialoguer Tool!
 The project is organized in a way that separates components, hooks, and styles for better maintainability and scalability. Below is the structure of the project:
 
 ```
-src/
-|-- App.css
-|-- App.js
-|-- AppContext.js
-|-- FileProvider.js
-|-- base/
-|   |-- BaseNodesStyle.css
-|   |-- BaseStyle.css
-|   |-- ColorPalette.css
-|-- componentStyles/
-|   |-- DialogueCanvas.css
-|   |-- DialogueEditor.css
-|   |-- DialogueParticipants.css
-|   |-- LandingPage.css
-|   |-- LoadProject.css
-|   |-- NewProject.css
-|   |-- NewProjectDetails.css
-|   |-- ParticipantCategories.css
-|   |-- dialogueNodes/
-|   |   |-- customNode.css
-|   |-- editorComponentStyles/
-|   |   |-- DialogueEditorCanvas.css
-|   |   |-- DialogueEditorDetails.css
-|   |   |-- DialogueEditorToolbar.css
-|   |-- objects/
-|   |   |-- Button.css
-|   |   |-- Dropdown.css
-|   |   |-- Modal.css
-|   |   |-- ScrollList.css
-|   |   |-- ScrollListItem.css
-|   |   |-- TextInput.css
-|   |   |-- Title.css
-|-- components/
-|   |-- DialogueCanvas.js
-|   |-- DialogueEditor.js
-|   |-- DialogueParticipants.js
-|   |-- LandingPage.js
-|   |-- LoadProject.js
-|   |-- NewProject.js
-|   |-- NewProjectDetails.js
-|   |-- ParticipantCategories.js
-|   |-- dialogueEdges/
-|   |   |-- baseEdge.js
-|   |-- dialogueNodes/
-|   |   |-- answerNode.js
-|   |   |-- baseNode.js
-|   |   |-- closeDialogueAutomaticNode.js
-|   |   |-- closeDialogueNode.js
-|   |   |-- jumpToNode.js
-|   |   |-- leadNode.js
-|   |   |-- startNode.js
-|   |-- editorComponents/
-|   |   |-- DialogueEditorCanvas.js
-|   |   |-- DialogueEditorDetails.js
-|   |   |-- DialogueEditorToolbar.js
-|   |   |-- SpawnNewNode.js
-|   |-- general/
-|   |   |-- DialogueParticipantsHeader.js
-|   |   |-- DialogueParticipantsList.js
-|   |   |-- EditCategoryItem.js
-|   |   |-- EditParticipantItem.js
-|   |   |-- ParticipantCategoriesHeader.js
-|   |   |-- ParticipantCategoriesList.js
-|   |-- objects/
-|   |   |-- Button.js
-|   |   |-- Dropdown.js
-|   |   |-- FileDrop.js
-|   |   |-- Modal.js
-|   |   |-- ScrollList.js
-|   |   |-- ScrollListItem.js
-|   |   |-- TextInput.js
-|   |   |-- Title.js
-|-- helpers/
-|   |-- autoSaveHelpers.js
-|   |-- importCategoriesHelper.js
-|   |-- importParticipantsHelper.js
-|-- hooks/
-|   |-- useAutoSave.js
-|   |-- useAutoSaveNodesAndEdges.js
-|-- icons/
-|   |-- addIcon.svg
-|   |-- downloadIcon.svg
-|   |-- editoIcon.svg
-|   |-- favoriteIcon.svg
-|   |-- helpIcon.svg
-|   |-- redoIcon.svg
-|   |-- removeIcon.svg
-|   |-- searchIcon.svg
-|   |-- settingsIcon.svg
-|   |-- undoIcon.svg
-|   |-- uploadIcon.svg
-|-- index.css
-|-- index.js
-|-- logo.svg
-
+└── 📁src
+    └── 📁base
+        └── BaseNodesStyle.css
+        └── BaseStyle.css
+        └── ColorPalette.css
+        └── ReactFlowOverride.css
+    └── 📁components
+        └── DialogueCanvas.js
+        └── 📁dialogueEdges
+            └── baseEdge.js
+        └── DialogueEditor.js
+        └── 📁dialogueNodes
+            └── answerNode.js
+            └── baseNode.js
+            └── closeDialogueAutomaticNode.js
+            └── closeDialogueNode.js
+            └── jumpToNode.js
+            └── leadNode.js
+            └── startNode.js
+        └── DialogueParticipants.js
+        └── 📁editorComponents
+            └── DialogueEditorCanvas.js
+            └── DialogueEditorDetails.js
+            └── DialogueEditorSettings.js
+            └── DialogueEditorToolbar.js
+            └── DialogueRow.js
+            └── InfoModal.js
+            └── ReportBug.js
+            └── SpawnNewNode.js
+        └── 📁general
+            └── DialogueParticipantsHeader.js
+            └── DialogueParticipantsList.js
+            └── EditCategoryItem.js
+            └── EditParticipantItem.js
+            └── ParticipantCategoriesHeader.js
+            └── ParticipantCategoriesList.js
+        └── LandingPage.js
+        └── LoadProject.js
+        └── MobileView.js
+        └── NewProject.js
+        └── NewProjectDetails.js
+        └── 📁objects
+            └── Button.js
+            └── Dropdown.js
+            └── FileDrop.js
+            └── Modal.js
+            └── ReadOnlyText.js
+            └── ScrollList.js
+            └── ScrollListItem.js
+            └── Slider.js
+            └── Textblock.js
+            └── TextInput.js
+            └── Title.js
+        └── ParticipantCategories.js
+    └── 📁componentStyles
+        └── DialogueCanvas.css
+        └── DialogueEditor.css
+        └── 📁dialogueNodes
+            └── customNode.css
+        └── DialogueParticipants.css
+        └── 📁editorComponentStyles
+            └── DialogueEditorCanvas.css
+            └── DialogueEditorDetails.css
+            └── DialogueEditorSettings.css
+            └── DialogueEditorToolbar.css
+        └── 📁editorObjects
+            └── InfoModal.css
+            └── ReportBug.css
+        └── LandingPage.css
+        └── LoadProject.css
+        └── MobileView.css
+        └── NewProject.css
+        └── NewProjectDetails.css
+        └── 📁objects
+            └── Button.css
+            └── Dropdown.css
+            └── Modal.css
+            └── ReadOnlyText.css
+            └── ScrollList.css
+            └── ScrollListItem.css
+            └── Slider.css
+            └── Textblock.css
+            └── TextInput.css
+            └── Title.css
+        └── ParticipantCategories.css
+    └── 📁config
+        └── nodeForm.json
+        └── projectDetails.json
+    └── 📁contexts
+        └── SelectionContext.js
+    └── 📁helpers
+        └── autoSaveHelpers.js
+        └── debounce.js
+        └── exportCategoriesHelper.js
+        └── exportDialogueRowsHelper.js
+        └── exportParticipantsHelper.js
+        └── exportProjectHelper.js
+        └── importCategoriesHelper.js
+        └── importParticipantsHelper.js
+        └── projectManager.js
+        └── validationHelpers.js
+    └── 📁hooks
+        └── useAutoSave.js
+        └── useAutoSaveNodesAndEdges.js
+    └── 📁icons
+        └── addIcon.svg
+        └── bugReportIcon.svg
+        └── deleteIcon.svg
+        └── discordIcon.svg
+        └── downloadIcon.svg
+        └── editoIcon.svg
+        └── favoriteIcon.svg
+        └── helpIcon.svg
+        └── redoIcon.svg
+        └── removeIcon.svg
+        └── searchIcon.svg
+        └── settingsIcon.svg
+        └── undoIcon.svg
+        └── uploadIcon.svg
+    └── App.css
+    └── App.js
+    └── App.test.js
+    └── AppContext.js
+    └── FileProvider.js
+    └── index.css
+    └── index.js
+    └── indexedDB.js
+    └── logo.svg
 ```
 
 ### Key Files and Folders
