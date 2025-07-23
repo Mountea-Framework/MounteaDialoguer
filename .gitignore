@@ -27,3 +27,4 @@ yarn-error.log*
 *.zip
 *.mnteadlg
 /TestingData/TestingExport_Broken/*
+*.kra~
