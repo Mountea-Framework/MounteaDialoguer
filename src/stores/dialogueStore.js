@@ -490,11 +490,24 @@ export const useDialogueStore = create((set, get) => ({
 			// Create ZIP file
 			const zip = new JSZip();
 
+			// Strip audio data from nodes for JSON serialization
+			// (actual audio files go in the audio/ folder)
+			const nodesForExport = nodes.map((node) => {
+				if (node.data?.dialogueRows) {
+					const rowsWithoutAudio = node.data.dialogueRows.map((row) => {
+						const { audioFile, ...rowWithoutAudio } = row;
+						return rowWithoutAudio;
+					});
+					return { ...node, data: { ...node.data, dialogueRows: rowsWithoutAudio } };
+				}
+				return node;
+			});
+
 			// Add JSON files
 			zip.file('dialogueData.json', JSON.stringify(dialogueData, null, 2));
 			zip.file('categories.json', JSON.stringify(categoriesExport, null, 2));
 			zip.file('participants.json', JSON.stringify(participantsExport, null, 2));
-			zip.file('nodes.json', JSON.stringify(nodes, null, 2));
+			zip.file('nodes.json', JSON.stringify(nodesForExport, null, 2));
 			zip.file('edges.json', JSON.stringify(edges, null, 2));
 			zip.file('dialogueRows.json', JSON.stringify(allDialogueRows, null, 2));
 			zip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));

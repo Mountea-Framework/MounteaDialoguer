@@ -33,6 +33,7 @@
 	"projects": {
 		"title": "Projekte",
 		"createNew": "Neues Projekt",
+		"createNewDescription": "Start from scratch or import",
 		"importProject": "Projekt importieren",
 		"recentProjects": "Letzte Projekte",
 		"allProjects": "Alle Projekte",
@@ -56,6 +57,7 @@
 	"dialogues": {
 		"title": "Dialoge",
 		"createNew": "Neuen Dialog erstellen",
+		"createNewDescription": "Start from scratch or import",
 		"createDescription": "Beginnen Sie mit dem Erstellen von Gesprächen",
 		"dialogueName": "Dialogname",
 		"dialogueSettings": "Dialogeinstellungen",

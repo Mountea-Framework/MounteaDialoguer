@@ -50,6 +50,7 @@
 	"projects": {
 		"title": "Projects",
 		"createNew": "New Project",
+		"createNewDescription": "Start from scratch or import",
 		"importProject": "Import Project",
 		"recentProjects": "Recent Projects",
 		"allProjects": "All Projects",

@@ -23,16 +23,22 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 	const [expandedRows, setExpandedRows] = useState(new Set([0])); // First row expanded by default
 	const [playingAudio, setPlayingAudio] = useState(null); // Track which row is playing audio
 	const audioRefs = useRef({}); // Store audio element references
-	const audioUrlsRef = useRef({}); // Store blob URLs for cleanup
+	const audioUrlsRef = useRef({}); // Store blob URLs by row ID for cleanup
 
 	// Create and manage audio URLs when dialogue rows change
 	useEffect(() => {
-		// Create URLs for new audio files
-		dialogueRows.forEach((row, index) => {
-			if (row.audioFile && !audioUrlsRef.current[index]) {
+		// Track which row IDs we've seen in this update
+		const currentRowIds = new Set();
+
+		// Create or update URLs for audio files
+		dialogueRows.forEach((row) => {
+			if (row.audioFile) {
+				currentRowIds.add(row.id);
+				let url = null;
+
 				// Check if audio has a url property (from restoreAudioFromStorage)
 				if (row.audioFile.url) {
-					audioUrlsRef.current[index] = row.audioFile.url;
+					url = row.audioFile.url;
 				}
 				// Check if audio has dataUrl property (from old audioStorage)
 				else if (row.audioFile.dataUrl) {
@@ -47,21 +53,36 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 							u8arr[n] = bstr.charCodeAt(n);
 						}
 						const blob = new Blob([u8arr], { type: mime });
-						audioUrlsRef.current[index] = URL.createObjectURL(blob);
+						url = URL.createObjectURL(blob);
 					} catch (error) {
 						console.error('Error creating audio URL:', error);
 					}
 				}
 				// Check if audio has blob property (fresh upload)
 				else if (row.audioFile.blob) {
-					audioUrlsRef.current[index] = URL.createObjectURL(row.audioFile.blob);
+					url = URL.createObjectURL(row.audioFile.blob);
 				}
-			} else if (!row.audioFile && audioUrlsRef.current[index]) {
-				// Clean up URL if audio file was removed
-				if (audioUrlsRef.current[index].startsWith('blob:')) {
-					URL.revokeObjectURL(audioUrlsRef.current[index]);
+
+				// Update the URL if it changed
+				if (url && audioUrlsRef.current[row.id] !== url) {
+					// Clean up old URL if it exists and is a blob URL we created
+					if (audioUrlsRef.current[row.id] &&
+					    audioUrlsRef.current[row.id].startsWith('blob:') &&
+					    audioUrlsRef.current[row.id] !== url) {
+						URL.revokeObjectURL(audioUrlsRef.current[row.id]);
+					}
+					audioUrlsRef.current[row.id] = url;
 				}
-				delete audioUrlsRef.current[index];
+			}
+		});
+
+		// Clean up URLs for rows that no longer exist
+		Object.keys(audioUrlsRef.current).forEach((rowId) => {
+			if (!currentRowIds.has(rowId)) {
+				if (audioUrlsRef.current[rowId] && audioUrlsRef.current[rowId].startsWith('blob:')) {
+					URL.revokeObjectURL(audioUrlsRef.current[rowId]);
+				}
+				delete audioUrlsRef.current[rowId];
 			}
 		});
 	}, [dialogueRows]);
@@ -258,11 +279,14 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 
 	// Remove audio file
 	const removeAudioFile = (index) => {
-		// Clean up blob URL
-		if (audioUrlsRef.current[index] && audioUrlsRef.current[index].startsWith('blob:')) {
-			URL.revokeObjectURL(audioUrlsRef.current[index]);
+		const row = dialogueRows[index];
+		if (row) {
+			// Clean up blob URL
+			if (audioUrlsRef.current[row.id] && audioUrlsRef.current[row.id].startsWith('blob:')) {
+				URL.revokeObjectURL(audioUrlsRef.current[row.id]);
+			}
+			delete audioUrlsRef.current[row.id];
 		}
-		delete audioUrlsRef.current[index];
 
 		updateRow(index, { audioFile: null });
 		if (playingAudio === index) {
@@ -413,7 +437,7 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 													{/* Hidden audio element for playback */}
 													<audio
 														ref={(el) => (audioRefs.current[index] = el)}
-														src={audioUrlsRef.current[index] || ''}
+														src={audioUrlsRef.current[row.id] || ''}
 														onEnded={() => handleAudioEnded(index)}
 														className="hidden"
 													/>
