@@ -110,36 +110,70 @@ function ProjectCard({ project }) {
 	const { dialogues } = useDialogueStore();
 	const projectDialogues = dialogues.filter((d) => d.projectId === project.id);
 
+	// Random gradient colors for variety
+	const gradients = [
+		'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20',
+		'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20',
+		'from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20',
+		'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20',
+	];
+	const iconColors = [
+		'text-blue-500 dark:text-blue-400',
+		'text-purple-500 dark:text-purple-400',
+		'text-orange-500 dark:text-orange-400',
+		'text-green-500 dark:text-green-400',
+	];
+	const patternColors = [
+		'#3b82f6',
+		'#9333ea',
+		'#f97316',
+		'#22c55e',
+	];
+
+	// Use project ID to consistently assign colors
+	const colorIndex = parseInt(project.id.substring(0, 8), 16) % gradients.length;
+
 	return (
 		<Link
 			to="/projects/$projectId"
 			params={{ projectId: project.id }}
-			className="block"
 		>
-			<Card className="hover:shadow-lg transition-all hover:border-primary/50 cursor-pointer group h-full">
-				<CardContent className="p-6">
-					<div className="flex items-start justify-between mb-4">
-						<div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-							<FolderOpen className="h-6 w-6 text-primary-foreground" />
-						</div>
-						<div className="text-xs text-muted-foreground flex items-center gap-1">
-							<Calendar className="h-3 w-3" />
-							{formatDate(project.createdAt)}
-						</div>
+			<Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col overflow-hidden rounded-lg">
+				<div className={`h-32 bg-gradient-to-br ${gradients[colorIndex]} flex items-center justify-center relative overflow-hidden rounded-t-lg`}>
+					<div
+						className="absolute inset-0 opacity-30 dark:opacity-20 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] [background-size:16px_16px]"
+						style={{ color: patternColors[colorIndex] }}
+					/>
+					<FolderOpen className={`h-12 w-12 ${iconColors[colorIndex]} opacity-80 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 relative z-10`} />
+					<div className="absolute top-3 right-3 text-xs text-muted-foreground flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full">
+						<Calendar className="h-3 w-3" />
+						{formatDate(project.createdAt)}
 					</div>
-					<h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors">
-						{project.name}
-					</h3>
+				</div>
+
+				<CardContent className="p-4 flex-1 flex flex-col">
+					<div className="flex justify-between items-start mb-2">
+						<h3 className="font-bold text-base group-hover:text-primary transition-colors line-clamp-1">
+							{project.name}
+						</h3>
+						{project.version && (
+							<span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+								v{project.version}
+							</span>
+						)}
+					</div>
+
 					{project.description && (
-						<p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+						<p className="text-xs text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
 							{project.description}
 						</p>
 					)}
-					<div className="flex items-center gap-4 pt-4 border-t border-border">
-						<div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-							<MessageCircle className="h-4 w-4" />
-							<span>{projectDialogues.length} {t('dialogues.title')}</span>
-						</div>
+
+					<div className="mt-auto pt-3 border-t flex items-center justify-center text-xs text-muted-foreground">
+						<span className="flex items-center gap-1.5">
+							<MessageCircle className={`h-3.5 w-3.5 group-hover:${iconColors[colorIndex].replace('text-', 'text-')} transition-colors`} />
+							<span className="font-medium">{projectDialogues.length} {projectDialogues.length === 1 ? t('dialogues.title').slice(0, -1) : t('dialogues.title')}</span>
+						</span>
 					</div>
 				</CardContent>
 			</Card>
