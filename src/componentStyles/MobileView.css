@@ -1,9 +1,0 @@
-.mobile-view .buttons {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-content: flex-end;
-	justify-content: space-between;
-	align-items: stretch;
-	width: 100%;
-}
