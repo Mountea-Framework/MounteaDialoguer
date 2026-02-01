@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		--background: 0 0% 96%;
+		--foreground: 0 0% 11%;
+		--card: 0 0% 100%;
+		--card-foreground: 0 0% 11%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 0 0% 11%;
+		--primary: 211 100% 50%;
+		--primary-foreground: 0 0% 100%;
+		--secondary: 0 0% 96%;
+		--secondary-foreground: 0 0% 11%;
+		--muted: 0 0% 96%;
+		--muted-foreground: 0 0% 45%;
+		--accent: 0 0% 96%;
+		--accent-foreground: 0 0% 11%;
+		--destructive: 0 84% 60%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 0 0% 90%;
+		--input: 0 0% 90%;
+		--ring: 211 100% 50%;
+		--radius: 0.75rem;
+	}
+
+	.dark {
+		--background: 0 0% 7%;
+		--foreground: 0 0% 96%;
+		--card: 0 0% 12%;
+		--card-foreground: 0 0% 96%;
+		--popover: 0 0% 12%;
+		--popover-foreground: 0 0% 96%;
+		--primary: 211 100% 50%;
+		--primary-foreground: 0 0% 100%;
+		--secondary: 0 0% 12%;
+		--secondary-foreground: 0 0% 96%;
+		--muted: 0 0% 12%;
+		--muted-foreground: 0 0% 63%;
+		--accent: 0 0% 12%;
+		--accent-foreground: 0 0% 96%;
+		--destructive: 0 84% 60%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 0 0% 20%;
+		--input: 0 0% 20%;
+		--ring: 211 100% 50%;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply bg-background text-foreground font-sans antialiased;
+	}
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: hsl(var(--border));
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: hsl(var(--muted-foreground));
+}
+
+/* Grid background pattern for canvas */
+.grid-bg {
+	background-size: 20px 20px;
+	background-image:
+		linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+		linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+}
+
+.react-flow__minimap svg {
+  @apply rounded-lg;
+}

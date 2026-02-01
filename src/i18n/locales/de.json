@@ -1,0 +1,114 @@
+{
+	"app": {
+		"name": "Mountea Dialoguer",
+		"tagline": "Dialog-Verwaltungssystem für Spieleentwickler",
+		"version": "Version {{version}}"
+	},
+	"common": {
+		"save": "Speichern",
+		"cancel": "Abbrechen",
+		"delete": "Löschen",
+		"edit": "Bearbeiten",
+		"create": "Erstellen",
+		"import": "Importieren",
+		"export": "Exportieren",
+		"search": "Suchen",
+		"close": "Schließen",
+		"apply": "Änderungen übernehmen",
+		"loading": "Wird geladen...",
+		"error": "Fehler",
+		"success": "Erfolg",
+		"confirm": "Bestätigen",
+		"back": "Zurück"
+	},
+	"navigation": {
+		"dashboard": "Dashboard",
+		"projects": "Mountea Dialoguer",
+		"dialogues": "Dialoge",
+		"participants": "Teilnehmer",
+		"categories": "Kategorien",
+		"decorators": "Dekoratoren",
+		"settings": "Einstellungen"
+	},
+	"projects": {
+		"title": "Projekte",
+		"createNew": "Neues Projekt",
+		"importProject": "Projekt importieren",
+		"recentProjects": "Letzte Projekte",
+		"allProjects": "Alle Projekte",
+		"projectDetails": "Projektdetails",
+		"totalProjects": "Lokale Projekte",
+		"totalDialogues": "Gesamt Dialoge",
+		"diskUsage": "Speichernutzung",
+		"noProjects": "Keine Projekte gefunden",
+		"createFirst": "Erstellen Sie Ihr erstes Projekt",
+		"lastModified": "Zuletzt geändert",
+		"createdDate": "Erstellungsdatum",
+		"created": "Erstellt",
+		"modified": "Geändert",
+		"notFound": "Projekt nicht gefunden",
+		"notFoundDescription": "Das gesuchte Projekt existiert nicht oder wurde gelöscht",
+		"projectName": "Projektname",
+		"projectDescription": "Projektbeschreibung",
+		"deleteProject": "Projekt löschen",
+		"deleteConfirm": "Möchten Sie dieses Projekt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+	},
+	"dialogues": {
+		"title": "Dialoge",
+		"createNew": "Neuen Dialog erstellen",
+		"createDescription": "Beginnen Sie mit dem Erstellen von Gesprächen",
+		"dialogueName": "Dialogname",
+		"dialogueSettings": "Dialogeinstellungen",
+		"dialogueEditor": "Dialog-Editor",
+		"noDialogues": "Keine Dialoge gefunden",
+		"createFirst": "Erstellen Sie Ihren ersten Dialog",
+		"nodes": "Knoten",
+		"edges": "Kanten",
+		"autoSaved": "Automatisch gespeichert",
+		"unsavedChanges": "Nicht gespeicherte Änderungen"
+	},
+	"editor": {
+		"toolbar": {
+			"undo": "Rückgängig",
+			"redo": "Wiederholen",
+			"save": "Speichern",
+			"export": "Exportieren",
+			"settings": "Einstellungen",
+			"darkMode": "Dunkler Modus",
+			"lightMode": "Heller Modus"
+		},
+		"nodeDetails": "Knotendetails",
+		"speaker": "Sprecher",
+		"dialogueText": "Dialogtext",
+		"audioClip": "Audioclip",
+		"decorators": "Dekoratoren",
+		"addDecorator": "Dekorator hinzufügen"
+	},
+	"participants": {
+		"title": "Teilnehmer",
+		"addNew": "Teilnehmer hinzufügen",
+		"name": "Name",
+		"category": "Kategorie",
+		"avatar": "Avatar",
+		"noParticipants": "Keine Teilnehmer gefunden"
+	},
+	"categories": {
+		"title": "Kategorien",
+		"addNew": "Kategorie hinzufügen",
+		"name": "Kategoriename",
+		"noCategories": "Keine Kategorien gefunden"
+	},
+	"settings": {
+		"title": "Einstellungen",
+		"language": "Sprache",
+		"theme": "Theme",
+		"lightMode": "Hell",
+		"darkMode": "Dunkel",
+		"systemMode": "System"
+	},
+	"validation": {
+		"required": "Dieses Feld ist erforderlich",
+		"invalidName": "Ungültiger Name",
+		"nameTaken": "Dieser Name wird bereits verwendet"
+	}
+}

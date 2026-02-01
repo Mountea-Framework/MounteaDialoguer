@@ -10,6 +10,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -23,8 +24,16 @@ yarn-debug.log*
 yarn-error.log*
 .vscode/settings.json
 
+# Vite
+dist-ssr
+*.local
+
+# TanStack Router
+/src/routeTree.gen.ts
+
 # File extensions
 *.zip
 *.mnteadlg
 /TestingData/TestingExport_Broken/*
 *.kra~
+.tanstack

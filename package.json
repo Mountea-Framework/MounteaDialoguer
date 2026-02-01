@@ -1,55 +1,55 @@
 {
-	"homepage": "https://mountea-framework.github.io/MounteaDialoguer/",
 	"name": "mountea-dialoguer",
-	"version": "0.1.0",
+	"version": "0.2.0",
+	"type": "module",
 	"private": true,
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"lint": "eslint src --ext js,jsx",
+		"predeploy": "npm run build",
+		"deploy": "gh-pages -d dist"
+	},
 	"dependencies": {
-		"@testing-library/jest-dom": "^5.17.0",
-		"@testing-library/react": "^13.4.0",
-		"@testing-library/user-event": "^13.5.0",
-		"fflate": "^0.8.2",
-		"idb": "^8.0.0",
+		"@radix-ui/react-alert-dialog": "^1.1.15",
+		"@radix-ui/react-dialog": "^1.1.15",
+		"@radix-ui/react-select": "^2.2.6",
+		"@tanstack/react-router": "^1.87.0",
+		"@xyflow/react": "^12.10.0",
+		"clsx": "^2.1.1",
+		"dependencies": "^0.0.1",
+		"dexie": "^4.0.11",
+		"dexie-react-hooks": "^1.1.7",
+		"file-saver": "^2.0.5",
+		"i18next": "^24.2.0",
+		"i18next-browser-languagedetector": "^8.0.2",
 		"joi": "^17.13.3",
 		"jszip": "^3.10.1",
+		"lucide-react": "^0.462.0",
 		"react": "^18.3.1",
-		"react-contenteditable": "^3.3.7",
 		"react-dom": "^18.3.1",
-		"react-icons": "^5.3.0",
-		"react-scripts": "^5.0.1",
-		"react-tooltip": "^5.27.1",
-		"react-transition-group": "^4.4.5",
-		"reactflow": "^11.11.4",
-		"uuid": "^10.0.0",
-		"web-vitals": "^2.1.4"
-	},
-	"scripts": {
-		"start": "react-scripts start",
-		"build": "CI=false react-scripts build",
-		"test": "react-scripts test",
-		"eject": "react-scripts eject",
-		"predeploy": "npm run build",
-		"deploy": "gh-pages -d build"
-	},
-	"eslintConfig": {
-		"extends": [
-			"react-app",
-			"react-app/jest"
-		]
-	},
-	"browserslist": {
-		"production": [
-			">0.2%",
-			"not dead",
-			"not op_mini all"
-		],
-		"development": [
-			"last 1 chrome version",
-			"last 1 firefox version",
-			"last 1 safari version"
-		]
+		"react-i18next": "^15.2.0",
+		"tailwind-merge": "^2.5.5",
+		"uuid": "^11.0.3",
+		"zustand": "^5.0.2"
 	},
 	"devDependencies": {
-		"@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-		"gh-pages": "^6.1.1"
+		"@tanstack/router-devtools": "^1.87.0",
+		"@tanstack/router-plugin": "^1.87.0",
+		"@types/react": "^18.3.18",
+		"@types/react-dom": "^18.3.5",
+		"@vitejs/plugin-react": "^4.3.4",
+		"autoprefixer": "^10.4.20",
+		"eslint": "^8.57.1",
+		"eslint-plugin-react": "^7.37.2",
+		"eslint-plugin-react-hooks": "^4.6.2",
+		"eslint-plugin-react-refresh": "^0.4.16",
+		"gh-pages": "^6.1.1",
+		"postcss": "^8.5.6",
+		"postcss-scss": "^4.0.9",
+		"tailwindcss": "^3.4.17",
+		"tailwindcss-animate": "^1.0.7",
+		"vite": "^6.0.5"
 	}
 }

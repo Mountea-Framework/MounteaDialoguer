@@ -1,0 +1,114 @@
+{
+	"app": {
+		"name": "Mountea Dialoguer",
+		"tagline": "Système de gestion de dialogues pour développeurs de jeux",
+		"version": "Version {{version}}"
+	},
+	"common": {
+		"save": "Enregistrer",
+		"cancel": "Annuler",
+		"delete": "Supprimer",
+		"edit": "Modifier",
+		"create": "Créer",
+		"import": "Importer",
+		"export": "Exporter",
+		"search": "Rechercher",
+		"close": "Fermer",
+		"apply": "Appliquer les modifications",
+		"loading": "Chargement...",
+		"error": "Erreur",
+		"success": "Succès",
+		"confirm": "Confirmer",
+		"back": "Retour"
+	},
+	"navigation": {
+		"dashboard": "Tableau de bord",
+		"projects": "Mountea Dialoguer",
+		"dialogues": "Dialogues",
+		"participants": "Participants",
+		"categories": "Catégories",
+		"decorators": "Décorateurs",
+		"settings": "Paramètres"
+	},
+	"projects": {
+		"title": "Projets",
+		"createNew": "Nouveau projet",
+		"importProject": "Importer un projet",
+		"recentProjects": "Projets récents",
+		"allProjects": "Tous les projets",
+		"projectDetails": "Détails du projet",
+		"totalProjects": "Projets locaux",
+		"totalDialogues": "Total des dialogues",
+		"diskUsage": "Utilisation du disque",
+		"noProjects": "Aucun projet trouvé",
+		"createFirst": "Créez votre premier projet",
+		"lastModified": "Dernière modification",
+		"createdDate": "Date de création",
+		"created": "Créé",
+		"modified": "Modifié",
+		"notFound": "Projet introuvable",
+		"notFoundDescription": "Le projet que vous recherchez n'existe pas ou a été supprimé",
+		"projectName": "Nom du projet",
+		"projectDescription": "Description du projet",
+		"deleteProject": "Supprimer le projet",
+		"deleteConfirm": "Voulez-vous vraiment supprimer ce projet ? Cette action est irréversible."
+	},
+	"dialogues": {
+		"title": "Dialogues",
+		"createNew": "Créer un nouveau dialogue",
+		"createDescription": "Commencez à créer des conversations",
+		"dialogueName": "Nom du dialogue",
+		"dialogueSettings": "Paramètres du dialogue",
+		"dialogueEditor": "Éditeur de dialogue",
+		"noDialogues": "Aucun dialogue trouvé",
+		"createFirst": "Créez votre premier dialogue",
+		"nodes": "Nœuds",
+		"edges": "Arêtes",
+		"autoSaved": "Sauvegarde automatique",
+		"unsavedChanges": "Modifications non enregistrées"
+	},
+	"editor": {
+		"toolbar": {
+			"undo": "Annuler",
+			"redo": "Refaire",
+			"save": "Enregistrer",
+			"export": "Exporter",
+			"settings": "Paramètres",
+			"darkMode": "Mode sombre",
+			"lightMode": "Mode clair"
+		},
+		"nodeDetails": "Détails du nœud",
+		"speaker": "Locuteur",
+		"dialogueText": "Texte du dialogue",
+		"audioClip": "Clip audio",
+		"decorators": "Décorateurs",
+		"addDecorator": "Ajouter un décorateur"
+	},
+	"participants": {
+		"title": "Participants",
+		"addNew": "Ajouter un participant",
+		"name": "Nom",
+		"category": "Catégorie",
+		"avatar": "Avatar",
+		"noParticipants": "Aucun participant trouvé"
+	},
+	"categories": {
+		"title": "Catégories",
+		"addNew": "Ajouter une catégorie",
+		"name": "Nom de la catégorie",
+		"noCategories": "Aucune catégorie trouvée"
+	},
+	"settings": {
+		"title": "Paramètres",
+		"language": "Langue",
+		"theme": "Thème",
+		"lightMode": "Clair",
+		"darkMode": "Sombre",
+		"systemMode": "Système"
+	},
+	"validation": {
+		"required": "Ce champ est requis",
+		"invalidName": "Nom invalide",
+		"nameTaken": "Ce nom est déjà utilisé"
+	}
+}

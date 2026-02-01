@@ -1,0 +1,435 @@
+import { useState, useRef, useEffect } from 'react';
+import { ChevronDown, ChevronRight, Trash2, Plus, Volume2, Play, Pause, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+import { useToast } from '@/components/ui/toaster';
+import { v4 as uuidv4 } from 'uuid';
+import {
+	storeAudioFile,
+	validateAudioFile,
+	getAudioDuration,
+	createAudioUrl,
+} from '@/lib/audioStorage';
+
+/**
+ * DialogueRowsPanel Component
+ * Displays and manages multiple dialogue rows for a node
+ * Uses collapsible design similar to decorators
+ */
+export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = [] }) {
+	const { toast } = useToast();
+	const [expandedRows, setExpandedRows] = useState(new Set([0])); // First row expanded by default
+	const [playingAudio, setPlayingAudio] = useState(null); // Track which row is playing audio
+	const audioRefs = useRef({}); // Store audio element references
+
+	const toggleRow = (index) => {
+		const newExpanded = new Set(expandedRows);
+		if (newExpanded.has(index)) {
+			newExpanded.delete(index);
+		} else {
+			newExpanded.add(index);
+		}
+		setExpandedRows(newExpanded);
+	};
+
+	const addRow = () => {
+		const newRow = {
+			id: uuidv4(),
+			text: '',
+			audioFile: null,
+			duration: 3.0,
+		};
+		const newRows = [...dialogueRows, newRow];
+		onChange(newRows);
+		// Expand the new row
+		setExpandedRows(new Set([...expandedRows, dialogueRows.length]));
+	};
+
+	const removeRow = (index) => {
+		const newRows = dialogueRows.filter((_, i) => i !== index);
+		onChange(newRows);
+		// Remove from expanded set
+		const newExpanded = new Set(expandedRows);
+		newExpanded.delete(index);
+		setExpandedRows(newExpanded);
+	};
+
+	const updateRow = (index, updates) => {
+		const newRows = dialogueRows.map((row, i) =>
+			i === index ? { ...row, ...updates } : row
+		);
+		onChange(newRows);
+	};
+
+	// Auto-complete state for dynamic text
+	const [activeRowIndex, setActiveRowIndex] = useState(null);
+	const [autocompleteVisible, setAutocompleteVisible] = useState(false);
+	const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
+	const [autocompleteFilter, setAutocompleteFilter] = useState('');
+	const textareaRefs = useRef({});
+
+	const handleTextChange = (index, value, event) => {
+		updateRow(index, { text: value });
+
+		// Check for $ character to trigger autocomplete
+		const cursorPos = event.target.selectionStart;
+		const textBeforeCursor = value.substring(0, cursorPos);
+		const dollarIndex = textBeforeCursor.lastIndexOf('$');
+
+		if (dollarIndex !== -1 && cursorPos - dollarIndex <= 20) {
+			// $ found recently
+			const filterText = textBeforeCursor.substring(dollarIndex + 1);
+
+			// Check if we're still in the middle of typing a variable
+			if (!filterText.includes('}') && !filterText.includes(' ') && !filterText.includes('\n')) {
+				setActiveRowIndex(index);
+				setAutocompleteFilter(filterText.toLowerCase());
+				setAutocompleteVisible(true);
+
+				// Position autocomplete near cursor
+				const textarea = event.target;
+				const rect = textarea.getBoundingClientRect();
+				setAutocompletePosition({
+					top: rect.top - 150,
+					left: rect.left + 10,
+				});
+			} else {
+				setAutocompleteVisible(false);
+			}
+		} else {
+			setAutocompleteVisible(false);
+		}
+	};
+
+	const insertParticipant = (participantName) => {
+		if (activeRowIndex === null) return;
+
+		const row = dialogueRows[activeRowIndex];
+		const textarea = textareaRefs.current[activeRowIndex];
+		if (!textarea) return;
+
+		const cursorPos = textarea.selectionStart;
+		const textBeforeCursor = row.text.substring(0, cursorPos);
+		const dollarIndex = textBeforeCursor.lastIndexOf('$');
+
+		// Replace from $ to cursor with ${participantName}
+		const newText =
+			row.text.substring(0, dollarIndex) +
+			`\${${participantName}}` +
+			row.text.substring(cursorPos);
+
+		updateRow(activeRowIndex, { text: newText });
+		setAutocompleteVisible(false);
+
+		// Focus back on textarea
+		setTimeout(() => {
+			textarea.focus();
+			const newPos = dollarIndex + participantName.length + 3; // Position after ${name}
+			textarea.setSelectionRange(newPos, newPos);
+		}, 0);
+	};
+
+	const filteredParticipants = participants.filter((p) =>
+		p.name.toLowerCase().includes(autocompleteFilter)
+	);
+
+	// Handle audio file upload
+	const handleAudioUpload = async (index, file) => {
+		if (!file) return;
+
+		// Validate file
+		const validation = validateAudioFile(file);
+		if (!validation.valid) {
+			toast({
+				variant: 'error',
+				title: 'Invalid Audio File',
+				description: validation.error,
+			});
+			return;
+		}
+
+		try {
+			// Store audio file as blob
+			const audioData = await storeAudioFile(file);
+
+			// Extract audio duration
+			const duration = await getAudioDuration(file);
+
+			// Update row with audio data and duration
+			updateRow(index, {
+				audioFile: audioData,
+				duration: duration || 3.0,
+			});
+
+			toast({
+				variant: 'success',
+				title: 'Audio Uploaded',
+				description: `${file.name} uploaded successfully`,
+			});
+		} catch (error) {
+			console.error('Error uploading audio:', error);
+			toast({
+				variant: 'error',
+				title: 'Upload Failed',
+				description: 'Failed to upload audio file. Please try again.',
+			});
+		}
+	};
+
+	// Handle audio playback
+	const toggleAudioPlayback = (index) => {
+		const audioElement = audioRefs.current[index];
+		if (!audioElement) return;
+
+		if (playingAudio === index) {
+			audioElement.pause();
+			setPlayingAudio(null);
+		} else {
+			// Pause any currently playing audio
+			if (playingAudio !== null && audioRefs.current[playingAudio]) {
+				audioRefs.current[playingAudio].pause();
+			}
+			audioElement.play();
+			setPlayingAudio(index);
+		}
+	};
+
+	// Handle audio ended
+	const handleAudioEnded = (index) => {
+		if (playingAudio === index) {
+			setPlayingAudio(null);
+		}
+	};
+
+	// Remove audio file
+	const removeAudioFile = (index) => {
+		updateRow(index, { audioFile: null });
+		if (playingAudio === index) {
+			setPlayingAudio(null);
+		}
+	};
+
+	return (
+		<div className="space-y-3">
+			<div className="flex items-center justify-between">
+				<Label className="text-sm font-bold">Dialogue Rows</Label>
+				<span className="text-xs text-muted-foreground">
+					{dialogueRows.length} {dialogueRows.length === 1 ? 'row' : 'rows'}
+				</span>
+			</div>
+
+			{dialogueRows.length === 0 ? (
+				<div className="text-center py-6 border border-dashed border-border rounded-lg">
+					<p className="text-sm text-muted-foreground mb-3">No dialogue rows yet</p>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={addRow}
+						className="gap-2"
+					>
+						<Plus className="h-3.5 w-3.5" />
+						Add First Row
+					</Button>
+				</div>
+			) : (
+				<div className="space-y-2">
+					{dialogueRows.map((row, index) => {
+						const isExpanded = expandedRows.has(index);
+						const previewText = row.text
+							? row.text.length > 40
+								? row.text.substring(0, 40) + '...'
+								: row.text
+							: 'Empty dialogue...';
+
+						return (
+							<div
+								key={row.id}
+								className="border border-border rounded-lg overflow-hidden bg-card"
+							>
+								{/* Row Header */}
+								<div
+									className="flex items-center justify-between p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+									onClick={() => toggleRow(index)}
+								>
+									<div className="flex items-center gap-2 flex-1 min-w-0">
+										{isExpanded ? (
+											<ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+										)}
+										<span className="text-xs font-medium text-muted-foreground shrink-0">
+											[{index}]
+										</span>
+										<span className="text-sm flex-1 truncate">
+											{previewText}
+										</span>
+									</div>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-7 w-7 shrink-0"
+										onClick={(e) => {
+											e.stopPropagation();
+											removeRow(index);
+										}}
+									>
+										<Trash2 className="h-3.5 w-3.5 text-destructive" />
+									</Button>
+								</div>
+
+								{/* Row Content */}
+								{isExpanded && (
+									<div className="p-4 pt-0 space-y-4 border-t border-border">
+										{/* Dialogue Text */}
+										<div className="space-y-2">
+											<Label htmlFor={`text-${row.id}`}>
+												Dialogue Text
+												<span className="ml-2 text-xs text-muted-foreground">
+													(Type $ for participants)
+												</span>
+											</Label>
+											<Textarea
+												id={`text-${row.id}`}
+												ref={(el) => (textareaRefs.current[index] = el)}
+												value={row.text || ''}
+												onChange={(e) => handleTextChange(index, e.target.value, e)}
+												placeholder="Enter dialogue text... Type $ to insert participant names"
+												className="min-h-[100px] font-mono text-sm"
+											/>
+										</div>
+
+										{/* Audio File */}
+										<div className="space-y-2">
+											<Label htmlFor={`audio-${row.id}`}>Audio Clip</Label>
+											{!row.audioFile ? (
+												<Input
+													id={`audio-${row.id}`}
+													type="file"
+													accept=".wav,.mp3,audio/wav,audio/mpeg"
+													onChange={(e) => {
+														const file = e.target.files?.[0];
+														if (file) {
+															handleAudioUpload(index, file);
+														}
+														// Reset input
+														e.target.value = '';
+													}}
+													className="cursor-pointer"
+												/>
+											) : (
+												<div className="flex items-center gap-2 p-3 bg-accent/50 rounded-lg border border-border">
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8 shrink-0"
+														onClick={() => toggleAudioPlayback(index)}
+													>
+														{playingAudio === index ? (
+															<Pause className="h-4 w-4" />
+														) : (
+															<Play className="h-4 w-4" />
+														)}
+													</Button>
+													<div className="flex flex-col flex-1 min-w-0">
+														<div className="flex items-center gap-2">
+															<Volume2 className="h-3 w-3 text-muted-foreground" />
+															<span className="text-sm font-medium truncate">
+																{row.audioFile.name}
+															</span>
+														</div>
+														<span className="text-xs text-muted-foreground">
+															{(row.audioFile.size / 1024).toFixed(1)} KB
+														</span>
+													</div>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-7 w-7 shrink-0"
+														onClick={() => removeAudioFile(index)}
+													>
+														<X className="h-3.5 w-3.5 text-destructive" />
+													</Button>
+													{/* Hidden audio element for playback */}
+													<audio
+														ref={(el) => (audioRefs.current[index] = el)}
+														src={createAudioUrl(row.audioFile)}
+														onEnded={() => handleAudioEnded(index)}
+														className="hidden"
+													/>
+												</div>
+											)}
+										</div>
+
+										{/* Duration Slider */}
+										<div className="space-y-2">
+											<div className="flex items-center justify-between">
+												<Label htmlFor={`duration-${row.id}`}>
+													Duration (seconds)
+												</Label>
+												<span className="text-sm font-medium">
+													{row.duration.toFixed(1)}s
+												</span>
+											</div>
+											<Slider
+												id={`duration-${row.id}`}
+												value={[row.duration]}
+												onValueChange={([value]) =>
+													updateRow(index, { duration: value })
+												}
+												min={0.5}
+												max={30}
+												step={0.1}
+												className="w-full"
+											/>
+										</div>
+									</div>
+								)}
+							</div>
+						);
+					})}
+				</div>
+			)}
+
+			{/* Add Row Button */}
+			{dialogueRows.length > 0 && (
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={addRow}
+					className="w-full gap-2"
+				>
+					<Plus className="h-3.5 w-3.5" />
+					Add Dialogue Row
+				</Button>
+			)}
+
+			{/* Autocomplete Dropdown */}
+			{autocompleteVisible && filteredParticipants.length > 0 && (
+				<div
+					className="fixed z-50 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto"
+					style={{
+						top: `${autocompletePosition.top}px`,
+						left: `${autocompletePosition.left}px`,
+						minWidth: '200px',
+					}}
+				>
+					{filteredParticipants.map((participant) => (
+						<button
+							key={participant.id}
+							onClick={() => insertParticipant(participant.name)}
+							className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2"
+						>
+							<span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+								{participant.name.charAt(0).toUpperCase()}
+							</span>
+							<span>{participant.name}</span>
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}

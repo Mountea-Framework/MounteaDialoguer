@@ -1,5 +1,5 @@
 import React from "react";
-import { ReactFlowProvider } from "reactflow";
+import { ReactFlowProvider } from "@xyflow/react";
 
 import LandingPage from "./components/LandingPage";
 import DialogueCanvas from "./components/DialogueCanvas";

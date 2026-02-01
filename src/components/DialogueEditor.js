@@ -1,6 +1,6 @@
 import React from "react";
 
-import { useNodesState, useEdgesState } from "reactflow";
+import { useNodesState, useEdgesState } from "@xyflow/react";
 
 import DialogueEditorTooblar from "./editorComponents/DialogueEditorToolbar";
 import DialogueEditorDetails from "./editorComponents/DialogueEditorDetails";

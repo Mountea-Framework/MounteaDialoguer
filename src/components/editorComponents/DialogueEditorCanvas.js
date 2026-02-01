@@ -12,7 +12,7 @@ import ReactFlow, {
 	addEdge,
 	SelectionMode,
 	useReactFlow,
-} from "reactflow";
+} from "@xyflow/react";
 import { v4 as uuidv4 } from "uuid";
 
 import { useSelection } from "../../contexts/SelectionContext";
@@ -29,7 +29,7 @@ import AnswerNode from "../dialogueNodes/answerNode";
 import CloseDialogueNode from "../dialogueNodes/closeDialogueNode";
 import JumpToNode from "../dialogueNodes/jumpToNode";
 
-import "reactflow/dist/style.css";
+import "@xyflow/react/dist/style.css";
 import "../../componentStyles/editorComponentStyles/DialogueEditorCanvas.css";
 import "../../base/BaseNodesStyle.css";
 

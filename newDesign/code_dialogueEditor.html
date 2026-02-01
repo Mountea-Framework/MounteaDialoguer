@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dialogue Graph Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3b82f6", // Apple/System Blue-ish
+                        "background-light": "#f5f5f7", // Apple light gray background
+                        "background-dark": "#121212", // Deep dark background
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1e1e1e",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#333333",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'glow': '0 0 15px rgba(59, 130, 246, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .grid-bg-light {
+            background-size: 20px 20px;
+            background-image:
+                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+        }
+        .grid-bg-dark {
+            background-size: 20px 20px;
+            background-image:
+                linear-gradient(to right, #2a2a2a 1px, transparent 1px),
+                linear-gradient(to bottom, #2a2a2a 1px, transparent 1px);
+        }::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+        }.connector-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 h-screen overflow-hidden flex flex-col transition-colors duration-300">
+<header class="h-14 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-4 z-20 shadow-sm relative">
+<div class="flex items-center space-x-2">
+<div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 space-x-1">
+<button class="p-1.5 rounded hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm transition-all text-gray-500 dark:text-gray-400">
+<span class="material-icons-outlined text-sm">undo</span>
+</button>
+<button class="p-1.5 rounded hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm transition-all text-gray-500 dark:text-gray-400">
+<span class="material-icons-outlined text-sm">redo</span>
+</button>
+</div>
+<div class="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2"></div>
+<button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400" title="Save">
+<span class="material-icons-outlined text-lg">save_alt</span>
+</button>
+<button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400" title="Export">
+<span class="material-icons-outlined text-lg">upload_file</span>
+</button>
+<button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400" title="Settings">
+<span class="material-icons-outlined text-lg">settings</span>
+</button>
+</div>
+<div class="flex items-center space-x-4">
+<button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400" onclick="document.documentElement.classList.toggle('dark')" title="Toggle Dark Mode">
+<span class="material-icons-outlined text-lg">brightness_4</span>
+</button>
+<h1 class="font-semibold text-sm text-gray-700 dark:text-gray-300">Project: The Merchant's Quest</h1>
+<span class="text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800">Auto-saved</span>
+</div>
+<div class="flex items-center space-x-3">
+<button class="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors">
+<span class="material-icons-outlined">favorite</span>
+</button>
+</div>
+</header>
+<div class="flex-1 flex overflow-hidden relative">
+<main class="flex-1 relative overflow-hidden bg-background-light dark:bg-background-dark grid-bg-light dark:grid-bg-dark transition-colors duration-300">
+<div class="absolute bottom-4 left-4 flex flex-col bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-soft overflow-hidden z-10">
+<button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-border-light dark:border-border-dark text-gray-500 dark:text-gray-400">
+<span class="material-icons-outlined text-lg">add</span>
+</button>
+<button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-border-light dark:border-border-dark text-gray-500 dark:text-gray-400">
+<span class="material-icons-outlined text-lg">remove</span>
+</button>
+<button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+<span class="material-icons-outlined text-lg">center_focus_strong</span>
+</button>
+</div>
+<svg class="absolute inset-0 w-full h-full pointer-events-none z-0">
+<path class="dark:stroke-gray-600" d="M 640 180 C 640 230, 640 230, 640 280" fill="none" stroke="#9ca3af" stroke-width="2"></path>
+<circle class="dark:fill-gray-800 stroke-gray-400 dark:stroke-gray-600 stroke-2" cx="640" cy="230" fill="#374151" r="12"></circle>
+<text class="dark:fill-gray-400" fill="#9ca3af" font-size="12" text-anchor="middle" x="640" y="234">×</text>
+<path class="dark:stroke-gray-600" d="M 640 380 C 640 430, 500 430, 500 480" fill="none" stroke="#9ca3af" stroke-width="2"></path>
+<circle class="dark:fill-gray-800 stroke-gray-400 dark:stroke-gray-600 stroke-2" cx="570" cy="430" fill="#374151" r="10"></circle>
+<text class="dark:fill-gray-400" fill="#9ca3af" font-size="10" text-anchor="middle" x="570" y="434">×</text>
+<path class="dark:stroke-gray-600" d="M 640 380 C 640 430, 780 430, 780 480" fill="none" stroke="#9ca3af" stroke-width="2"></path>
+<circle class="dark:fill-gray-800 stroke-gray-400 dark:stroke-gray-600 stroke-2" cx="710" cy="430" fill="#374151" r="10"></circle>
+<text class="dark:fill-gray-400" fill="#9ca3af" font-size="10" text-anchor="middle" x="710" y="434">×</text>
+</svg>
+<div class="absolute inset-0 w-full h-full transform transition-transform z-1">
+<div class="absolute top-[100px] left-[560px] w-40">
+<div class="bg-surface-light dark:bg-gray-800 rounded-xl shadow-lg border-2 border-green-500 p-1 group hover:shadow-glow transition-all cursor-pointer">
+<div class="bg-green-500/10 dark:bg-green-500/20 rounded-lg p-3 text-center">
+<span class="text-green-700 dark:text-green-400 font-bold text-sm tracking-wider block">START</span>
+<span class="text-[10px] text-green-600/80 dark:text-green-400/70 font-medium uppercase tracking-widest mt-0.5 block">Entry Point</span>
+</div>
+<div class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-full z-10"></div>
+</div>
+</div>
+<div class="absolute top-[280px] left-[540px] w-52">
+<div class="bg-surface-light dark:bg-gray-800 rounded-xl shadow-lg border-2 border-yellow-500 p-1 group hover:shadow-glow transition-all cursor-pointer relative">
+<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-full z-10"></div>
+<div class="bg-yellow-500/10 dark:bg-yellow-500/20 rounded-lg p-4 text-center relative overflow-hidden">
+<div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-gray-400 hover:text-red-500"><span class="material-icons-outlined text-xs">close</span></button>
+</div>
+<span class="text-yellow-700 dark:text-yellow-400 font-bold text-sm tracking-wider block">GREETING</span>
+<span class="text-[10px] text-yellow-600/80 dark:text-yellow-400/70 font-medium uppercase tracking-widest mt-0.5 mb-1 block">Karel (NPC)</span>
+<p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">"Welcome, traveler..."</p>
+<div class="absolute top-2 left-2 flex gap-0.5">
+<div class="bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 text-[9px] px-1 rounded flex items-center shadow-sm" title="2 Decorators">
+<span class="material-icons-outlined text-[10px] mr-0.5">bolt</span> 2
+                        </div>
+</div>
+</div>
+<div class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-full z-10"></div>
+</div>
+</div>
+<div class="absolute top-[480px] left-[420px] w-40">
+<div class="bg-surface-light dark:bg-gray-800 rounded-xl shadow-lg border-2 border-red-600 p-1 group hover:shadow-glow transition-all cursor-pointer relative">
+<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-full z-10"></div>
+<div class="bg-red-600/10 dark:bg-red-900/20 rounded-lg p-4 text-center">
+<span class="text-red-700 dark:text-red-400 font-bold text-sm tracking-wider block">CLOSE</span>
+<span class="text-[10px] text-red-600/80 dark:text-red-400/70 font-medium uppercase tracking-widest mt-0.5 block">End Dialogue</span>
+</div>
+</div>
+</div>
+<div class="absolute top-[480px] left-[700px] w-44">
+<div class="bg-surface-light dark:bg-gray-800 rounded-xl shadow-lg border-2 border-teal-500 p-1 group hover:shadow-glow transition-all cursor-pointer relative">
+<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-full z-10"></div>
+<div class="bg-teal-500/10 dark:bg-teal-500/20 rounded-lg p-4 text-center">
+<span class="text-teal-700 dark:text-teal-400 font-bold text-sm tracking-wider block">RESPONSE A</span>
+<span class="text-[10px] text-teal-600/80 dark:text-teal-400/70 font-medium uppercase tracking-widest mt-0.5 block">Player</span>
+</div>
+<div class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-full z-10"></div>
+</div>
+</div>
+</div>
+<div class="absolute bottom-2 right-2 text-xs text-gray-400 dark:text-gray-600 font-mono">
+                Alpha Version | React Flow
+            </div>
+</main>
+<aside class="w-96 bg-surface-light dark:bg-surface-dark border-l border-border-light dark:border-border-dark flex flex-col z-20 shadow-xl">
+<div class="p-4 border-b border-border-light dark:border-border-dark bg-gray-50 dark:bg-[#1a1a1a]">
+<h2 class="text-lg font-bold text-gray-800 dark:text-white mb-1">NODE DETAILS</h2>
+<div class="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-1">
+<span>Greeting</span>
+<span class="text-gray-300 dark:text-gray-600">/</span>
+<span class="text-primary font-medium">Dialogue Node #2</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-6">
+<div class="space-y-2">
+<label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Speaker</label>
+<div class="relative">
+<select class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none appearance-none">
+<option>Karel (NPC)</option>
+<option>Player</option>
+<option>System</option>
+</select>
+<span class="material-icons-outlined absolute right-3 top-2.5 text-gray-400 pointer-events-none text-sm">expand_more</span>
+</div>
+</div>
+<div class="space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+<div class="bg-gray-50 dark:bg-gray-800 px-3 py-2 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 cursor-pointer">
+<div class="flex items-center space-x-2">
+<span class="material-icons-outlined text-gray-500 text-sm">expand_more</span>
+<label class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide cursor-pointer">Decorators</label>
+</div>
+<span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">2 Items</span>
+</div>
+<div class="p-2 space-y-2 bg-white dark:bg-[#1a1a1a]">
+<div class="border border-gray-100 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+<div class="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700/50">
+<span class="material-icons-outlined text-gray-400 text-xs mr-2 cursor-pointer">expand_more</span>
+<span class="bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-mono px-1 rounded mr-2">[0]</span>
+<div class="flex items-center bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-medium border border-blue-100 dark:border-blue-800">
+<span class="material-icons-outlined text-sm mr-1">flash_on</span> On Enter
+                                </div>
+<div class="flex-1"></div>
+<button class="text-gray-400 hover:text-red-500 transition-colors"><span class="material-icons-outlined text-sm">delete</span></button>
+</div>
+<div class="p-3 space-y-3">
+<div class="flex items-center justify-between">
+<label class="text-xs text-gray-500 dark:text-gray-400 w-1/3">Type</label>
+<div class="w-2/3 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300">Play Animation</div>
+</div>
+<div class="flex items-center justify-between">
+<label class="text-xs text-gray-500 dark:text-gray-400 w-1/3">Value</label>
+<input class="w-2/3 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-800 focus:ring-1 focus:ring-primary outline-none" type="text" value="Wave_Hand"/>
+</div>
+</div>
+</div>
+<div class="border border-gray-100 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+<div class="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800/50">
+<span class="material-icons-outlined text-gray-400 text-xs mr-2 cursor-pointer">chevron_right</span>
+<span class="bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-mono px-1 rounded mr-2">[1]</span>
+<div class="flex items-center bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded text-xs font-medium border border-yellow-100 dark:border-yellow-800">
+<span class="material-icons-outlined text-sm mr-1">star</span> Set Quest State
+                                </div>
+<div class="flex-1"></div>
+<button class="text-gray-400 hover:text-red-500 transition-colors"><span class="material-icons-outlined text-sm">delete</span></button>
+</div>
+</div>
+<button class="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-xs font-medium text-gray-500 hover:border-primary hover:text-primary dark:hover:text-primary transition-colors flex items-center justify-center gap-1">
+<span class="material-icons-outlined text-sm">add_circle_outline</span> Add Decorator
+                        </button>
+</div>
+</div>
+<div class="space-y-2 group">
+<div class="flex items-center justify-between">
+<label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Dialogue Text</label>
+<button class="text-gray-400 hover:text-red-500"><span class="material-icons-outlined text-sm">delete_outline</span></button>
+</div>
+<div class="relative">
+<textarea class="w-full h-32 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none font-mono leading-relaxed" spellcheck="false">Hello, ${player}, 
+how do you do?</textarea>
+<div aria-hidden="true" class="absolute top-3 left-3 text-sm font-mono leading-relaxed pointer-events-none text-transparent">
+                            Hello, <span class="bg-yellow-200/50 dark:bg-yellow-500/30 text-yellow-800 dark:text-yellow-300 rounded px-0.5 border border-yellow-300 dark:border-yellow-600">${player}</span>,<br/>
+<span class="underline decoration-wavy decoration-red-400">how</span> do you do?
+                        </div>
+<div class="absolute bottom-2 right-2 flex space-x-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+<span class="material-icons-outlined text-[10px] mr-1">lightbulb</span> 1
+                            </span>
+</div>
+</div>
+</div>
+<div class="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+<div class="flex items-center justify-between">
+<label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Audio Clip</label>
+<span class="text-xs text-gray-400">4.4s</span>
+</div>
+<div class="relative w-full h-4 flex items-center">
+<div class="absolute w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+<div class="absolute h-1 bg-white dark:bg-white rounded-full" style="width: 60%"></div>
+<div class="absolute h-4 w-4 bg-white border border-gray-300 shadow rounded-full cursor-pointer" style="left: 60%"></div>
+</div>
+<div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-primary dark:hover:border-primary hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group relative">
+<p class="text-sm text-gray-500 dark:text-gray-400 group-hover:text-primary transition-colors">Select audio file</p>
+<p class="text-xs text-gray-400 mt-1">.mp3, .wav, .ogg</p>
+<button class="absolute bottom-2 right-2 p-1 text-gray-400 hover:text-red-500"><span class="material-icons-outlined text-sm">delete</span></button>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-border-light dark:border-border-dark bg-gray-50 dark:bg-[#1a1a1a] flex justify-between">
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition">Cancel</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-blue-600 transition shadow-sm">Apply Changes</button>
+</div>
+</aside>
+</div>
+</body></html>

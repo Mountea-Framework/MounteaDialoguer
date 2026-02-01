@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Handle, useReactFlow } from "reactflow";
+import { Handle, useReactFlow } from "@xyflow/react";
 import { Tooltip } from "react-tooltip";
 import { useKeyPress } from "@reactflow/core";
 import { getDB } from "../../indexedDB";

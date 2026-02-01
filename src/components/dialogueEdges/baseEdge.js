@@ -4,7 +4,7 @@ import {
 	EdgeLabelRenderer,
 	BaseEdge,
 	getBezierPath,
-} from "reactflow";
+} from "@xyflow/react";
 
 import Button from "../../components/objects/Button";
 import { ReactComponent as RemoveIcon } from "../../icons/removeIcon.svg";
