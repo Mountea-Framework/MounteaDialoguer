@@ -2,17 +2,18 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
-import ReactFlow, {
+import {
+	ReactFlow,
 	Background,
-	Panel,
 	MiniMap,
 	addEdge,
 	useNodesState,
 	useEdgesState,
 	MarkerType,
+	Panel,
 } from '@xyflow/react';
-import { ZoomSlider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { ZoomSlider } from '@/components/dialogue/ZoomSlider';
 import {
 	ArrowLeft,
 	Save,
@@ -659,7 +660,7 @@ function DialogueEditorPage() {
 						proOptions={{ hideAttribution: true }}
 					>
 						<Background />
-					<Panel position="bottom-left">
+				<Panel position="bottom-left">
 						<ZoomSlider className="!bg-card !border !border-border !rounded-lg !shadow-lg" />
 					</Panel>
 						<MiniMap

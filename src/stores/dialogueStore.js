@@ -343,7 +343,7 @@ export const useDialogueStore = create((set, get) => ({
 			const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
 
 			console.log(`[exportDialogueAsBlob] Found ${nodes.length} nodes and ${edges.length} edges`);
-n			// Validate Start Node exists
+			// Validate Start Node exists
 			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
 			if (!startNode) {
 				throw new Error('Export failed: Start Node (00000000-0000-0000-0000-000000000001) is missing from the dialogue');
@@ -502,7 +502,7 @@ n			// Validate Start Node exists
 			const nodes = JSON.parse(nodesStr);
 			const edges = JSON.parse(edgesStr);
 			const dialogueRows = dialogueRowsStr ? JSON.parse(dialogueRowsStr) : [];
-n			// Validate Start Node exists
+			// Validate Start Node exists
 			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
 			if (!startNode) {
 				throw new Error('Import failed: Start Node (00000000-0000-0000-0000-000000000001) is missing from the dialogue file');
@@ -798,7 +798,7 @@ n			// Validate Start Node exists
 				title: 'Failed to Import Dialogue',
 				description: error.message || 'An unexpected error occurred',
 			});
-			throw error;
+			// Don't re-throw - error has been handled with toast
 		}
 	},
 }));

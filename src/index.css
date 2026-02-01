@@ -90,3 +90,24 @@
 .react-flow__minimap svg {
   @apply rounded-lg;
 }
+
+/* Vertical slider styling */
+input[type="range"].slider-vertical {
+  @apply cursor-pointer;
+}
+
+input[type="range"].slider-vertical::-webkit-slider-thumb {
+  @apply appearance-none w-3 h-3 rounded-full bg-primary cursor-pointer;
+}
+
+input[type="range"].slider-vertical::-moz-range-thumb {
+  @apply w-3 h-3 rounded-full bg-primary cursor-pointer border-0;
+}
+
+input[type="range"].slider-vertical::-webkit-slider-runnable-track {
+  @apply bg-border rounded-full;
+}
+
+input[type="range"].slider-vertical::-moz-range-track {
+  @apply bg-border rounded-full;
+}

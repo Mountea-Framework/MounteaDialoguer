@@ -6,7 +6,8 @@ import React, {
 	useEffect,
 	useMemo,
 } from "react";
-import ReactFlow, {
+import {
+	ReactFlow,
 	Controls,
 	reconnectEdge,
 	addEdge,
