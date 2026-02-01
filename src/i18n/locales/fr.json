@@ -1,7 +1,7 @@
 {
 	"app": {
-		"name": "Mountea Dialoguer",
-		"tagline": "Système de gestion de dialogues pour développeurs de jeux",
+		"title": "Mountea Dialoguer",
+		"subtitle": "Dialogue manager made easy",
 		"version": "Version {{version}}"
 	},
 	"common": {
