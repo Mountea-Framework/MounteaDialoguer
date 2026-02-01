@@ -11,7 +11,6 @@ import {
 	storeAudioFile,
 	validateAudioFile,
 	getAudioDuration,
-	createAudioUrl,
 } from '@/lib/audioStorage';
 
 /**
@@ -24,6 +23,57 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 	const [expandedRows, setExpandedRows] = useState(new Set([0])); // First row expanded by default
 	const [playingAudio, setPlayingAudio] = useState(null); // Track which row is playing audio
 	const audioRefs = useRef({}); // Store audio element references
+	const audioUrlsRef = useRef({}); // Store blob URLs for cleanup
+
+	// Create and manage audio URLs
+	useEffect(() => {
+		// Create URLs for new audio files
+		dialogueRows.forEach((row, index) => {
+			if (row.audioFile && !audioUrlsRef.current[index]) {
+				// Check if audio has a url property (from restoreAudioFromStorage)
+				if (row.audioFile.url) {
+					audioUrlsRef.current[index] = row.audioFile.url;
+				}
+				// Check if audio has dataUrl property (from old audioStorage)
+				else if (row.audioFile.dataUrl) {
+					// Convert dataUrl to blob URL
+					try {
+						const parts = row.audioFile.dataUrl.split(',');
+						const mime = parts[0].match(/:(.*?);/)[1];
+						const bstr = atob(parts[1]);
+						let n = bstr.length;
+						const u8arr = new Uint8Array(n);
+						while (n--) {
+							u8arr[n] = bstr.charCodeAt(n);
+						}
+						const blob = new Blob([u8arr], { type: mime });
+						audioUrlsRef.current[index] = URL.createObjectURL(blob);
+					} catch (error) {
+						console.error('Error creating audio URL:', error);
+					}
+				}
+				// Check if audio has blob property (fresh upload)
+				else if (row.audioFile.blob) {
+					audioUrlsRef.current[index] = URL.createObjectURL(row.audioFile.blob);
+				}
+			} else if (!row.audioFile && audioUrlsRef.current[index]) {
+				// Clean up URL if audio file was removed
+				if (audioUrlsRef.current[index].startsWith('blob:')) {
+					URL.revokeObjectURL(audioUrlsRef.current[index]);
+				}
+				delete audioUrlsRef.current[index];
+			}
+		});
+
+		// Cleanup on unmount
+		return () => {
+			Object.values(audioUrlsRef.current).forEach((url) => {
+				if (url && url.startsWith('blob:')) {
+					URL.revokeObjectURL(url);
+				}
+			});
+		};
+	}, [dialogueRows]);
 
 	const toggleRow = (index) => {
 		const newExpanded = new Set(expandedRows);
@@ -206,6 +256,12 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 
 	// Remove audio file
 	const removeAudioFile = (index) => {
+		// Clean up blob URL
+		if (audioUrlsRef.current[index] && audioUrlsRef.current[index].startsWith('blob:')) {
+			URL.revokeObjectURL(audioUrlsRef.current[index]);
+		}
+		delete audioUrlsRef.current[index];
+
 		updateRow(index, { audioFile: null });
 		if (playingAudio === index) {
 			setPlayingAudio(null);
@@ -355,7 +411,7 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 													{/* Hidden audio element for playback */}
 													<audio
 														ref={(el) => (audioRefs.current[index] = el)}
-														src={createAudioUrl(row.audioFile)}
+														src={audioUrlsRef.current[index] || ''}
 														onEnded={() => handleAudioEnded(index)}
 														className="hidden"
 													/>
