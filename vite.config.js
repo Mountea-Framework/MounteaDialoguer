@@ -15,7 +15,7 @@ export default defineConfig({
 			'@': path.resolve(__dirname, './src'),
 		},
 	},
-	base: '/MounteaDialoguer/',
+	base: './',
 	build: {
 		outDir: 'dist',
 	},
