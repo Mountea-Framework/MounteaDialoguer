@@ -33,10 +33,11 @@ export function base64ToBlob(base64, mimeType = 'audio/wav') {
  */
 export async function prepareAudioForStorage(audioFile) {
 	if (!audioFile || !audioFile.blob) return null;
-	
+
 	const base64 = await blobToBase64(audioFile.blob);
 	return {
 		name: audioFile.name,
+		size: audioFile.size || audioFile.blob.size,
 		base64: base64,
 		mimeType: audioFile.blob.type,
 	};
@@ -47,10 +48,11 @@ export async function prepareAudioForStorage(audioFile) {
  */
 export function restoreAudioFromStorage(storedAudio) {
 	if (!storedAudio || !storedAudio.base64) return null;
-	
+
 	const blob = base64ToBlob(storedAudio.base64, storedAudio.mimeType);
 	return {
 		name: storedAudio.name,
+		size: storedAudio.size || blob.size,
 		blob: blob,
 		url: URL.createObjectURL(blob),
 	};

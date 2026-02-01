@@ -25,7 +25,7 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 	const audioRefs = useRef({}); // Store audio element references
 	const audioUrlsRef = useRef({}); // Store blob URLs for cleanup
 
-	// Create and manage audio URLs
+	// Create and manage audio URLs when dialogue rows change
 	useEffect(() => {
 		// Create URLs for new audio files
 		dialogueRows.forEach((row, index) => {
@@ -64,8 +64,10 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 				delete audioUrlsRef.current[index];
 			}
 		});
+	}, [dialogueRows]);
 
-		// Cleanup on unmount
+	// Cleanup blob URLs only on unmount
+	useEffect(() => {
 		return () => {
 			Object.values(audioUrlsRef.current).forEach((url) => {
 				if (url && url.startsWith('blob:')) {
@@ -73,7 +75,7 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 				}
 			});
 		};
-	}, [dialogueRows]);
+	}, []); // Empty dependency array = only runs on mount/unmount
 
 	const toggleRow = (index) => {
 		const newExpanded = new Set(expandedRows);
