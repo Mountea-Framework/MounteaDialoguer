@@ -300,4 +300,136 @@ export const useProjectStore = create((set, get) => ({
 			throw error;
 		}
 	},
+
+	importProject: async (file) => {
+		try {
+			const JSZip = (await import('jszip')).default;
+			const zip = await JSZip.loadAsync(file);
+
+			const projectDataStr = await zip.file('projectData.json')?.async('text');
+			const participantsStr = await zip.file('participants.json')?.async('text');
+			const categoriesStr = await zip.file('categories.json')?.async('text');
+			const decoratorsStr = await zip.file('decorators.json')?.async('text');
+
+			if (!projectDataStr) {
+				throw new Error('Invalid project file: missing projectData.json');
+			}
+
+			const projectData = JSON.parse(projectDataStr);
+			const participants = participantsStr ? JSON.parse(participantsStr) : [];
+			const categories = categoriesStr ? JSON.parse(categoriesStr) : [];
+			const decorators = decoratorsStr ? JSON.parse(decoratorsStr) : [];
+
+			const { v4: uuidv4 } = await import('uuid');
+			const newProjectId = uuidv4();
+			const now = new Date().toISOString();
+
+			const newProject = {
+				id: newProjectId,
+				name: projectData.projectName,
+				description: projectData.description || '',
+				createdAt: now,
+				modifiedAt: now,
+			};
+
+			await db.projects.add(newProject);
+
+			const categoryIdMap = new Map();
+			const { useCategoryStore } = await import('./categoryStore');
+
+			for (const cat of categories) {
+				const newCatId = uuidv4();
+				const newCat = {
+					id: newCatId,
+					name: cat.name,
+					parentCategoryId: null,
+					projectId: newProjectId,
+					createdAt: now,
+					modifiedAt: now,
+				};
+				await db.categories.add(newCat);
+				categoryIdMap.set(cat.id, newCatId);
+			}
+
+			for (const cat of categories) {
+				if (cat.parentCategoryId) {
+					const newCatId = categoryIdMap.get(cat.id);
+					const newParentId = categoryIdMap.get(cat.parentCategoryId);
+					if (newCatId && newParentId) {
+						await db.categories.update(newCatId, { parentCategoryId: newParentId });
+					}
+				}
+			}
+
+			for (const part of participants) {
+				const newPartId = uuidv4();
+				await db.participants.add({
+					id: newPartId,
+					name: part.name,
+					category: part.category,
+					projectId: newProjectId,
+					createdAt: now,
+					modifiedAt: now,
+				});
+			}
+
+			for (const dec of decorators) {
+				const newDecId = uuidv4();
+				await db.decorators.add({
+					id: newDecId,
+					name: dec.name,
+					type: dec.type,
+					values: dec.values || {},
+					projectId: newProjectId,
+					createdAt: now,
+					modifiedAt: now,
+				});
+			}
+
+			const { useDialogueStore } = await import('./dialogueStore');
+			const dialogueStore = useDialogueStore.getState();
+
+			const dialoguesFolder = zip.folder('dialogues');
+			if (dialoguesFolder) {
+				const dialogueFiles = [];
+				dialoguesFolder.forEach((relativePath, file) => {
+					if (relativePath.endsWith('.mnteadlg') && !file.dir) {
+						dialogueFiles.push({ path: relativePath, file });
+					}
+				});
+
+				for (const { path, file } of dialogueFiles) {
+					try {
+						const dialogueBlob = await file.async('blob');
+						const dialogueFile = new File([dialogueBlob], path);
+						await dialogueStore.importDialogue(newProjectId, dialogueFile);
+					} catch (error) {
+						console.error(`Failed to import dialogue ${path}:`, error);
+						toast({
+							variant: 'error',
+							title: 'Failed to Import Dialogue',
+							description: `${path}: ${error.message}`,
+						});
+					}
+				}
+			}
+
+			await get().loadProjects();
+
+			toast({
+				variant: 'success',
+				title: 'Project Imported',
+				description: `${newProject.name} has been imported successfully`,
+			});
+
+			return newProjectId;
+		} catch (error) {
+			console.error('Error importing project:', error);
+			toast({
+				variant: 'error',
+				title: 'Failed to Import Project',
+				description: error.message || 'An unexpected error occurred',
+			});
+		}
+	},
 }));

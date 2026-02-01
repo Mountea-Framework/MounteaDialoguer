@@ -71,7 +71,7 @@ export function OverviewSection({
 					<input
 						ref={fileInputRef}
 						type="file"
-						accept=".mnteadlg"
+						accept=".mnteadlgproj"
 						onChange={onImport}
 						className="hidden"
 					/>

@@ -31,8 +31,8 @@ function ProjectDetailsPage() {
 	const { theme, setTheme } = useTheme();
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
-	const { projects, loadProjects, deleteProject, exportProject } = useProjectStore();
-	const { dialogues, loadDialogues, importDialogue } = useDialogueStore();
+	const { projects, loadProjects, deleteProject, exportProject, importProject } = useProjectStore();
+	const { dialogues, loadDialogues } = useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
 	const { categories, loadCategories } = useCategoryStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
@@ -77,9 +77,11 @@ function ProjectDetailsPage() {
 
 		setIsImporting(true);
 		try {
-			await importDialogue(projectId, file);
+			await importProject(file);
+			// Reload all data after import
+			await loadData();
 		} catch (error) {
-			console.error('Failed to import dialogue:', error);
+			console.error('Failed to import project:', error);
 		} finally {
 			setIsImporting(false);
 			if (fileInputRef.current) {
