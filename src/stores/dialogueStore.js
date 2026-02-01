@@ -224,15 +224,36 @@ export const useDialogueStore = create((set, get) => ({
 	saveDialogueGraph: async (dialogueId, nodes, edges, viewport) => {
 		set({ isLoading: true, error: null });
 		try {
+			const { prepareAudioForStorage } = await import('@/lib/audioUtils');
+
+			// Convert audio blobs to base64 for storage
+			const processedNodes = await Promise.all(
+				nodes.map(async (node) => {
+					if (node.data?.dialogueRows) {
+						const processedRows = await Promise.all(
+							node.data.dialogueRows.map(async (row) => {
+								if (row.audioFile?.blob) {
+									const storedAudio = await prepareAudioForStorage(row.audioFile);
+									return { ...row, audioFile: storedAudio };
+								}
+								return row;
+							})
+						);
+						return { ...node, data: { ...node.data, dialogueRows: processedRows } };
+					}
+					return node;
+				})
+			);
+
 			await db.transaction('rw', [db.nodes, db.edges, db.dialogues], async () => {
 				// Delete existing nodes and edges
 				await db.nodes.where('dialogueId').equals(dialogueId).delete();
 				await db.edges.where('dialogueId').equals(dialogueId).delete();
 
-				// Add new nodes and edges
-				if (nodes.length > 0) {
+				// Add new nodes and edges with processed audio
+				if (processedNodes.length > 0) {
 					await db.nodes.bulkAdd(
-						nodes.map(node => ({ ...node, dialogueId }))
+						processedNodes.map(node => ({ ...node, dialogueId }))
 					);
 				}
 				if (edges.length > 0) {
@@ -266,10 +287,28 @@ export const useDialogueStore = create((set, get) => ({
 	loadDialogueGraph: async (dialogueId) => {
 		set({ isLoading: true, error: null });
 		try {
-			const nodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
+			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
+
+			const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
 			const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
 			const dialogue = await db.dialogues.get(dialogueId);
 			const viewport = dialogue?.viewport || { x: 0, y: 0, zoom: 1 };
+
+			// Convert base64 back to blobs for audio playback and export
+			const nodes = loadedNodes.map((node) => {
+				if (node.data?.dialogueRows) {
+					const restoredRows = node.data.dialogueRows.map((row) => {
+						if (row.audioFile?.base64) {
+							const restoredAudio = restoreAudioFromStorage(row.audioFile);
+							return { ...row, audioFile: restoredAudio };
+						}
+						return row;
+					});
+					return { ...node, data: { ...node.data, dialogueRows: restoredRows } };
+				}
+				return node;
+			});
+
 			set({ nodes, edges, isLoading: false });
 			return { nodes, edges, viewport };
 		} catch (error) {
@@ -339,8 +378,24 @@ export const useDialogueStore = create((set, get) => ({
 			}
 			console.log(`[exportDialogueAsBlob] Found dialogue: ${dialogue.name}`);
 
-			const nodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
+			const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
 			const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+
+			// Restore audio from base64 to blobs for export
+			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
+			const nodes = loadedNodes.map((node) => {
+				if (node.data?.dialogueRows) {
+					const restoredRows = node.data.dialogueRows.map((row) => {
+						if (row.audioFile?.base64) {
+							const restoredAudio = restoreAudioFromStorage(row.audioFile);
+							return { ...row, audioFile: restoredAudio };
+						}
+						return row;
+					});
+					return { ...node, data: { ...node.data, dialogueRows: restoredRows } };
+				}
+				return node;
+			});
 
 			console.log(`[exportDialogueAsBlob] Found ${nodes.length} nodes and ${edges.length} edges`);
 			// Validate Start Node exists

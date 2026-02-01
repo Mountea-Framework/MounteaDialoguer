@@ -180,7 +180,7 @@ export function OverviewSection({
 												key={dialogue.id}
 												to="/projects/$projectId/dialogue/$dialogueId"
 												params={{ projectId: project.id, dialogueId: dialogue.id }}
-												className="p-4 flex items-center justify-between group hover:bg-accent transition-colors cursor-pointer hover:rounded-lg"
+												className="p-4 flex items-center justify-between group hover:bg-accent transition-colors cursor-pointer hover:rounded-lg rounded-lg"
 											>
 												<div className="flex items-center gap-4">
 													<div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-blue-500">
