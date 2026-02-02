@@ -34,23 +34,12 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			),
 		},
 		{
-			target: '[data-tour="projects-grid"]',
-			content: (
-				<div>
-					<h3 className="font-semibold mb-1">Your Projects</h3>
-					<p className="text-sm">
-						All your projects will appear here. Each project can contain multiple dialogues.
-					</p>
-				</div>
-			),
-		},
-		{
 			target: '[data-tour="search"]',
 			content: (
 				<div>
 					<h3 className="font-semibold mb-1">Quick Search</h3>
 					<p className="text-sm">
-						Use the search bar to quickly find projects or dialogues.
+						Use the search bar to quickly find projects and dialogues.
 					</p>
 				</div>
 			),

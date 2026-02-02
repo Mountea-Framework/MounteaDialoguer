@@ -83,11 +83,13 @@ export function CreateDialogueDialog({ open, onOpenChange, projectId }) {
 			setErrors({});
 			onOpenChange(false);
 
-			// Navigate to the new dialogue editor
-			navigate({
-				to: '/projects/$projectId/dialogue/$dialogueId',
-				params: { projectId, dialogueId: dialogue.id },
-			});
+			// Delay navigation to allow confetti to show
+			setTimeout(() => {
+				navigate({
+					to: '/projects/$projectId/dialogue/$dialogueId',
+					params: { projectId, dialogueId: dialogue.id },
+				});
+			}, 1000);
 		} catch (error) {
 			console.error('Error creating dialogue:', error);
 			setErrors({ submit: t('common.error') });
