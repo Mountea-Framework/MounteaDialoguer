@@ -200,7 +200,11 @@ export function OverviewSection({
 										))}
 									</div>
 									<div className="bg-muted/50 px-4 py-3 border-t border-border text-center">
-										<button className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+										<button
+											type="button"
+											onClick={() => onSectionChange?.('dialogues')}
+											className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+										>
 											+ {t('dialogues.createNew')}
 										</button>
 									</div>
