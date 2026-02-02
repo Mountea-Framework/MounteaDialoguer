@@ -11,8 +11,10 @@ import {
 	useEdgesState,
 	MarkerType,
 	Panel,
+	useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import dagre from 'dagre';
 import { ZoomSlider } from '@/components/dialogue/ZoomSlider';
 import {
 	ArrowLeft,
@@ -35,6 +37,7 @@ import {
 	Trash2,
 	Check,
 	HelpCircle,
+	Network,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +100,41 @@ const nodeTypes = {
 	answerNode: AnswerNode,
 	returnNode: ReturnNode,
 	completeNode: CompleteNode,
+};
+
+// Auto-layout function using dagre
+const getLayoutedElements = (nodes, edges, direction = 'TB') => {
+	const dagreGraph = new dagre.graphlib.Graph();
+	dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+	const nodeWidth = 250;
+	const nodeHeight = 200;
+
+	const isHorizontal = direction === 'LR';
+	dagreGraph.setGraph({ rankdir: direction, nodesep: 100, ranksep: 150 });
+
+	nodes.forEach((node) => {
+		dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+	});
+
+	edges.forEach((edge) => {
+		dagreGraph.setEdge(edge.source, edge.target);
+	});
+
+	dagre.layout(dagreGraph);
+
+	const layoutedNodes = nodes.map((node) => {
+		const nodeWithPosition = dagreGraph.node(node.id);
+		return {
+			...node,
+			position: {
+				x: nodeWithPosition.x - nodeWidth / 2,
+				y: nodeWithPosition.y - nodeHeight / 2,
+			},
+		};
+	});
+
+	return { nodes: layoutedNodes, edges };
 };
 
 function DialogueEditorPage() {
@@ -434,6 +472,19 @@ function DialogueEditorPage() {
 		},
 		[setNodes, edges, saveToHistory]
 	);
+
+	// Auto-layout handler
+	const onLayout = useCallback(() => {
+		const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+			nodes,
+			edges
+		);
+
+		setNodes(layoutedNodes);
+		setEdges(layoutedEdges);
+		saveToHistory(layoutedNodes, layoutedEdges);
+		setHasUnsavedChanges(true);
+	}, [nodes, edges, setNodes, setEdges, saveToHistory]);
 
 	// Undo
 	const handleUndo = useCallback(() => {
@@ -898,6 +949,18 @@ function DialogueEditorPage() {
 			{/* Bottom Toolbar */}
 			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
+					<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							onClick={onLayout}
+						>
+							<Network className="h-4 w-4" />
+							Auto Layout
+						</Button>
+					</SimpleTooltip>
+					<div className="h-6 w-px bg-border mx-1"></div>
 					<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
 						<Button
 							variant="outline"
