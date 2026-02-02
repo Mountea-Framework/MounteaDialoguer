@@ -17,7 +17,9 @@
 		"@radix-ui/react-select": "^2.2.6",
 		"@tanstack/react-router": "^1.87.0",
 		"@xyflow/react": "^12.10.0",
+		"canvas-confetti": "^1.9.4",
 		"clsx": "^2.1.1",
+		"cmdk": "^1.1.1",
 		"dependencies": "^0.0.1",
 		"dexie": "^4.0.11",
 		"dexie-react-hooks": "^1.1.7",
@@ -30,6 +32,7 @@
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"react-i18next": "^15.2.0",
+		"react-joyride": "^2.9.3",
 		"tailwind-merge": "^2.5.5",
 		"uuid": "^11.0.3",
 		"zustand": "^5.0.2"
