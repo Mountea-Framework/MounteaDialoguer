@@ -15,11 +15,13 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useParticipantStore } from '@/stores/participantStore';
+import { EditParticipantDialog } from '@/components/dialogs/EditParticipantDialog';
 
 export function ParticipantCard({ participant }) {
 	const { t } = useTranslation();
 	const { deleteParticipant } = useParticipantStore();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleDelete = async () => {
@@ -57,6 +59,7 @@ export function ParticipantCard({ participant }) {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-muted-foreground hover:text-primary"
+								onClick={() => setShowEditDialog(true)}
 							>
 								<Edit3 className="h-4 w-4" />
 							</Button>
@@ -72,6 +75,13 @@ export function ParticipantCard({ participant }) {
 					</div>
 				</CardContent>
 			</Card>
+
+			<EditParticipantDialog
+				open={showEditDialog}
+				onOpenChange={setShowEditDialog}
+				participant={participant}
+				projectId={participant.projectId}
+			/>
 
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
 				<AlertDialogContent>

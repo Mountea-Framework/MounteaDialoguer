@@ -15,11 +15,13 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { EditCategoryDialog } from '@/components/dialogs/EditCategoryDialog';
 
 export function CategoryCard({ category }) {
 	const { t } = useTranslation();
 	const { categories, deleteCategory } = useCategoryStore();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleDelete = async () => {
@@ -74,6 +76,7 @@ export function CategoryCard({ category }) {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-muted-foreground hover:text-primary"
+								onClick={() => setShowEditDialog(true)}
 							>
 								<Edit3 className="h-4 w-4" />
 							</Button>
@@ -89,6 +92,13 @@ export function CategoryCard({ category }) {
 					</div>
 				</CardContent>
 			</Card>
+
+			<EditCategoryDialog
+				open={showEditDialog}
+				onOpenChange={setShowEditDialog}
+				category={category}
+				projectId={category.projectId}
+			/>
 
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
 				<AlertDialogContent>
