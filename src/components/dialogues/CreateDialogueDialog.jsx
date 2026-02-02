@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useDialogueStore } from '@/stores/dialogueStore';
+import { celebrateFirstDialogue, celebrateSmallWin } from '@/lib/confetti';
 
 /**
  * Create Dialogue Dialog Component
@@ -22,7 +23,7 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 export function CreateDialogueDialog({ open, onOpenChange, projectId }) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { createDialogue } = useDialogueStore();
+	const { createDialogue, dialogues } = useDialogueStore();
 	const [formData, setFormData] = useState({
 		name: '',
 		description: '',
@@ -60,11 +61,22 @@ export function CreateDialogueDialog({ open, onOpenChange, projectId }) {
 		setIsSubmitting(true);
 
 		try {
+			// Check if this is the first dialogue for the project
+			const projectDialogues = dialogues.filter((d) => d.projectId === projectId);
+			const isFirstDialogue = projectDialogues.length === 0;
+
 			const dialogue = await createDialogue({
 				projectId,
 				name: formData.name.trim(),
 				description: formData.description.trim(),
 			});
+
+			// Celebrate!
+			if (isFirstDialogue) {
+				celebrateFirstDialogue();
+			} else {
+				celebrateSmallWin();
+			}
 
 			// Reset form
 			setFormData({ name: '', description: '' });
