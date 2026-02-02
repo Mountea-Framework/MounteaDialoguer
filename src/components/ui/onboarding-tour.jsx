@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Joyride, { STATUS } from 'react-joyride';
+import { useTheme } from '@/contexts/ThemeProvider';
 
 /**
  * Onboarding Tour Component
@@ -7,6 +8,10 @@ import Joyride, { STATUS } from 'react-joyride';
  */
 export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 	const [stepIndex, setStepIndex] = useState(0);
+	const { theme } = useTheme();
+
+	// Determine if we're in dark mode
+	const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
 	const dashboardSteps = [
 		{
@@ -122,26 +127,39 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			styles={{
 				options: {
 					primaryColor: 'hsl(var(--primary))',
+					backgroundColor: isDark ? 'hsl(var(--card))' : '#fff',
+					textColor: isDark ? 'hsl(var(--foreground))' : '#333',
+					arrowColor: isDark ? 'hsl(var(--card))' : '#fff',
+					overlayColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
 					zIndex: 10000,
 				},
 				spotlight: {
 					borderRadius: 8,
+					backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
 				},
 				tooltip: {
 					borderRadius: 8,
 					fontSize: 14,
+					backgroundColor: isDark ? 'hsl(var(--card))' : '#fff',
+					color: isDark ? 'hsl(var(--foreground))' : '#333',
+					border: isDark ? '1px solid hsl(var(--border))' : '1px solid #e5e7eb',
+				},
+				tooltipContent: {
+					padding: '12px 16px',
 				},
 				buttonNext: {
 					borderRadius: 6,
 					padding: '8px 16px',
 					fontSize: 14,
+					backgroundColor: 'hsl(var(--primary))',
+					color: 'hsl(var(--primary-foreground))',
 				},
 				buttonBack: {
-					color: 'hsl(var(--muted-foreground))',
+					color: isDark ? 'hsl(var(--muted-foreground))' : '#666',
 					marginRight: 8,
 				},
 				buttonSkip: {
-					color: 'hsl(var(--muted-foreground))',
+					color: isDark ? 'hsl(var(--muted-foreground))' : '#666',
 				},
 			}}
 			locale={{
