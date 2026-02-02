@@ -65,7 +65,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
 						<Upload className="h-4 w-4" />
 						{t('common.import')}
 					</Button>
-					<Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+					<Button type="button" size="sm" onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
 						<Plus className="h-4 w-4" />
 						{t('dialogues.createNew')}
 					</Button>
@@ -78,7 +78,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
 					title={t('dialogues.noDialogues')}
 					description={t('dialogues.createFirst')}
 					action={
-						<Button onClick={() => setIsCreateDialogOpen(true)}>
+						<Button type="button" onClick={() => setIsCreateDialogOpen(true)}>
 							<Plus className="h-4 w-4 mr-2" />
 							{t('dialogues.createNew')}
 						</Button>
