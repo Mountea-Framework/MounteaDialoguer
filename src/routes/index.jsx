@@ -25,33 +25,44 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 
 	return (
 		<header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-			<div className="flex h-16 items-center px-6 md:px-12 max-w-7xl mx-auto w-full">
-				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-						<MessageCircle className="h-6 w-6 text-primary-foreground" />
+			<div className="flex flex-col md:flex-row md:h-16 md:items-center px-4 py-3 md:px-12 max-w-7xl mx-auto w-full gap-3">
+				<div className="flex items-center gap-3 justify-between md:justify-start">
+					<div className="flex items-center gap-3">
+						<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
+							<MessageCircle className="h-6 w-6 text-primary-foreground" />
+						</div>
+						<div className="hidden sm:block">
+							<h1 className="text-lg font-bold tracking-tight">{t('app.title')}</h1>
+							<p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
+						</div>
 					</div>
-					<div>
-						<h1 className="text-lg font-bold tracking-tight">{t('app.title')}</h1>
-						<p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
-					</div>
+					<Button
+						onClick={onNewProject}
+						size="sm"
+						className="md:hidden gap-1"
+						data-tour="create-project"
+					>
+						<Plus className="h-4 w-4" />
+						<span className="sr-only sm:not-sr-only">{t('common.new')}</span>
+					</Button>
 				</div>
-				<div className="flex-1 flex items-center justify-end gap-3">
-					<div className="relative w-64" data-tour="search">
+				<div className="flex-1 flex items-center gap-2 md:justify-end">
+					<div className="relative flex-1 md:w-64 md:flex-none" data-tour="search">
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
 							type="text"
 							placeholder={t('common.search')}
 							value={searchQuery}
 							onChange={(e) => onSearch(e.target.value)}
-							className="pl-9"
+							className="pl-9 h-9"
 						/>
 					</div>
 					<LanguageSelector />
-					<Button variant="ghost" size="icon" onClick={onShowTour} className="rounded-full">
+					<Button variant="ghost" size="icon" onClick={onShowTour} className="rounded-full shrink-0">
 						<HelpCircle className="h-4 w-4" />
 					</Button>
-					<Button onClick={onNewProject} data-tour="create-project">
-						<Plus className="h-4 w-4 mr-2" />
+					<Button onClick={onNewProject} className="hidden md:flex gap-2" data-tour="create-project">
+						<Plus className="h-4 w-4" />
 						{t('projects.createNew')}
 					</Button>
 				</div>

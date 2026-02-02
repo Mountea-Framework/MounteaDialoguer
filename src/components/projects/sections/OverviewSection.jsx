@@ -1,9 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
-import { Download, Upload, Trash2, Edit3, ArrowRight, MessageCircle, FolderOpen, Calendar, Clock } from 'lucide-react';
+import { Download, Upload, Trash2, Edit3, ArrowRight, MessageCircle, FolderOpen, Calendar, Clock, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatDate, formatDistanceToNow } from '@/lib/dateUtils';
 
 /**
@@ -67,14 +74,47 @@ export function OverviewSection({
 						</p>
 					)}
 				</div>
-				<div className="flex gap-2">
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept=".mnteadlgproj"
-						onChange={onImport}
-						className="hidden"
-					/>
+			<div className="flex gap-2">
+				<input
+					ref={fileInputRef}
+					type="file"
+					accept=".mnteadlgproj"
+					onChange={onImport}
+					className="hidden"
+				/>
+				{/* Mobile: Dropdown Menu */}
+				<div className="md:hidden">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm">
+								<MoreVertical className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								onClick={() => fileInputRef?.current?.click()}
+								disabled={isImporting}
+							>
+								<Upload className="h-4 w-4 mr-2" />
+								{t('common.import')}
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={onExport}>
+								<Download className="h-4 w-4 mr-2" />
+								{t('common.export')}
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={onDelete}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="h-4 w-4 mr-2" />
+								{t('common.delete')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
+				{/* Desktop: Full Buttons */}
+				<div className="hidden md:flex gap-2">
 					<Button
 						variant="outline"
 						size="sm"
@@ -99,57 +139,57 @@ export function OverviewSection({
 					</Button>
 				</div>
 			</div>
+			</div>
 
-			{/* Metrics Cards */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-start justify-between mb-4">
-							<div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary">
-								<FolderOpen className="h-5 w-5" />
-							</div>
-							<Badge variant="success" className="text-[10px]">Active</Badge>
+		{/* Metrics Cards */}
+		<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
+			<Card>
+				<CardContent className="p-3 md:p-4">
+					<div className="flex items-center gap-3">
+						<div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+							<FolderOpen className="h-4 w-4" />
 						</div>
-						<div>
-							<p className="text-muted-foreground text-sm font-medium">File Size</p>
-							<h3 className="text-2xl font-bold mt-1">--</h3>
-							<p className="text-xs text-muted-foreground mt-2">{totalNodes} {t('dialogues.nodes')}</p>
+						<div className="min-w-0 flex-1">
+							<p className="text-muted-foreground text-xs font-medium">File Size</p>
+							<h3 className="text-lg font-bold">--</h3>
+							<p className="text-[10px] text-muted-foreground">{totalNodes} {t('dialogues.nodes')}</p>
 						</div>
-					</CardContent>
-				</Card>
+					</div>
+				</CardContent>
+			</Card>
 
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-start justify-between mb-4">
-							<div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
-								<Clock className="h-5 w-5" />
-							</div>
+			<Card>
+				<CardContent className="p-3 md:p-4">
+					<div className="flex items-center gap-3">
+						<div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+							<Clock className="h-4 w-4" />
 						</div>
-						<div>
-							<p className="text-muted-foreground text-sm font-medium">{t('projects.modified')}</p>
-							<h3 className="text-2xl font-bold mt-1">{formatDistanceToNow(project.modifiedAt)}</h3>
-							<p className="text-xs text-muted-foreground mt-2">By Current User</p>
+						<div className="min-w-0 flex-1">
+							<p className="text-muted-foreground text-xs font-medium">{t('projects.modified')}</p>
+							<h3 className="text-lg font-bold truncate">{formatDistanceToNow(project.modifiedAt)}</h3>
+							<p className="text-[10px] text-muted-foreground">Current User</p>
 						</div>
-					</CardContent>
-				</Card>
+					</div>
+				</CardContent>
+			</Card>
 
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-start justify-between mb-4">
-							<div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 dark:text-orange-400">
-								<Calendar className="h-5 w-5" />
-							</div>
+			<Card>
+				<CardContent className="p-3 md:p-4">
+					<div className="flex items-center gap-3">
+						<div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+							<Calendar className="h-4 w-4" />
 						</div>
-						<div>
-							<p className="text-muted-foreground text-sm font-medium">{t('projects.created')}</p>
-							<h3 className="text-2xl font-bold mt-1">{formatDate(project.createdAt)}</h3>
-							<p className="text-xs text-muted-foreground mt-2">
-								{project.version ? `Version ${project.version}` : 'v1.0.0'}
+						<div className="min-w-0 flex-1">
+							<p className="text-muted-foreground text-xs font-medium">{t('projects.created')}</p>
+							<h3 className="text-lg font-bold">{formatDate(project.createdAt)}</h3>
+							<p className="text-[10px] text-muted-foreground">
+								{project.version ? `v${project.version}` : 'v1.0.0'}
 							</p>
 						</div>
-					</CardContent>
-				</Card>
-			</div>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
 
 			{/* Two Column Layout */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

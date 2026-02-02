@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Download, Trash2, Edit3, Play, Sun, Moon } from 'lucide-react';
+import { ArrowLeft, Download, Trash2, Edit3, Play, Sun, Moon, Menu, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useProjectStore } from '@/stores/projectStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
@@ -41,6 +41,7 @@ function ProjectDetailsPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [activeSection, setActiveSection] = useState(searchParams?.section || 'overview');
 	const [isImporting, setIsImporting] = useState(false);
+	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 	const fileInputRef = useRef(null);
 
 	useEffect(() => {
@@ -121,8 +122,16 @@ function ProjectDetailsPage() {
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between">
-				<div className="flex items-center gap-4">
+			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between">
+				<div className="flex items-center gap-2 md:gap-4">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setIsMobileSidebarOpen(true)}
+						className="lg:hidden rounded-full"
+					>
+						<Menu className="h-5 w-5" />
+					</Button>
 					<Link to="/">
 						<SimpleTooltip content="Back to projects" side="bottom">
 							<Button variant="ghost" size="icon" className="rounded-full">
@@ -132,14 +141,14 @@ function ProjectDetailsPage() {
 					</Link>
 					<div className="flex items-center gap-4">
 						<div>
-							<h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-							<p className="text-sm text-muted-foreground">
+							<h1 className="text-lg md:text-2xl font-bold tracking-tight line-clamp-1">{project.name}</h1>
+							<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
 								{t('projects.projectDetails')}
 							</p>
 						</div>
 					</div>
 				</div>
-				<div className="flex items-center gap-4">
+				<div className="flex items-center gap-2 md:gap-4">
 					<div className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
 						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
 						{t('dialogues.autoSaved')}
@@ -161,18 +170,31 @@ function ProjectDetailsPage() {
 				</div>
 			</header>
 
+			{/* Mobile Sidebar Overlay */}
+			{isMobileSidebarOpen && (
+				<div
+					className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+					onClick={() => setIsMobileSidebarOpen(false)}
+				/>
+			)}
+
 			{/* Main Content */}
 			<div className="flex-1 flex overflow-hidden">
 				<ProjectSidebar
 					activeSection={activeSection}
-					onSectionChange={setActiveSection}
+					onSectionChange={(section) => {
+						setActiveSection(section);
+						setIsMobileSidebarOpen(false);
+					}}
 					project={project}
 					dialogueCount={projectDialogues.length}
 					participantCount={projectParticipants.length}
+					isMobileOpen={isMobileSidebarOpen}
+					onMobileClose={() => setIsMobileSidebarOpen(false)}
 				/>
 
 				<main className="flex-1 overflow-y-auto bg-grid">
-					<div className="max-w-5xl mx-auto p-8 md:p-12">
+					<div className="max-w-5xl mx-auto p-4 md:p-8 lg:p-12">
 						{activeSection === 'overview' && (
 							<OverviewSection
 								project={project}

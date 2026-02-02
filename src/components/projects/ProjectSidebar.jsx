@@ -1,6 +1,7 @@
-import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard } from 'lucide-react';
+import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 /**
  * Project Sidebar Component
@@ -11,7 +12,9 @@ export function ProjectSidebar({
 	onSectionChange,
 	project,
 	dialogueCount = 0,
-	participantCount = 0
+	participantCount = 0,
+	isMobileOpen = false,
+	onMobileClose
 }) {
 	const { t } = useTranslation();
 
@@ -51,7 +54,24 @@ export function ProjectSidebar({
 	];
 
 	return (
-		<aside className="w-64 flex-shrink-0 bg-card border-r border-border flex flex-col h-full">
+		<aside className={cn(
+			"w-64 flex-shrink-0 bg-card border-r border-border flex flex-col h-full transition-transform duration-300 ease-in-out",
+			"lg:translate-x-0 lg:static lg:z-0",
+			"fixed inset-y-0 left-0 z-50",
+			isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+		)}>
+			{/* Mobile Close Button */}
+			<div className="lg:hidden flex justify-end p-4">
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onMobileClose}
+					className="rounded-full"
+				>
+					<X className="h-5 w-5" />
+				</Button>
+			</div>
+
 			{/* Project Info Card */}
 			<div className="p-4">
 				<div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center text-center">
