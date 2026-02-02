@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Upload } from 'lucide-react';
+import { Plus, Upload, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DialogueCard } from '@/components/projects/DialogueCard';
 import { CreateDialogueDialog } from '@/components/dialogues/CreateDialogueDialog';
 import { useDialogueStore } from '@/stores/dialogueStore';
+import { EmptyState } from '@/components/ui/empty-state';
 
 /**
  * Dialogues Section Component
@@ -72,17 +73,22 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
 			</div>
 
 			{dialogues.length === 0 ? (
-				<div className="text-center py-16">
-					<div className="mx-auto w-64">
-						<div className="mb-4 text-6xl opacity-20">💬</div>
-						<h3 className="font-semibold mb-2">{t('dialogues.noDialogues')}</h3>
-						<p className="text-sm text-muted-foreground mb-4">{t('dialogues.createFirst')}</p>
+				<EmptyState
+					icon={MessageCircle}
+					title={t('dialogues.noDialogues')}
+					description={t('dialogues.createFirst')}
+					action={
 						<Button onClick={() => setIsCreateDialogOpen(true)}>
 							<Plus className="h-4 w-4 mr-2" />
 							{t('dialogues.createNew')}
 						</Button>
-					</div>
-				</div>
+					}
+					tips={[
+						'Dialogues are the backbone of your interactive narratives',
+						'Use nodes to create branching conversations',
+						'Connect nodes to create dialogue flow',
+					]}
+				/>
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{dialogues.map((dialogue) => (

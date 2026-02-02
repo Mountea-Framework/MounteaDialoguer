@@ -12,6 +12,7 @@ import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { formatFileSize, formatDate } from '@/lib/dateUtils';
 import { calculateDiskUsage } from '@/lib/storageUtils';
 import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
+import { EmptyState } from '@/components/ui/empty-state';
 
 
 export const Route = createFileRoute('/')({
@@ -252,21 +253,22 @@ function ProjectsDashboard() {
 							<p className="text-muted-foreground">{t('common.loading')}</p>
 						</div>
 					) : filteredProjects.length === 0 ? (
-						<div className="text-center py-12">
-							<div className="mx-auto w-64">
-								<div className="mb-4 text-6xl opacity-20">📁</div>
-								<h3 className="font-semibold mb-2">
-									{t('projects.noProjects')}
-								</h3>
-								<p className="text-sm text-muted-foreground mb-4">
-									{t('projects.createFirst')}
-								</p>
+						<EmptyState
+							icon={FolderOpen}
+							title={t('projects.noProjects')}
+							description={t('projects.createFirst')}
+							action={
 								<Button onClick={handleNewProject}>
 									<Plus className="h-4 w-4 mr-2" />
 									{t('projects.createNew')}
 								</Button>
-							</div>
-						</div>
+							}
+							tips={[
+								'Projects help organize your dialogues by game or story',
+								'Each project can contain multiple dialogues',
+								'Use the search bar to quickly find projects',
+							]}
+						/>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-tour="projects-grid">
 							{filteredProjects.map((project) => (
