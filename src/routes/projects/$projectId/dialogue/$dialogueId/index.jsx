@@ -62,6 +62,9 @@ import CompleteNode from '@/components/dialogue/nodes/CompleteNode';
 import { DialogueRowsPanel } from '@/components/dialogue/DialogueRowsPanel';
 import { DecoratorsPanel } from '@/components/dialogue/DecoratorsPanel';
 import { CollapsibleSection } from '@/components/dialogue/CollapsibleSection';
+import { SaveIndicator } from '@/components/ui/save-indicator';
+import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
+import { celebrateSuccess } from '@/lib/confetti';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -121,10 +124,14 @@ function DialogueEditorPage() {
 	const [selectedEdge, setSelectedEdge] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveSuccess, setSaveSuccess] = useState(false);
+	const [saveStatus, setSaveStatus] = useState('saved');
 	const [lastSaved, setLastSaved] = useState(null);
 	const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
 	const [reactFlowInstance, setReactFlowInstance] = useState(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+	// Onboarding tour
+	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
 
 	// History for undo/redo
 	const [history, setHistory] = useState([
@@ -204,6 +211,7 @@ function DialogueEditorPage() {
 			// User switched to a different node or deselected, save current state
 			saveToHistory(nodes, edges);
 			setHasUnsavedChanges(true);
+			setSaveStatus('unsaved');
 		}
 		prevSelectedNodeRef.current = selectedNode;
 	}, [selectedNode, nodes, edges, saveToHistory]);
@@ -488,14 +496,20 @@ function DialogueEditorPage() {
 	const handleSave = async () => {
 		setIsSaving(true);
 		setSaveSuccess(false);
+		setSaveStatus('saving');
 		try {
 			await saveDialogueGraph(dialogueId, nodes, edges, viewport);
-			setLastSaved(new Date());
+			const now = new Date();
+			setLastSaved(now);
 			setSaveSuccess(true);
+			setSaveStatus('saved');
 			setHasUnsavedChanges(false);
+			celebrateSuccess();
 			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (error) {
 			console.error('Failed to save dialogue:', error);
+			setSaveStatus('error');
+			setTimeout(() => setSaveStatus('unsaved'), 3000);
 		} finally {
 			setIsSaving(false);
 		}
@@ -523,8 +537,15 @@ function DialogueEditorPage() {
 
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
+			{/* Onboarding Tour */}
+			<OnboardingTour
+				run={runTour}
+				onFinish={finishTour}
+				tourType="editor"
+			/>
+
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between">
+			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between" data-tour="editor-header">
 				<div className="flex items-center gap-4">
 					<Link to="/projects/$projectId" params={{ projectId }}>
 						<Button variant="ghost" size="icon" className="rounded-full">
@@ -539,14 +560,11 @@ function DialogueEditorPage() {
 					</div>
 				</div>
 				<div className="flex items-center gap-4">
-					{lastSaved && (
-						<div className="hidden md:flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
-							<Circle className="h-2 w-2 fill-green-500 text-green-500" />
-							<span className="text-xs font-medium text-muted-foreground">
-								Saved {lastSaved.toLocaleTimeString()}
-							</span>
-						</div>
-					)}
+					<SaveIndicator
+						status={saveStatus}
+						lastSaved={lastSaved}
+						className="hidden md:flex"
+					/>
 					<Button
 						variant="outline"
 						size="icon"
@@ -598,6 +616,7 @@ function DialogueEditorPage() {
 						variant={saveSuccess ? 'default' : 'outline'}
 						className="gap-2"
 						disabled={isSaving}
+						data-tour="save-button"
 					>
 						{saveSuccess ? (
 							<Check className="h-4 w-4" />
@@ -637,6 +656,7 @@ function DialogueEditorPage() {
 					className="flex-1 relative"
 					onDrop={onDrop}
 					onDragOver={onDragOver}
+					data-tour="canvas"
 				>
 					<ReactFlow
 						nodes={nodes}
@@ -684,6 +704,7 @@ function DialogueEditorPage() {
 							}}
 							className="!bg-card !border !border-border !rounded-lg !shadow-lg"
 							maskColor="rgb(0, 0, 0, 0.1)"
+							data-tour="minimap"
 						/>
 					</ReactFlow>
 				</div>
@@ -851,7 +872,7 @@ function DialogueEditorPage() {
 			</div>
 
 			{/* Bottom Toolbar */}
-			<div className="border-t bg-card px-6 py-3 flex items-center justify-between">
+			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
 					<Button
 						variant="outline"
