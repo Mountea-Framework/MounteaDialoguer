@@ -65,6 +65,7 @@ import { CollapsibleSection } from '@/components/dialogue/CollapsibleSection';
 import { SaveIndicator } from '@/components/ui/save-indicator';
 import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 import { celebrateSuccess } from '@/lib/confetti';
+import { SimpleTooltip } from '@/components/ui/tooltip';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -548,9 +549,11 @@ function DialogueEditorPage() {
 			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between" data-tour="editor-header">
 				<div className="flex items-center gap-4">
 					<Link to="/projects/$projectId" params={{ projectId }}>
-						<Button variant="ghost" size="icon" className="rounded-full">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
+						<SimpleTooltip content="Back to project" side="bottom">
+							<Button variant="ghost" size="icon" className="rounded-full">
+								<ArrowLeft className="h-5 w-5" />
+							</Button>
+						</SimpleTooltip>
 					</Link>
 					<div className="flex items-center gap-4">
 						<div>
@@ -565,86 +568,96 @@ function DialogueEditorPage() {
 						lastSaved={lastSaved}
 						className="hidden md:flex"
 					/>
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={() =>
-							window.open(
-								'https://github.com/sponsors/Mountea-Framework',
-								'_blank'
-							)
-						}
-						className="rounded-full"
-						title="Support Mountea Framework"
-					>
-						<Heart className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-						className="rounded-full"
-					>
-						{theme === 'dark' ? (
-							<Sun className="h-4 w-4" />
-						) : (
-							<Moon className="h-4 w-4" />
-						)}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2"
-						onClick={handleUndo}
-						disabled={historyIndex === 0}
-						title="Undo"
-					>
-						<Undo2 className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2"
-						onClick={handleRedo}
-						disabled={historyIndex === history.length - 1}
-						title="Redo"
-					>
-						<Redo2 className="h-4 w-4" />
-					</Button>
-					<Button
-						onClick={handleSave}
-						variant={saveSuccess ? 'default' : 'outline'}
-						className="gap-2"
-						disabled={isSaving}
-						data-tour="save-button"
-					>
-						{saveSuccess ? (
-							<Check className="h-4 w-4" />
-						) : (
-							<Save className="h-4 w-4" />
-						)}
-						{isSaving
-							? t('common.saving')
-							: saveSuccess
-							? 'Saved!'
-							: t('common.save')}
-					</Button>
-					<Button
-						onClick={handleExport}
-						variant="outline"
-						className="gap-2"
-						title="Export dialogue"
-					>
-						<Download className="h-4 w-4" />
-						Export
-					</Button>
+					<SimpleTooltip content="Support Mountea Framework" side="bottom">
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() =>
+								window.open(
+									'https://github.com/sponsors/Mountea-Framework',
+									'_blank'
+								)
+							}
+							className="rounded-full"
+						>
+							<Heart className="h-4 w-4" />
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+							className="rounded-full"
+						>
+							{theme === 'dark' ? (
+								<Sun className="h-4 w-4" />
+							) : (
+								<Moon className="h-4 w-4" />
+							)}
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Undo (Ctrl+Z)" side="bottom">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							onClick={handleUndo}
+							disabled={historyIndex === 0}
+						>
+							<Undo2 className="h-4 w-4" />
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Redo (Ctrl+Y)" side="bottom">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							onClick={handleRedo}
+							disabled={historyIndex === history.length - 1}
+						>
+							<Redo2 className="h-4 w-4" />
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Save dialogue (Ctrl+S)" side="bottom">
+						<Button
+							onClick={handleSave}
+							variant={saveSuccess ? 'default' : 'outline'}
+							className="gap-2"
+							disabled={isSaving}
+							data-tour="save-button"
+						>
+							{saveSuccess ? (
+								<Check className="h-4 w-4" />
+							) : (
+								<Save className="h-4 w-4" />
+							)}
+							{isSaving
+								? t('common.saving')
+								: saveSuccess
+								? 'Saved!'
+								: t('common.save')}
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Export dialogue to file" side="bottom">
+						<Button
+							onClick={handleExport}
+							variant="outline"
+							className="gap-2"
+						>
+							<Download className="h-4 w-4" />
+							Export
+						</Button>
+					</SimpleTooltip>
 					<Link
 						to="/projects/$projectId/dialogue/$dialogueId/settings"
 						params={{ projectId, dialogueId }}
 					>
-						<Button variant="outline" size="icon" className="rounded-full">
-							<Settings className="h-4 w-4" />
-						</Button>
+						<SimpleTooltip content="Dialogue settings" side="bottom">
+							<Button variant="outline" size="icon" className="rounded-full">
+								<Settings className="h-4 w-4" />
+							</Button>
+						</SimpleTooltip>
 					</Link>
 				</div>
 			</header>
@@ -874,54 +887,58 @@ function DialogueEditorPage() {
 			{/* Bottom Toolbar */}
 			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2 cursor-move"
-						draggable
-						onDragStart={(e) => onDragStart(e, 'leadNode')}
-						onClick={() => addNode('leadNode')}
-						title="Drag to canvas or click to add"
-					>
-						<MessageCircle className="h-4 w-4" />
-						NPC
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2 cursor-move"
-						draggable
-						onDragStart={(e) => onDragStart(e, 'answerNode')}
-						onClick={() => addNode('answerNode')}
-						title="Drag to canvas or click to add"
-					>
-						<User className="h-4 w-4" />
-						Player
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2 cursor-move"
-						draggable
-						onDragStart={(e) => onDragStart(e, 'returnNode')}
-						onClick={() => addNode('returnNode')}
-						title="Drag to canvas or click to add"
-					>
-						<CornerUpLeft className="h-4 w-4" />
-						Return
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2 cursor-move"
-						draggable
-						onDragStart={(e) => onDragStart(e, 'completeNode')}
-						onClick={() => addNode('completeNode')}
-						title="Drag to canvas or click to add"
-					>
-						<CheckCircle2 className="h-4 w-4" />
-						Complete
-					</Button>
+					<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'leadNode')}
+							onClick={() => addNode('leadNode')}
+						>
+							<MessageCircle className="h-4 w-4" />
+							NPC
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'answerNode')}
+							onClick={() => addNode('answerNode')}
+						>
+							<User className="h-4 w-4" />
+							Player
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'returnNode')}
+							onClick={() => addNode('returnNode')}
+						>
+							<CornerUpLeft className="h-4 w-4" />
+							Return
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'completeNode')}
+							onClick={() => addNode('completeNode')}
+						>
+							<CheckCircle2 className="h-4 w-4" />
+							Complete
+						</Button>
+					</SimpleTooltip>
 				</div>
 				<div className="flex items-center gap-4 text-sm text-muted-foreground">
 					<span>
