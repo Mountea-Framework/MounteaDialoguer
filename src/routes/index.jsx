@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, FolderOpen, MessageCircle, HardDrive, Calendar } from 'lucide-react';
+import { Plus, Search, FolderOpen, MessageCircle, HardDrive, Calendar, HelpCircle } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
@@ -20,7 +20,7 @@ export const Route = createFileRoute('/')({
 });
 
 // Dashboard Header Component
-function DashboardHeader({ onNewProject, onSearch, searchQuery }) {
+function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 	const { t } = useTranslation();
 
 	return (
@@ -47,6 +47,9 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery }) {
 						/>
 					</div>
 					<LanguageSelector />
+					<Button variant="ghost" size="icon" onClick={onShowTour} className="rounded-full">
+						<HelpCircle className="h-4 w-4" />
+					</Button>
 					<Button onClick={onNewProject} data-tour="create-project">
 						<Plus className="h-4 w-4 mr-2" />
 						{t('projects.createNew')}
@@ -232,6 +235,7 @@ function ProjectsDashboard() {
 				onNewProject={handleNewProject}
 				onSearch={setSearchQuery}
 				searchQuery={searchQuery}
+				onShowTour={resetTour}
 			/>
 
 			<main className="flex-1 p-6 md:p-12 max-w-7xl mx-auto w-full">
