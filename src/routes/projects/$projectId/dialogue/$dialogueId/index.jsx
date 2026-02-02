@@ -61,6 +61,7 @@ import ReturnNode from '@/components/dialogue/nodes/ReturnNode';
 import CompleteNode from '@/components/dialogue/nodes/CompleteNode';
 import { DialogueRowsPanel } from '@/components/dialogue/DialogueRowsPanel';
 import { DecoratorsPanel } from '@/components/dialogue/DecoratorsPanel';
+import { CollapsibleSection } from '@/components/dialogue/CollapsibleSection';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -407,6 +408,7 @@ function DialogueEditorPage() {
 					participant: '',
 					decorators: [],
 					dialogueRows: [],
+					selectionTitle: '',
 					hasAudio: false,
 				},
 				position: position || {
@@ -692,7 +694,7 @@ function DialogueEditorPage() {
 						<div className="p-6 space-y-6">
 							{/* Header */}
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-bold">{t('editor.nodeDetails')}</h3>
+								<h3 className="text-lg font-bold">{(selectedNode.type?.replace('Node', '')?.replace(/^./, c => c.toUpperCase()) || 'default') + ' ' + t('editor.nodeDetails')}</h3>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -703,18 +705,11 @@ function DialogueEditorPage() {
 								</Button>
 							</div>
 
-							{/* Node Type & ID */}
-							<div className="space-y-3">
-								<div>
-									<Label className="text-xs text-muted-foreground">Node Type</Label>
-									<p className="text-sm font-medium mt-1 capitalize">
-										{selectedNode.type?.replace('Node', '') || 'default'}
-									</p>
-								</div>
-
+							{/* Node Data Section */}
+							<CollapsibleSection title={t('editor.sections.nodeData')} defaultOpen={true}>
 								{/* Display Name */}
 								<div className="grid gap-2">
-									<Label htmlFor="displayName">Display Name</Label>
+									<Label htmlFor="displayName">{t('editor.sections.displayName')}</Label>
 									<Input
 										id="displayName"
 										value={selectedNode.data.displayName || ''}
@@ -723,107 +718,132 @@ function DialogueEditorPage() {
 												displayName: e.target.value,
 											})
 										}
-										placeholder="Enter display name..."
+										placeholder={t('editor.sections.displayNamePlaceholder')}
 									/>
 								</div>
 
+								{/* Participant Selection (for Lead, Answer, Complete nodes) */}
+								{(selectedNode.type === 'leadNode' ||
+									selectedNode.type === 'answerNode' ||
+									selectedNode.type === 'completeNode') && (
+									<div className="space-y-2">
+										<Label htmlFor="participant">{t('editor.sections.participant')}</Label>
+										<Select
+											value={selectedNode.data.participant || ''}
+											onValueChange={(value) =>
+												updateNodeData(selectedNode.id, { participant: value })
+											}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder={t('editor.sections.participantPlaceholder')} />
+											</SelectTrigger>
+											<SelectContent>
+												{participants.map((participant) => (
+													<SelectItem key={participant.id} value={participant.name}>
+														{participant.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+
+								{/* Node ID */}
 								<div>
-									<Label className="text-xs text-muted-foreground">Node ID</Label>
+									<Label className="text-xs text-muted-foreground">{t('editor.sections.nodeId')}</Label>
 									<code className="text-xs font-mono bg-muted px-2 py-1 rounded block mt-1">
 										{selectedNode.id}
 									</code>
 								</div>
-							</div>
+							</CollapsibleSection>
 
-							{/* Participant Selection (for Lead, Answer, Complete nodes) */}
+							{/* Dialogue Details Section (for Lead, Answer, Complete nodes) */}
 							{(selectedNode.type === 'leadNode' ||
 								selectedNode.type === 'answerNode' ||
 								selectedNode.type === 'completeNode') && (
-								<div className="space-y-2">
-									<Label htmlFor="participant">Participant</Label>
-									<Select
-										value={selectedNode.data.participant || ''}
-										onValueChange={(value) =>
-											updateNodeData(selectedNode.id, { participant: value })
-										}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select participant..." />
-										</SelectTrigger>
-										<SelectContent>
-											{participants.map((participant) => (
-												<SelectItem key={participant.id} value={participant.name}>
-													{participant.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
+								<CollapsibleSection title={t('editor.sections.dialogueDetails')} defaultOpen={true}>
+									{/* Selection Title */}
+									<div className="grid gap-2">
+										<Label htmlFor="selectionTitle">{t('editor.sections.selectionTitle')}</Label>
+										<Input
+											id="selectionTitle"
+											value={selectedNode.data.selectionTitle || ''}
+											onChange={(e) =>
+												updateNodeData(selectedNode.id, {
+													selectionTitle: e.target.value,
+												})
+											}
+											placeholder={t('editor.sections.selectionTitlePlaceholder')}
+										/>
+									</div>
+
+									{/* Dialogue Rows */}
+									<div className="space-y-2">
+										<DialogueRowsPanel
+											dialogueRows={selectedNode.data.dialogueRows || []}
+											onChange={(newRows) =>
+												updateNodeData(selectedNode.id, { dialogueRows: newRows })
+											}
+											participants={participants}
+										/>
+									</div>
+								</CollapsibleSection>
 							)}
 
-							{/* Dialogue Rows (for Lead, Answer, Complete nodes) */}
-							{(selectedNode.type === 'leadNode' ||
-								selectedNode.type === 'answerNode' ||
-								selectedNode.type === 'completeNode') && (
-								<DialogueRowsPanel
-									dialogueRows={selectedNode.data.dialogueRows || []}
-									onChange={(newRows) =>
-										updateNodeData(selectedNode.id, { dialogueRows: newRows })
-									}
-									participants={participants}
-								/>
-							)}
-
-							{/* Target Node (for Return nodes) */}
+							{/* Return Target Section (for Return nodes) */}
 							{selectedNode.type === 'returnNode' && (
-								<div className="space-y-2">
-									<Label htmlFor="targetNode">Return to Node</Label>
-									<Select
-										value={selectedNode.data.targetNode || ''}
-										onValueChange={(value) =>
-											updateNodeData(selectedNode.id, { targetNode: value })
-										}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select target node..." />
-										</SelectTrigger>
-										<SelectContent>
-											{nodes
-												.filter((n) => n.id !== selectedNode.id)
-												.map((node) => (
-													<SelectItem key={node.id} value={node.id}>
-														{node.data.displayName || node.data.label || node.id}
-													</SelectItem>
-												))}
-										</SelectContent>
-									</Select>
-								</div>
+								<CollapsibleSection title={t('editor.sections.dialogueDetails')} defaultOpen={true}>
+									<div className="space-y-2">
+										<Label htmlFor="targetNode">{t('editor.sections.targetNode')}</Label>
+										<Select
+											value={selectedNode.data.targetNode || ''}
+											onValueChange={(value) =>
+												updateNodeData(selectedNode.id, { targetNode: value })
+											}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder={t('editor.sections.targetNodePlaceholder')} />
+											</SelectTrigger>
+											<SelectContent>
+												{nodes
+													.filter((n) => n.id !== selectedNode.id)
+													.map((node) => (
+														<SelectItem key={node.id} value={node.id}>
+															{node.data.displayName || node.data.label || node.id}
+														</SelectItem>
+													))}
+											</SelectContent>
+										</Select>
+									</div>
+								</CollapsibleSection>
 							)}
 
-							{/* Decorators (for Lead, Answer, Complete nodes) */}
+							{/* Node Decorators Section (for Lead, Answer, Complete nodes) */}
 							{(selectedNode.type === 'leadNode' ||
 								selectedNode.type === 'answerNode' ||
 								selectedNode.type === 'completeNode') && (
-								<DecoratorsPanel
-									decorators={selectedNode.data.decorators || []}
-									availableDecorators={decorators}
-									onAddDecorator={(decoratorDef) =>
-										addDecoratorToNode(selectedNode.id, decoratorDef)
-									}
-									onRemoveDecorator={(index) =>
-										removeDecoratorFromNode(selectedNode.id, index)
-									}
-									onUpdateDecorator={(index, newValues) => {
-										const updatedDecorators = [...selectedNode.data.decorators];
-										updatedDecorators[index] = {
-											...updatedDecorators[index],
-											values: newValues,
-										};
-										updateNodeData(selectedNode.id, {
-											decorators: updatedDecorators,
-										});
-									}}
-								/>
+								<CollapsibleSection title={t('editor.sections.nodeDecorators')} defaultOpen={false}>
+									<DecoratorsPanel
+										decorators={selectedNode.data.decorators || []}
+										availableDecorators={decorators}
+										onAddDecorator={(decoratorDef) =>
+											addDecoratorToNode(selectedNode.id, decoratorDef)
+										}
+										onRemoveDecorator={(index) =>
+											removeDecoratorFromNode(selectedNode.id, index)
+										}
+										onUpdateDecorator={(index, newValues) => {
+											const updatedDecorators = [...selectedNode.data.decorators];
+											updatedDecorators[index] = {
+												...updatedDecorators[index],
+												values: newValues,
+											};
+											updateNodeData(selectedNode.id, {
+												decorators: updatedDecorators,
+											});
+										}}
+									/>
+								</CollapsibleSection>
 							)}
 						</div>
 					</div>
