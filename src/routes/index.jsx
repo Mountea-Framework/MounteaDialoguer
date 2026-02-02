@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { formatFileSize, formatDate } from '@/lib/dateUtils';
 import { calculateDiskUsage } from '@/lib/storageUtils';
+import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 
 
 export const Route = createFileRoute('/')({
@@ -34,7 +35,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery }) {
 					</div>
 				</div>
 				<div className="flex-1 flex items-center justify-end gap-3">
-					<div className="relative w-64">
+					<div className="relative w-64" data-tour="search">
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
 							type="text"
@@ -45,7 +46,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery }) {
 						/>
 					</div>
 					<LanguageSelector />
-					<Button onClick={onNewProject}>
+					<Button onClick={onNewProject} data-tour="create-project">
 						<Plus className="h-4 w-4 mr-2" />
 						{t('projects.createNew')}
 					</Button>
@@ -188,6 +189,7 @@ function ProjectsDashboard() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [diskUsageBytes, setDiskUsageBytes] = useState(0);
+	const { runTour, finishTour, resetTour } = useOnboarding('dashboard');
 
 	useEffect(() => {
 		loadProjects();
@@ -214,6 +216,12 @@ function ProjectsDashboard() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+			<OnboardingTour
+				run={runTour}
+				onFinish={finishTour}
+				tourType="dashboard"
+			/>
+
 			<CreateProjectDialog
 				open={isCreateDialogOpen}
 				onOpenChange={setIsCreateDialogOpen}
@@ -260,7 +268,7 @@ function ProjectsDashboard() {
 							</div>
 						</div>
 					) : (
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-tour="projects-grid">
 							{filteredProjects.map((project) => (
 								<ProjectCard key={project.id} project={project} />
 							))}
