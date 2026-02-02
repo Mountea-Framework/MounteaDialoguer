@@ -33,6 +33,9 @@
 		"decorators": "Decorators",
 		"settings": "Settings"
 	},
+	"dashboard": {
+		"diskUsage": "Disk Usage"
+	},
 	"decorators": {
 		"title": "Decorators",
 		"addNew": "Add Decorator",
@@ -100,7 +103,22 @@
 		"dialogueText": "Dialogue Text",
 		"audioClip": "Audio Clip",
 		"decorators": "Decorators",
-		"addDecorator": "Add Decorator"
+		"addDecorator": "Add Decorator",
+		"sections": {
+			"nodeData": "Node Data",
+			"dialogueDetails": "Dialogue Details",
+			"nodeDecorators": "Node Decorators",
+			"displayName": "Display Name",
+			"displayNamePlaceholder": "Enter display name...",
+			"participant": "Participant",
+			"participantPlaceholder": "Select participant...",
+			"nodeId": "Node ID",
+			"selectionTitle": "Selection Title",
+			"selectionTitlePlaceholder": "Enter selection title...",
+			"dialogueRows": "Dialogue Rows",
+			"targetNode": "Return to Node",
+			"targetNodePlaceholder": "Select target node..."
+		}
 	},
 	"participants": {
 		"title": "Participants",

@@ -30,6 +30,9 @@
 		"decorators": "Décorateurs",
 		"settings": "Paramètres"
 	},
+	"dashboard": {
+		"diskUsage": "Utilisation du Disque"
+	},
 	"projects": {
 		"title": "Projets",
 		"createNew": "Nouveau projet",
@@ -84,7 +87,22 @@
 		"dialogueText": "Texte du dialogue",
 		"audioClip": "Clip audio",
 		"decorators": "Décorateurs",
-		"addDecorator": "Ajouter un décorateur"
+		"addDecorator": "Ajouter un décorateur",
+		"sections": {
+			"nodeData": "Données du Nœud",
+			"dialogueDetails": "Détails du Dialogue",
+			"nodeDecorators": "Décorateurs du Nœud",
+			"displayName": "Nom d'Affichage",
+			"displayNamePlaceholder": "Entrer le nom d'affichage...",
+			"participant": "Participant",
+			"participantPlaceholder": "Sélectionner un participant...",
+			"nodeId": "ID du Nœud",
+			"selectionTitle": "Titre de Sélection",
+			"selectionTitlePlaceholder": "Entrer le titre de sélection...",
+			"dialogueRows": "Lignes de Dialogue",
+			"targetNode": "Retour au Nœud",
+			"targetNodePlaceholder": "Sélectionner le nœud cible..."
+		}
 	},
 	"participants": {
 		"title": "Participants",

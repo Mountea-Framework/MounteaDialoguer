@@ -30,6 +30,9 @@
 		"decorators": "Decoradores",
 		"settings": "Configuración"
 	},
+	"dashboard": {
+		"diskUsage": "Uso del Disco"
+	},
 	"projects": {
 		"title": "Proyectos",
 		"createNew": "Nuevo proyecto",
@@ -84,7 +87,22 @@
 		"dialogueText": "Texto del diálogo",
 		"audioClip": "Clip de audio",
 		"decorators": "Decoradores",
-		"addDecorator": "Añadir decorador"
+		"addDecorator": "Añadir decorador",
+		"sections": {
+			"nodeData": "Datos del Nodo",
+			"dialogueDetails": "Detalles del Diálogo",
+			"nodeDecorators": "Decoradores del Nodo",
+			"displayName": "Nombre para Mostrar",
+			"displayNamePlaceholder": "Ingrese nombre para mostrar...",
+			"participant": "Participante",
+			"participantPlaceholder": "Seleccione participante...",
+			"nodeId": "ID del Nodo",
+			"selectionTitle": "Título de Selección",
+			"selectionTitlePlaceholder": "Ingrese título de selección...",
+			"dialogueRows": "Filas de Diálogo",
+			"targetNode": "Volver al Nodo",
+			"targetNodePlaceholder": "Seleccione nodo objetivo..."
+		}
 	},
 	"participants": {
 		"title": "Participantes",

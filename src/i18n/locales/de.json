@@ -30,6 +30,9 @@
 		"decorators": "Dekoratoren",
 		"settings": "Einstellungen"
 	},
+	"dashboard": {
+		"diskUsage": "Speichernutzung"
+	},
 	"projects": {
 		"title": "Projekte",
 		"createNew": "Neues Projekt",
@@ -84,7 +87,22 @@
 		"dialogueText": "Dialogtext",
 		"audioClip": "Audioclip",
 		"decorators": "Dekoratoren",
-		"addDecorator": "Dekorator hinzufügen"
+		"addDecorator": "Dekorator hinzufügen",
+		"sections": {
+			"nodeData": "Knotendaten",
+			"dialogueDetails": "Dialogdetails",
+			"nodeDecorators": "Knotendekoratoren",
+			"displayName": "Anzeigename",
+			"displayNamePlaceholder": "Anzeigename eingeben...",
+			"participant": "Teilnehmer",
+			"participantPlaceholder": "Teilnehmer auswählen...",
+			"nodeId": "Knoten-ID",
+			"selectionTitle": "Auswahltitel",
+			"selectionTitlePlaceholder": "Auswahltitel eingeben...",
+			"dialogueRows": "Dialogzeilen",
+			"targetNode": "Zurück zu Knoten",
+			"targetNodePlaceholder": "Zielknoten auswählen..."
+		}
 	},
 	"participants": {
 		"title": "Teilnehmer",
