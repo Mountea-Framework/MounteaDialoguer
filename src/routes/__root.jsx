@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Toaster } from '@/components/ui/toaster';
+import { CommandPalette } from '@/components/ui/command-palette';
 import { db } from '@/lib/db';
 
 export const Route = createRootRoute({
@@ -13,6 +14,7 @@ export const Route = createRootRoute({
 function RootComponent() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [showContent, setShowContent] = useState(false);
+	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
 	useEffect(() => {
 		const initializeApp = async () => {
@@ -47,6 +49,10 @@ function RootComponent() {
 				</div>
 			)}
 			<Toaster />
+			<CommandPalette
+				open={commandPaletteOpen}
+				onOpenChange={setCommandPaletteOpen}
+			/>
 		</ThemeProvider>
 	);
 }
