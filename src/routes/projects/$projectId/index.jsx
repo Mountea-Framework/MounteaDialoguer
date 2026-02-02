@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
+import { SimpleTooltip } from '@/components/ui/tooltip';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -123,9 +124,11 @@ function ProjectDetailsPage() {
 			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between">
 				<div className="flex items-center gap-4">
 					<Link to="/">
-						<Button variant="ghost" size="icon" className="rounded-full">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
+						<SimpleTooltip content="Back to projects" side="bottom">
+							<Button variant="ghost" size="icon" className="rounded-full">
+								<ArrowLeft className="h-5 w-5" />
+							</Button>
+						</SimpleTooltip>
 					</Link>
 					<div className="flex items-center gap-4">
 						<div>
@@ -141,18 +144,20 @@ function ProjectDetailsPage() {
 						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
 						{t('dialogues.autoSaved')}
 					</div>
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-						className="rounded-full"
-					>
-						{theme === 'dark' ? (
-							<Sun className="h-4 w-4" />
-						) : (
-							<Moon className="h-4 w-4" />
-						)}
-					</Button>
+					<SimpleTooltip content={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+							className="rounded-full"
+						>
+							{theme === 'dark' ? (
+								<Sun className="h-4 w-4" />
+							) : (
+								<Moon className="h-4 w-4" />
+							)}
+						</Button>
+					</SimpleTooltip>
 				</div>
 			</header>
 
