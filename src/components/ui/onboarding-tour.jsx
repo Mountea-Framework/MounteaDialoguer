@@ -94,17 +94,6 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			),
 		},
 		{
-			target: '[data-tour="minimap"]',
-			content: (
-				<div>
-					<h3 className="font-semibold mb-1">Minimap</h3>
-					<p className="text-sm">
-						Use the minimap to navigate large dialogue trees.
-					</p>
-				</div>
-			),
-		},
-		{
 			target: '[data-tour="save-button"]',
 			content: (
 				<div>
