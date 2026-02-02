@@ -34,6 +34,7 @@ import {
 	Volume2,
 	Trash2,
 	Check,
+	HelpCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -595,6 +596,16 @@ function DialogueEditorPage() {
 							) : (
 								<Moon className="h-4 w-4" />
 							)}
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Show guided tour" side="bottom">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={resetTour}
+							className="rounded-full"
+						>
+							<HelpCircle className="h-4 w-4" />
 						</Button>
 					</SimpleTooltip>
 					<SimpleTooltip content="Undo (Ctrl+Z)" side="bottom">
