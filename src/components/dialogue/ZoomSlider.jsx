@@ -41,9 +41,8 @@ export function ZoomSlider({ className = '' }) {
 				onChange={handleSliderChange}
 				className="slider-vertical h-24 w-1.5"
 				style={{
-					writingMode: 'bt-lr',
-					WebkitAppearance: 'slider-vertical',
-					appearance: 'slider-vertical',
+					writingMode: 'vertical-lr',
+					direction: 'rtl',
 				}}
 				title={`Zoom: ${Math.round(currentZoom * 100)}%`}
 			/>

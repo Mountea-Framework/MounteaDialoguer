@@ -31,11 +31,11 @@ import {
 	CornerUpLeft,
 	Heart,
 	X,
-	Check,
 	HelpCircle,
 	Network,
-	FileText,
-	Edit3,
+	Menu,
+	Trash2,
+	PanelRightOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,8 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
+	DropdownMenuSeparator,
+	DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 
 // Custom Node Components
@@ -185,6 +187,7 @@ function DialogueEditorPage() {
 	const [deviceType, setDeviceType] = useState('desktop');
 	const [isNodeTypeModalOpen, setIsNodeTypeModalOpen] = useState(false);
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
+	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -341,12 +344,12 @@ function DialogueEditorPage() {
 
 	// Handle node click
 	const onNodeClick = useCallback((event, node) => {
-		// On mobile, don't open the panel automatically
-		if (deviceType === 'mobile') return;
+		// Skip placeholder nodes
+		if (node.type === 'placeholderNode') return;
 
 		setSelectedNode(node);
 		setSelectedEdge(null); // Deselect edge when node is selected
-	}, [deviceType]);
+	}, []);
 
 	// Handle edge click
 	const onEdgeClick = useCallback((event, edge) => {
@@ -895,85 +898,67 @@ function DialogueEditorPage() {
 
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
-			{/* Onboarding Tour */}
-			<OnboardingTour
-				run={runTour}
-				onFinish={finishTour}
-				tourType="editor"
-			/>
+			{/* Onboarding Tour - Desktop only */}
+			{deviceType !== 'mobile' && (
+				<OnboardingTour
+					run={runTour}
+					onFinish={finishTour}
+					tourType="editor"
+				/>
+			)}
 
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between" data-tour="editor-header">
-				<div className="flex items-center gap-4">
+			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between" data-tour="editor-header">
+				<div className="flex items-center gap-2 md:gap-4 min-w-0">
 					<Link to="/projects/$projectId" params={{ projectId }}>
-						<SimpleTooltip content="Back to project" side="bottom">
-							<Button variant="ghost" size="icon" className="rounded-full">
-								<ArrowLeft className="h-5 w-5" />
-							</Button>
-						</SimpleTooltip>
+						<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+							<ArrowLeft className="h-5 w-5" />
+						</Button>
 					</Link>
-					<div className="flex items-center gap-4">
-						<div>
-							<h1 className="text-2xl font-bold tracking-tight">{dialogue.name}</h1>
-							<p className="text-sm text-muted-foreground">{project.name}</p>
-						</div>
+					<div className="min-w-0">
+						<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
+						<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
 					</div>
 				</div>
-				<div className="flex items-center gap-2 md:gap-4">
+				<div className="flex items-center gap-2">
 					<SaveIndicator
 						status={saveStatus}
 						lastSaved={lastSaved}
 						className="hidden md:flex"
 					/>
-					<SimpleTooltip content="Support Mountea Framework" side="bottom">
-						<Button
-							variant="outline"
-							size="icon"
-							onClick={() =>
-								window.open(
-									'https://github.com/sponsors/Mountea-Framework',
-									'_blank'
-								)
-							}
-							className="rounded-full"
-						>
-							<Heart className="h-4 w-4" />
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
-						<Button
-							variant="outline"
-							size="icon"
-							onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-							className="rounded-full"
-						>
-							{theme === 'dark' ? (
-								<Sun className="h-4 w-4" />
-							) : (
-								<Moon className="h-4 w-4" />
-							)}
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Show guided tour" side="bottom">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={resetTour}
-							className="rounded-full"
-						>
-							<HelpCircle className="h-4 w-4" />
-						</Button>
-					</SimpleTooltip>
 
-					{/* Edit Dropdown Menu */}
+					{/* Single Menu with all actions */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="outline" size="sm" className="gap-2">
-								<Edit3 className="h-4 w-4" />
-								<span className="hidden sm:inline">Edit</span>
+							<Button
+								variant="outline"
+								size="icon"
+								className="rounded-full"
+								data-tour="save-button"
+							>
+								<Menu className="h-4 w-4" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
+						<DropdownMenuContent align="end" className="w-56">
+							{/* File Section */}
+							<DropdownMenuLabel>File</DropdownMenuLabel>
+							<DropdownMenuItem
+								onClick={handleSave}
+								disabled={isSaving}
+							>
+								<Save className="h-4 w-4 mr-2" />
+								{isSaving ? t('common.saving') : t('common.save')}
+								<span className="ml-auto text-xs text-muted-foreground">Ctrl+S</span>
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={handleExport}>
+								<Download className="h-4 w-4 mr-2" />
+								Export
+							</DropdownMenuItem>
+
+							<DropdownMenuSeparator />
+
+							{/* Edit Section */}
+							<DropdownMenuLabel>Edit</DropdownMenuLabel>
 							<DropdownMenuItem
 								onClick={handleUndo}
 								disabled={historyIndex === 0}
@@ -990,58 +975,53 @@ function DialogueEditorPage() {
 								Redo
 								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Y</span>
 							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
 
-					{/* File Dropdown Menu */}
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant={saveSuccess ? 'default' : 'outline'}
-								size="sm"
-								className="gap-2"
-								data-tour="save-button"
-							>
-								{saveSuccess ? (
-									<Check className="h-4 w-4" />
-								) : (
-									<FileText className="h-4 w-4" />
-								)}
-								<span className="hidden sm:inline">
-									{isSaving
-										? t('common.saving')
-										: saveSuccess
-										? 'Saved!'
-										: 'File'}
-								</span>
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
+							<DropdownMenuSeparator />
+
+							{/* View Section */}
+							<DropdownMenuLabel>View</DropdownMenuLabel>
 							<DropdownMenuItem
-								onClick={handleSave}
-								disabled={isSaving}
+								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
 							>
-								<Save className="h-4 w-4 mr-2" />
-								{t('common.save')}
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+S</span>
+								{theme === 'dark' ? (
+									<Sun className="h-4 w-4 mr-2" />
+								) : (
+									<Moon className="h-4 w-4 mr-2" />
+								)}
+								{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
 							</DropdownMenuItem>
-							<DropdownMenuItem onClick={handleExport}>
-								<Download className="h-4 w-4 mr-2" />
-								Export
+							{deviceType !== 'mobile' && (
+								<DropdownMenuItem onClick={resetTour}>
+									<HelpCircle className="h-4 w-4 mr-2" />
+									Show Tour
+								</DropdownMenuItem>
+							)}
+
+							<DropdownMenuSeparator />
+
+							{/* Settings & Support */}
+							<Link
+								to="/projects/$projectId/dialogue/$dialogueId/settings"
+								params={{ projectId, dialogueId }}
+							>
+								<DropdownMenuItem>
+									<Settings className="h-4 w-4 mr-2" />
+									Settings
+								</DropdownMenuItem>
+							</Link>
+							<DropdownMenuItem
+								onClick={() =>
+									window.open(
+										'https://github.com/sponsors/Mountea-Framework',
+										'_blank'
+									)
+								}
+							>
+								<Heart className="h-4 w-4 mr-2" />
+								Support Mountea
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
-
-					<Link
-						to="/projects/$projectId/dialogue/$dialogueId/settings"
-						params={{ projectId, dialogueId }}
-					>
-						<SimpleTooltip content="Dialogue settings" side="bottom">
-							<Button variant="outline" size="icon" className="rounded-full">
-								<Settings className="h-4 w-4" />
-							</Button>
-						</SimpleTooltip>
-					</Link>
 				</div>
 			</header>
 
@@ -1118,9 +1098,53 @@ function DialogueEditorPage() {
 			</ReactFlow>
 			</div>
 
+			{/* Mobile Node Action Bar */}
+			{deviceType === 'mobile' && selectedNode && (
+				<div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
+					<span className="text-sm font-medium truncate max-w-32">
+						{selectedNode.data.displayName || selectedNode.type?.replace('Node', '')}
+					</span>
+					<div className="h-4 w-px bg-border" />
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8"
+						onClick={() => setIsMobilePanelOpen(true)}
+					>
+						<PanelRightOpen className="h-4 w-4" />
+					</Button>
+					{selectedNode.id !== '00000000-0000-0000-0000-000000000001' && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+							onClick={deleteSelectedNode}
+						>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					)}
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8"
+						onClick={() => setSelectedNode(null)}
+					>
+						<X className="h-4 w-4" />
+					</Button>
+				</div>
+			)}
+
+			{/* Mobile Panel Overlay */}
+			{deviceType === 'mobile' && isMobilePanelOpen && (
+				<div
+					className="fixed inset-0 bg-black/50 z-30"
+					onClick={() => setIsMobilePanelOpen(false)}
+				/>
+			)}
+
 			{/* Right Sidebar - Node Properties */}
-			{selectedNode && (
-					<div className="w-96 border-l bg-card overflow-y-auto">
+			{selectedNode && (deviceType !== 'mobile' || isMobilePanelOpen) && (
+					<div className={`${deviceType === 'mobile' ? 'fixed inset-y-0 right-0 z-40 w-80' : 'w-96'} border-l bg-card overflow-y-auto`}>
 						<div className="p-6 space-y-6">
 							{/* Header */}
 							<div className="flex items-center justify-between">
@@ -1128,7 +1152,13 @@ function DialogueEditorPage() {
 								<Button
 									variant="ghost"
 									size="icon"
-									onClick={() => setSelectedNode(null)}
+									onClick={() => {
+										if (deviceType === 'mobile') {
+											setIsMobilePanelOpen(false);
+										} else {
+											setSelectedNode(null);
+										}
+									}}
 									className="h-8 w-8"
 								>
 									<X className="h-4 w-4" />
@@ -1384,9 +1414,6 @@ function DialogueEditorPage() {
 				onOpenChange={setIsNodeTypeModalOpen}
 				onSelectType={handleNodeTypeSelect}
 			/>
-
-			{/* Onboarding Tour */}
-			<OnboardingTour run={runTour} onFinish={finishTour} tourType="dialogue-editor" />
 		</div>
 	);
 }

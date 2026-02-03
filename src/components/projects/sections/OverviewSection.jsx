@@ -56,7 +56,7 @@ export function OverviewSection({
 						{t('projects.projectName')}
 					</label>
 					<div className="flex items-center gap-3">
-						<h1 className="text-4xl font-bold tracking-tight">{project.name}</h1>
+						<h1 className="text-xl md:text-4xl font-bold tracking-tight">{project.name}</h1>
 						{project.version && (
 							<Badge variant="success">v{project.version}</Badge>
 						)}

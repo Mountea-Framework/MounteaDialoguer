@@ -123,29 +123,27 @@ function ProjectDetailsPage() {
 		<div className="h-screen flex flex-col overflow-hidden">
 			{/* Header */}
 			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between">
-				<div className="flex items-center gap-2 md:gap-4">
+				<div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
 					<Button
 						variant="ghost"
 						size="icon"
 						onClick={() => setIsMobileSidebarOpen(true)}
-						className="lg:hidden rounded-full"
+						className="lg:hidden rounded-full shrink-0"
 					>
 						<Menu className="h-5 w-5" />
 					</Button>
 					<Link to="/">
 						<SimpleTooltip content="Back to projects" side="bottom">
-							<Button variant="ghost" size="icon" className="rounded-full">
+							<Button variant="ghost" size="icon" className="rounded-full shrink-0">
 								<ArrowLeft className="h-5 w-5" />
 							</Button>
 						</SimpleTooltip>
 					</Link>
-					<div className="flex items-center gap-4">
-						<div>
-							<h1 className="text-lg md:text-2xl font-bold tracking-tight line-clamp-1">{project.name}</h1>
-							<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
-								{t('projects.projectDetails')}
-							</p>
-						</div>
+					<div className="min-w-0">
+						<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
+						<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+							{t('projects.projectDetails')}
+						</p>
 					</div>
 				</div>
 				<div className="flex items-center gap-2 md:gap-4">
