@@ -25,19 +25,17 @@ import {
 	Sun,
 	Moon,
 	MessageCircle,
-	Circle,
 	Settings,
 	User,
 	CheckCircle2,
 	CornerUpLeft,
 	Heart,
 	X,
-	Tag,
-	Volume2,
-	Trash2,
 	Check,
 	HelpCircle,
 	Network,
+	FileText,
+	Edit3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +54,12 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -206,6 +210,9 @@ function DialogueEditorPage() {
 		loadDecorators(projectId);
 	}, [loadProjects, loadDialogues, loadParticipants, loadDecorators, projectId]);
 
+	// Track if viewport was loaded from save
+	const [hasLoadedViewport, setHasLoadedViewport] = useState(false);
+
 	// Load dialogue graph when dialogue changes
 	useEffect(() => {
 		const loadGraph = async () => {
@@ -224,6 +231,7 @@ function DialogueEditorPage() {
 					// Restore viewport if saved and ReactFlow instance is available
 					if (loadedViewport && reactFlowInstance) {
 						reactFlowInstance.setViewport(loadedViewport, { duration: 0 });
+						setHasLoadedViewport(true);
 					}
 				} catch (error) {
 					console.error('Failed to load dialogue graph:', error);
@@ -244,9 +252,10 @@ function DialogueEditorPage() {
 	}, [nodes]);
 
 	// Auto-focus on start node when graph loads (both mobile and desktop)
+	// Only if no saved viewport was loaded
 	const [hasInitialFocus, setHasInitialFocus] = useState(false);
 	useEffect(() => {
-		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus) {
+		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus && !hasLoadedViewport) {
 			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
 			if (startNode) {
 				// Center on the start node
@@ -260,7 +269,7 @@ function DialogueEditorPage() {
 				}, 100);
 			}
 		}
-	}, [reactFlowInstance, nodes.length, hasInitialFocus]);
+	}, [reactFlowInstance, nodes.length, hasInitialFocus, hasLoadedViewport]);
 
 
 	// Save to history for undo/redo
@@ -332,9 +341,12 @@ function DialogueEditorPage() {
 
 	// Handle node click
 	const onNodeClick = useCallback((event, node) => {
+		// On mobile, don't open the panel automatically
+		if (deviceType === 'mobile') return;
+
 		setSelectedNode(node);
 		setSelectedEdge(null); // Deselect edge when node is selected
-	}, []);
+	}, [deviceType]);
 
 	// Handle edge click
 	const onEdgeClick = useCallback((event, edge) => {
@@ -739,13 +751,28 @@ function DialogueEditorPage() {
 
 	// Auto-apply layout on mobile when nodes change
 	const [lastLayoutNodeCount, setLastLayoutNodeCount] = useState(0);
+	const [hasInitialLayout, setHasInitialLayout] = useState(false);
+
 	useEffect(() => {
 		if (deviceType !== 'mobile') return;
 
 		const regularNodeCount = nodes.filter((n) => n.type !== 'placeholderNode').length;
 
-		// Only run layout if regular node count changed
-		if (regularNodeCount > 0 && regularNodeCount !== lastLayoutNodeCount) {
+		// Run initial layout after dialogue loads (including placeholders)
+		if (!hasInitialLayout && nodes.length > 0 && regularNodeCount > 0) {
+			const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+				nodes,
+				edges
+			);
+			setNodes(layoutedNodes);
+			setEdges(layoutedEdges);
+			setLastLayoutNodeCount(regularNodeCount);
+			setHasInitialLayout(true);
+			return;
+		}
+
+		// Only run layout if regular node count changed (user added a node)
+		if (hasInitialLayout && regularNodeCount > 0 && regularNodeCount !== lastLayoutNodeCount) {
 			const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
 				nodes,
 				edges
@@ -892,7 +919,7 @@ function DialogueEditorPage() {
 						</div>
 					</div>
 				</div>
-				<div className="flex items-center gap-4">
+				<div className="flex items-center gap-2 md:gap-4">
 					<SaveIndicator
 						status={saveStatus}
 						lastSaved={lastSaved}
@@ -937,58 +964,74 @@ function DialogueEditorPage() {
 							<HelpCircle className="h-4 w-4" />
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Undo (Ctrl+Z)" side="bottom">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2"
-							onClick={handleUndo}
-							disabled={historyIndex === 0}
-						>
-							<Undo2 className="h-4 w-4" />
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Redo (Ctrl+Y)" side="bottom">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2"
-							onClick={handleRedo}
-							disabled={historyIndex === history.length - 1}
-						>
-							<Redo2 className="h-4 w-4" />
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Save dialogue (Ctrl+S)" side="bottom">
-						<Button
-							onClick={handleSave}
-							variant={saveSuccess ? 'default' : 'outline'}
-							className="gap-2"
-							disabled={isSaving}
-							data-tour="save-button"
-						>
-							{saveSuccess ? (
-								<Check className="h-4 w-4" />
-							) : (
-								<Save className="h-4 w-4" />
-							)}
-							{isSaving
-								? t('common.saving')
-								: saveSuccess
-								? 'Saved!'
-								: t('common.save')}
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Export dialogue to file" side="bottom">
-						<Button
-							onClick={handleExport}
-							variant="outline"
-							className="gap-2"
-						>
-							<Download className="h-4 w-4" />
-							Export
-						</Button>
-					</SimpleTooltip>
+
+					{/* Edit Dropdown Menu */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm" className="gap-2">
+								<Edit3 className="h-4 w-4" />
+								<span className="hidden sm:inline">Edit</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								onClick={handleUndo}
+								disabled={historyIndex === 0}
+							>
+								<Undo2 className="h-4 w-4 mr-2" />
+								Undo
+								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Z</span>
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={handleRedo}
+								disabled={historyIndex === history.length - 1}
+							>
+								<Redo2 className="h-4 w-4 mr-2" />
+								Redo
+								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Y</span>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+
+					{/* File Dropdown Menu */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant={saveSuccess ? 'default' : 'outline'}
+								size="sm"
+								className="gap-2"
+								data-tour="save-button"
+							>
+								{saveSuccess ? (
+									<Check className="h-4 w-4" />
+								) : (
+									<FileText className="h-4 w-4" />
+								)}
+								<span className="hidden sm:inline">
+									{isSaving
+										? t('common.saving')
+										: saveSuccess
+										? 'Saved!'
+										: 'File'}
+								</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								onClick={handleSave}
+								disabled={isSaving}
+							>
+								<Save className="h-4 w-4 mr-2" />
+								{t('common.save')}
+								<span className="ml-auto text-xs text-muted-foreground">Ctrl+S</span>
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={handleExport}>
+								<Download className="h-4 w-4 mr-2" />
+								Export
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+
 					<Link
 						to="/projects/$projectId/dialogue/$dialogueId/settings"
 						params={{ projectId, dialogueId }}
