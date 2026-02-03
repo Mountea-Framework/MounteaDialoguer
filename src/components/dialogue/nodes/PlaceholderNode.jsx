@@ -6,10 +6,12 @@ import { Plus } from 'lucide-react';
  * Placeholder Node Component for Mobile
  * Displays a clickable node that opens a modal to select node type
  */
-function PlaceholderNode({ id, data, selected }) {
+function PlaceholderNode({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) {
 	const handleClick = () => {
 		if (data.onClick) {
-			data.onClick(id, data.position);
+			// Use absolute position from ReactFlow
+			const position = { x: positionAbsoluteX, y: positionAbsoluteY };
+			data.onClick(id, position, data.parentNodeId);
 		}
 	};
 

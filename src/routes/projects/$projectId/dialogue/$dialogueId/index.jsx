@@ -115,7 +115,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 	const nodeHeight = 200;
 
 	const isHorizontal = direction === 'LR';
-	dagreGraph.setGraph({ rankdir: direction, nodesep: 100, ranksep: 150 });
+	dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 100 });
 
 	nodes.forEach((node) => {
 		dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
@@ -243,20 +243,24 @@ function DialogueEditorPage() {
 		}
 	}, [nodes]);
 
-	// Auto-focus on start node for mobile devices
+	// Auto-focus on start node when graph loads (both mobile and desktop)
+	const [hasInitialFocus, setHasInitialFocus] = useState(false);
 	useEffect(() => {
-		if (deviceType === 'mobile' && reactFlowInstance && nodes.length > 0) {
+		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus) {
 			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
 			if (startNode) {
-				// Center on the start node with some padding
-				reactFlowInstance.fitView({
-					padding: 0.3,
-					nodes: [startNode],
-					duration: 300,
-				});
+				// Center on the start node
+				setTimeout(() => {
+					reactFlowInstance.setCenter(
+						startNode.position.x + 100, // Offset to center of node
+						startNode.position.y + 50,
+						{ zoom: 1, duration: 300 }
+					);
+					setHasInitialFocus(true);
+				}, 100);
 			}
 		}
-	}, [deviceType, reactFlowInstance, nodes.length]);
+	}, [reactFlowInstance, nodes.length, hasInitialFocus]);
 
 
 	// Save to history for undo/redo
@@ -510,8 +514,8 @@ function DialogueEditorPage() {
 
 
 	// Handle placeholder node click (mobile)
-	const handlePlaceholderClick = useCallback((placeholderId, position) => {
-		setPendingPlaceholderData({ placeholderId, position });
+	const handlePlaceholderClick = useCallback((placeholderId, position, parentNodeId) => {
+		setPendingPlaceholderData({ placeholderId, position, parentNodeId });
 		setIsNodeTypeModalOpen(true);
 	}, []);
 
@@ -519,58 +523,184 @@ function DialogueEditorPage() {
 	const handleNodeTypeSelect = useCallback((nodeType) => {
 		if (!pendingPlaceholderData) return;
 
-		const { placeholderId, position } = pendingPlaceholderData;
+		const { placeholderId, position, parentNodeId } = pendingPlaceholderData;
 
-		// Remove the placeholder node that was clicked
-		setNodes((nds) => nds.filter((n) => n.id !== placeholderId));
+		// Create the new node
+		const newNodeId = uuidv4();
+		const newNode = {
+			id: newNodeId,
+			type: `${nodeType}Node`,
+			position: position,
+			data: {
+				displayName: '',
+				participant: '',
+			},
+		};
 
-		// Add the actual node at the placeholder's position
-		addNode(nodeType, position);
+		// Check if parent is the Start Node
+		const isStartNode = parentNodeId === '00000000-0000-0000-0000-000000000001';
+		const newPlaceholderId = uuidv4();
+
+		setNodes((nds) => {
+			let updatedNodes = [...nds];
+
+			// If parent is Start Node, remove its placeholder (Start can only have one output)
+			if (isStartNode) {
+				updatedNodes = updatedNodes.filter((n) => n.id !== placeholderId);
+			}
+			// Otherwise keep the placeholder (node can have multiple branches)
+
+			// Add the new node
+			updatedNodes.push(newNode);
+
+			// Add a placeholder below the new node
+			updatedNodes.push({
+				id: newPlaceholderId,
+				type: 'placeholderNode',
+				data: {
+					label: 'Add Node',
+					onClick: handlePlaceholderClick,
+					parentNodeId: newNodeId,
+				},
+				position: {
+					x: position.x,
+					y: position.y + 250,
+				},
+			});
+
+			return updatedNodes;
+		});
+
+		// Update edges
+		setEdges((eds) => {
+			let updatedEdges = [...eds];
+
+			// If parent is Start Node, remove the placeholder edge
+			if (isStartNode) {
+				updatedEdges = updatedEdges.filter((e) => e.id !== `${parentNodeId}-${placeholderId}`);
+			}
+
+			// Add edge from parent to new node
+			const newEdge = {
+				id: `${parentNodeId}-${newNodeId}`,
+				source: parentNodeId,
+				target: newNodeId,
+				type: 'default',
+				markerEnd: {
+					type: MarkerType.ArrowClosed,
+				},
+			};
+			updatedEdges = addEdge(newEdge, updatedEdges);
+
+			// Add edge from new node to its placeholder (thin dashed line)
+			updatedEdges.push({
+				id: `${newNodeId}-${newPlaceholderId}`,
+				source: newNodeId,
+				target: newPlaceholderId,
+				type: 'default',
+				style: {
+					strokeWidth: 1,
+					stroke: '#94a3b8',
+					strokeDasharray: '5,5'
+				},
+				data: { isPlaceholder: true },
+			});
+
+			return updatedEdges;
+		});
 
 		// Close modal and clear pending data
 		setIsNodeTypeModalOpen(false);
 		setPendingPlaceholderData(null);
-	}, [pendingPlaceholderData, setNodes, addNode, handlePlaceholderClick]);
+	}, [pendingPlaceholderData, setNodes, setEdges, handlePlaceholderClick]);
 
-	// Add placeholder nodes after each regular node on mobile
+	// Add placeholders to nodes on mobile
 	useEffect(() => {
 		if (deviceType !== 'mobile' || nodes.length === 0) return;
 
-		// Get all regular nodes (non-placeholder)
 		const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
-
-		// Check if each regular node has a placeholder below it
+		const placeholderNodes = nodes.filter((n) => n.type === 'placeholderNode');
 		const newPlaceholders = [];
+		const newEdges = [];
 
 		regularNodes.forEach((node) => {
-			// Check if there's already a placeholder at the expected position
-			const expectedY = node.position.y + 250;
-			const hasPlaceholder = nodes.some((n) =>
-				n.type === 'placeholderNode' &&
-				Math.abs(n.position.y - expectedY) < 50 &&
-				Math.abs(n.position.x - node.position.x) < 50
-			);
+			// Check if this node already has a placeholder
+			const hasPlaceholder = placeholderNodes.some((p) => p.data?.parentNodeId === node.id);
 
 			if (!hasPlaceholder) {
-				newPlaceholders.push({
-					id: uuidv4(),
-					type: 'placeholderNode',
-					data: {
-						label: 'Add Node',
-						onClick: handlePlaceholderClick,
-					},
-					position: {
-						x: node.position.x,
-						y: expectedY,
-					},
-				});
+				const placeholderId = uuidv4();
+
+				// For Start Node, only add placeholder if it has no children
+				if (node.id === '00000000-0000-0000-0000-000000000001') {
+					const hasChildren = edges.some((e) => e.source === node.id && !e.data?.isPlaceholder);
+					if (!hasChildren) {
+						newPlaceholders.push({
+							id: placeholderId,
+							type: 'placeholderNode',
+							data: {
+								label: 'Add Node',
+								onClick: handlePlaceholderClick,
+								parentNodeId: node.id,
+							},
+							position: {
+								x: node.position.x,
+								y: node.position.y + 250,
+							},
+						});
+
+						// Add edge from parent to placeholder (thin dashed line)
+						newEdges.push({
+							id: `${node.id}-${placeholderId}`,
+							source: node.id,
+							target: placeholderId,
+							type: 'default',
+							style: {
+								strokeWidth: 1,
+								stroke: '#94a3b8',
+								strokeDasharray: '5,5'
+							},
+							data: { isPlaceholder: true },
+						});
+					}
+				} else {
+					// For all other nodes, always add a placeholder
+					newPlaceholders.push({
+						id: placeholderId,
+						type: 'placeholderNode',
+						data: {
+							label: 'Add Node',
+							onClick: handlePlaceholderClick,
+							parentNodeId: node.id,
+						},
+						position: {
+							x: node.position.x,
+							y: node.position.y + 250,
+						},
+					});
+
+					// Add edge from parent to placeholder (thin dashed line)
+					newEdges.push({
+						id: `${node.id}-${placeholderId}`,
+						source: node.id,
+						target: placeholderId,
+						type: 'default',
+						style: {
+							strokeWidth: 1,
+							stroke: '#94a3b8',
+							strokeDasharray: '5,5'
+						},
+						data: { isPlaceholder: true },
+					});
+				}
 			}
 		});
 
 		if (newPlaceholders.length > 0) {
+			console.log('Adding placeholders:', newPlaceholders);
 			setNodes((nds) => [...nds, ...newPlaceholders]);
+			setEdges((eds) => [...eds, ...newEdges]);
 		}
-	}, [deviceType, nodes.length, handlePlaceholderClick]);
+	}, [deviceType, nodes, edges, handlePlaceholderClick, setNodes, setEdges]);
 
 	// Auto-layout handler
 	const onLayout = useCallback(() => {
@@ -584,6 +714,25 @@ function DialogueEditorPage() {
 		saveToHistory(layoutedNodes, layoutedEdges);
 		setHasUnsavedChanges(true);
 	}, [nodes, edges, setNodes, setEdges, saveToHistory]);
+
+	// Auto-apply layout on mobile when nodes change
+	const [lastLayoutNodeCount, setLastLayoutNodeCount] = useState(0);
+	useEffect(() => {
+		if (deviceType !== 'mobile') return;
+
+		const regularNodeCount = nodes.filter((n) => n.type !== 'placeholderNode').length;
+
+		// Only run layout if regular node count changed
+		if (regularNodeCount > 0 && regularNodeCount !== lastLayoutNodeCount) {
+			const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+				nodes,
+				edges
+			);
+			setNodes(layoutedNodes);
+			setEdges(layoutedEdges);
+			setLastLayoutNodeCount(regularNodeCount);
+		}
+	}, [deviceType, nodes.length, edges.length]);
 
 	// Undo
 	const handleUndo = useCallback(() => {
@@ -650,7 +799,11 @@ function DialogueEditorPage() {
 		setSaveSuccess(false);
 		setSaveStatus('saving');
 		try {
-			await saveDialogueGraph(dialogueId, nodes, edges, viewport);
+			// Filter out placeholder nodes and their edges before saving
+			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
+			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
+
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
 			const now = new Date();
 			setLastSaved(now);
 			setSaveSuccess(true);
@@ -670,8 +823,12 @@ function DialogueEditorPage() {
 	// Handle export
 	const handleExport = async () => {
 		try {
+			// Filter out placeholder nodes and their edges before saving
+			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
+			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
+
 			// Save first to ensure we export the latest version
-			await saveDialogueGraph(dialogueId, nodes, edges, viewport);
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
 			// Then export
 			await exportDialogue(dialogueId);
 		} catch (error) {
