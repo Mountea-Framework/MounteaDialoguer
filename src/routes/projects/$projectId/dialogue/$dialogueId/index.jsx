@@ -63,6 +63,7 @@ import LeadNode from '@/components/dialogue/nodes/LeadNode';
 import AnswerNode from '@/components/dialogue/nodes/AnswerNode';
 import ReturnNode from '@/components/dialogue/nodes/ReturnNode';
 import CompleteNode from '@/components/dialogue/nodes/CompleteNode';
+import PlaceholderNode from '@/components/dialogue/nodes/PlaceholderNode';
 import { DialogueRowsPanel } from '@/components/dialogue/DialogueRowsPanel';
 import { DecoratorsPanel } from '@/components/dialogue/DecoratorsPanel';
 import { CollapsibleSection } from '@/components/dialogue/CollapsibleSection';
@@ -70,6 +71,8 @@ import { SaveIndicator } from '@/components/ui/save-indicator';
 import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 import { celebrateSuccess } from '@/lib/confetti';
 import { SimpleTooltip } from '@/components/ui/tooltip';
+import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
+import { getDeviceType } from '@/lib/deviceDetection';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -100,6 +103,7 @@ const nodeTypes = {
 	answerNode: AnswerNode,
 	returnNode: ReturnNode,
 	completeNode: CompleteNode,
+	placeholderNode: PlaceholderNode,
 };
 
 // Auto-layout function using dagre
@@ -173,6 +177,21 @@ function DialogueEditorPage() {
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
 
+	// Device detection
+	const [deviceType, setDeviceType] = useState('desktop');
+	const [isNodeTypeModalOpen, setIsNodeTypeModalOpen] = useState(false);
+	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
+
+	// Detect device type on mount and window resize
+	useEffect(() => {
+		const updateDeviceType = () => {
+			setDeviceType(getDeviceType());
+		};
+		updateDeviceType();
+		window.addEventListener('resize', updateDeviceType);
+		return () => window.removeEventListener('resize', updateDeviceType);
+	}, []);
+
 	// History for undo/redo
 	const [history, setHistory] = useState([
 		{ nodes: initialNodes, edges: initialEdges },
@@ -223,6 +242,22 @@ function DialogueEditorPage() {
 			}
 		}
 	}, [nodes]);
+
+	// Auto-focus on start node for mobile devices
+	useEffect(() => {
+		if (deviceType === 'mobile' && reactFlowInstance && nodes.length > 0) {
+			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
+			if (startNode) {
+				// Center on the start node with some padding
+				reactFlowInstance.fitView({
+					padding: 0.3,
+					nodes: [startNode],
+					duration: 300,
+				});
+			}
+		}
+	}, [deviceType, reactFlowInstance, nodes.length]);
+
 
 	// Save to history for undo/redo
 	const saveToHistory = useCallback(
@@ -472,6 +507,70 @@ function DialogueEditorPage() {
 		},
 		[setNodes, edges, saveToHistory]
 	);
+
+
+	// Handle placeholder node click (mobile)
+	const handlePlaceholderClick = useCallback((placeholderId, position) => {
+		setPendingPlaceholderData({ placeholderId, position });
+		setIsNodeTypeModalOpen(true);
+	}, []);
+
+	// Handle node type selection from modal (mobile)
+	const handleNodeTypeSelect = useCallback((nodeType) => {
+		if (!pendingPlaceholderData) return;
+
+		const { placeholderId, position } = pendingPlaceholderData;
+
+		// Remove the placeholder node that was clicked
+		setNodes((nds) => nds.filter((n) => n.id !== placeholderId));
+
+		// Add the actual node at the placeholder's position
+		addNode(nodeType, position);
+
+		// Close modal and clear pending data
+		setIsNodeTypeModalOpen(false);
+		setPendingPlaceholderData(null);
+	}, [pendingPlaceholderData, setNodes, addNode, handlePlaceholderClick]);
+
+	// Add placeholder nodes after each regular node on mobile
+	useEffect(() => {
+		if (deviceType !== 'mobile' || nodes.length === 0) return;
+
+		// Get all regular nodes (non-placeholder)
+		const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
+
+		// Check if each regular node has a placeholder below it
+		const newPlaceholders = [];
+
+		regularNodes.forEach((node) => {
+			// Check if there's already a placeholder at the expected position
+			const expectedY = node.position.y + 250;
+			const hasPlaceholder = nodes.some((n) =>
+				n.type === 'placeholderNode' &&
+				Math.abs(n.position.y - expectedY) < 50 &&
+				Math.abs(n.position.x - node.position.x) < 50
+			);
+
+			if (!hasPlaceholder) {
+				newPlaceholders.push({
+					id: uuidv4(),
+					type: 'placeholderNode',
+					data: {
+						label: 'Add Node',
+						onClick: handlePlaceholderClick,
+					},
+					position: {
+						x: node.position.x,
+						y: expectedY,
+					},
+				});
+			}
+		});
+
+		if (newPlaceholders.length > 0) {
+			setNodes((nds) => [...nds, ...newPlaceholders]);
+		}
+	}, [deviceType, nodes.length, handlePlaceholderClick]);
 
 	// Auto-layout handler
 	const onLayout = useCallback(() => {
@@ -729,8 +828,8 @@ function DialogueEditorPage() {
 				{/* ReactFlow Canvas */}
 				<div
 					className="flex-1 relative"
-					onDrop={onDrop}
-					onDragOver={onDragOver}
+					onDrop={deviceType !== 'mobile' ? onDrop : undefined}
+					onDragOver={deviceType !== 'mobile' ? onDragOver : undefined}
 					data-tour="canvas"
 				>
 					<ReactFlow
@@ -752,40 +851,53 @@ function DialogueEditorPage() {
 						onPaneClick={onPaneClick}
 						onMove={onMove}
 						onInit={setReactFlowInstance}
-						nodeTypes={nodeTypes}
-						className="bg-grid"
-						proOptions={{ hideAttribution: true }}
-					>
-						<Background />
+				nodeTypes={nodeTypes}
+				className="bg-grid"
+				proOptions={{ hideAttribution: true }}
+				// Mobile: Disable node dragging but allow manual panning via drag
+				nodesDraggable={deviceType !== 'mobile'}
+				panOnDrag={true}
+				panOnScroll={false}
+				zoomOnScroll={false}
+				zoomOnPinch={false}
+				zoomOnDoubleClick={false}
+				nodesConnectable={deviceType !== 'mobile'}
+				elementsSelectable={true}
+				minZoom={0.5}
+				maxZoom={2}
+			>
+				<Background />
 				<Panel position="bottom-left">
-						<ZoomSlider className="!bg-card !border !border-border !rounded-lg !shadow-lg" />
-					</Panel>
-						<MiniMap
-							nodeColor={(node) => {
-								switch (node.type) {
-									case 'startNode':
-										return '#22c55e';
-									case 'leadNode':
-										return '#3b82f6';
-									case 'answerNode':
-										return '#8b5cf6';
-									case 'returnNode':
-										return '#f97316';
-									case 'completeNode':
-										return '#10b981';
-									default:
-										return '#6b7280';
-								}
-							}}
-							className="!bg-card !border !border-border !rounded-lg !shadow-lg"
-							maskColor="rgb(0, 0, 0, 0.1)"
-							data-tour="minimap"
-						/>
-					</ReactFlow>
-				</div>
+					<ZoomSlider className="!bg-card !border !border-border !rounded-lg !shadow-lg" />
+				</Panel>
+				{deviceType !== 'mobile' && (
+					<MiniMap
+						nodeColor={(node) => {
+							switch (node.type) {
+								case 'startNode':
+									return '#22c55e';
+								case 'leadNode':
+									return '#3b82f6';
+								case 'answerNode':
+									return '#8b5cf6';
+								case 'returnNode':
+									return '#f97316';
+								case 'completeNode':
+									return '#10b981';
+								default:
+									return '#6b7280';
+							}
+						}}
+						className="!bg-card !border !border-border !rounded-lg !shadow-lg"
+						maskColor="rgb(0, 0, 0, 0.1)"
+						data-tour="minimap"
+					/>
+				)}
+			</ReactFlow>
+			</div>
 
-				{/* Right Sidebar - Node Properties */}
-				{selectedNode && (
+			{/* Right Sidebar - Node Properties */}
+			{selectedNode && (
 					<div className="w-96 border-l bg-card overflow-y-auto">
 						<div className="p-6 space-y-6">
 							{/* Header */}
@@ -949,77 +1061,88 @@ function DialogueEditorPage() {
 			{/* Bottom Toolbar */}
 			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
-					<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2"
-							onClick={onLayout}
-						>
-							<Network className="h-4 w-4" />
-							Auto Layout
-						</Button>
-					</SimpleTooltip>
-					<div className="h-6 w-px bg-border mx-1"></div>
-					<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2 cursor-move"
-							draggable
-							onDragStart={(e) => onDragStart(e, 'leadNode')}
-							onClick={() => addNode('leadNode')}
-						>
-							<MessageCircle className="h-4 w-4" />
-							NPC
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2 cursor-move"
-							draggable
-							onDragStart={(e) => onDragStart(e, 'answerNode')}
-							onClick={() => addNode('answerNode')}
-						>
-							<User className="h-4 w-4" />
-							Player
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2 cursor-move"
-							draggable
-							onDragStart={(e) => onDragStart(e, 'returnNode')}
-							onClick={() => addNode('returnNode')}
-						>
-							<CornerUpLeft className="h-4 w-4" />
-							Return
-						</Button>
-					</SimpleTooltip>
-					<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2 cursor-move"
-							draggable
-							onDragStart={(e) => onDragStart(e, 'completeNode')}
-							onClick={() => addNode('completeNode')}
-						>
-							<CheckCircle2 className="h-4 w-4" />
-							Complete
-						</Button>
-					</SimpleTooltip>
+					{/* Only show Auto Layout on desktop/tablet */}
+					{deviceType !== 'mobile' && (
+						<>
+							<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2"
+									onClick={onLayout}
+								>
+									<Network className="h-4 w-4" />
+									Auto Layout
+								</Button>
+							</SimpleTooltip>
+							<div className="h-6 w-px bg-border mx-1"></div>
+							<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2 cursor-move"
+									draggable
+									onDragStart={(e) => onDragStart(e, 'leadNode')}
+									onClick={() => addNode('leadNode')}
+								>
+									<MessageCircle className="h-4 w-4" />
+									NPC
+								</Button>
+							</SimpleTooltip>
+							<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2 cursor-move"
+									draggable
+									onDragStart={(e) => onDragStart(e, 'answerNode')}
+									onClick={() => addNode('answerNode')}
+								>
+									<User className="h-4 w-4" />
+									Player
+								</Button>
+							</SimpleTooltip>
+							<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2 cursor-move"
+									draggable
+									onDragStart={(e) => onDragStart(e, 'returnNode')}
+									onClick={() => addNode('returnNode')}
+								>
+									<CornerUpLeft className="h-4 w-4" />
+									Return
+								</Button>
+							</SimpleTooltip>
+							<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2 cursor-move"
+									draggable
+									onDragStart={(e) => onDragStart(e, 'completeNode')}
+									onClick={() => addNode('completeNode')}
+								>
+									<CheckCircle2 className="h-4 w-4" />
+									Complete
+								</Button>
+							</SimpleTooltip>
+						</>
+					)}
+					{/* Mobile: Show instructions */}
+					{deviceType === 'mobile' && (
+						<span className="text-sm text-muted-foreground">
+							Tap the placeholder node to add new nodes
+						</span>
+					)}
 				</div>
 				<div className="flex items-center gap-4 text-sm text-muted-foreground">
 					<span>
 						{nodes.length} {t('dialogues.nodes')} • {edges.length}{' '}
 						{t('dialogues.edges')}
 					</span>
-					<span className="text-xs">
+					<span className="text-xs hidden md:block">
 						Powered by{' '}
 						<a
 							href="https://reactflow.dev"
@@ -1032,6 +1155,16 @@ function DialogueEditorPage() {
 					</span>
 				</div>
 			</div>
+
+			{/* Node Type Selection Modal (Mobile) */}
+			<NodeTypeSelectionModal
+				open={isNodeTypeModalOpen}
+				onOpenChange={setIsNodeTypeModalOpen}
+				onSelectType={handleNodeTypeSelect}
+			/>
+
+			{/* Onboarding Tour */}
+			<OnboardingTour run={runTour} onFinish={finishTour} tourType="dialogue-editor" />
 		</div>
 	);
 }
