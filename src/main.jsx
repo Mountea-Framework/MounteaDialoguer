@@ -1,15 +1,18 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { RouterProvider, createRouter } from '@tanstack/react-router';
+import { RouterProvider, createRouter, createHashHistory } from '@tanstack/react-router';
 import { routeTree } from './routeTree.gen';
 import './i18n';
 import './index.css';
 
-// Create router instance with base path
+// Create hash history for static hosting compatibility
+const hashHistory = createHashHistory();
+
+// Create router instance with hash history
 const router = createRouter({
 	routeTree,
 	defaultPreload: 'intent',
-	basepath: '/MounteaDialoguer',
+	history: hashHistory,
 });
 
 ReactDOM.createRoot(document.getElementById('root')).render(

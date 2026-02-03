@@ -96,7 +96,7 @@ function ProjectDetailsPage() {
 		// TODO: Show delete confirmation modal
 		if (window.confirm(t('projects.deleteConfirm'))) {
 			await deleteProject(projectId);
-			window.location.href = '/MounteaDialoguer/';
+			window.location.href = '#/';
 		}
 	};
 

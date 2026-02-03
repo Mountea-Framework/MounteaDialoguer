@@ -119,7 +119,7 @@ function DialogueSettingsPage() {
 			await deleteDialogue(dialogueId);
 			setShowDeleteDialog(false);
 			// Navigate back to project
-			window.location.href = `/MounteaDialoguer/projects/${projectId}`;
+			window.location.href = `#/projects/${projectId}`;
 		} catch (error) {
 			console.error('Failed to delete dialogue:', error);
 		}
