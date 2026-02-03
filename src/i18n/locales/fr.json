@@ -19,7 +19,8 @@
 		"error": "Erreur",
 		"success": "Succès",
 		"confirm": "Confirmer",
-		"back": "Retour"
+		"back": "Retour",
+		"new": "Nouveau"
 	},
 	"navigation": {
 		"dashboard": "Tableau de bord",

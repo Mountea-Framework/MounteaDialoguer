@@ -19,7 +19,8 @@
 		"error": "Error",
 		"success": "Éxito",
 		"confirm": "Confirmar",
-		"back": "Atrás"
+		"back": "Atrás",
+		"new": "Nuevo"
 	},
 	"navigation": {
 		"dashboard": "Panel",

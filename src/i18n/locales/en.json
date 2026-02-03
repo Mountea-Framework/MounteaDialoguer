@@ -22,7 +22,8 @@
 		"error": "Error",
 		"success": "Success",
 		"confirm": "Confirm",
-		"back": "Back"
+		"back": "Back",
+		"new": "New"
 	},
 	"navigation": {
 		"dashboard": "Dashboard",

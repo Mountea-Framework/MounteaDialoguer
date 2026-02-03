@@ -19,7 +19,8 @@
 		"error": "Fehler",
 		"success": "Erfolg",
 		"confirm": "Bestätigen",
-		"back": "Zurück"
+		"back": "Zurück",
+		"new": "Neu"
 	},
 	"navigation": {
 		"dashboard": "Dashboard",
