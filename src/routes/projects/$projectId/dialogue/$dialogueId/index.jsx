@@ -112,7 +112,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 	const nodeWidth = 250;
-	const nodeHeight = 200;
+	const nodeHeight = 100;
 
 	const isHorizontal = direction === 'LR';
 	dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 100 });
@@ -525,21 +525,35 @@ function DialogueEditorPage() {
 
 		const { placeholderId, position, parentNodeId } = pendingPlaceholderData;
 
-		// Create the new node
+		// Create the new node with complete data structure
 		const newNodeId = uuidv4();
+		const typeNames = {
+			leadNode: 'NPC',
+			answerNode: 'Player',
+			returnNode: 'Return',
+			completeNode: 'Complete',
+		};
+
 		const newNode = {
 			id: newNodeId,
-			type: `${nodeType}Node`,
+			type: nodeType,
 			position: position,
 			data: {
-				displayName: '',
+				label: `New ${nodeType}`,
+				displayName: typeNames[nodeType] || 'Node',
+				text: '',
 				participant: '',
+				decorators: [],
+				dialogueRows: [],
+				selectionTitle: '',
+				hasAudio: false,
 			},
 		};
 
 		// Check if parent is the Start Node
 		const isStartNode = parentNodeId === '00000000-0000-0000-0000-000000000001';
-		const newPlaceholderId = uuidv4();
+		const canHaveOutputs = nodeType !== 'returnNode' && nodeType !== 'completeNode';
+		const newPlaceholderId = canHaveOutputs ? uuidv4() : null;
 
 		setNodes((nds) => {
 			let updatedNodes = [...nds];
@@ -553,20 +567,22 @@ function DialogueEditorPage() {
 			// Add the new node
 			updatedNodes.push(newNode);
 
-			// Add a placeholder below the new node
-			updatedNodes.push({
-				id: newPlaceholderId,
-				type: 'placeholderNode',
-				data: {
-					label: 'Add Node',
-					onClick: handlePlaceholderClick,
-					parentNodeId: newNodeId,
-				},
-				position: {
-					x: position.x,
-					y: position.y + 250,
-				},
-			});
+			// Add a placeholder below the new node (only if it can have outputs)
+			if (canHaveOutputs) {
+				updatedNodes.push({
+					id: newPlaceholderId,
+					type: 'placeholderNode',
+					data: {
+						label: 'Add Node',
+						onClick: handlePlaceholderClick,
+						parentNodeId: newNodeId,
+					},
+					position: {
+						x: position.x,
+						y: position.y + 250,
+					},
+				});
+			}
 
 			return updatedNodes;
 		});
@@ -592,19 +608,21 @@ function DialogueEditorPage() {
 			};
 			updatedEdges = addEdge(newEdge, updatedEdges);
 
-			// Add edge from new node to its placeholder (thin dashed line)
-			updatedEdges.push({
-				id: `${newNodeId}-${newPlaceholderId}`,
-				source: newNodeId,
-				target: newPlaceholderId,
-				type: 'default',
-				style: {
-					strokeWidth: 1,
-					stroke: '#94a3b8',
-					strokeDasharray: '5,5'
-				},
-				data: { isPlaceholder: true },
-			});
+			// Add edge from new node to its placeholder (only if it can have outputs)
+			if (canHaveOutputs) {
+				updatedEdges.push({
+					id: `${newNodeId}-${newPlaceholderId}`,
+					source: newNodeId,
+					target: newPlaceholderId,
+					type: 'default',
+					style: {
+						strokeWidth: 1,
+						stroke: '#94a3b8',
+						strokeDasharray: '5,5'
+					},
+					data: { isPlaceholder: true },
+				});
+			}
 
 			return updatedEdges;
 		});
@@ -624,6 +642,11 @@ function DialogueEditorPage() {
 		const newEdges = [];
 
 		regularNodes.forEach((node) => {
+			// Skip nodes that cannot have outputs (Return and Complete nodes)
+			if (node.type === 'returnNode' || node.type === 'completeNode') {
+				return;
+			}
+
 			// Check if this node already has a placeholder
 			const hasPlaceholder = placeholderNodes.some((p) => p.data?.parentNodeId === node.id);
 
@@ -663,7 +686,7 @@ function DialogueEditorPage() {
 						});
 					}
 				} else {
-					// For all other nodes, always add a placeholder
+					// For Lead and Answer nodes, always add a placeholder
 					newPlaceholders.push({
 						id: placeholderId,
 						type: 'placeholderNode',
@@ -696,7 +719,6 @@ function DialogueEditorPage() {
 		});
 
 		if (newPlaceholders.length > 0) {
-			console.log('Adding placeholders:', newPlaceholders);
 			setNodes((nds) => [...nds, ...newPlaceholders]);
 			setEdges((eds) => [...eds, ...newEdges]);
 		}
