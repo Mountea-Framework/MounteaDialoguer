@@ -40,7 +40,6 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 						onClick={onNewProject}
 						size="sm"
 						className="md:hidden gap-1"
-						data-tour="create-project"
 					>
 						<Plus className="h-4 w-4" />
 						<span className="sr-only sm:not-sr-only">{t('common.new')}</span>

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeProviderContext = createContext({
 	theme: 'system',
+	resolvedTheme: 'light',
 	setTheme: () => null,
 });
 
@@ -14,6 +15,7 @@ export function ThemeProvider({
 	const [theme, setTheme] = useState(
 		() => localStorage.getItem(storageKey) || defaultTheme
 	);
+	const [resolvedTheme, setResolvedTheme] = useState('light');
 
 	useEffect(() => {
 		const root = window.document.documentElement;
@@ -27,17 +29,37 @@ export function ThemeProvider({
 				: 'light';
 
 			root.classList.add(systemTheme);
+			setResolvedTheme(systemTheme);
 			return;
 		}
 
 		root.classList.add(theme);
+		setResolvedTheme(theme);
+	}, [theme]);
+
+	// Listen for system theme changes when in system mode
+	useEffect(() => {
+		if (theme !== 'system') return;
+
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		const handleChange = (e) => {
+			const newTheme = e.matches ? 'dark' : 'light';
+			const root = window.document.documentElement;
+			root.classList.remove('light', 'dark');
+			root.classList.add(newTheme);
+			setResolvedTheme(newTheme);
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
 	}, [theme]);
 
 	const value = {
 		theme,
-		setTheme: (theme) => {
-			localStorage.setItem(storageKey, theme);
-			setTheme(theme);
+		resolvedTheme,
+		setTheme: (newTheme) => {
+			localStorage.setItem(storageKey, newTheme);
+			setTheme(newTheme);
 		},
 	};
 

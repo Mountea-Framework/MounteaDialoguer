@@ -48,7 +48,7 @@ export const Route = createFileRoute(
 
 function DialogueSettingsPage() {
 	const { t } = useTranslation();
-	const { theme, setTheme } = useTheme();
+	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, updateDialogue, deleteDialogue, exportDialogue } =
@@ -159,10 +159,10 @@ function DialogueSettingsPage() {
 					<Button
 						variant="outline"
 						size="icon"
-						onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+						onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
 						className="rounded-full"
 					>
-						{theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+						{resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
 					</Button>
 				</div>
 			</header>

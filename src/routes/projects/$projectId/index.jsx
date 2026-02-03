@@ -29,7 +29,7 @@ export const Route = createFileRoute('/projects/$projectId/')({
 
 function ProjectDetailsPage() {
 	const { t } = useTranslation();
-	const { theme, setTheme } = useTheme();
+	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
 	const { projects, loadProjects, deleteProject, exportProject, importProject } = useProjectStore();
@@ -151,14 +151,14 @@ function ProjectDetailsPage() {
 						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
 						{t('dialogues.autoSaved')}
 					</div>
-					<SimpleTooltip content={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
+					<SimpleTooltip content={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
 						<Button
 							variant="outline"
 							size="icon"
-							onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
 							className="rounded-full"
 						>
-							{theme === 'dark' ? (
+							{resolvedTheme === 'dark' ? (
 								<Sun className="h-4 w-4" />
 							) : (
 								<Moon className="h-4 w-4" />

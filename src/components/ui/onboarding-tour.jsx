@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Joyride, { STATUS } from 'react-joyride';
 import { useTheme } from '@/contexts/ThemeProvider';
+import { db } from '@/lib/db';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Onboarding Tour Component
@@ -37,6 +39,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 					</p>
 				</div>
 			),
+			disableBeacon: true,
 		},
 		{
 			target: '[data-tour="search"]',
@@ -48,6 +51,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 					</p>
 				</div>
 			),
+			disableBeacon: true,
 		},
 	];
 
@@ -75,6 +79,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 					</p>
 				</div>
 			),
+			disableBeacon: true,
 		},
 		{
 			target: '[data-tour="canvas"]',
@@ -86,6 +91,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 					</p>
 				</div>
 			),
+			disableBeacon: true,
 		},
 		{
 			target: '[data-tour="save-button"]',
@@ -97,6 +103,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 					</p>
 				</div>
 			),
+			disableBeacon: true,
 		},
 	];
 
@@ -175,21 +182,60 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 
 /**
  * Hook to manage onboarding tour state
+ * @param {string} tourKey - Unique key for this tour
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.skipOnMobile - Skip tour on mobile devices (default: true)
  */
-export function useOnboarding(tourKey) {
+export function useOnboarding(tourKey, options = {}) {
+	const { skipOnMobile = true } = options;
 	const [runTour, setRunTour] = useState(false);
 
 	useEffect(() => {
-		// Check if user has seen this tour
-		const hasSeenTour = localStorage.getItem(`onboarding-${tourKey}`);
-		if (!hasSeenTour) {
+		let timer = null;
+		let cancelled = false;
+
+		const checkAndShowTour = async () => {
+			// Skip on mobile devices if configured
+			if (skipOnMobile && isMobileDevice()) {
+				return;
+			}
+
+			// Check if user has seen this tour
+			const hasSeenTour = localStorage.getItem(`onboarding-${tourKey}`);
+			if (hasSeenTour) {
+				return;
+			}
+
+			// Check if user already has projects (not a first-time user)
+			try {
+				const projectCount = await db.projects.count();
+				if (projectCount > 0) {
+					// User already has projects, mark tour as seen and skip
+					localStorage.setItem(`onboarding-${tourKey}`, 'true');
+					return;
+				}
+			} catch (error) {
+				console.error('Error checking projects for onboarding:', error);
+				// On error, still show tour to be safe
+			}
+
 			// Delay showing tour to let page load
-			const timer = setTimeout(() => {
-				setRunTour(true);
-			}, 500);
-			return () => clearTimeout(timer);
-		}
-	}, [tourKey]);
+			if (!cancelled) {
+				timer = setTimeout(() => {
+					setRunTour(true);
+				}, 500);
+			}
+		};
+
+		checkAndShowTour();
+
+		return () => {
+			cancelled = true;
+			if (timer) {
+				clearTimeout(timer);
+			}
+		};
+	}, [tourKey, skipOnMobile]);
 
 	const finishTour = () => {
 		localStorage.setItem(`onboarding-${tourKey}`, 'true');

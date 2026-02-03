@@ -149,7 +149,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 function DialogueEditorPage() {
 	const { t } = useTranslation();
-	const { theme, setTheme } = useTheme();
+	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
@@ -981,14 +981,14 @@ function DialogueEditorPage() {
 							{/* View Section */}
 							<DropdownMenuLabel>View</DropdownMenuLabel>
 							<DropdownMenuItem
-								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
 							>
-								{theme === 'dark' ? (
+								{resolvedTheme === 'dark' ? (
 									<Sun className="h-4 w-4 mr-2" />
 								) : (
 									<Moon className="h-4 w-4 mr-2" />
 								)}
-								{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+								{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
 							</DropdownMenuItem>
 							{deviceType !== 'mobile' && (
 								<DropdownMenuItem onClick={resetTour}>
