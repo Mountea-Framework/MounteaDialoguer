@@ -1,8 +1,14 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Download, Upload, Users } from 'lucide-react';
+import { Plus, Download, Upload, Users, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { CreateParticipantDialog } from '@/components/dialogs/CreateParticipantDialog';
 import { ParticipantCard } from '@/components/projects/ParticipantCard';
 import { useParticipantStore } from '@/stores/participantStore';
@@ -68,14 +74,50 @@ export function ParticipantsSection({ projectId, participants = [] }) {
 						{t('participants.description')}
 					</p>
 				</div>
-				<div className="flex gap-2">
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept=".json"
-						onChange={handleImport}
-						className="hidden"
-					/>
+			<div className="flex gap-2">
+				<input
+					ref={fileInputRef}
+					type="file"
+					accept=".json"
+					onChange={handleImport}
+					className="hidden"
+				/>
+				{/* Mobile: Dropdown Menu */}
+				<div className="md:hidden flex gap-2 flex-1">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm">
+								<MoreVertical className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								onClick={() => fileInputRef.current?.click()}
+								disabled={isImporting}
+							>
+								<Upload className="h-4 w-4 mr-2" />
+								{t('common.import')}
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={handleExport}
+								disabled={participants.length === 0}
+							>
+								<Download className="h-4 w-4 mr-2" />
+								{t('common.export')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<Button
+						size="sm"
+						onClick={() => setIsCreateDialogOpen(true)}
+						className="gap-2 flex-1"
+					>
+						<Plus className="h-4 w-4" />
+						{t('participants.addNew')}
+					</Button>
+				</div>
+				{/* Desktop: Full Buttons */}
+				<div className="hidden md:flex gap-2">
 					<Button
 						variant="outline"
 						size="sm"
@@ -105,6 +147,7 @@ export function ParticipantsSection({ projectId, participants = [] }) {
 						{t('participants.addNew')}
 					</Button>
 				</div>
+			</div>
 			</div>
 
 			{/* Participants Grid */}
