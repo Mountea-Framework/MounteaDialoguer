@@ -120,7 +120,7 @@ function ProjectDetailsPage() {
 	}
 
 	return (
-		<div className="h-screen flex flex-col overflow-hidden">
+		<div className="min-h-screen flex flex-col">
 			{/* Header */}
 			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between">
 				<div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
@@ -177,7 +177,7 @@ function ProjectDetailsPage() {
 			)}
 
 			{/* Main Content */}
-			<div className="flex-1 flex overflow-hidden">
+			<div className="flex-1 flex">
 				<ProjectSidebar
 					activeSection={activeSection}
 					onSectionChange={(section) => {
@@ -191,7 +191,7 @@ function ProjectDetailsPage() {
 					onMobileClose={() => setIsMobileSidebarOpen(false)}
 				/>
 
-				<main className="flex-1 overflow-y-auto bg-grid">
+				<main className="flex-1 bg-grid">
 					<div className="max-w-5xl mx-auto p-4 md:p-8 lg:p-12">
 						{activeSection === 'overview' && (
 							<OverviewSection
