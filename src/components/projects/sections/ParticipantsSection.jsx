@@ -12,6 +12,7 @@ import {
 import { CreateParticipantDialog } from '@/components/dialogs/CreateParticipantDialog';
 import { ParticipantCard } from '@/components/projects/ParticipantCard';
 import { useParticipantStore } from '@/stores/participantStore';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Participants Section Component
@@ -113,7 +114,7 @@ export function ParticipantsSection({ projectId, participants = [] }) {
 						className="gap-2 flex-1"
 					>
 						<Plus className="h-4 w-4" />
-						{t('participants.addNew')}
+						{!isMobileDevice && t("participants.addNew")}
 					</Button>
 				</div>
 				{/* Desktop: Full Buttons */}

@@ -12,6 +12,7 @@ import {
 import { CreateCategoryDialog } from '@/components/dialogs/CreateCategoryDialog';
 import { CategoryCard } from '@/components/projects/CategoryCard';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Categories Section Component
@@ -113,7 +114,7 @@ export function CategoriesSection({ projectId, categories = [] }) {
 						className="gap-2 flex-1"
 					>
 						<Plus className="h-4 w-4" />
-						{t('categories.addNew')}
+						{!isMobileDevice && t("categories.addNew")}
 					</Button>
 				</div>
 				{/* Desktop: Full Buttons */}

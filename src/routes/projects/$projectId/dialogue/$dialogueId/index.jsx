@@ -1100,7 +1100,7 @@ function DialogueEditorPage() {
 
 			{/* Mobile Node Action Bar */}
 			{deviceType === 'mobile' && selectedNode && (
-				<div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
+				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
 					<span className="text-sm font-medium truncate max-w-32">
 						{selectedNode.data.displayName || selectedNode.type?.replace('Node', '')}
 					</span>

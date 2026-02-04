@@ -12,6 +12,7 @@ import {
 import { CreateDecoratorDialog } from '@/components/dialogs/CreateDecoratorDialog';
 import { DecoratorCard } from '@/components/projects/DecoratorCard';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Decorators Section Component
@@ -113,7 +114,7 @@ export function DecoratorsSection({ projectId, decorators = [] }) {
 						className="gap-2 flex-1"
 					>
 						<Plus className="h-4 w-4" />
-						{t('decorators.addNew')}
+						{!isMobileDevice && t("decorators.addNew")}
 					</Button>
 				</div>
 				{/* Desktop: Full Buttons */}

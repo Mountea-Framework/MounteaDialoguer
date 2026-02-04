@@ -6,6 +6,7 @@ import { DialogueCard } from '@/components/projects/DialogueCard';
 import { CreateDialogueDialog } from '@/components/dialogues/CreateDialogueDialog';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { EmptyState } from '@/components/ui/empty-state';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Dialogues Section Component
@@ -67,7 +68,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
 					</Button>
 					<Button type="button" size="sm" onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
 						<Plus className="h-4 w-4" />
-						{t('dialogues.createNew')}
+						{!isMobileDevice && t("dialogues.addNew")}
 					</Button>
 				</div>
 			</div>
