@@ -367,11 +367,26 @@ function DialogueEditorPage() {
 	const deleteSelectedNode = useCallback(() => {
 		if (selectedNode && selectedNode.id !== '00000000-0000-0000-0000-000000000001') {
 			setNodes((nds) => {
-				const updatedNodes = nds.filter((n) => n.id !== selectedNode.id);
-				// Also remove edges connected to this node
+				const placeholderIdsToRemove = nds
+					.filter(
+						(n) =>
+							n.type === 'placeholderNode' &&
+							n.data?.parentNodeId === selectedNode.id
+					)
+					.map((n) => n.id);
+
+				const updatedNodes = nds.filter(
+					(n) => n.id !== selectedNode.id && !placeholderIdsToRemove.includes(n.id)
+				);
+
+				// Also remove edges connected to this node or its placeholders
 				setEdges((eds) => {
 					const updatedEdges = eds.filter(
-						(e) => e.source !== selectedNode.id && e.target !== selectedNode.id
+						(e) =>
+							e.source !== selectedNode.id &&
+							e.target !== selectedNode.id &&
+							!placeholderIdsToRemove.includes(e.source) &&
+							!placeholderIdsToRemove.includes(e.target)
 					);
 					saveToHistory(updatedNodes, updatedEdges);
 					return updatedEdges;
