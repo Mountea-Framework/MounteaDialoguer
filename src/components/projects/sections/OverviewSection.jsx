@@ -12,6 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDate, formatDistanceToNow } from '@/lib/dateUtils';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Overview Section Component
@@ -41,7 +42,11 @@ export function OverviewSection({
 	return (
 		<div>
 			{/* Breadcrumbs */}
-			<div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-4">
+			<div
+				className={`flex items-center gap-2 text-xs font-medium text-muted-foreground mb-4 ${
+					isMobileDevice ? "hidden" : ""
+				}`}
+				>
 				<Link to="/" className="hover:text-primary cursor-pointer">
 					{t('projects.title')}
 				</Link>

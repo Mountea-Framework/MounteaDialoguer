@@ -51,8 +51,12 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 						<span className="sr-only sm:not-sr-only">{t('common.new')}</span>
 					</Button>
 				</div>
-				<div className="flex-1 flex items-center gap-2 md:justify-end">
-					<div className="relative flex-1 md:w-64 md:flex-none" data-tour="search">
+				<div
+					className={`flex items-center gap-2 flex-1 md:justify-end ${
+						isMobileDevice ? "w-full justify-between" : ""
+					}`}
+					>
+					<div className={`relative flex-1 md:w-64 md:flex-none ${isMobileDevice ? "hidden" : ""}`} data-tour="search">
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
 							type="text"
