@@ -66,7 +66,7 @@ export function CategoriesSection({ projectId, categories = [] }) {
 	return (
 		<div>
 			{/* Header */}
-			<div className="flex items-center justify-between mb-6">
+			<div className="flex items-top justify-between mb-6">
 				<div>
 					<h2 className="text-2xl font-bold">
 						{t('categories.title')} ({categories.length})
@@ -87,7 +87,7 @@ export function CategoriesSection({ projectId, categories = [] }) {
 				<div className="md:hidden flex gap-2 flex-1">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="outline" size="sm">
+							<Button variant="outline" size="icon" className="rounded-full">
 								<MoreVertical className="h-4 w-4" />
 							</Button>
 						</DropdownMenuTrigger>
@@ -109,9 +109,9 @@ export function CategoriesSection({ projectId, categories = [] }) {
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<Button
-						size="sm"
+						size="icon"
 						onClick={() => setIsCreateDialogOpen(true)}
-						className="gap-2 flex-1"
+						className="gap-2 flex-1 rounded-full"
 					>
 						<Plus className="h-4 w-4" />
 						{!isMobileDevice && t("categories.addNew")}

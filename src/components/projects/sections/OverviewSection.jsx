@@ -84,9 +84,9 @@ export function OverviewSection({
 				/>
 				{/* Mobile: Dropdown Menu */}
 				<div className="md:hidden">
-					<DropdownMenu>
+					<DropdownMenu className>
 						<DropdownMenuTrigger asChild>
-							<Button variant="outline" size="sm">
+							<Button variant="outline" size="icon" className="rounded-full">
 								<MoreVertical className="h-4 w-4" />
 							</Button>
 						</DropdownMenuTrigger>
