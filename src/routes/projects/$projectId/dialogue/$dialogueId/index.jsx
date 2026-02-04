@@ -1310,84 +1310,74 @@ function DialogueEditorPage() {
 				)}
 			</div>
 
-			{/* Bottom Toolbar */}
+			{/* Bottom Toolbar - Hidden on mobile */}
+			{deviceType !== 'mobile' && (
 			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
-					{/* Only show Auto Layout on desktop/tablet */}
-					{deviceType !== 'mobile' && (
-						<>
-							<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2"
-									onClick={onLayout}
-								>
-									<Network className="h-4 w-4" />
-									Auto Layout
-								</Button>
-							</SimpleTooltip>
-							<div className="h-6 w-px bg-border mx-1"></div>
-							<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2 cursor-move"
-									draggable
-									onDragStart={(e) => onDragStart(e, 'leadNode')}
-									onClick={() => addNode('leadNode')}
-								>
-									<MessageCircle className="h-4 w-4" />
-									NPC
-								</Button>
-							</SimpleTooltip>
-							<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2 cursor-move"
-									draggable
-									onDragStart={(e) => onDragStart(e, 'answerNode')}
-									onClick={() => addNode('answerNode')}
-								>
-									<User className="h-4 w-4" />
-									Player
-								</Button>
-							</SimpleTooltip>
-							<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2 cursor-move"
-									draggable
-									onDragStart={(e) => onDragStart(e, 'returnNode')}
-									onClick={() => addNode('returnNode')}
-								>
-									<CornerUpLeft className="h-4 w-4" />
-									Return
-								</Button>
-							</SimpleTooltip>
-							<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2 cursor-move"
-									draggable
-									onDragStart={(e) => onDragStart(e, 'completeNode')}
-									onClick={() => addNode('completeNode')}
-								>
-									<CheckCircle2 className="h-4 w-4" />
-									Complete
-								</Button>
-							</SimpleTooltip>
-						</>
-					)}
-					{/* Mobile: Show instructions */}
-					{deviceType === 'mobile' && (
-						<span className="text-sm text-muted-foreground">
-							Tap the placeholder node to add new nodes
-						</span>
-					)}
+					<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							onClick={onLayout}
+						>
+							<Network className="h-4 w-4" />
+							Auto Layout
+						</Button>
+					</SimpleTooltip>
+					<div className="h-6 w-px bg-border mx-1"></div>
+					<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'leadNode')}
+							onClick={() => addNode('leadNode')}
+						>
+							<MessageCircle className="h-4 w-4" />
+							NPC
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'answerNode')}
+							onClick={() => addNode('answerNode')}
+						>
+							<User className="h-4 w-4" />
+							Player
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'returnNode')}
+							onClick={() => addNode('returnNode')}
+						>
+							<CornerUpLeft className="h-4 w-4" />
+							Return
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'completeNode')}
+							onClick={() => addNode('completeNode')}
+						>
+							<CheckCircle2 className="h-4 w-4" />
+							Complete
+						</Button>
+					</SimpleTooltip>
 				</div>
 				<div className="flex items-center gap-4 text-sm text-muted-foreground">
 					<span>
@@ -1407,6 +1397,7 @@ function DialogueEditorPage() {
 					</span>
 				</div>
 			</div>
+			)}
 
 			{/* Node Type Selection Modal (Mobile) */}
 			<NodeTypeSelectionModal

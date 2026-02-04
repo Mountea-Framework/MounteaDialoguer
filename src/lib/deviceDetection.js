@@ -1,7 +1,7 @@
 /**
  * Device detection utilities
  * Determines if the user is on mobile, tablet, or desktop
- * Works correctly inside iframes by prioritizing user agent over viewport width
+ * Works correctly inside iframes by using multiple detection methods
  */
 
 export const getDeviceType = () => {
@@ -10,17 +10,10 @@ export const getDeviceType = () => {
 
 	const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 
-	// Use screen width for more reliable detection in iframes
-	// screen.width gives actual device screen width, not iframe width
-	const screenWidth = window.screen?.width || window.innerWidth;
-	const viewportWidth = window.innerWidth;
+	// Check touch capability - most reliable for mobile/tablet detection
+	const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-	// Use the smaller of screen width or viewport width for detection
-	// This handles both iframe and direct browsing scenarios
-	const width = Math.min(screenWidth, viewportWidth);
-
-	// Check for tablet
-	// iPads (including iPad Pro) report as desktop in modern iOS, so we check both UA and screen size
+	// Check for tablet first
 	const isIpad = /iPad/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 	const isAndroidTablet = /android/i.test(userAgent) && !/mobile/i.test(userAgent);
 
@@ -28,26 +21,28 @@ export const getDeviceType = () => {
 		return 'tablet';
 	}
 
-	// Check for mobile - prioritize user agent detection
-	const isMobileUA = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+	// Check for mobile via user agent
+	const isMobileUA = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i.test(userAgent);
 
-	// If user agent indicates mobile device, trust it (important for iframes)
+	// If user agent indicates mobile, return mobile
 	if (isMobileUA) {
-		// Only override to tablet if screen is actually large (>= 768px)
-		if (screenWidth >= 768 && screenWidth < 1024) {
-			return 'tablet';
-		}
 		return 'mobile';
 	}
 
-	// For non-mobile user agents, use width-based detection
-	if (width >= 1024) {
-		return 'desktop';
-	} else if (width >= 768) {
+	// For touch devices with small screens, treat as mobile
+	// Use screen.width which works in iframes
+	const screenWidth = window.screen?.width || window.innerWidth;
+
+	if (hasTouchScreen && screenWidth < 768) {
+		return 'mobile';
+	}
+
+	if (hasTouchScreen && screenWidth < 1024) {
 		return 'tablet';
 	}
 
-	return 'mobile';
+	// Default to desktop
+	return 'desktop';
 };
 
 export const isMobileDevice = () => getDeviceType() === 'mobile';

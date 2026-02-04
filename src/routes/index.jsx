@@ -13,6 +13,7 @@ import { formatFileSize, formatDate } from '@/lib/dateUtils';
 import { calculateDiskUsage } from '@/lib/storageUtils';
 import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 import { EmptyState } from '@/components/ui/empty-state';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 
 export const Route = createFileRoute('/')({
@@ -26,7 +27,12 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 	return (
 		<header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 			<div className="flex flex-col md:flex-row md:h-16 md:items-center px-4 py-3 md:px-12 max-w-7xl mx-auto w-full gap-3">
-				<div className="flex items-center gap-3 justify-between md:justify-start">
+				<div
+					className={`
+						flex items-center gap-3 justify-between md:justify-start
+						${isMobileDevice ? "hidden" : ""}
+					`}
+				>
 					<div className="flex items-center gap-3">
 						<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
 							<MessageCircle className="h-6 w-6 text-primary-foreground" />
@@ -57,12 +63,19 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 						/>
 					</div>
 					<LanguageSelector />
-					<Button variant="ghost" size="icon" onClick={onShowTour} className="rounded-full shrink-0">
+					<Button variant="ghost" size="icon" onClick={onShowTour} className={`
+							rounded-full shrink-0
+							${isMobileDevice ? "hidden" : ""}
+						`}>
 						<HelpCircle className="h-4 w-4" />
 					</Button>
-					<Button onClick={onNewProject} className="hidden md:flex gap-2" data-tour="create-project">
+					<Button
+						onClick={onNewProject}
+						className={`${isMobileDevice ? "flex gap-2" : "hidden"}`}
+						data-tour="create-project"
+						>
 						<Plus className="h-4 w-4" />
-						{t('projects.createNew')}
+						{isMobileDevice && t("projects.createNew")}
 					</Button>
 				</div>
 			</div>
