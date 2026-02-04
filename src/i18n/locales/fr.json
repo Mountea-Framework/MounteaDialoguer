@@ -89,6 +89,9 @@
 		"audioClip": "Clip audio",
 		"decorators": "Décorateurs",
 		"addDecorator": "Ajouter un décorateur",
+		"deleteCascadeTitle": "Supprimer le nœud et ses enfants ?",
+		"deleteCascadeDescription": "La suppression de ce nœud supprimera tous les nœuds enfants. Cette action est irréversible.",
+		"deleteCascadeConfirm": "Tout supprimer",
 		"sections": {
 			"nodeData": "Données du Nœud",
 			"dialogueDetails": "Détails du Dialogue",

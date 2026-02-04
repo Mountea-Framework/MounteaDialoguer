@@ -89,6 +89,9 @@
 		"audioClip": "Clip de audio",
 		"decorators": "Decoradores",
 		"addDecorator": "Añadir decorador",
+		"deleteCascadeTitle": "¿Eliminar el nodo y sus hijos?",
+		"deleteCascadeDescription": "Al eliminar este nodo se eliminarán todos los nodos hijos. Esta acción no se puede deshacer.",
+		"deleteCascadeConfirm": "Eliminar todo",
 		"sections": {
 			"nodeData": "Datos del Nodo",
 			"dialogueDetails": "Detalles del Diálogo",

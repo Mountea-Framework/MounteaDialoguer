@@ -89,6 +89,9 @@
 		"audioClip": "Audioclip",
 		"decorators": "Dekoratoren",
 		"addDecorator": "Dekorator hinzufügen",
+		"deleteCascadeTitle": "Knoten und Kinder löschen?",
+		"deleteCascadeDescription": "Beim Löschen dieses Knotens werden alle Kindknoten gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+		"deleteCascadeConfirm": "Alle löschen",
 		"sections": {
 			"nodeData": "Knotendaten",
 			"dialogueDetails": "Dialogdetails",

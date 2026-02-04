@@ -105,6 +105,9 @@
 		"audioClip": "Audio Clip",
 		"decorators": "Decorators",
 		"addDecorator": "Add Decorator",
+		"deleteCascadeTitle": "Delete Node and Children?",
+		"deleteCascadeDescription": "Deleting this node will delete all child nodes. This action cannot be undone.",
+		"deleteCascadeConfirm": "Delete All",
 		"sections": {
 			"nodeData": "Node Data",
 			"dialogueDetails": "Dialogue Details",

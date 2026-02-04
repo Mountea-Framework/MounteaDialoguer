@@ -38,6 +38,16 @@ import {
 	PanelRightOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -188,6 +198,7 @@ function DialogueEditorPage() {
 	const [isNodeTypeModalOpen, setIsNodeTypeModalOpen] = useState(false);
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
+	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -396,6 +407,52 @@ function DialogueEditorPage() {
 			setSelectedNode(null);
 		}
 	}, [selectedNode, setNodes, setEdges, saveToHistory]);
+
+	const deleteSelectedNodeCascade = useCallback(() => {
+		if (!selectedNode || selectedNode.id === '00000000-0000-0000-0000-000000000001') {
+			return;
+		}
+
+		const nodeIdsToRemove = new Set([selectedNode.id]);
+		const queue = [selectedNode.id];
+
+		while (queue.length > 0) {
+			const currentId = queue.shift();
+			edges.forEach((edge) => {
+				if (edge.source === currentId && !nodeIdsToRemove.has(edge.target)) {
+					nodeIdsToRemove.add(edge.target);
+					queue.push(edge.target);
+				}
+			});
+		}
+
+		setNodes((nds) => {
+			const placeholderIdsToRemove = nds
+				.filter(
+					(n) =>
+						n.type === 'placeholderNode' &&
+						nodeIdsToRemove.has(n.data?.parentNodeId)
+				)
+				.map((n) => n.id);
+
+			placeholderIdsToRemove.forEach((id) => nodeIdsToRemove.add(id));
+
+			const updatedNodes = nds.filter((n) => !nodeIdsToRemove.has(n.id));
+
+			setEdges((eds) => {
+				const updatedEdges = eds.filter(
+					(e) =>
+						!nodeIdsToRemove.has(e.source) && !nodeIdsToRemove.has(e.target)
+				);
+				saveToHistory(updatedNodes, updatedEdges);
+				return updatedEdges;
+			});
+
+			return updatedNodes;
+		});
+
+		setSelectedNode(null);
+	}, [selectedNode, edges, setNodes, setEdges, saveToHistory]);
 
 	// Handle keyboard events
 	useEffect(() => {
@@ -1133,7 +1190,7 @@ function DialogueEditorPage() {
 							variant="ghost"
 							size="icon"
 							className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-							onClick={deleteSelectedNode}
+							onClick={() => setIsCascadeDeleteOpen(true)}
 						>
 							<Trash2 className="h-4 w-4" />
 						</Button>
@@ -1147,6 +1204,32 @@ function DialogueEditorPage() {
 						<X className="h-4 w-4" />
 					</Button>
 				</div>
+			)}
+
+			{/* Mobile Cascade Delete Confirmation */}
+			{deviceType === 'mobile' && (
+				<AlertDialog open={isCascadeDeleteOpen} onOpenChange={setIsCascadeDeleteOpen}>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>{t('editor.deleteCascadeTitle')}</AlertDialogTitle>
+							<AlertDialogDescription>
+								{t('editor.deleteCascadeDescription')}
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={() => {
+									setIsCascadeDeleteOpen(false);
+									deleteSelectedNodeCascade();
+								}}
+								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							>
+								{t('editor.deleteCascadeConfirm')}
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
 			)}
 
 			{/* Mobile Panel Overlay */}
