@@ -73,6 +73,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/components/ui/toaster';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -206,6 +207,8 @@ function DialogueEditorPage() {
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
+	const { toast, dismiss } = useToast();
+	const validationToastIdsRef = useRef(new Map());
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
@@ -367,10 +370,10 @@ function DialogueEditorPage() {
 							id={field.id}
 							value={selectedNode.data[field.id] || ''}
 							onChange={(e) =>
-								updateNodeData(selectedNode.id, {
-									[field.id]: e.target.value,
-								})
-							}
+				updateNodeData(selectedNode.id, {
+					[field.id]: e.target.value,
+				})
+			}
 							placeholder={field.placeholderKey ? t(field.placeholderKey) : undefined}
 							maxLength={field.maxLength}
 						/>
@@ -384,9 +387,9 @@ function DialogueEditorPage() {
 							<Select
 								value={selectedNode.data[field.id] || ''}
 								onValueChange={(value) =>
-									updateNodeData(selectedNode.id, { [field.id]: value })
-								}
-							>
+								updateNodeData(selectedNode.id, { [field.id]: value })
+							}
+						>
 								<SelectTrigger>
 									<SelectValue
 										placeholder={
@@ -412,9 +415,9 @@ function DialogueEditorPage() {
 							<Select
 								value={selectedNode.data[field.id] || ''}
 								onValueChange={(value) =>
-									updateNodeData(selectedNode.id, { [field.id]: value })
-								}
-							>
+								updateNodeData(selectedNode.id, { [field.id]: value })
+							}
+						>
 								<SelectTrigger>
 									<SelectValue
 										placeholder={
@@ -512,6 +515,7 @@ function DialogueEditorPage() {
 				return null;
 		}
 	};
+
 
 	// Handle edge connection
 	const onConnect = useCallback(
@@ -632,6 +636,45 @@ function DialogueEditorPage() {
 		setSelectedNode(null);
 	}, [selectedNode, edges, setNodes, setEdges, saveToHistory]);
 
+	const getMissingRequiredNodes = useCallback(() => {
+		const missingNodes = new Map();
+
+		nodes.forEach((node) => {
+			if (node.type === 'placeholderNode') return;
+			const definition = getNodeDefinition(node.type);
+			if (!definition?.sections) return;
+
+			definition.sections.forEach((section) => {
+				section.fields?.forEach((field) => {
+					if (!field.required) return;
+					const value = node.data?.[field.id];
+					const isEmpty =
+						value === null ||
+						value === undefined ||
+						(typeof value === 'string' && value.trim() === '');
+
+					if (isEmpty) {
+						missingNodes.set(node.id, node);
+					}
+				});
+			});
+		});
+
+		return missingNodes;
+	}, [nodes]);
+
+	useEffect(() => {
+		if (validationToastIdsRef.current.size === 0) return;
+		const missingNodes = getMissingRequiredNodes();
+
+		for (const [nodeId, toastId] of validationToastIdsRef.current.entries()) {
+			if (!missingNodes.has(nodeId)) {
+				dismiss(toastId);
+				validationToastIdsRef.current.delete(nodeId);
+			}
+		}
+	}, [nodes, getMissingRequiredNodes, dismiss]);
+
 	// Handle save
 	const handleSave = useCallback(async () => {
 		setIsSaving(true);
@@ -642,6 +685,8 @@ function DialogueEditorPage() {
 			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
 			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
 
+			const missingRequiredNodes = getMissingRequiredNodes();
+
 			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
 			const now = new Date();
 			setLastSaved(now);
@@ -649,6 +694,43 @@ function DialogueEditorPage() {
 			setSaveStatus('saved');
 			setHasUnsavedChanges(false);
 			celebrateSuccess();
+			// Clear warnings for nodes that are now valid
+			for (const [nodeId, toastId] of validationToastIdsRef.current.entries()) {
+				if (!missingRequiredNodes.has(nodeId)) {
+					dismiss(toastId);
+					validationToastIdsRef.current.delete(nodeId);
+				}
+			}
+
+			// Add persistent per-node warnings for missing required fields
+			for (const [nodeId, node] of missingRequiredNodes.entries()) {
+				if (validationToastIdsRef.current.has(nodeId)) continue;
+
+				const nodeName =
+					node.data?.displayName ||
+					node.data?.label ||
+					getNodeDefinition(node.type)?.label ||
+					node.type;
+
+				const toastId = toast({
+					variant: 'warning',
+					title: t('editor.validation.nodeMissingTitle'),
+					description: t('editor.validation.nodeMissingDescription', {
+						name: nodeName,
+					}),
+					action: {
+						label: t('editor.validation.focusNode'),
+						onClick: () => {
+							setSelectedNode(node);
+							setSelectedEdge(null);
+							if (deviceType === 'mobile') {
+								setIsMobilePanelOpen(true);
+							}
+						},
+					},
+				});
+				validationToastIdsRef.current.set(nodeId, toastId);
+			}
 			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (error) {
 			console.error('Failed to save dialogue:', error);
@@ -663,11 +745,16 @@ function DialogueEditorPage() {
 		viewport,
 		dialogueId,
 		saveDialogueGraph,
+		getMissingRequiredNodes,
+		toast,
+		dismiss,
+		t,
 		setIsSaving,
 		setSaveSuccess,
 		setSaveStatus,
 		setHasUnsavedChanges,
 		setLastSaved,
+		deviceType,
 	]);
 
 	// Update node data (without saving to history on every keystroke)

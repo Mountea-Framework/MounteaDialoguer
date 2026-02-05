@@ -106,6 +106,14 @@
 			"dialogueRows": "Filas de Diálogo",
 			"targetNode": "Volver al Nodo",
 			"targetNodePlaceholder": "Seleccione nodo objetivo..."
+		},
+		"validation": {
+			"saveWarningTitle": "Guardado con advertencias",
+			"saveWarningDescription": "{{count}} nodo tiene campos obligatorios faltantes. Por favor revisa.",
+			"saveWarningDescription_plural": "{{count}} nodos tienen campos obligatorios faltantes. Por favor revisa.",
+			"nodeMissingTitle": "El nodo requiere atención",
+			"nodeMissingDescription": "\"{{name}}\" tiene campos obligatorios faltantes.",
+			"focusNode": "Ir al nodo"
 		}
 	},
 	"participants": {
