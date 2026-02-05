@@ -21,7 +21,7 @@ import { formatFileSize, formatDate } from "@/lib/dateUtils";
 import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
-import { isMobileDevice } from "@/lib/deviceDetection";
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -30,12 +30,11 @@ export const Route = createFileRoute("/")({
 // Dashboard Header Component
 function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
-  const isMobile = isMobileDevice();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex flex-col md:flex-row md:h-16 md:items-center px-4 py-3 md:px-12 max-w-7xl mx-auto w-full gap-3">
-        <div className={`flex items-center gap-3 justify-between md:justify-start ${isMobile ? "hidden" : ""}`}>
+        <div className="hidden md:flex items-center gap-3 justify-between md:justify-start">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
               <MessageCircle className="h-6 w-6 text-primary-foreground" />
@@ -49,18 +48,10 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
               </p>
             </div>
           </div>
-          <Button onClick={onNewProject} size="sm" className="md:hidden gap-1">
-            <Plus className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only">{t("common.new")}</span>
-          </Button>
         </div>
-        <div
-          className={`flex items-center gap-2 flex-1 md:justify-end ${
-            isMobile ? "w-full justify-between" : ""
-          }`}
-        >
+        <div className={`flex items-center gap-2 flex-1 md:justify-end ${isMobileDevice ? "justify-between" : ""}`}>
           <div
-            className={`relative flex-1 md:w-64 md:flex-none ${isMobile ? "hidden" : ""}`}
+            className="relative flex-1 md:w-64 md:flex-none hidden md:block"
             data-tour="search"
           >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -72,25 +63,33 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
               className="pl-9 h-9"
             />
           </div>
+
           <LanguageSelector />
           <Button
             variant="ghost"
             size="icon"
             onClick={onShowTour}
-            className={`
-							rounded-full shrink-0
-							${isMobile ? "hidden" : ""}
-						`}
+            className="rounded-full shrink-0 hidden md:inline-flex"
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
           <Button
             onClick={onNewProject}
-            className={`${isMobile ? "flex gap-2" : "hidden"}`}
-            data-tour="create-project"
+            size="sm"
+            className="gap-1 hidden md:inline-flex"
           >
             <Plus className="h-4 w-4" />
-            {isMobile && t("projects.createNew")}
+            <span className="sr-only sm:not-sr-only">{t("projects.createNew")}</span>
+          </Button>
+          <Button
+            onClick={onNewProject}
+            size="sm"
+            className="shrink-0 md:hidden"
+            data-tour="create-project"
+            aria-label={t("projects.createNew")}
+          >
+            <Plus className="h-4 w-4" />
+			<span className="">{t("projects.createNew")}</span>
           </Button>
         </div>
       </div>
