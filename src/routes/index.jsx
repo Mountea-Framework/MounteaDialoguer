@@ -8,6 +8,7 @@ import {
   MessageCircle,
   HardDrive,
   Calendar,
+  Cloud,
   HelpCircle,
 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
@@ -22,6 +23,8 @@ import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
+import { useSyncStore } from "@/stores/syncStore";
+import { SyncLoginDialog } from "@/components/sync/SyncLoginDialog";
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -30,6 +33,15 @@ export const Route = createFileRoute("/")({
 // Dashboard Header Component
 function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
+  const { status: syncStatus } = useSyncStore();
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+
+  const syncLabel =
+    syncStatus === "connected"
+      ? t("sync.status.connected")
+      : syncStatus === "syncing"
+      ? t("sync.status.syncing")
+      : t("sync.status.disconnected");
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -68,6 +80,15 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 
           <LanguageSelector />
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSyncDialogOpen(true)}
+            className="gap-2"
+          >
+            <Cloud className="h-4 w-4" />
+            <span className="text-xs font-medium">{syncLabel}</span>
+          </Button>
+          <Button
             variant="ghost"
             size="icon"
             onClick={onShowTour}
@@ -98,6 +119,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
           </Button>
         </div>
       </div>
+      <SyncLoginDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} />
     </header>
   );
 }
@@ -241,7 +263,8 @@ function ProjectCard({ project }) {
 function ProjectsDashboard() {
   const { t } = useTranslation();
   const { projects, loadProjects, isLoading } = useProjectStore();
-  const { dialogues } = useDialogueStore();
+  const { dialogues, loadDialogues } = useDialogueStore();
+  const { lastSyncedAt } = useSyncStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
@@ -250,6 +273,12 @@ function ProjectsDashboard() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    if (!lastSyncedAt) return;
+    loadProjects();
+    loadDialogues();
+  }, [lastSyncedAt, loadProjects, loadDialogues]);
 
   useEffect(() => {
     const loadDiskUsage = async () => {

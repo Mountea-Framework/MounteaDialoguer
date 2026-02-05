@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { useSyncStore } from '@/stores/syncStore';
 
 /**
  * Project Store
@@ -60,6 +61,7 @@ export const useProjectStore = create((set, get) => ({
 			};
 			await db.projects.add(newProject);
 			await get().loadProjects();
+			useSyncStore.getState().schedulePush(newProject.id);
 			toast({
 				variant: 'success',
 				title: 'Project Created',
@@ -89,6 +91,7 @@ export const useProjectStore = create((set, get) => ({
 				modifiedAt: new Date().toISOString(),
 			});
 			await get().loadProjects();
+			useSyncStore.getState().schedulePush(id);
 			toast({
 				variant: 'success',
 				title: 'Project Updated',
@@ -120,6 +123,7 @@ export const useProjectStore = create((set, get) => ({
 				await db.decorators.where('projectId').equals(id).delete();
 			});
 			await get().loadProjects();
+			useSyncStore.getState().schedulePush(id);
 			toast({
 				variant: 'success',
 				title: 'Project Deleted',
@@ -415,6 +419,8 @@ export const useProjectStore = create((set, get) => ({
 			}
 
 			await get().loadProjects();
+
+			useSyncStore.getState().schedulePush(newProjectId);
 
 			toast({
 				variant: 'success',

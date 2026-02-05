@@ -41,7 +41,7 @@ function getClientId() {
 }
 
 function getRedirectUri() {
-	return `${window.location.origin}/oauth-callback.html`;
+	return new URL('./oauth-callback.html', window.location.href).toString();
 }
 
 function toBase64Url(buffer) {

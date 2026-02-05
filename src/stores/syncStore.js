@@ -8,12 +8,18 @@ import {
 	setStoredClientId,
 	getConfiguredClientId,
 } from '@/lib/sync/googleDriveAuth';
-import { checkRemoteDiff as checkRemoteDiffEngine, pullProject, pushProject as pushProjectToRemote } from '@/lib/sync/syncEngine';
+import {
+	checkRemoteDiff as checkRemoteDiffEngine,
+	pullProject,
+	pushProject as pushProjectToRemote,
+	syncAllProjects as syncAllProjectsEngine,
+} from '@/lib/sync/syncEngine';
 import { getSyncAccount, upsertSyncAccount, clearSyncAccount } from '@/lib/sync/syncStorage';
 
 const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const pushQueue = new Map();
 
 export const useSyncStore = create(
 	persist(
@@ -51,6 +57,10 @@ export const useSyncStore = create(
 					accountLabel: account.email || account.accountId || '',
 					clientId: getConfiguredClientId(),
 				});
+				const { passphrase } = get();
+				if (passphrase && passphrase.trim()) {
+					get().syncAllProjects();
+				}
 			},
 
 			connectGoogleDrive: async () => {
@@ -93,6 +103,7 @@ export const useSyncStore = create(
 						accountLabel: userInfo.email || userInfo.name || '',
 						error: null,
 					});
+					await get().syncAllProjects();
 					return true;
 				} catch (error) {
 					console.error('Google Drive connect failed:', error);
@@ -117,6 +128,43 @@ export const useSyncStore = create(
 					passphrase: '',
 					pullState: { active: false, step: 'checking', progress: 0, projectId: null },
 				});
+			},
+
+			syncAllProjects: async () => {
+				const { status, provider, passphrase } = get();
+				if (status !== 'connected' || !provider) return;
+				if (!passphrase || !passphrase.trim()) return;
+
+				set({ status: 'syncing' });
+				try {
+					await syncAllProjectsEngine({ passphrase });
+					set({ status: 'connected', lastSyncedAt: new Date().toISOString() });
+				} catch (error) {
+					console.error('Sync all failed:', error);
+					const message = (error?.message || '').toLowerCase();
+					if (message.includes('tokenexpired')) {
+						set({ status: 'error', error: 'tokenExpired' });
+					} else {
+						set({ status: 'error', error: 'syncFailed' });
+					}
+				}
+			},
+
+			schedulePush: (projectId) => {
+				const { status, provider } = get();
+				if (status !== 'connected' || !provider) return;
+				if (!projectId) return;
+
+				const existing = pushQueue.get(projectId);
+				if (existing) {
+					clearTimeout(existing);
+				}
+
+				const timer = setTimeout(() => {
+					pushQueue.delete(projectId);
+					get().pushProject(projectId);
+				}, 1500);
+				pushQueue.set(projectId, timer);
 			},
 
 			checkRemoteDiff: async (projectId) => {

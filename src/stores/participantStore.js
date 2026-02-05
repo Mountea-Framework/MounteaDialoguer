@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
 import { useCategoryStore } from './categoryStore';
+import { useSyncStore } from '@/stores/syncStore';
 
 export const useParticipantStore = create((set, get) => ({
 	participants: [],
@@ -42,6 +43,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.add(newParticipant);
 			await get().loadParticipants(participantData.projectId);
+			useSyncStore.getState().schedulePush(participantData.projectId);
 			toast({
 				variant: 'success',
 				title: 'Participant Created',
@@ -75,6 +77,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.update(id, updatedParticipant);
 			await get().loadParticipants(participant.projectId);
+			useSyncStore.getState().schedulePush(participant.projectId);
 			toast({
 				variant: 'success',
 				title: 'Participant Updated',
@@ -102,6 +105,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.delete(id);
 			await get().loadParticipants(participant.projectId);
+			useSyncStore.getState().schedulePush(participant.projectId);
 			toast({
 				variant: 'success',
 				title: 'Participant Deleted',
@@ -167,6 +171,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.bulkAdd(participantsToImport);
 			await get().loadParticipants(projectId);
+			useSyncStore.getState().schedulePush(projectId);
 			toast({
 				variant: 'success',
 				title: 'Participants Imported',

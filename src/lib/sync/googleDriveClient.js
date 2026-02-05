@@ -82,6 +82,38 @@ export async function findAppDataFile(fileName) {
 	return data.files?.[0] || null;
 }
 
+export async function listAppDataFiles({ namePrefix } = {}) {
+	const queryParts = ["'appDataFolder' in parents"];
+	if (namePrefix) {
+		const safePrefix = namePrefix.replace(/'/g, "\\'");
+		queryParts.push(`name contains '${safePrefix}'`);
+	}
+
+	const files = [];
+	let pageToken = null;
+
+	do {
+		const params = new URLSearchParams({
+			q: queryParts.join(' and '),
+			spaces: 'appDataFolder',
+			fields: 'nextPageToken,files(id,name,modifiedTime,appProperties)',
+		});
+
+		if (pageToken) {
+			params.set('pageToken', pageToken);
+		}
+
+		const response = await driveRequest(`${DRIVE_FILES_ENDPOINT}?${params.toString()}`);
+		const data = await response.json();
+		if (Array.isArray(data.files)) {
+			files.push(...data.files);
+		}
+		pageToken = data.nextPageToken || null;
+	} while (pageToken);
+
+	return files;
+}
+
 export async function downloadAppDataFile(fileId) {
 	const response = await driveRequest(`${DRIVE_FILES_ENDPOINT}/${fileId}?alt=media`);
 	return await response.text();
