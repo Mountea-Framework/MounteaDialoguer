@@ -20,6 +20,7 @@ const toastStore = {
 		const id = Date.now() + Math.random();
 		this.toasts.push({ ...toast, id });
 		this.notify();
+		console.debug('[toast] add', id, toast.title);
 		return id;
 	},
 	removeToast(id) {
@@ -34,6 +35,12 @@ export const toast = (options) => {
 		...options,
 		duration: options.duration || 3000,
 	});
+};
+
+export const clearToasts = () => {
+	const ids = toastStore.toasts.map((t) => t.id);
+	console.debug('[toast] clear', ids);
+	ids.forEach((id) => toastStore.removeToast(id));
 };
 
 // Toast hook for use in React components
@@ -59,8 +66,14 @@ export function useToast() {
 export function Toaster() {
 	const { toasts, dismiss } = useToast();
 
+	useEffect(() => {
+		if (toasts.length > 0) {
+			console.debug('[toast] render', toasts.length);
+		}
+	}, [toasts]);
+
 	return (
-		<div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+		<div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
 			{toasts.map((toast) => (
 				<Toast key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
 			))}
