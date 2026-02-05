@@ -122,6 +122,16 @@
 			"dialogueRows": "Dialogue Rows",
 			"targetNode": "Return to Node",
 			"targetNodePlaceholder": "Select target node..."
+		},
+		"validation": {
+			"saveWarningTitle": "Saved with warnings",
+			"saveWarningDescription": "{{count}} node has missing required fields. Please review.",
+			"saveWarningDescription_plural": "{{count}} nodes have missing required fields. Please review.",
+			"nodeMissingTitle": "Node needs attention",
+			"nodeMissingDescription": "\"{{name}}\" has missing required fields.",
+			"focusNode": "Focus node",
+			"unsavedLeaveTitle": "Unsaved changes",
+			"unsavedLeaveDescription": "You have unsaved changes. Leaving will discard them. Continue?"
 		}
 	},
 	"participants": {

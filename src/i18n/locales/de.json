@@ -106,6 +106,16 @@
 			"dialogueRows": "Dialogzeilen",
 			"targetNode": "Zurück zu Knoten",
 			"targetNodePlaceholder": "Zielknoten auswählen..."
+		},
+		"validation": {
+			"saveWarningTitle": "Mit Warnungen gespeichert",
+			"saveWarningDescription": "{{count}} Knoten hat fehlende Pflichtfelder. Bitte prüfen.",
+			"saveWarningDescription_plural": "{{count}} Knoten haben fehlende Pflichtfelder. Bitte prüfen.",
+			"nodeMissingTitle": "Knoten braucht Aufmerksamkeit",
+			"nodeMissingDescription": "\"{{name}}\" hat fehlende Pflichtfelder.",
+			"focusNode": "Knoten öffnen",
+			"unsavedLeaveTitle": "Ungespeicherte Änderungen",
+			"unsavedLeaveDescription": "Es gibt ungespeicherte Änderungen. Beim Verlassen gehen sie verloren. Fortfahren?"
 		}
 	},
 	"participants": {

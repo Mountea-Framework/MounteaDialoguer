@@ -1,4 +1,4 @@
-import { MessageCircle, User, CornerUpLeft, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, User, CornerUpLeft, CheckCircle2, Clock } from 'lucide-react';
 import {
 	Dialog,
 	DialogContent,
@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
+import { getCreatableNodeDefinitions } from '@/config/dialogueNodes';
 
 /**
  * Node Type Selection Modal Component
@@ -16,36 +17,15 @@ import { useTranslation } from 'react-i18next';
 export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType }) {
 	const { t } = useTranslation();
 
-	const nodeTypes = [
-		{
-			type: 'leadNode',
-			label: 'NPC',
-			description: 'Add an NPC dialogue node',
-			icon: MessageCircle,
-			color: 'text-blue-500',
-		},
-		{
-			type: 'answerNode',
-			label: 'Player',
-			description: 'Add a player response node',
-			icon: User,
-			color: 'text-purple-500',
-		},
-		{
-			type: 'returnNode',
-			label: 'Return',
-			description: 'Return to a previous node',
-			icon: CornerUpLeft,
-			color: 'text-orange-500',
-		},
-		{
-			type: 'completeNode',
-			label: 'Complete',
-			description: 'Mark dialogue as complete',
-			icon: CheckCircle2,
-			color: 'text-green-500',
-		},
-	];
+	const iconMap = {
+		messageCircle: MessageCircle,
+		user: User,
+		cornerUpLeft: CornerUpLeft,
+		checkCircle2: CheckCircle2,
+		clock: Clock,
+	};
+
+	const nodeTypes = getCreatableNodeDefinitions();
 
 	const handleSelect = (nodeType) => {
 		onSelectType(nodeType);
@@ -63,7 +43,7 @@ export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType }) {
 				</DialogHeader>
 				<div className="grid gap-2 py-4">
 					{nodeTypes.map((nodeType) => {
-						const Icon = nodeType.icon;
+						const Icon = iconMap[nodeType.icon];
 						return (
 							<Button
 								key={nodeType.type}
@@ -71,8 +51,8 @@ export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType }) {
 								className="h-auto p-4 justify-start gap-4"
 								onClick={() => handleSelect(nodeType.type)}
 							>
-								<div className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center ${nodeType.color}`}>
-									<Icon className="h-5 w-5" />
+								<div className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center ${nodeType.colorClass || ''}`}>
+									{Icon ? <Icon className="h-5 w-5" /> : null}
 								</div>
 								<div className="flex flex-col items-start gap-1 text-left">
 									<span className="font-semibold">{nodeType.label}</span>

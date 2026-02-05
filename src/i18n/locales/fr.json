@@ -106,6 +106,16 @@
 			"dialogueRows": "Lignes de Dialogue",
 			"targetNode": "Retour au Nœud",
 			"targetNodePlaceholder": "Sélectionner le nœud cible..."
+		},
+		"validation": {
+			"saveWarningTitle": "Enregistré avec des avertissements",
+			"saveWarningDescription": "{{count}} nœud a des champs obligatoires manquants. Veuillez vérifier.",
+			"saveWarningDescription_plural": "{{count}} nœuds ont des champs obligatoires manquants. Veuillez vérifier.",
+			"nodeMissingTitle": "Le nœud nécessite une action",
+			"nodeMissingDescription": "\"{{name}}\" a des champs obligatoires manquants.",
+			"focusNode": "Aller au nœud",
+			"unsavedLeaveTitle": "Modifications non enregistrées",
+			"unsavedLeaveDescription": "Vous avez des modifications non enregistrées. Quitter les supprimera. Continuer ?"
 		}
 	},
 	"participants": {
