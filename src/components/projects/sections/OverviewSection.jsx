@@ -32,6 +32,7 @@ export function OverviewSection({
 	isImporting = false,
 }) {
 	const { t } = useTranslation();
+	const isMobile = isMobileDevice();
 
 	// Calculate metrics
 	const totalNodes = dialogues.reduce((sum, d) => sum + (d.nodeCount || 0), 0);
@@ -44,7 +45,7 @@ export function OverviewSection({
 			{/* Breadcrumbs */}
 			<div
 				className={`flex items-center gap-2 text-xs font-medium text-muted-foreground mb-4 ${
-					isMobileDevice ? "hidden" : ""
+					isMobile ? "hidden" : ""
 				}`}
 				>
 				<Link to="/" className="hover:text-primary cursor-pointer">

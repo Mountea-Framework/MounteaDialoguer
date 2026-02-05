@@ -54,12 +54,16 @@ export function ProjectSidebar({
 	];
 
 	return (
-		<aside className={cn(
-			"w-64 flex-shrink-0 bg-card border-r border-border flex flex-col h-full transition-transform duration-300 ease-in-out",
-			"lg:translate-x-0 lg:static lg:z-0",
-			"fixed inset-y-0 left-0 z-50",
-			isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-		)}>
+		<aside
+			className={cn(
+				"flex-shrink-0 bg-card border-r border-border flex flex-col transition-transform duration-300 ease-in-out",
+				"fixed inset-y-0 left-0 z-50 h-full w-64",
+				"lg:static lg:z-0 lg:translate-x-0",
+				"lg:w-80",
+				"lg:h-screen",
+				isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+			)}
+		>
 			{/* Mobile Close Button */}
 			<div className="lg:hidden flex justify-end p-4">
 				<Button

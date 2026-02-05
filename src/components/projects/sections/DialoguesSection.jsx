@@ -24,6 +24,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef(null);
+  const isMobile = isMobileDevice();
 
   const handleImport = async (event) => {
     const file = event.target.files?.[0];
@@ -86,7 +87,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
               className="gap-2 flex-1 rounded-full"
             >
               <Plus className="h-4 w-4" />
-              {!isMobileDevice && t("dialogues.createNew")}
+              {!isMobile && t("dialogues.createNew")}
             </Button>
           </div>
           {/* Desktop: Full Buttons */}

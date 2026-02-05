@@ -24,6 +24,7 @@ export function CategoriesSection({ projectId, categories = [] }) {
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [isImporting, setIsImporting] = useState(false);
 	const fileInputRef = useRef(null);
+	const isMobile = isMobileDevice();
 
 	const handleExport = async () => {
 		try {
@@ -114,7 +115,7 @@ export function CategoriesSection({ projectId, categories = [] }) {
 						className="gap-2 flex-1 rounded-full"
 					>
 						<Plus className="h-4 w-4" />
-						{!isMobileDevice && t("categories.addNew")}
+						{!isMobile && t("categories.addNew")}
 					</Button>
 				</div>
 				{/* Desktop: Full Buttons */}
