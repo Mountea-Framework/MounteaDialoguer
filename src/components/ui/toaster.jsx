@@ -125,7 +125,9 @@ function Toast({ toast, onDismiss }) {
 	const handleAction = () => {
 		if (toast.action?.onClick) {
 			toast.action.onClick();
-			onDismiss();
+			if (toast.dismissOnAction !== false) {
+				onDismiss();
+			}
 		}
 	};
 

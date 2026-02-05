@@ -79,6 +79,7 @@
 						"type": "select",
 						"labelKey": "editor.sections.participant",
 						"placeholderKey": "editor.sections.participantPlaceholder",
+						"required": true,
 						"options": "participants"
 					},
 					{
@@ -158,6 +159,7 @@
 						"type": "select",
 						"labelKey": "editor.sections.participant",
 						"placeholderKey": "editor.sections.participantPlaceholder",
+						"required": true,
 						"options": "participants"
 					},
 					{
@@ -289,6 +291,7 @@
 						"type": "select",
 						"labelKey": "editor.sections.participant",
 						"placeholderKey": "editor.sections.participantPlaceholder",
+						"required": true,
 						"options": "participants"
 					},
 					{
