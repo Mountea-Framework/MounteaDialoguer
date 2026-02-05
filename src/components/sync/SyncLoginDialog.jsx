@@ -32,11 +32,13 @@ export function SyncLoginDialog({
 		setClientId,
 		clearError,
 		connectGoogleDrive,
+		syncAllProjects,
 		disconnect,
 	} = useSyncStore();
 
 	const isConnected = status === 'connected' && provider === 'googleDrive';
 	const isConnecting = status === 'connecting';
+	const isSyncing = status === 'syncing';
 	const canConnect = passphrase.trim().length > 0 && !isConnecting;
 	const configuredClientId = getConfiguredClientId();
 	const clientIdValue = clientId || configuredClientId;
@@ -47,6 +49,10 @@ export function SyncLoginDialog({
 		if (success) {
 			onOpenChange(false);
 		}
+	};
+
+	const handleManualSync = async () => {
+		await syncAllProjects({ mode: 'full' });
 	};
 
 	const statusLabel = useMemo(() => {
@@ -74,14 +80,14 @@ export function SyncLoginDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-xl">
+			<DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{t('sync.title')}</DialogTitle>
 					<DialogDescription>{t('sync.description')}</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
-					<div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3">
+					<div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center">
 						<div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-blue-500 text-white flex items-center justify-center">
 							<Cloud className="h-5 w-5" />
 						</div>
@@ -98,7 +104,7 @@ export function SyncLoginDialog({
 
 					<div className="grid gap-4">
 						{!showClientId && clientIdValue && (
-							<div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+							<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
 								<div>
 									<p className="text-sm font-medium">{t('sync.clientIdConfigured')}</p>
 									<p className="text-xs text-muted-foreground">{t('sync.clientIdHiddenHint')}</p>
@@ -167,7 +173,7 @@ export function SyncLoginDialog({
 							</p>
 						</div>
 
-						<div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+						<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
 							<div>
 								<p className="text-sm font-medium">{t('sync.remember')}</p>
 								<p className="text-xs text-muted-foreground">{t('sync.rememberHint')}</p>
@@ -180,7 +186,7 @@ export function SyncLoginDialog({
 						</div>
 
 						{showPromptControls && (
-							<div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+							<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
 								<div>
 									<p className="text-sm font-medium">{t('sync.promptDontShow')}</p>
 									<p className="text-xs text-muted-foreground">
@@ -202,23 +208,34 @@ export function SyncLoginDialog({
 					</div>
 				</div>
 
-				<DialogFooter className="mt-4">
+				<DialogFooter className="mt-4 flex-col gap-2 sm:flex-row sm:justify-end">
 					{isConnected ? (
-						<Button variant="destructive" onClick={disconnect} className="gap-2">
-							<LogOut className="h-4 w-4" />
-							{t('sync.disconnect')}
-						</Button>
+						<>
+							<Button
+								variant="outline"
+								onClick={handleManualSync}
+								className="gap-2 w-full sm:w-auto"
+								disabled={isSyncing}
+							>
+								<Cloud className="h-4 w-4" />
+								{isSyncing ? t('sync.status.syncing') : t('sync.syncNow')}
+							</Button>
+							<Button variant="destructive" onClick={disconnect} className="gap-2 w-full sm:w-auto">
+								<LogOut className="h-4 w-4" />
+								{t('sync.disconnect')}
+							</Button>
+						</>
 					) : (
 						<Button
 							onClick={handleConnect}
 							disabled={!canConnect}
-							className={cn('gap-2', isConnecting && 'opacity-80')}
+							className={cn('gap-2 w-full sm:w-auto', isConnecting && 'opacity-80')}
 						>
 							<Cloud className="h-4 w-4" />
 							{isConnecting ? t('sync.connecting') : t('sync.connect')}
 						</Button>
 					)}
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+					<Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
 						{t('common.close')}
 					</Button>
 				</DialogFooter>
