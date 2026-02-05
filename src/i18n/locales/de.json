@@ -155,6 +155,9 @@
 			"disconnected": "Getrennt"
 		},
 		"connectedAs": "Verbunden als {{account}}",
+		"clientId": "Google Client-ID",
+		"clientIdPlaceholder": "deine-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Erforderlich fĂĽr Google-Anmeldung. Nur lokal gespeichert.",
 		"accountLabel": "Konto (Anzeige)",
 		"accountPlaceholder": "du@beispiel.de",
 		"passphrase": "Verschlüsselungs-Passphrase",
@@ -166,7 +169,11 @@
 		"connecting": "Verbinde...",
 		"disconnect": "Trennen",
 		"errors": {
-			"passphraseRequired": "Passphrase ist erforderlich, um die Synchronisierung zu aktivieren."
+			"passphraseRequired": "Passphrase ist erforderlich, um die Synchronisierung zu aktivieren.",
+			"missingClientId": "Google-Client-ID fehlt. Bitte oben eintragen.",
+			"oauthFailed": "Google-Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+			"popupBlocked": "Popup blockiert. Bitte Popups erlauben und erneut versuchen.",
+			"syncFailed": "Synchronisierung fehlgeschlagen. Bitte Verbindung prĂĽfen und erneut versuchen."
 		},
 		"pullTitle": "Projekt wird synchronisiert",
 		"pullDescription": "Google Drive wird geprüft und die neuesten Änderungen werden angewendet.",

@@ -166,7 +166,11 @@
 		"connecting": "Conectando...",
 		"disconnect": "Desconectar",
 		"errors": {
-			"passphraseRequired": "Se requiere una frase para activar la sincronizaciĂłn."
+			"passphraseRequired": "Se requiere una frase para activar la sincronizaciĂłn.",
+			"missingClientId": "Falta el ID de cliente de Google. Agrégalo arriba para continuar.",
+			"oauthFailed": "Falló el inicio de sesión de Google. Inténtalo de nuevo.",
+			"popupBlocked": "Popup bloqueado. Permite los popups y vuelve a intentarlo.",
+			"syncFailed": "La sincronización falló. Comprueba la conexión e inténtalo de nuevo."
 		},
 		"pullTitle": "Sincronizando proyecto",
 		"pullDescription": "Comprobando Google Drive y aplicando los Ăšltimos cambios.",
@@ -175,7 +179,10 @@
 			"downloading": "Descargando instantĂˇnea",
 			"decrypting": "Descifrando datos",
 			"applying": "Aplicando actualizaciones"
-		}
+		},
+		"clientId": "ID de cliente de Google",
+		"clientIdPlaceholder": "tu-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Necesario para iniciar sesión en Google. Solo se guarda en este dispositivo."
 	},
 	"validation": {
 		"required": "Este campo es obligatorio",

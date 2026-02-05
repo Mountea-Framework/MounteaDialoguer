@@ -166,7 +166,11 @@
 		"connecting": "Connexion...",
 		"disconnect": "Déconnecter",
 		"errors": {
-			"passphraseRequired": "Une phrase secrète est requise pour activer la synchronisation."
+			"passphraseRequired": "Une phrase secrète est requise pour activer la synchronisation.",
+			"missingClientId": "Identifiant client Google manquant. Ajoutez-le ci-dessus pour continuer.",
+			"oauthFailed": "La connexion Google a échoué. Veuillez réessayer.",
+			"popupBlocked": "Popup bloqué. Autorisez les popups et réessayez.",
+			"syncFailed": "La synchronisation a échoué. Vérifiez la connexion et réessayez."
 		},
 		"pullTitle": "Synchronisation du projet",
 		"pullDescription": "Vérification de Google Drive et application des dernières modifications.",
@@ -175,7 +179,10 @@
 			"downloading": "Téléchargement de l’instantané",
 			"decrypting": "Déchiffrement des données",
 			"applying": "Application des mises à jour"
-		}
+		},
+		"clientId": "ID client Google",
+		"clientIdPlaceholder": "votre-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Requis pour la connexion Google. Stocké uniquement sur cet appareil."
 	},
 	"validation": {
 		"required": "Ce champ est requis",

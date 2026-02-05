@@ -72,6 +72,19 @@ export class MounteaDialoguerDB extends Dexie {
 			}
 		});
 
+		// Version 5 - Add sync metadata tables
+		this.version(5).stores({
+			projects: 'id, name, createdAt, modifiedAt',
+			dialogues: 'id, projectId, name, createdAt, modifiedAt',
+			participants: 'id, projectId, name, category',
+			categories: 'id, projectId, name, parentCategoryId',
+			decorators: 'id, projectId, name, type',
+			nodes: '[dialogueId+id], dialogueId, type',
+			edges: '[dialogueId+id], dialogueId, source, target',
+			syncAccounts: 'provider, accountId, email, expiresAt',
+			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
+		});
+
 		this.projects = this.table('projects');
 		this.dialogues = this.table('dialogues');
 		this.participants = this.table('participants');
@@ -79,6 +92,8 @@ export class MounteaDialoguerDB extends Dexie {
 		this.decorators = this.table('decorators');
 		this.nodes = this.table('nodes');
 		this.edges = this.table('edges');
+		this.syncAccounts = this.table('syncAccounts');
+		this.syncProjects = this.table('syncProjects');
 	}
 }
 

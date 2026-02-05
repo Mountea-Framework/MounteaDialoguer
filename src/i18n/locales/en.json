@@ -201,6 +201,9 @@
 			"disconnected": "Disconnected"
 		},
 		"connectedAs": "Connected as {{account}}",
+		"clientId": "Google Client ID",
+		"clientIdPlaceholder": "your-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Required for Google sign-in. Stored only on this device.",
 		"accountLabel": "Account (display)",
 		"accountPlaceholder": "you@example.com",
 		"passphrase": "Encryption Passphrase",
@@ -212,7 +215,11 @@
 		"connecting": "Connecting...",
 		"disconnect": "Disconnect",
 		"errors": {
-			"passphraseRequired": "Passphrase is required to enable sync."
+			"passphraseRequired": "Passphrase is required to enable sync.",
+			"missingClientId": "Google client ID is missing. Add it above to continue.",
+			"oauthFailed": "Google sign-in failed. Please try again.",
+			"popupBlocked": "Popup blocked. Please allow popups and try again.",
+			"syncFailed": "Sync failed. Check your connection and try again."
 		},
 		"pullTitle": "Syncing Project",
 		"pullDescription": "Checking Google Drive and applying the latest changes.",

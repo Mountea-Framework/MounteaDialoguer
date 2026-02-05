@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useSyncStore } from '@/stores/syncStore';
 import { cn } from '@/lib/utils';
+import { getConfiguredClientId } from '@/lib/sync/googleDriveAuth';
 
 export function SyncLoginDialog({ open, onOpenChange }) {
 	const { t } = useTranslation();
@@ -16,11 +17,14 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 		status,
 		accountLabel,
 		passphrase,
+		clientId,
 		rememberPassphrase,
 		error,
 		setPassphrase,
 		setAccountLabel,
 		setRememberPassphrase,
+		setClientId,
+		clearError,
 		connectGoogleDrive,
 		disconnect,
 	} = useSyncStore();
@@ -28,6 +32,15 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 	const isConnected = status === 'connected' && provider === 'googleDrive';
 	const isConnecting = status === 'connecting';
 	const canConnect = passphrase.trim().length > 0 && !isConnecting;
+	const configuredClientId = getConfiguredClientId();
+	const clientIdValue = clientId || configuredClientId;
+
+	const handleConnect = async () => {
+		const success = await connectGoogleDrive();
+		if (success) {
+			onOpenChange(false);
+		}
+	};
 
 	const statusLabel = useMemo(() => {
 		if (status === 'connected') return t('sync.status.connected');
@@ -36,6 +49,18 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 		if (status === 'error') return t('sync.status.error');
 		return t('sync.status.disconnected');
 	}, [status, t]);
+
+	const errorMessage = useMemo(() => {
+		if (!error) return '';
+		const map = {
+			passphraseRequired: t('sync.errors.passphraseRequired'),
+			missingClientId: t('sync.errors.missingClientId'),
+			oauthFailed: t('sync.errors.oauthFailed'),
+			popupBlocked: t('sync.errors.popupBlocked'),
+			syncFailed: t('sync.errors.syncFailed'),
+		};
+		return map[error] || t('common.error');
+	}, [error, t]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,11 +88,31 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 
 					<div className="grid gap-4">
 						<div className="grid gap-2">
+							<Label htmlFor="sync-client-id">{t('sync.clientId')}</Label>
+							<Input
+								id="sync-client-id"
+								value={clientIdValue}
+								onChange={(e) => {
+									setClientId(e.target.value);
+									clearError?.();
+								}}
+								placeholder={t('sync.clientIdPlaceholder')}
+								disabled={isConnected}
+							/>
+							<p className="text-xs text-muted-foreground">
+								{t('sync.clientIdHint')}
+							</p>
+						</div>
+
+						<div className="grid gap-2">
 							<Label htmlFor="sync-account">{t('sync.accountLabel')}</Label>
 							<Input
 								id="sync-account"
 								value={accountLabel}
-								onChange={(e) => setAccountLabel(e.target.value)}
+								onChange={(e) => {
+									setAccountLabel(e.target.value);
+									clearError?.();
+								}}
 								placeholder={t('sync.accountPlaceholder')}
 								disabled={isConnected}
 							/>
@@ -82,7 +127,10 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 								id="sync-passphrase"
 								type="password"
 								value={passphrase}
-								onChange={(e) => setPassphrase(e.target.value)}
+								onChange={(e) => {
+									setPassphrase(e.target.value);
+									clearError?.();
+								}}
 								placeholder={t('sync.passphrasePlaceholder')}
 								disabled={isConnected}
 							/>
@@ -105,7 +153,7 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 
 						{error && (
 							<p className="text-xs text-destructive">
-								{t('sync.errors.passphraseRequired')}
+								{errorMessage}
 							</p>
 						)}
 					</div>
@@ -119,7 +167,7 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 						</Button>
 					) : (
 						<Button
-							onClick={() => connectGoogleDrive()}
+							onClick={handleConnect}
 							disabled={!canConnect}
 							className={cn('gap-2', isConnecting && 'opacity-80')}
 						>
