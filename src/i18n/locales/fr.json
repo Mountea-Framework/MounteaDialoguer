@@ -162,8 +162,11 @@
 		"passphraseHint": "Votre phrase secrète chiffre les données avant qu'elles ne quittent cet appareil.",
 		"remember": "Mémoriser sur cet appareil",
 		"rememberHint": "Stocke la phrase secrète localement sur cet appareil.",
+		"promptDontShow": "Ne pas afficher au démarrage",
+		"promptDontShowHint": "Masque cette invite de connexion à l'ouverture de l'application.",
 		"connect": "Connecter Google Drive",
 		"connecting": "Connexion...",
+		"syncNow": "Synchroniser maintenant",
 		"disconnect": "Déconnecter",
 		"errors": {
 			"passphraseRequired": "Une phrase secrète est requise pour activer la synchronisation.",
@@ -188,7 +191,10 @@
 		"clientIdHint": "Requis pour la connexion Google. Stocké uniquement sur cet appareil.",
 		"clientIdConfigured": "ID client configuré",
 		"clientIdHiddenHint": "Masqué pour simplifier.",
-		"clientIdChange": "Modifier"
+		"clientIdChange": "Modifier",
+		"bulkTitle": "Synchronisation des projets cloud",
+		"bulkDescription": "Récupération et application des données cloud.",
+		"bulkProgress": "{{current}} sur {{total}} projets synchronisés."
 	},
 	"validation": {
 		"required": "Ce champ est requis",

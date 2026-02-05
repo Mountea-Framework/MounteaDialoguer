@@ -162,8 +162,11 @@
 		"passphraseHint": "Tu frase cifra los datos antes de salir de este dispositivo.",
 		"remember": "Recordar en este dispositivo",
 		"rememberHint": "Guarda la frase localmente en este dispositivo.",
+		"promptDontShow": "No mostrar al inicio",
+		"promptDontShowHint": "Oculta este aviso de inicio de sesión al abrir la aplicación.",
 		"connect": "Conectar Google Drive",
 		"connecting": "Conectando...",
+		"syncNow": "Sincronizar ahora",
 		"disconnect": "Desconectar",
 		"errors": {
 			"passphraseRequired": "Se requiere una frase para activar la sincronizaciĂłn.",
@@ -188,7 +191,10 @@
 		"clientIdHint": "Necesario para iniciar sesión en Google. Solo se guarda en este dispositivo.",
 		"clientIdConfigured": "ID de cliente configurado",
 		"clientIdHiddenHint": "Oculto para simplificar.",
-		"clientIdChange": "Cambiar"
+		"clientIdChange": "Cambiar",
+		"bulkTitle": "Sincronizando proyectos en la nube",
+		"bulkDescription": "Descargando y aplicando los datos de la nube.",
+		"bulkProgress": "Sincronizados {{current}} de {{total}} proyectos."
 	},
 	"validation": {
 		"required": "Este campo es obligatorio",

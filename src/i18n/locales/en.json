@@ -214,8 +214,11 @@
 		"passphraseHint": "Your passphrase encrypts data before it leaves this device.",
 		"remember": "Remember on this device",
 		"rememberHint": "Stores the passphrase locally on this device.",
+		"promptDontShow": "Don't show on startup",
+		"promptDontShowHint": "Hide this login prompt when the app opens.",
 		"connect": "Connect Google Drive",
 		"connecting": "Connecting...",
+		"syncNow": "Sync Now",
 		"disconnect": "Disconnect",
 		"errors": {
 			"passphraseRequired": "Passphrase is required to enable sync.",
@@ -229,6 +232,9 @@
 		},
 		"pullTitle": "Syncing Project",
 		"pullDescription": "Checking Google Drive and applying the latest changes.",
+		"bulkTitle": "Syncing Cloud Projects",
+		"bulkDescription": "Fetching and applying your cloud data.",
+		"bulkProgress": "Synced {{current}} of {{total}} projects.",
 		"progress": {
 			"checking": "Checking for changes",
 			"downloading": "Downloading snapshot",
