@@ -36,6 +36,7 @@ import {
 	Menu,
 	Trash2,
 	PanelRightOpen,
+	Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -80,6 +81,7 @@ import AnswerNode from '@/components/dialogue/nodes/AnswerNode';
 import ReturnNode from '@/components/dialogue/nodes/ReturnNode';
 import CompleteNode from '@/components/dialogue/nodes/CompleteNode';
 import PlaceholderNode from '@/components/dialogue/nodes/PlaceholderNode';
+import DelayNode from '@/components/dialogue/nodes/DelayNode';
 import { DialogueRowsPanel } from '@/components/dialogue/DialogueRowsPanel';
 import { DecoratorsPanel } from '@/components/dialogue/DecoratorsPanel';
 import { CollapsibleSection } from '@/components/dialogue/CollapsibleSection';
@@ -89,6 +91,10 @@ import { celebrateSuccess } from '@/lib/confetti';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
 import { getDeviceType } from '@/lib/deviceDetection';
+import {
+	getNodeDefinition,
+	getNodeDefaultData,
+} from '@/config/dialogueNodes';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -96,14 +102,21 @@ export const Route = createFileRoute(
 	component: DialogueEditorPage,
 });
 
+const startNodeDefinition = getNodeDefinition('startNode');
+const startNodeDefaults = getNodeDefaultData('startNode');
+
 // Initial nodes and edges for new dialogues
 const initialNodes = [
 	{
 		id: '00000000-0000-0000-0000-000000000001',
 		type: 'startNode',
 		data: {
-			label: 'Dialogue entry point',
-			displayName: 'Start',
+			...startNodeDefaults,
+			label:
+				startNodeDefaults.label ||
+				startNodeDefinition?.description ||
+				'Dialogue entry point',
+			displayName: startNodeDefaults.displayName || startNodeDefinition?.label || 'Start',
 		},
 		position: { x: 250, y: 100 },
 		deletable: false,
@@ -119,6 +132,7 @@ const nodeTypes = {
 	answerNode: AnswerNode,
 	returnNode: ReturnNode,
 	completeNode: CompleteNode,
+	delayNode: DelayNode,
 	placeholderNode: PlaceholderNode,
 };
 
@@ -334,6 +348,170 @@ function DialogueEditorPage() {
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
+	const selectedNodeDefinition = selectedNode
+		? getNodeDefinition(selectedNode.type)
+		: null;
+
+	const renderNodeField = (field) => {
+		if (!selectedNode) return null;
+
+		const label = field.labelKey ? t(field.labelKey) : field.label || '';
+		const requiredLabel = field.required ? `${label} *` : label;
+
+		switch (field.type) {
+			case 'text':
+				return (
+					<div className="grid gap-2" key={field.id}>
+						<Label htmlFor={field.id}>{requiredLabel}</Label>
+						<Input
+							id={field.id}
+							value={selectedNode.data[field.id] || ''}
+							onChange={(e) =>
+								updateNodeData(selectedNode.id, {
+									[field.id]: e.target.value,
+								})
+							}
+							placeholder={field.placeholderKey ? t(field.placeholderKey) : undefined}
+							maxLength={field.maxLength}
+						/>
+					</div>
+				);
+			case 'select':
+				if (field.options === 'participants') {
+					return (
+						<div className="space-y-2" key={field.id}>
+							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Select
+								value={selectedNode.data[field.id] || ''}
+								onValueChange={(value) =>
+									updateNodeData(selectedNode.id, { [field.id]: value })
+								}
+							>
+								<SelectTrigger>
+									<SelectValue
+										placeholder={
+											field.placeholderKey ? t(field.placeholderKey) : undefined
+										}
+									/>
+								</SelectTrigger>
+								<SelectContent>
+									{participants.map((participant) => (
+										<SelectItem key={participant.id} value={participant.name}>
+											{participant.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					);
+				}
+				if (field.options === 'nodes') {
+					return (
+						<div className="space-y-2" key={field.id}>
+							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Select
+								value={selectedNode.data[field.id] || ''}
+								onValueChange={(value) =>
+									updateNodeData(selectedNode.id, { [field.id]: value })
+								}
+							>
+								<SelectTrigger>
+									<SelectValue
+										placeholder={
+											field.placeholderKey ? t(field.placeholderKey) : undefined
+										}
+									/>
+								</SelectTrigger>
+								<SelectContent>
+									{nodes
+										.filter((n) => n.id !== selectedNode.id)
+										.map((node) => (
+											<SelectItem key={node.id} value={node.id}>
+												{node.data.displayName || node.data.label || node.id}
+											</SelectItem>
+										))}
+								</SelectContent>
+							</Select>
+						</div>
+					);
+				}
+				return null;
+			case 'dialogueRows':
+				return (
+					<div className="space-y-2" key={field.id}>
+						<DialogueRowsPanel
+							dialogueRows={selectedNode.data.dialogueRows || []}
+							onChange={(newRows) =>
+								updateNodeData(selectedNode.id, { dialogueRows: newRows })
+							}
+							participants={participants}
+						/>
+					</div>
+				);
+			case 'decorators':
+				return (
+					<DecoratorsPanel
+						key={field.id}
+						decorators={selectedNode.data.decorators || []}
+						availableDecorators={decorators}
+						onAddDecorator={(decoratorDef) =>
+							addDecoratorToNode(selectedNode.id, decoratorDef)
+						}
+						onRemoveDecorator={(index) =>
+							removeDecoratorFromNode(selectedNode.id, index)
+						}
+						onUpdateDecorator={(index, newValues) => {
+							const updatedDecorators = [...selectedNode.data.decorators];
+							updatedDecorators[index] = {
+								...updatedDecorators[index],
+								values: newValues,
+							};
+							updateNodeData(selectedNode.id, {
+								decorators: updatedDecorators,
+							});
+						}}
+					/>
+				);
+			case 'slider':
+				return (
+					<div className="space-y-2" key={field.id}>
+						<div className="flex items-center justify-between">
+							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<span className="text-xs text-muted-foreground">
+								{selectedNode.data[field.id] ?? field.min}
+								{field.unit ? ` ${field.unit}` : ''}
+							</span>
+						</div>
+						<Input
+							id={field.id}
+							type="range"
+							min={field.min}
+							max={field.max}
+							step={field.step}
+							value={selectedNode.data[field.id] ?? field.min}
+							onChange={(e) =>
+								updateNodeData(selectedNode.id, {
+									[field.id]: parseFloat(e.target.value),
+								})
+							}
+						/>
+					</div>
+				);
+			case 'nodeId':
+				return (
+					<div key={field.id}>
+						<Label className="text-xs text-muted-foreground">
+							{requiredLabel}
+						</Label>
+						<code className="text-xs font-mono bg-muted px-2 py-1 rounded block mt-1">
+							{selectedNode.id}
+						</code>
+					</div>
+				);
+			default:
+				return null;
+		}
+	};
 
 	// Handle edge connection
 	const onConnect = useCallback(
@@ -570,25 +748,19 @@ function DialogueEditorPage() {
 	// Add new node based on type
 	const addNode = useCallback(
 		(nodeType, position) => {
-			const typeNames = {
-				leadNode: 'NPC',
-				answerNode: 'Player',
-				returnNode: 'Return',
-				completeNode: 'Complete',
-			};
+			const nodeDefinition = getNodeDefinition(nodeType);
+			const nodeDefaults = getNodeDefaultData(nodeType);
+			const baseLabel = nodeDefinition?.label || 'Node';
+			const label = nodeDefaults.label || `New ${baseLabel}`;
+			const displayName = nodeDefaults.displayName || baseLabel;
 
 			const newNode = {
 				id: uuidv4(),
 				type: nodeType,
 				data: {
-					label: `New ${nodeType}`,
-					displayName: typeNames[nodeType] || 'Node',
-					text: '',
-					participant: '',
-					decorators: [],
-					dialogueRows: [],
-					selectionTitle: '',
-					hasAudio: false,
+					...nodeDefaults,
+					label,
+					displayName,
 				},
 				position: position || {
 					x: Math.random() * 400 + 100,
@@ -619,32 +791,26 @@ function DialogueEditorPage() {
 
 		// Create the new node with complete data structure
 		const newNodeId = uuidv4();
-		const typeNames = {
-			leadNode: 'NPC',
-			answerNode: 'Player',
-			returnNode: 'Return',
-			completeNode: 'Complete',
-		};
+		const nodeDefinition = getNodeDefinition(nodeType);
+		const nodeDefaults = getNodeDefaultData(nodeType);
+		const baseLabel = nodeDefinition?.label || 'Node';
+		const label = nodeDefaults.label || `New ${baseLabel}`;
+		const displayName = nodeDefaults.displayName || baseLabel;
 
 		const newNode = {
 			id: newNodeId,
 			type: nodeType,
 			position: position,
 			data: {
-				label: `New ${nodeType}`,
-				displayName: typeNames[nodeType] || 'Node',
-				text: '',
-				participant: '',
-				decorators: [],
-				dialogueRows: [],
-				selectionTitle: '',
-				hasAudio: false,
+				...nodeDefaults,
+				label,
+				displayName,
 			},
 		};
 
 		// Check if parent is the Start Node
 		const isStartNode = parentNodeId === '00000000-0000-0000-0000-000000000001';
-		const canHaveOutputs = nodeType !== 'returnNode' && nodeType !== 'completeNode';
+		const canHaveOutputs = nodeDefinition?.canHaveOutputs ?? true;
 		const newPlaceholderId = canHaveOutputs ? uuidv4() : null;
 
 		setNodes((nds) => {
@@ -734,8 +900,9 @@ function DialogueEditorPage() {
 		const newEdges = [];
 
 		regularNodes.forEach((node) => {
-			// Skip nodes that cannot have outputs (Return and Complete nodes)
-			if (node.type === 'returnNode' || node.type === 'completeNode') {
+			// Skip nodes that cannot have outputs
+			const nodeDefinition = getNodeDefinition(node.type);
+			if (nodeDefinition && nodeDefinition.canHaveOutputs === false) {
 				return;
 			}
 
@@ -952,6 +1119,10 @@ function DialogueEditorPage() {
 	// Handle viewport change
 	const onMove = useCallback((event, newViewport) => {
 		setViewport(newViewport);
+	}, []);
+
+	const getMinimapColor = useCallback((node) => {
+		return getNodeDefinition(node.type)?.minimapColor || '#6b7280';
 	}, []);
 
 	// Handle drag start for node spawning
@@ -1188,22 +1359,7 @@ function DialogueEditorPage() {
 				</Panel>
 				{deviceType !== 'mobile' && (
 					<MiniMap
-						nodeColor={(node) => {
-							switch (node.type) {
-								case 'startNode':
-									return '#22c55e';
-								case 'leadNode':
-									return '#3b82f6';
-								case 'answerNode':
-									return '#8b5cf6';
-								case 'returnNode':
-									return '#f97316';
-								case 'completeNode':
-									return '#10b981';
-								default:
-									return '#6b7280';
-							}
-						}}
+						nodeColor={getMinimapColor}
 						className="!bg-card !border !border-border !rounded-lg !shadow-lg"
 						maskColor="rgb(0, 0, 0, 0.1)"
 						data-tour="minimap"
@@ -1288,7 +1444,11 @@ function DialogueEditorPage() {
 						<div className="p-6 space-y-6">
 							{/* Header */}
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-bold">{(selectedNode.type?.replace('Node', '')?.replace(/^./, c => c.toUpperCase()) || 'default') + ' ' + t('editor.nodeDetails')}</h3>
+								<h3 className="text-lg font-bold">
+									{(selectedNodeDefinition?.label || 'Node') +
+										' ' +
+										t('editor.nodeDetails')}
+								</h3>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -1305,146 +1465,18 @@ function DialogueEditorPage() {
 								</Button>
 							</div>
 
-							{/* Node Data Section */}
-							<CollapsibleSection title={t('editor.sections.nodeData')} defaultOpen={true}>
-								{/* Display Name */}
-								<div className="grid gap-2">
-									<Label htmlFor="displayName">{t('editor.sections.displayName')}</Label>
-									<Input
-										id="displayName"
-										value={selectedNode.data.displayName || ''}
-										onChange={(e) =>
-											updateNodeData(selectedNode.id, {
-												displayName: e.target.value,
-											})
-										}
-										placeholder={t('editor.sections.displayNamePlaceholder')}
-									/>
-								</div>
-
-								{/* Participant Selection (for Lead, Answer, Complete nodes) */}
-								{(selectedNode.type === 'leadNode' ||
-									selectedNode.type === 'answerNode' ||
-									selectedNode.type === 'completeNode') && (
-									<div className="space-y-2">
-										<Label htmlFor="participant">{t('editor.sections.participant')}</Label>
-										<Select
-											value={selectedNode.data.participant || ''}
-											onValueChange={(value) =>
-												updateNodeData(selectedNode.id, { participant: value })
-											}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder={t('editor.sections.participantPlaceholder')} />
-											</SelectTrigger>
-											<SelectContent>
-												{participants.map((participant) => (
-													<SelectItem key={participant.id} value={participant.name}>
-														{participant.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								)}
-
-								{/* Node ID */}
-								<div>
-									<Label className="text-xs text-muted-foreground">{t('editor.sections.nodeId')}</Label>
-									<code className="text-xs font-mono bg-muted px-2 py-1 rounded block mt-1">
-										{selectedNode.id}
-									</code>
-								</div>
-							</CollapsibleSection>
-
-							{/* Dialogue Details Section (for Lead, Answer, Complete nodes) */}
-							{(selectedNode.type === 'leadNode' ||
-								selectedNode.type === 'answerNode' ||
-								selectedNode.type === 'completeNode') && (
-								<CollapsibleSection title={t('editor.sections.dialogueDetails')} defaultOpen={true}>
-									{/* Selection Title */}
-									<div className="grid gap-2">
-										<Label htmlFor="selectionTitle">{t('editor.sections.selectionTitle')}</Label>
-										<Input
-											id="selectionTitle"
-											value={selectedNode.data.selectionTitle || ''}
-											onChange={(e) =>
-												updateNodeData(selectedNode.id, {
-													selectionTitle: e.target.value,
-												})
-											}
-											placeholder={t('editor.sections.selectionTitlePlaceholder')}
-										/>
-									</div>
-
-									{/* Dialogue Rows */}
-									<div className="space-y-2">
-										<DialogueRowsPanel
-											dialogueRows={selectedNode.data.dialogueRows || []}
-											onChange={(newRows) =>
-												updateNodeData(selectedNode.id, { dialogueRows: newRows })
-											}
-											participants={participants}
-										/>
+							{/* Node Sections (Driven by Config) */}
+							{selectedNodeDefinition?.sections?.map((section) => (
+								<CollapsibleSection
+									key={section.id}
+									title={t(section.titleKey)}
+									defaultOpen={section.defaultOpen ?? true}
+								>
+									<div className="space-y-4">
+										{section.fields.map((field) => renderNodeField(field))}
 									</div>
 								</CollapsibleSection>
-							)}
-
-							{/* Return Target Section (for Return nodes) */}
-							{selectedNode.type === 'returnNode' && (
-								<CollapsibleSection title={t('editor.sections.dialogueDetails')} defaultOpen={true}>
-									<div className="space-y-2">
-										<Label htmlFor="targetNode">{t('editor.sections.targetNode')}</Label>
-										<Select
-											value={selectedNode.data.targetNode || ''}
-											onValueChange={(value) =>
-												updateNodeData(selectedNode.id, { targetNode: value })
-											}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder={t('editor.sections.targetNodePlaceholder')} />
-											</SelectTrigger>
-											<SelectContent>
-												{nodes
-													.filter((n) => n.id !== selectedNode.id)
-													.map((node) => (
-														<SelectItem key={node.id} value={node.id}>
-															{node.data.displayName || node.data.label || node.id}
-														</SelectItem>
-													))}
-											</SelectContent>
-										</Select>
-									</div>
-								</CollapsibleSection>
-							)}
-
-							{/* Node Decorators Section (for Lead, Answer, Complete nodes) */}
-							{(selectedNode.type === 'leadNode' ||
-								selectedNode.type === 'answerNode' ||
-								selectedNode.type === 'completeNode') && (
-								<CollapsibleSection title={t('editor.sections.nodeDecorators')} defaultOpen={false}>
-									<DecoratorsPanel
-										decorators={selectedNode.data.decorators || []}
-										availableDecorators={decorators}
-										onAddDecorator={(decoratorDef) =>
-											addDecoratorToNode(selectedNode.id, decoratorDef)
-										}
-										onRemoveDecorator={(index) =>
-											removeDecoratorFromNode(selectedNode.id, index)
-										}
-										onUpdateDecorator={(index, newValues) => {
-											const updatedDecorators = [...selectedNode.data.decorators];
-											updatedDecorators[index] = {
-												...updatedDecorators[index],
-												values: newValues,
-											};
-											updateNodeData(selectedNode.id, {
-												decorators: updatedDecorators,
-											});
-										}}
-									/>
-								</CollapsibleSection>
-							)}
+							))}
 						</div>
 					</div>
 				)}
@@ -1516,6 +1548,19 @@ function DialogueEditorPage() {
 						>
 							<CheckCircle2 className="h-4 w-4" />
 							Complete
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content="Add Delay node - drag to canvas or click" side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'delayNode')}
+							onClick={() => addNode('delayNode')}
+						>
+							<Clock className="h-4 w-4" />
+							Delay
 						</Button>
 					</SimpleTooltip>
 				</div>

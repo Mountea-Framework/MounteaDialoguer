@@ -1,0 +1,371 @@
+{
+	"startNode": {
+		"type": "startNode",
+		"label": "Start",
+		"description": "Dialogue entry point",
+		"section": "system",
+		"creatable": false,
+		"canHaveOutputs": true,
+		"minimapColor": "#22c55e",
+		"defaultData": {
+			"label": "Dialogue entry point",
+			"displayName": "Start",
+			"text": "",
+			"participant": "",
+			"decorators": [],
+			"dialogueRows": [],
+			"selectionTitle": "",
+			"hasAudio": false
+		},
+		"sections": [
+			{
+				"id": "nodeData",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "displayName",
+						"type": "text",
+						"labelKey": "editor.sections.displayName",
+						"placeholderKey": "editor.sections.displayNamePlaceholder",
+						"required": true,
+						"maxLength": 64
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			}
+		]
+	},
+	"leadNode": {
+		"type": "leadNode",
+		"label": "NPC",
+		"description": "Add an NPC dialogue node",
+		"section": "dialogue",
+		"creatable": true,
+		"canHaveOutputs": true,
+		"icon": "messageCircle",
+		"colorClass": "text-blue-500",
+		"minimapColor": "#3b82f6",
+		"defaultData": {
+			"label": "New NPC",
+			"displayName": "NPC",
+			"text": "",
+			"participant": "",
+			"decorators": [],
+			"dialogueRows": [],
+			"selectionTitle": "",
+			"hasAudio": false
+		},
+		"sections": [
+			{
+				"id": "nodeData",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "displayName",
+						"type": "text",
+						"labelKey": "editor.sections.displayName",
+						"placeholderKey": "editor.sections.displayNamePlaceholder",
+						"required": true,
+						"maxLength": 64
+					},
+					{
+						"id": "participant",
+						"type": "select",
+						"labelKey": "editor.sections.participant",
+						"placeholderKey": "editor.sections.participantPlaceholder",
+						"options": "participants"
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			},
+			{
+				"id": "dialogueDetails",
+				"titleKey": "editor.sections.dialogueDetails",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "selectionTitle",
+						"type": "text",
+						"labelKey": "editor.sections.selectionTitle",
+						"placeholderKey": "editor.sections.selectionTitlePlaceholder"
+					},
+					{
+						"id": "dialogueRows",
+						"type": "dialogueRows",
+						"labelKey": "editor.sections.dialogueRows"
+					}
+				]
+			},
+			{
+				"id": "nodeDecorators",
+				"titleKey": "editor.sections.nodeDecorators",
+				"defaultOpen": false,
+				"fields": [
+					{
+						"id": "decorators",
+						"type": "decorators"
+					}
+				]
+			}
+		]
+	},
+	"answerNode": {
+		"type": "answerNode",
+		"label": "Player",
+		"description": "Add a player response node",
+		"section": "dialogue",
+		"creatable": true,
+		"canHaveOutputs": true,
+		"icon": "user",
+		"colorClass": "text-purple-500",
+		"minimapColor": "#8b5cf6",
+		"defaultData": {
+			"label": "New Player",
+			"displayName": "Player",
+			"text": "",
+			"participant": "",
+			"decorators": [],
+			"dialogueRows": [],
+			"selectionTitle": "",
+			"hasAudio": false
+		},
+		"sections": [
+			{
+				"id": "nodeData",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "displayName",
+						"type": "text",
+						"labelKey": "editor.sections.displayName",
+						"placeholderKey": "editor.sections.displayNamePlaceholder",
+						"required": true,
+						"maxLength": 64
+					},
+					{
+						"id": "participant",
+						"type": "select",
+						"labelKey": "editor.sections.participant",
+						"placeholderKey": "editor.sections.participantPlaceholder",
+						"options": "participants"
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			},
+			{
+				"id": "dialogueDetails",
+				"titleKey": "editor.sections.dialogueDetails",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "selectionTitle",
+						"type": "text",
+						"labelKey": "editor.sections.selectionTitle",
+						"placeholderKey": "editor.sections.selectionTitlePlaceholder"
+					},
+					{
+						"id": "dialogueRows",
+						"type": "dialogueRows",
+						"labelKey": "editor.sections.dialogueRows"
+					}
+				]
+			},
+			{
+				"id": "nodeDecorators",
+				"titleKey": "editor.sections.nodeDecorators",
+				"defaultOpen": false,
+				"fields": [
+					{
+						"id": "decorators",
+						"type": "decorators"
+					}
+				]
+			}
+		]
+	},
+	"returnNode": {
+		"type": "returnNode",
+		"label": "Return",
+		"description": "Return to a previous node",
+		"section": "flow",
+		"creatable": true,
+		"canHaveOutputs": false,
+		"icon": "cornerUpLeft",
+		"colorClass": "text-orange-500",
+		"minimapColor": "#f97316",
+		"defaultData": {
+			"label": "New Return",
+			"displayName": "Return",
+			"targetNode": ""
+		},
+		"sections": [
+			{
+				"id": "nodeData",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "displayName",
+						"type": "text",
+						"labelKey": "editor.sections.displayName",
+						"placeholderKey": "editor.sections.displayNamePlaceholder",
+						"required": true,
+						"maxLength": 64
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			},
+			{
+				"id": "returnTarget",
+				"titleKey": "editor.sections.dialogueDetails",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "targetNode",
+						"type": "select",
+						"labelKey": "editor.sections.targetNode",
+						"placeholderKey": "editor.sections.targetNodePlaceholder",
+						"options": "nodes"
+					}
+				]
+			}
+		]
+	},
+	"completeNode": {
+		"type": "completeNode",
+		"label": "Complete",
+		"description": "Mark dialogue as complete",
+		"section": "flow",
+		"creatable": true,
+		"canHaveOutputs": false,
+		"icon": "checkCircle2",
+		"colorClass": "text-[#CC2100]",
+		"minimapColor": "#CC2100",
+		"defaultData": {
+			"label": "New Complete",
+			"displayName": "Complete",
+			"text": "",
+			"participant": "",
+			"decorators": [],
+			"dialogueRows": [],
+			"selectionTitle": "",
+			"hasAudio": false
+		},
+		"sections": [
+			{
+				"id": "nodeData",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "displayName",
+						"type": "text",
+						"labelKey": "editor.sections.displayName",
+						"placeholderKey": "editor.sections.displayNamePlaceholder",
+						"required": true,
+						"maxLength": 64
+					},
+					{
+						"id": "participant",
+						"type": "select",
+						"labelKey": "editor.sections.participant",
+						"placeholderKey": "editor.sections.participantPlaceholder",
+						"options": "participants"
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			},
+			{
+				"id": "dialogueDetails",
+				"titleKey": "editor.sections.dialogueDetails",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "selectionTitle",
+						"type": "text",
+						"labelKey": "editor.sections.selectionTitle",
+						"placeholderKey": "editor.sections.selectionTitlePlaceholder"
+					},
+					{
+						"id": "dialogueRows",
+						"type": "dialogueRows",
+						"labelKey": "editor.sections.dialogueRows"
+					}
+				]
+			},
+			{
+				"id": "nodeDecorators",
+				"titleKey": "editor.sections.nodeDecorators",
+				"defaultOpen": false,
+				"fields": [
+					{
+						"id": "decorators",
+						"type": "decorators"
+					}
+				]
+			}
+		]
+	},
+	"delayNode": {
+		"type": "delayNode",
+		"label": "Delay",
+		"description": "Pause the dialogue for a set duration",
+		"section": "flow",
+		"creatable": true,
+		"canHaveOutputs": true,
+		"icon": "clock",
+		"colorClass": "text-sky-400",
+		"minimapColor": "#7dd3fc",
+		"defaultData": {
+			"label": "New Delay",
+			"displayName": "Delay",
+			"duration": 1
+		},
+		"sections": [
+			{
+				"id": "delaySettings",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "duration",
+						"type": "slider",
+						"label": "Duration (seconds)",
+						"min": 0.1,
+						"max": 30,
+						"step": 0.1,
+						"unit": "s"
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			}
+		]
+	}
+}
