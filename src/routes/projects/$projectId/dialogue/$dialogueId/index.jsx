@@ -73,7 +73,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { useToast } from '@/components/ui/toaster';
+import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -207,8 +207,7 @@ function DialogueEditorPage() {
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
-	const { toast, dismiss, toasts } = useToast();
-	const validationToastIdsRef = useRef(new Map());
+	const { dismiss } = useToast();
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
@@ -349,10 +348,6 @@ function DialogueEditorPage() {
 		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 	}, [hasUnsavedChanges]);
 
-	const clearAllToasts = useCallback(() => {
-		toasts.forEach((toastItem) => dismiss(toastItem.id));
-	}, [toasts, dismiss]);
-
 	const blocker = useBlocker({
 		shouldBlockFn: () => hasUnsavedChanges,
 		enableBeforeUnload: true,
@@ -367,19 +362,18 @@ function DialogueEditorPage() {
 			)}`
 		);
 		if (confirmed) {
-			clearAllToasts();
 			blocker.proceed();
 		} else {
 			blocker.reset();
 		}
-	}, [blocker, clearAllToasts, t]);
+	}, [blocker, t]);
 
-	// Clear all toasts when leaving the graph
+	// Clear toasts only after a successful leave (unmount)
 	useEffect(() => {
 		return () => {
-			clearAllToasts();
+			clearToasts();
 		};
-	}, [clearAllToasts]);
+	}, []);
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
@@ -676,6 +670,8 @@ function DialogueEditorPage() {
 			const definition = getNodeDefinition(node.type);
 			if (!definition?.sections) return;
 
+			const missingFields = [];
+
 			definition.sections.forEach((section) => {
 				section.fields?.forEach((field) => {
 					if (!field.required) return;
@@ -686,26 +682,72 @@ function DialogueEditorPage() {
 						(typeof value === 'string' && value.trim() === '');
 
 					if (isEmpty) {
-						missingNodes.set(node.id, node);
+						missingFields.push(field.id);
 					}
 				});
 			});
+
+			if (missingFields.length > 0) {
+				missingNodes.set(node.id, {
+					node,
+					missingFields,
+				});
+			}
 		});
 
 		return missingNodes;
 	}, [nodes]);
 
-	useEffect(() => {
-		if (validationToastIdsRef.current.size === 0) return;
-		const missingNodes = getMissingRequiredNodes();
-
-		for (const [nodeId, toastId] of validationToastIdsRef.current.entries()) {
-			if (!missingNodes.has(nodeId)) {
-				dismiss(toastId);
-				validationToastIdsRef.current.delete(nodeId);
-			}
+	const logMissingRequiredNodes = useCallback(() => {
+		const missingRequiredNodes = getMissingRequiredNodes();
+		if (missingRequiredNodes.size === 0) {
+			console.info('[validation] No missing required fields.');
+			return;
 		}
-	}, [nodes, getMissingRequiredNodes, dismiss]);
+
+		console.warn('[validation] Missing required fields:');
+		for (const [nodeId, payload] of missingRequiredNodes.entries()) {
+			const node = payload.node;
+			const nodeName =
+				node.data?.displayName ||
+				node.data?.label ||
+				getNodeDefinition(node.type)?.label ||
+				node.type;
+			console.warn(`- ${nodeName} (${nodeId})`, payload.missingFields);
+		}
+	}, [getMissingRequiredNodes]);
+
+	const showValidationToasts = useCallback((missingRequiredNodes) => {
+		if (missingRequiredNodes.size === 0) return;
+		for (const [nodeId, payload] of missingRequiredNodes.entries()) {
+			const node = payload.node;
+			const nodeName =
+				node.data?.displayName ||
+				node.data?.label ||
+				getNodeDefinition(node.type)?.label ||
+				node.type;
+
+			const toastId = toastStandalone({
+				variant: 'warning',
+				title: t('editor.validation.nodeMissingTitle'),
+				description: t('editor.validation.nodeMissingDescription', {
+					name: nodeName,
+				}),
+				duration: 8000,
+				action: {
+					label: t('editor.validation.focusNode'),
+					onClick: () => {
+						setSelectedNode(node);
+						setSelectedEdge(null);
+						if (deviceType === 'mobile') {
+							setIsMobilePanelOpen(true);
+						}
+					},
+				},
+			});
+			console.log('[validation] toast', toastId, nodeId);
+		}
+	}, [t, deviceType]);
 
 	// Handle save
 	const handleSave = useCallback(async () => {
@@ -713,11 +755,14 @@ function DialogueEditorPage() {
 		setSaveSuccess(false);
 		setSaveStatus('saving');
 		try {
+			clearToasts();
 			// Filter out placeholder nodes and their edges before saving
 			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
 			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
 
 			const missingRequiredNodes = getMissingRequiredNodes();
+			logMissingRequiredNodes();
+			showValidationToasts(missingRequiredNodes);
 
 			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
 			const now = new Date();
@@ -726,43 +771,6 @@ function DialogueEditorPage() {
 			setSaveStatus('saved');
 			setHasUnsavedChanges(false);
 			celebrateSuccess();
-			// Clear warnings for nodes that are now valid
-			for (const [nodeId, toastId] of validationToastIdsRef.current.entries()) {
-				if (!missingRequiredNodes.has(nodeId)) {
-					dismiss(toastId);
-					validationToastIdsRef.current.delete(nodeId);
-				}
-			}
-
-			// Add persistent per-node warnings for missing required fields
-			for (const [nodeId, node] of missingRequiredNodes.entries()) {
-				if (validationToastIdsRef.current.has(nodeId)) continue;
-
-				const nodeName =
-					node.data?.displayName ||
-					node.data?.label ||
-					getNodeDefinition(node.type)?.label ||
-					node.type;
-
-				const toastId = toast({
-					variant: 'warning',
-					title: t('editor.validation.nodeMissingTitle'),
-					description: t('editor.validation.nodeMissingDescription', {
-						name: nodeName,
-					}),
-					action: {
-						label: t('editor.validation.focusNode'),
-						onClick: () => {
-							setSelectedNode(node);
-							setSelectedEdge(null);
-							if (deviceType === 'mobile') {
-								setIsMobilePanelOpen(true);
-							}
-						},
-					},
-				});
-				validationToastIdsRef.current.set(nodeId, toastId);
-			}
 			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (error) {
 			console.error('Failed to save dialogue:', error);
@@ -778,9 +786,9 @@ function DialogueEditorPage() {
 		dialogueId,
 		saveDialogueGraph,
 		getMissingRequiredNodes,
-		toast,
-		dismiss,
-		t,
+		logMissingRequiredNodes,
+		showValidationToasts,
+		clearToasts,
 		setIsSaving,
 		setSaveSuccess,
 		setSaveStatus,
@@ -891,8 +899,22 @@ function DialogueEditorPage() {
 				saveToHistory(updatedNodes, edges);
 				return updatedNodes;
 			});
+			setHasUnsavedChanges(true);
+			setSaveStatus('unsaved');
+			const missingRequiredNodes = getMissingRequiredNodes();
+			logMissingRequiredNodes();
+			showValidationToasts(missingRequiredNodes);
 		},
-		[setNodes, edges, saveToHistory]
+		[
+			setNodes,
+			edges,
+			saveToHistory,
+			setHasUnsavedChanges,
+			setSaveStatus,
+			logMissingRequiredNodes,
+			getMissingRequiredNodes,
+			showValidationToasts,
+		]
 	);
 
 
@@ -963,6 +985,11 @@ function DialogueEditorPage() {
 
 			return updatedNodes;
 		});
+		setHasUnsavedChanges(true);
+		setSaveStatus('unsaved');
+		const missingRequiredNodes = getMissingRequiredNodes();
+		logMissingRequiredNodes();
+		showValidationToasts(missingRequiredNodes);
 
 		// Update edges
 		setEdges((eds) => {
@@ -1007,7 +1034,17 @@ function DialogueEditorPage() {
 		// Close modal and clear pending data
 		setIsNodeTypeModalOpen(false);
 		setPendingPlaceholderData(null);
-	}, [pendingPlaceholderData, setNodes, setEdges, handlePlaceholderClick]);
+	}, [
+		pendingPlaceholderData,
+		setNodes,
+		setEdges,
+		handlePlaceholderClick,
+		setHasUnsavedChanges,
+		setSaveStatus,
+		logMissingRequiredNodes,
+		getMissingRequiredNodes,
+		showValidationToasts,
+	]);
 
 	// Add placeholders to nodes on mobile
 	useEffect(() => {
