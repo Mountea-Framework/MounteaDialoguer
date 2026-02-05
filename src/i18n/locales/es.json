@@ -113,7 +113,9 @@
 			"saveWarningDescription_plural": "{{count}} nodos tienen campos obligatorios faltantes. Por favor revisa.",
 			"nodeMissingTitle": "El nodo requiere atención",
 			"nodeMissingDescription": "\"{{name}}\" tiene campos obligatorios faltantes.",
-			"focusNode": "Ir al nodo"
+			"focusNode": "Ir al nodo",
+			"unsavedLeaveTitle": "Cambios sin guardar",
+			"unsavedLeaveDescription": "Tienes cambios sin guardar. Salir los descartará. ¿Continuar?"
 		}
 	},
 	"participants": {

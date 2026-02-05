@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -207,7 +207,7 @@ function DialogueEditorPage() {
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
-	const { toast, dismiss } = useToast();
+	const { toast, dismiss, toasts } = useToast();
 	const validationToastIdsRef = useRef(new Map());
 
 	// Device detection
@@ -348,6 +348,38 @@ function DialogueEditorPage() {
 		window.addEventListener('beforeunload', handleBeforeUnload);
 		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 	}, [hasUnsavedChanges]);
+
+	const clearAllToasts = useCallback(() => {
+		toasts.forEach((toastItem) => dismiss(toastItem.id));
+	}, [toasts, dismiss]);
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => hasUnsavedChanges,
+		enableBeforeUnload: true,
+		withResolver: true,
+	});
+
+	useEffect(() => {
+		if (blocker.status !== 'blocked') return;
+		const confirmed = window.confirm(
+			`${t('editor.validation.unsavedLeaveTitle')}\n${t(
+				'editor.validation.unsavedLeaveDescription'
+			)}`
+		);
+		if (confirmed) {
+			clearAllToasts();
+			blocker.proceed();
+		} else {
+			blocker.reset();
+		}
+	}, [blocker, clearAllToasts, t]);
+
+	// Clear all toasts when leaving the graph
+	useEffect(() => {
+		return () => {
+			clearAllToasts();
+		};
+	}, [clearAllToasts]);
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);

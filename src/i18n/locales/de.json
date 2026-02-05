@@ -113,7 +113,9 @@
 			"saveWarningDescription_plural": "{{count}} Knoten haben fehlende Pflichtfelder. Bitte prüfen.",
 			"nodeMissingTitle": "Knoten braucht Aufmerksamkeit",
 			"nodeMissingDescription": "\"{{name}}\" hat fehlende Pflichtfelder.",
-			"focusNode": "Knoten öffnen"
+			"focusNode": "Knoten öffnen",
+			"unsavedLeaveTitle": "Ungespeicherte Änderungen",
+			"unsavedLeaveDescription": "Es gibt ungespeicherte Änderungen. Beim Verlassen gehen sie verloren. Fortfahren?"
 		}
 	},
 	"participants": {

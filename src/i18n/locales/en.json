@@ -129,7 +129,9 @@
 			"saveWarningDescription_plural": "{{count}} nodes have missing required fields. Please review.",
 			"nodeMissingTitle": "Node needs attention",
 			"nodeMissingDescription": "\"{{name}}\" has missing required fields.",
-			"focusNode": "Focus node"
+			"focusNode": "Focus node",
+			"unsavedLeaveTitle": "Unsaved changes",
+			"unsavedLeaveDescription": "You have unsaved changes. Leaving will discard them. Continue?"
 		}
 	},
 	"participants": {
