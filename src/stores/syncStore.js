@@ -13,6 +13,7 @@ import {
 	diffRemoteLocal as diffRemoteLocalEngine,
 	previewPullFromFile,
 	previewPushProject,
+	pullProjectAsNew,
 	pullProject,
 	pushProject as pushProjectToRemote,
 	syncAllProjects as syncAllProjectsEngine,
@@ -37,7 +38,7 @@ export const useSyncStore = create(
 			rememberPassphrase: true,
 			hideLoginPrompt: false,
 			loginDialogOpen: false,
-			syncMode: 'push',
+			syncMode: 'pull',
 			hasHydrated: false,
 			pullState: {
 				active: false,
@@ -257,6 +258,89 @@ export const useSyncStore = create(
 						}
 						console.log('[sync] Push-only sync complete');
 						set({ status: 'connected', lastSyncedAt: new Date().toISOString(), pullState: resetPullState });
+						return;
+					}
+
+					if (mode === 'pull') {
+						console.log('[sync] Pull-only sync start');
+						const diff = await diffRemoteLocalEngine();
+						const duplicateInfo = Array.from(diff.duplicates.entries()).map(([projectId, items]) => ({
+							projectId,
+							count: items.length,
+						}));
+						if (duplicateInfo.length > 0) {
+							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
+						}
+
+						if (diff.actions.toPull.length === 0) {
+							console.log('[sync] No projects to pull');
+							set({ status: 'connected', pullState: resetPullState });
+							return;
+						}
+
+						const comparisonMap = new Map(diff.comparisons.map((item) => [item.projectId, item]));
+						const startedAt = Date.now();
+						const total = diff.actions.toPull.length;
+						let index = 0;
+
+						set({
+							pullState: {
+								active: true,
+								step: 'checking',
+								progress: 10,
+								projectId: null,
+								mode: 'bulk',
+								current: 0,
+								total,
+							},
+						});
+
+						for (const projectId of diff.actions.toPull) {
+							index += 1;
+							const comparison = comparisonMap.get(projectId);
+							const remote = comparison?.remote;
+
+							set({
+								pullState: {
+									active: true,
+									step: 'downloading',
+									progress: Math.min(95, Math.round((index / total) * 90)),
+									projectId,
+									mode: 'bulk',
+									current: index,
+									total,
+								},
+							});
+
+							if (!remote?.fileId) {
+								console.warn('[sync] Missing remote file for pull', projectId);
+								continue;
+							}
+
+							try {
+								const result = await pullProjectAsNew({
+									projectId,
+									fileId: remote.fileId,
+									revision: remote.revision,
+									passphrase,
+								});
+								console.log('[sync] Pulled project as new', result);
+							} catch (error) {
+								console.error('[sync] Pull failed', projectId, error);
+							}
+						}
+
+						const elapsed = Date.now() - startedAt;
+						if (elapsed < 2000) {
+							await delay(2000 - elapsed);
+						}
+
+						set({
+							status: 'connected',
+							lastSyncedAt: new Date().toISOString(),
+							pullState: resetPullState,
+						});
+						console.log('[sync] Pull-only sync complete');
 						return;
 					}
 

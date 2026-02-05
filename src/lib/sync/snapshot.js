@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 
 export async function buildProjectSnapshot(projectId) {
@@ -80,4 +81,113 @@ export async function applyProjectSnapshot(snapshot) {
 			if (edges.length > 0) await db.edges.bulkAdd(edges);
 		}
 	);
+}
+
+export async function applyProjectSnapshotAsNew(snapshot) {
+	const {
+		project,
+		dialogues = [],
+		participants = [],
+		categories = [],
+		decorators = [],
+		nodes = [],
+		edges = [],
+	} = snapshot || {};
+
+	if (!project?.id) {
+		throw new Error('Invalid snapshot');
+	}
+
+	const now = new Date().toISOString();
+	const newProjectId = uuidv4();
+
+	const newProject = {
+		...project,
+		id: newProjectId,
+		createdAt: now,
+		modifiedAt: now,
+	};
+
+	const dialogueIdMap = new Map();
+	const newDialogues = dialogues.map((dialogue) => {
+		const newId = uuidv4();
+		dialogueIdMap.set(dialogue.id, newId);
+		return {
+			...dialogue,
+			id: newId,
+			projectId: newProjectId,
+			createdAt: now,
+			modifiedAt: now,
+		};
+	});
+
+	const categoryIdMap = new Map();
+	const newCategories = categories.map((category) => {
+		const newId = uuidv4();
+		categoryIdMap.set(category.id, newId);
+		return {
+			...category,
+			id: newId,
+			projectId: newProjectId,
+			createdAt: now,
+			modifiedAt: now,
+			parentCategoryId: category.parentCategoryId || null,
+		};
+	});
+	const normalizedCategories = newCategories.map((category) => ({
+		...category,
+		parentCategoryId: category.parentCategoryId
+			? categoryIdMap.get(category.parentCategoryId) || null
+			: null,
+	}));
+
+	const newParticipants = participants.map((participant) => ({
+		...participant,
+		id: uuidv4(),
+		projectId: newProjectId,
+		createdAt: now,
+		modifiedAt: now,
+	}));
+
+	const newDecorators = decorators.map((decorator) => ({
+		...decorator,
+		id: uuidv4(),
+		projectId: newProjectId,
+		createdAt: now,
+		modifiedAt: now,
+	}));
+
+	const newNodes = nodes.map((node) => ({
+		...node,
+		dialogueId: dialogueIdMap.get(node.dialogueId) || node.dialogueId,
+	}));
+
+	const newEdges = edges.map((edge) => ({
+		...edge,
+		dialogueId: dialogueIdMap.get(edge.dialogueId) || edge.dialogueId,
+	}));
+
+	await db.transaction(
+		'rw',
+		[
+			db.projects,
+			db.dialogues,
+			db.participants,
+			db.categories,
+			db.decorators,
+			db.nodes,
+			db.edges,
+		],
+		async () => {
+			await db.projects.add(newProject);
+			if (newDialogues.length > 0) await db.dialogues.bulkAdd(newDialogues);
+			if (newParticipants.length > 0) await db.participants.bulkAdd(newParticipants);
+			if (normalizedCategories.length > 0) await db.categories.bulkAdd(normalizedCategories);
+			if (newDecorators.length > 0) await db.decorators.bulkAdd(newDecorators);
+			if (newNodes.length > 0) await db.nodes.bulkAdd(newNodes);
+			if (newEdges.length > 0) await db.edges.bulkAdd(newEdges);
+		}
+	);
+
+	return newProjectId;
 }

@@ -1,5 +1,5 @@
 import { encryptPayload, decryptPayload } from '@/lib/sync/crypto';
-import { buildProjectSnapshot, applyProjectSnapshot } from '@/lib/sync/snapshot';
+import { buildProjectSnapshot, applyProjectSnapshot, applyProjectSnapshotAsNew } from '@/lib/sync/snapshot';
 import { findAppDataFile, downloadAppDataFile, createAppDataFile, updateAppDataFile, listAppDataFiles } from '@/lib/sync/googleDriveClient';
 import { getSyncProject, upsertSyncProject } from '@/lib/sync/syncStorage';
 import { db } from '@/lib/db';
@@ -258,6 +258,27 @@ export async function pullProject({ projectId, passphrase, onProgress }) {
 	});
 
 	return { pulled: true, revision: remoteRevision };
+}
+
+export async function pullProjectAsNew({ projectId, passphrase, fileId, revision, onProgress }) {
+	console.log('[sync] Pulling project as new', { projectId, fileId });
+	const fileName = buildFileName(projectId);
+	onProgress?.('checking', 20);
+	const remoteFile = fileId ? { id: fileId } : await findAppDataFile(fileName);
+	if (!remoteFile) {
+		return { pulled: false, reason: 'missing' };
+	}
+
+	onProgress?.('downloading', 45);
+	const encryptedText = await downloadAppDataFile(remoteFile.id);
+	const payload = JSON.parse(encryptedText);
+	onProgress?.('decrypting', 70);
+	const snapshot = await decryptPayload(passphrase, payload);
+
+	onProgress?.('applying', 90);
+	const newProjectId = await applyProjectSnapshotAsNew(snapshot);
+
+	return { pulled: true, sourceProjectId: projectId, newProjectId, revision: revision ?? 0 };
 }
 
 export async function pushProject({ projectId, passphrase }) {

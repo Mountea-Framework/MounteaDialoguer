@@ -58,11 +58,12 @@ function RootComponent() {
 		if (!hasHydrated) return;
 		if (status !== 'connected') return;
 		if (!passphrase || !passphrase.trim()) return;
+		if (isLoading || !showContent) return;
 		if (hasAutoSyncedRef.current) return;
 		console.log('[sync] Auto sync after hydration');
 		hasAutoSyncedRef.current = true;
-		syncAllProjects({ mode: 'push' });
-	}, [hasHydrated, status, passphrase, syncAllProjects]);
+		syncAllProjects({ mode: 'pull' });
+	}, [hasHydrated, status, passphrase, isLoading, showContent, syncAllProjects]);
 
 	useEffect(() => {
 		if (status === 'disconnected') {
