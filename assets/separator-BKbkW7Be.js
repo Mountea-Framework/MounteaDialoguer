@@ -1,0 +1,1 @@
+import{r as t,j as p,a as l}from"./index-C_2ZHYJu.js";const i=t.forwardRef(({className:a,orientation:r="horizontal",decorative:o=!0,...s},e)=>p.jsx("div",{ref:e,role:o?"none":"separator","aria-orientation":r,className:l("shrink-0 bg-border",r==="horizontal"?"h-[1px] w-full":"h-full w-[1px]",a),...s}));i.displayName="Separator";export{i as S};
