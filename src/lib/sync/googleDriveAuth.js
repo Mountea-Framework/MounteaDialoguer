@@ -3,7 +3,7 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const CLIENT_ID_STORAGE_KEY = 'mountea-google-client-id';
 
-const STORAGE_KEY = 'mountea-dialoguer-pkce';
+const STORAGE_KEY = 'mountea-dialoguer-auth-state';
 
 const SCOPES = [
 	'https://www.googleapis.com/auth/drive.appdata',
@@ -65,24 +65,15 @@ function randomString(length = 64) {
 	return Array.from(array, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 
-function storePkce(state, verifier) {
-	sessionStorage.setItem(
-		STORAGE_KEY,
-		JSON.stringify({ state, verifier })
-	);
+function storeAuthState(state) {
+	sessionStorage.setItem(STORAGE_KEY, state);
 }
 
-function readPkce() {
-	const raw = sessionStorage.getItem(STORAGE_KEY);
-	if (!raw) return null;
-	try {
-		return JSON.parse(raw);
-	} catch (error) {
-		return null;
-	}
+function readAuthState() {
+	return sessionStorage.getItem(STORAGE_KEY);
 }
 
-function clearPkce() {
+function clearAuthState() {
 	sessionStorage.removeItem(STORAGE_KEY);
 }
 
@@ -98,18 +89,18 @@ function openPopup(url) {
 	);
 }
 
-function waitForAuthCode(expectedState) {
+function waitForAuthResult(expectedState) {
 	return new Promise((resolve, reject) => {
 		const handler = (event) => {
 			if (event.origin !== window.location.origin) return;
-			const { type, code, state, error } = event.data || {};
-			if (type !== 'GOOGLE_OAUTH_CODE') return;
+			const { type, code, state, error, accessToken, expiresIn, tokenType, scope } = event.data || {};
+			if (type !== 'GOOGLE_OAUTH_RESULT') return;
 			if (state !== expectedState) return;
 			window.removeEventListener('message', handler);
 			if (error) {
 				reject(new Error(error));
 			} else {
-				resolve(code);
+				resolve({ code, accessToken, expiresIn, tokenType, scope });
 			}
 		};
 		window.addEventListener('message', handler);
@@ -120,20 +111,14 @@ export async function startGoogleDriveAuth() {
 	const clientId = getClientId();
 	const redirectUri = getRedirectUri();
 	const state = randomString(16);
-	const verifier = randomString(64);
-	const challenge = await sha256(verifier);
-
-	storePkce(state, verifier);
+	storeAuthState(state);
 
 	const params = new URLSearchParams({
 		client_id: clientId,
 		redirect_uri: redirectUri,
-		response_type: 'code',
+		response_type: 'token',
 		scope: SCOPES.join(' '),
-		code_challenge: challenge,
-		code_challenge_method: 'S256',
 		state,
-		access_type: 'offline',
 		prompt: 'consent',
 	});
 
@@ -143,23 +128,27 @@ export async function startGoogleDriveAuth() {
 		throw new Error('Popup blocked');
 	}
 
-	const code = await waitForAuthCode(state);
-	popup.close();
+	const result = await waitForAuthResult(state);
+	clearAuthState();
 
-	return { code, redirectUri, clientId };
+	if (!result?.accessToken) {
+		throw new Error('Missing access token');
+	}
+
+	return {
+		accessToken: result.accessToken,
+		expiresIn: result.expiresIn,
+		tokenType: result.tokenType,
+		scope: result.scope,
+		redirectUri,
+		clientId,
+	};
 }
 
 export async function exchangeCodeForToken({ code, redirectUri, clientId }) {
-	const pkce = readPkce();
-	clearPkce();
-	if (!pkce?.verifier) {
-		throw new Error('Missing PKCE verifier');
-	}
-
 	const body = new URLSearchParams({
 		client_id: clientId,
 		code,
-		code_verifier: pkce.verifier,
 		grant_type: 'authorization_code',
 		redirect_uri: redirectUri,
 	});
@@ -173,7 +162,14 @@ export async function exchangeCodeForToken({ code, redirectUri, clientId }) {
 	});
 
 	if (!response.ok) {
-		throw new Error('Token exchange failed');
+		let details = '';
+		try {
+			const payload = await response.json();
+			details = payload.error_description || payload.error || '';
+		} catch (error) {
+			details = '';
+		}
+		throw new Error(details || 'Token exchange failed');
 	}
 
 	return await response.json();
@@ -196,7 +192,14 @@ export async function refreshAccessToken(refreshToken) {
 	});
 
 	if (!response.ok) {
-		throw new Error('Token refresh failed');
+		let details = '';
+		try {
+			const payload = await response.json();
+			details = payload.error_description || payload.error || '';
+		} catch (error) {
+			details = '';
+		}
+		throw new Error(details || 'Token refresh failed');
 	}
 
 	return await response.json();

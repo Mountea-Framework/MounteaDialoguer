@@ -204,6 +204,9 @@
 		"clientId": "Google Client ID",
 		"clientIdPlaceholder": "your-client-id.apps.googleusercontent.com",
 		"clientIdHint": "Required for Google sign-in. Stored only on this device.",
+		"clientIdConfigured": "Client ID configured",
+		"clientIdHiddenHint": "We keep this hidden for simplicity.",
+		"clientIdChange": "Change",
 		"accountLabel": "Account (display)",
 		"accountPlaceholder": "you@example.com",
 		"passphrase": "Encryption Passphrase",
@@ -219,7 +222,10 @@
 			"missingClientId": "Google client ID is missing. Add it above to continue.",
 			"oauthFailed": "Google sign-in failed. Please try again.",
 			"popupBlocked": "Popup blocked. Please allow popups and try again.",
-			"syncFailed": "Sync failed. Check your connection and try again."
+			"syncFailed": "Sync failed. Check your connection and try again.",
+			"redirectUriMismatch": "Redirect URI mismatch. Make sure oauth-callback.html is allowed.",
+			"invalidGrant": "Authorization code expired or invalid. Try again.",
+			"tokenExpired": "Session expired. Please connect to Google Drive again."
 		},
 		"pullTitle": "Syncing Project",
 		"pullDescription": "Checking Google Drive and applying the latest changes.",

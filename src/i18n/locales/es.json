@@ -170,7 +170,10 @@
 			"missingClientId": "Falta el ID de cliente de Google. Agrégalo arriba para continuar.",
 			"oauthFailed": "Falló el inicio de sesión de Google. Inténtalo de nuevo.",
 			"popupBlocked": "Popup bloqueado. Permite los popups y vuelve a intentarlo.",
-			"syncFailed": "La sincronización falló. Comprueba la conexión e inténtalo de nuevo."
+			"syncFailed": "La sincronización falló. Comprueba la conexión e inténtalo de nuevo.",
+			"redirectUriMismatch": "URI de redirección incorrecta. Verifica oauth-callback.html.",
+			"invalidGrant": "Código de autorización inválido o caducado. Inténtalo de nuevo.",
+			"tokenExpired": "Sesión caducada. Vuelve a conectar Google Drive."
 		},
 		"pullTitle": "Sincronizando proyecto",
 		"pullDescription": "Comprobando Google Drive y aplicando los Ăšltimos cambios.",
@@ -182,7 +185,10 @@
 		},
 		"clientId": "ID de cliente de Google",
 		"clientIdPlaceholder": "tu-client-id.apps.googleusercontent.com",
-		"clientIdHint": "Necesario para iniciar sesión en Google. Solo se guarda en este dispositivo."
+		"clientIdHint": "Necesario para iniciar sesión en Google. Solo se guarda en este dispositivo.",
+		"clientIdConfigured": "ID de cliente configurado",
+		"clientIdHiddenHint": "Oculto para simplificar.",
+		"clientIdChange": "Cambiar"
 	},
 	"validation": {
 		"required": "Este campo es obligatorio",

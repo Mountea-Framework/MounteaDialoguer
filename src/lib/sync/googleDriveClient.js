@@ -16,7 +16,7 @@ async function getValidAccessToken() {
 	}
 
 	if (!account.refreshToken) {
-		throw new Error('Missing refresh token');
+		throw new Error('tokenExpired');
 	}
 
 	const refreshed = await refreshAccessToken(account.refreshToken);

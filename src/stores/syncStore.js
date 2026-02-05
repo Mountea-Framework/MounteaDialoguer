@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
 	startGoogleDriveAuth,
-	exchangeCodeForToken,
 	fetchUserInfo,
 	getGoogleClientId,
 	getStoredClientId,
@@ -70,16 +69,10 @@ export const useSyncStore = create(
 
 				set({ status: 'connecting', error: null });
 				try {
-					const { code, redirectUri, clientId } = await startGoogleDriveAuth();
-					const tokenResponse = await exchangeCodeForToken({
-						code,
-						redirectUri,
-						clientId,
-					});
-
-					const accessToken = tokenResponse.access_token;
-					const refreshToken = tokenResponse.refresh_token;
-					const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
+					const authResult = await startGoogleDriveAuth();
+					const accessToken = authResult.accessToken;
+					const expiresIn = Number(authResult.expiresIn || 3600);
+					const expiresAt = Date.now() + expiresIn * 1000;
 
 					const userInfo = await fetchUserInfo(accessToken);
 
@@ -88,10 +81,10 @@ export const useSyncStore = create(
 						accountId: userInfo.sub || userInfo.id || '',
 						email: userInfo.email || '',
 						accessToken,
-						refreshToken: refreshToken || existing?.refreshToken || '',
+						refreshToken: existing?.refreshToken || '',
 						expiresAt,
-						scope: tokenResponse.scope,
-						tokenType: tokenResponse.token_type,
+						scope: authResult.scope,
+						tokenType: authResult.tokenType,
 					});
 
 					set({
@@ -103,10 +96,11 @@ export const useSyncStore = create(
 					return true;
 				} catch (error) {
 					console.error('Google Drive connect failed:', error);
-					const message = error?.message || '';
-					const errorCode = message.toLowerCase().includes('popup')
-						? 'popupBlocked'
-						: 'oauthFailed';
+					const message = (error?.message || '').toLowerCase();
+					let errorCode = 'oauthFailed';
+					if (message.includes('popup')) errorCode = 'popupBlocked';
+					if (message.includes('redirect_uri_mismatch')) errorCode = 'redirectUriMismatch';
+					if (message.includes('invalid_grant')) errorCode = 'invalidGrant';
 					set({ status: 'error', error: errorCode });
 					return false;
 				}
@@ -133,7 +127,12 @@ export const useSyncStore = create(
 					return await checkRemoteDiffEngine(projectId);
 				} catch (error) {
 					console.error('Remote diff check failed:', error);
-					set({ error: 'syncFailed' });
+					const message = (error?.message || '').toLowerCase();
+					if (message.includes('tokenexpired')) {
+						set({ status: 'error', error: 'tokenExpired' });
+					} else {
+						set({ error: 'syncFailed' });
+					}
 					return false;
 				}
 			},
@@ -194,7 +193,12 @@ export const useSyncStore = create(
 				} catch (error) {
 					console.error('Pull failed:', error);
 					didError = true;
-					set({ status: 'error', error: 'syncFailed' });
+					const message = (error?.message || '').toLowerCase();
+					if (message.includes('tokenexpired')) {
+						set({ status: 'error', error: 'tokenExpired' });
+					} else {
+						set({ status: 'error', error: 'syncFailed' });
+					}
 				}
 
 				if (!didError) {

@@ -42,13 +42,25 @@
 		</div>
 		<script>
 			(function () {
-				const params = new URLSearchParams(window.location.search);
-				const code = params.get('code');
-				const state = params.get('state');
-				const error = params.get('error');
+				const queryParams = new URLSearchParams(window.location.search);
+				const hashParams = new URLSearchParams(window.location.hash.slice(1));
+
+				const code = queryParams.get('code');
+				const accessToken = hashParams.get('access_token');
+				const expiresIn = hashParams.get('expires_in');
+				const tokenType = hashParams.get('token_type');
+				const scope = hashParams.get('scope');
+
+				const state = queryParams.get('state') || hashParams.get('state');
+				const error = queryParams.get('error') || hashParams.get('error');
+
 				const payload = {
-					type: 'GOOGLE_OAUTH_CODE',
+					type: 'GOOGLE_OAUTH_RESULT',
 					code,
+					accessToken,
+					expiresIn,
+					tokenType,
+					scope,
 					state,
 					error,
 				};
