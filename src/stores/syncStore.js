@@ -37,7 +37,7 @@ export const useSyncStore = create(
 			rememberPassphrase: true,
 			hideLoginPrompt: false,
 			loginDialogOpen: false,
-			syncMode: 'list',
+			syncMode: 'push',
 			hasHydrated: false,
 			pullState: {
 				active: false,
@@ -227,6 +227,39 @@ export const useSyncStore = create(
 						return;
 					}
 
+					if (mode === 'push') {
+						console.log('[sync] Push-only sync start');
+						const diff = await diffRemoteLocalEngine();
+						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
+						const duplicateInfo = Array.from(diff.duplicates.entries()).map(([projectId, items]) => ({
+							projectId,
+							count: items.length,
+						}));
+						if (duplicateInfo.length > 0) {
+							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
+						}
+						if (diff.actions.toPull.length > 0) {
+							console.log('[sync] Remote is newer for', diff.actions.toPull);
+						}
+						if (diff.actions.toPush.length === 0) {
+							console.log('[sync] No projects to push');
+							set({ status: 'connected', pullState: resetPullState });
+							return;
+						}
+
+						for (const projectId of diff.actions.toPush) {
+							try {
+								console.log('[sync] Pushing project', projectId);
+								await pushProjectToRemote({ projectId, passphrase });
+							} catch (error) {
+								console.error('[sync] Push failed', projectId, error);
+							}
+						}
+						console.log('[sync] Push-only sync complete');
+						set({ status: 'connected', lastSyncedAt: new Date().toISOString(), pullState: resetPullState });
+						return;
+					}
+
 					await syncAllProjectsEngine({
 						passphrase,
 						onProgress: (info) => {
@@ -321,8 +354,8 @@ export const useSyncStore = create(
 			startPull: async (projectId, options = {}) => {
 				const { simulate = false } = options;
 				const { passphrase, syncMode } = get();
-				if (syncMode === 'list') {
-					console.log('[sync] Skip pull (list mode)');
+				if (syncMode !== 'full') {
+					console.log('[sync] Skip pull (non-full mode)');
 					return;
 				}
 				if (!passphrase || !passphrase.trim()) {
