@@ -454,38 +454,43 @@ function DialogueEditorPage() {
 		setSelectedNode(null);
 	}, [selectedNode, edges, setNodes, setEdges, saveToHistory]);
 
-	// Handle keyboard events
-	useEffect(() => {
-		const handleKeyDown = (event) => {
-			// Don't delete if user is typing in an input field
-			const target = event.target;
-			const isTyping =
-				target.tagName === 'INPUT' ||
-				target.tagName === 'TEXTAREA' ||
-				target.isContentEditable;
+	// Handle save
+	const handleSave = useCallback(async () => {
+		setIsSaving(true);
+		setSaveSuccess(false);
+		setSaveStatus('saving');
+		try {
+			// Filter out placeholder nodes and their edges before saving
+			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
+			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
 
-			if ((event.key === 'Delete' || event.key === 'Backspace') && !isTyping) {
-				event.preventDefault();
-
-				// Delete selected node
-				if (selectedNode && selectedNode.id !== '00000000-0000-0000-0000-000000000001') {
-					deleteSelectedNode();
-				}
-				// Delete selected edge
-				else if (selectedEdge) {
-					setEdges((eds) => {
-						const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
-						saveToHistory(nodes, updatedEdges);
-						return updatedEdges;
-					});
-					setSelectedEdge(null);
-				}
-			}
-		};
-
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, [selectedNode, selectedEdge, deleteSelectedNode, setEdges, nodes, saveToHistory]);
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
+			const now = new Date();
+			setLastSaved(now);
+			setSaveSuccess(true);
+			setSaveStatus('saved');
+			setHasUnsavedChanges(false);
+			celebrateSuccess();
+			setTimeout(() => setSaveSuccess(false), 2000);
+		} catch (error) {
+			console.error('Failed to save dialogue:', error);
+			setSaveStatus('error');
+			setTimeout(() => setSaveStatus('unsaved'), 3000);
+		} finally {
+			setIsSaving(false);
+		}
+	}, [
+		edges,
+		nodes,
+		viewport,
+		dialogueId,
+		saveDialogueGraph,
+		setIsSaving,
+		setSaveSuccess,
+		setSaveStatus,
+		setHasUnsavedChanges,
+		setLastSaved,
+	]);
 
 	// Update node data (without saving to history on every keystroke)
 	const updateNodeData = useCallback(
@@ -880,6 +885,70 @@ function DialogueEditorPage() {
 		}
 	}, [historyIndex, history, setNodes, setEdges]);
 
+	// Handle keyboard events
+	useEffect(() => {
+		const handleKeyDown = (event) => {
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+				event.preventDefault();
+				handleSave();
+				return;
+			}
+
+			// Don't delete if user is typing in an input field
+			const target = event.target;
+			const isTyping =
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable;
+
+			// Undo/redo shortcuts (avoid interfering with text inputs)
+			if (!isTyping && (event.ctrlKey || event.metaKey)) {
+				const key = event.key.toLowerCase();
+				if (key === 'z' && !event.shiftKey) {
+					event.preventDefault();
+					handleUndo();
+					return;
+				}
+				if (key === 'y' || (key === 'z' && event.shiftKey)) {
+					event.preventDefault();
+					handleRedo();
+					return;
+				}
+			}
+
+			if ((event.key === 'Delete' || event.key === 'Backspace') && !isTyping) {
+				event.preventDefault();
+
+				// Delete selected node
+				if (selectedNode && selectedNode.id !== '00000000-0000-0000-0000-000000000001') {
+					deleteSelectedNode();
+				}
+				// Delete selected edge
+				else if (selectedEdge) {
+					setEdges((eds) => {
+						const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
+						saveToHistory(nodes, updatedEdges);
+						return updatedEdges;
+					});
+					setSelectedEdge(null);
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [
+		selectedNode,
+		selectedEdge,
+		deleteSelectedNode,
+		setEdges,
+		nodes,
+		saveToHistory,
+		handleSave,
+		handleUndo,
+		handleRedo,
+	]);
+
 	// Handle viewport change
 	const onMove = useCallback((event, newViewport) => {
 		setViewport(newViewport);
@@ -916,33 +985,6 @@ function DialogueEditorPage() {
 		event.preventDefault();
 		event.dataTransfer.dropEffect = 'move';
 	}, []);
-
-	// Handle save
-	const handleSave = async () => {
-		setIsSaving(true);
-		setSaveSuccess(false);
-		setSaveStatus('saving');
-		try {
-			// Filter out placeholder nodes and their edges before saving
-			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
-			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
-
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
-			const now = new Date();
-			setLastSaved(now);
-			setSaveSuccess(true);
-			setSaveStatus('saved');
-			setHasUnsavedChanges(false);
-			celebrateSuccess();
-			setTimeout(() => setSaveSuccess(false), 2000);
-		} catch (error) {
-			console.error('Failed to save dialogue:', error);
-			setSaveStatus('error');
-			setTimeout(() => setSaveStatus('unsaved'), 3000);
-		} finally {
-			setIsSaving(false);
-		}
-	};
 
 	// Handle export
 	const handleExport = async () => {
