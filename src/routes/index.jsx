@@ -21,7 +21,7 @@ import { formatFileSize, formatDate } from "@/lib/dateUtils";
 import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
-import { isMobileDevice } from '@/lib/deviceDetection';
+import { isMobileDevice } from "@/lib/deviceDetection";
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -49,7 +49,9 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
             </div>
           </div>
         </div>
-        <div className={`flex items-center gap-2 flex-1 md:justify-end ${isMobileDevice ? "justify-between" : ""}`}>
+        <div
+          className={`flex items-center gap-2 flex-1 md:justify-end ${isMobileDevice ? "justify-between" : ""}`}
+        >
           <div
             className="relative flex-1 md:w-64 md:flex-none hidden md:block"
             data-tour="search"
@@ -76,20 +78,23 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
           <Button
             onClick={onNewProject}
             size="sm"
-            className="gap-1 hidden md:inline-flex"
+            className={`gap-1 md:inline-flex ${isMobileDevice ? "hidden" : ""}`}
+            data-tour={`${isMobileDevice ? "create-project" : ""}`}
           >
             <Plus className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only">{t("projects.createNew")}</span>
+            <span className="sr-only sm:not-sr-only">
+              {t("projects.createNew")}
+            </span>
           </Button>
           <Button
             onClick={onNewProject}
             size="sm"
-            className="shrink-0 md:hidden"
-            data-tour="create-project"
+            className={`shrink-0 md:hidden ${isMobileDevice ? "" : "hidden"}`}
+            data-tour={`${isMobileDevice ? "" : "create-project"}`}
             aria-label={t("projects.createNew")}
           >
             <Plus className="h-4 w-4" />
-			<span className="">{t("projects.createNew")}</span>
+            <span className="">{t("projects.createNew")}</span>
           </Button>
         </div>
       </div>
