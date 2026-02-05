@@ -186,6 +186,43 @@
 		"darkMode": "Dark",
 		"systemMode": "System"
 	},
+	"sync": {
+		"title": "Cloud Sync",
+		"description": "Connect Google Drive to keep your projects in sync across devices.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "Not Connected"
+		},
+		"status": {
+			"connected": "Connected",
+			"connecting": "Connecting...",
+			"syncing": "Syncing...",
+			"error": "Error",
+			"disconnected": "Disconnected"
+		},
+		"connectedAs": "Connected as {{account}}",
+		"accountLabel": "Account (display)",
+		"accountPlaceholder": "you@example.com",
+		"passphrase": "Encryption Passphrase",
+		"passphrasePlaceholder": "Enter a passphrase",
+		"passphraseHint": "Your passphrase encrypts data before it leaves this device.",
+		"remember": "Remember on this device",
+		"rememberHint": "Stores the passphrase locally on this device.",
+		"connect": "Connect Google Drive",
+		"connecting": "Connecting...",
+		"disconnect": "Disconnect",
+		"errors": {
+			"passphraseRequired": "Passphrase is required to enable sync."
+		},
+		"pullTitle": "Syncing Project",
+		"pullDescription": "Checking Google Drive and applying the latest changes.",
+		"progress": {
+			"checking": "Checking for changes",
+			"downloading": "Downloading snapshot",
+			"decrypting": "Decrypting data",
+			"applying": "Applying updates"
+		}
+	},
 	"validation": {
 		"required": "This field is required",
 		"invalidName": "Invalid name",

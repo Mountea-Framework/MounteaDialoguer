@@ -140,6 +140,43 @@
 		"darkMode": "Oscuro",
 		"systemMode": "Sistema"
 	},
+	"sync": {
+		"title": "SincronizaciĂłn en la nube",
+		"description": "Conecta Google Drive para sincronizar tus proyectos entre dispositivos.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "No conectado"
+		},
+		"status": {
+			"connected": "Conectado",
+			"connecting": "Conectando...",
+			"syncing": "Sincronizando...",
+			"error": "Error",
+			"disconnected": "Desconectado"
+		},
+		"connectedAs": "Conectado como {{account}}",
+		"accountLabel": "Cuenta (mostrar)",
+		"accountPlaceholder": "tu@ejemplo.com",
+		"passphrase": "Frase de cifrado",
+		"passphrasePlaceholder": "Introduce una frase",
+		"passphraseHint": "Tu frase cifra los datos antes de salir de este dispositivo.",
+		"remember": "Recordar en este dispositivo",
+		"rememberHint": "Guarda la frase localmente en este dispositivo.",
+		"connect": "Conectar Google Drive",
+		"connecting": "Conectando...",
+		"disconnect": "Desconectar",
+		"errors": {
+			"passphraseRequired": "Se requiere una frase para activar la sincronizaciĂłn."
+		},
+		"pullTitle": "Sincronizando proyecto",
+		"pullDescription": "Comprobando Google Drive y aplicando los Ăšltimos cambios.",
+		"progress": {
+			"checking": "Comprobando cambios",
+			"downloading": "Descargando instantĂˇnea",
+			"decrypting": "Descifrando datos",
+			"applying": "Aplicando actualizaciones"
+		}
+	},
 	"validation": {
 		"required": "Este campo es obligatorio",
 		"invalidName": "Nombre inválido",

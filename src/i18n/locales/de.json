@@ -140,6 +140,43 @@
 		"darkMode": "Dunkel",
 		"systemMode": "System"
 	},
+	"sync": {
+		"title": "Cloud-Sync",
+		"description": "Verbinde Google Drive, um Projekte geräteübergreifend zu synchronisieren.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "Nicht verbunden"
+		},
+		"status": {
+			"connected": "Verbunden",
+			"connecting": "Verbinde...",
+			"syncing": "Synchronisiere...",
+			"error": "Fehler",
+			"disconnected": "Getrennt"
+		},
+		"connectedAs": "Verbunden als {{account}}",
+		"accountLabel": "Konto (Anzeige)",
+		"accountPlaceholder": "du@beispiel.de",
+		"passphrase": "Verschlüsselungs-Passphrase",
+		"passphrasePlaceholder": "Passphrase eingeben",
+		"passphraseHint": "Deine Passphrase verschlüsselt Daten, bevor sie dieses Gerät verlassen.",
+		"remember": "Auf diesem Gerät merken",
+		"rememberHint": "Speichert die Passphrase lokal auf diesem Gerät.",
+		"connect": "Google Drive verbinden",
+		"connecting": "Verbinde...",
+		"disconnect": "Trennen",
+		"errors": {
+			"passphraseRequired": "Passphrase ist erforderlich, um die Synchronisierung zu aktivieren."
+		},
+		"pullTitle": "Projekt wird synchronisiert",
+		"pullDescription": "Google Drive wird geprüft und die neuesten Änderungen werden angewendet.",
+		"progress": {
+			"checking": "Änderungen werden geprüft",
+			"downloading": "Snapshot wird heruntergeladen",
+			"decrypting": "Daten werden entschlüsselt",
+			"applying": "Updates werden angewendet"
+		}
+	},
 	"validation": {
 		"required": "Dieses Feld ist erforderlich",
 		"invalidName": "Ungültiger Name",

@@ -140,6 +140,43 @@
 		"darkMode": "Sombre",
 		"systemMode": "Système"
 	},
+	"sync": {
+		"title": "Sync Cloud",
+		"description": "Connectez Google Drive pour synchroniser vos projets entre appareils.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "Non connecté"
+		},
+		"status": {
+			"connected": "Connecté",
+			"connecting": "Connexion...",
+			"syncing": "Synchronisation...",
+			"error": "Erreur",
+			"disconnected": "Déconnecté"
+		},
+		"connectedAs": "Connecté en tant que {{account}}",
+		"accountLabel": "Compte (affichage)",
+		"accountPlaceholder": "vous@exemple.com",
+		"passphrase": "Phrase secrète de chiffrement",
+		"passphrasePlaceholder": "Saisissez une phrase secrète",
+		"passphraseHint": "Votre phrase secrète chiffre les données avant qu'elles ne quittent cet appareil.",
+		"remember": "Mémoriser sur cet appareil",
+		"rememberHint": "Stocke la phrase secrète localement sur cet appareil.",
+		"connect": "Connecter Google Drive",
+		"connecting": "Connexion...",
+		"disconnect": "Déconnecter",
+		"errors": {
+			"passphraseRequired": "Une phrase secrète est requise pour activer la synchronisation."
+		},
+		"pullTitle": "Synchronisation du projet",
+		"pullDescription": "Vérification de Google Drive et application des dernières modifications.",
+		"progress": {
+			"checking": "Vérification des modifications",
+			"downloading": "Téléchargement de l’instantané",
+			"decrypting": "Déchiffrement des données",
+			"applying": "Application des mises à jour"
+		}
+	},
 	"validation": {
 		"required": "Ce champ est requis",
 		"invalidName": "Nom invalide",
