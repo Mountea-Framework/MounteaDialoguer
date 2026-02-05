@@ -13,7 +13,7 @@ import {
 	diffRemoteLocal as diffRemoteLocalEngine,
 	previewPullFromFile,
 	previewPushProject,
-	pullProjectAsNew,
+	pullProjectFromFile,
 	pullProject,
 	pushProject as pushProjectToRemote,
 	syncAllProjects as syncAllProjectsEngine,
@@ -318,13 +318,13 @@ export const useSyncStore = create(
 							}
 
 							try {
-								const result = await pullProjectAsNew({
+								const result = await pullProjectFromFile({
 									projectId,
 									fileId: remote.fileId,
 									revision: remote.revision,
 									passphrase,
 								});
-								console.log('[sync] Pulled project as new', result);
+								console.log('[sync] Pulled project', result);
 							} catch (error) {
 								console.error('[sync] Pull failed', projectId, error);
 							}
