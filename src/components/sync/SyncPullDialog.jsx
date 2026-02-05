@@ -20,12 +20,18 @@ export function SyncPullDialog() {
 		steps.findIndex((step) => step.id === pullState.step)
 	);
 
+	const isBulk = pullState.mode === 'bulk';
+
 	return (
 		<Dialog open={pullState.active} onOpenChange={() => {}}>
 			<DialogContent showClose={false} className="max-w-lg">
 				<DialogHeader>
-					<DialogTitle>{t('sync.pullTitle')}</DialogTitle>
-					<DialogDescription>{t('sync.pullDescription')}</DialogDescription>
+					<DialogTitle>
+						{isBulk ? t('sync.bulkTitle') : t('sync.pullTitle')}
+					</DialogTitle>
+					<DialogDescription>
+						{isBulk ? t('sync.bulkDescription') : t('sync.pullDescription')}
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
@@ -36,31 +42,40 @@ export function SyncPullDialog() {
 						/>
 					</div>
 
-					<div className="space-y-2">
-						{steps.map((step, index) => {
-							const isComplete = index < currentIndex;
-							const isActive = index === currentIndex;
+					{isBulk ? (
+						<div className="text-sm text-muted-foreground">
+							{t('sync.bulkProgress', {
+								current: pullState.current || 0,
+								total: pullState.total || 0,
+							})}
+						</div>
+					) : (
+						<div className="space-y-2">
+							{steps.map((step, index) => {
+								const isComplete = index < currentIndex;
+								const isActive = index === currentIndex;
 
-							return (
-								<div
-									key={step.id}
-									className={cn(
-										'flex items-center gap-2 text-sm',
-										isActive ? 'text-foreground' : 'text-muted-foreground'
-									)}
-								>
-									{isComplete ? (
-										<CheckCircle2 className="h-4 w-4 text-green-500" />
-									) : isActive ? (
-										<Loader2 className="h-4 w-4 animate-spin text-primary" />
-									) : (
-										<div className="h-4 w-4 rounded-full border border-muted-foreground/40" />
-									)}
-									<span>{t(step.labelKey)}</span>
-								</div>
-							);
-						})}
-					</div>
+								return (
+									<div
+										key={step.id}
+										className={cn(
+											'flex items-center gap-2 text-sm',
+											isActive ? 'text-foreground' : 'text-muted-foreground'
+										)}
+									>
+										{isComplete ? (
+											<CheckCircle2 className="h-4 w-4 text-green-500" />
+										) : isActive ? (
+											<Loader2 className="h-4 w-4 animate-spin text-primary" />
+										) : (
+											<div className="h-4 w-4 rounded-full border border-muted-foreground/40" />
+										)}
+										<span>{t(step.labelKey)}</span>
+									</div>
+								);
+							})}
+						</div>
+					)}
 				</div>
 			</DialogContent>
 		</Dialog>

@@ -43,6 +43,7 @@ export async function checkRemoteDiff(projectId) {
 }
 
 export async function listRemoteProjects() {
+	console.log('[sync] Listing remote projects');
 	const files = await listAppDataFiles({ namePrefix: FILE_PREFIX });
 	return files
 		.map((file) => ({
@@ -54,7 +55,167 @@ export async function listRemoteProjects() {
 		.filter((item) => item.projectId);
 }
 
+function compareRemoteEntries(a, b) {
+	if (!a) return b;
+	if (!b) return a;
+	const aRev = Number(a.revision || 0);
+	const bRev = Number(b.revision || 0);
+	if (aRev !== bRev) return bRev > aRev ? b : a;
+	const aTime = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+	const bTime = b.updatedAt ? Date.parse(b.updatedAt) : 0;
+	if (aTime !== bTime) return bTime > aTime ? b : a;
+	return a;
+}
+
+function summarizeSnapshot(snapshot) {
+	const project = snapshot?.project || {};
+	const dialogues = snapshot?.dialogues || [];
+	return {
+		projectId: project?.id || '',
+		name: project?.name || '',
+		version: project?.version || '',
+		createdAt: project?.createdAt || '',
+		modifiedAt: project?.modifiedAt || '',
+		dialogueCount: dialogues.length,
+		participantCount: snapshot?.participants?.length || 0,
+		categoryCount: snapshot?.categories?.length || 0,
+		decoratorCount: snapshot?.decorators?.length || 0,
+		nodeCount: snapshot?.nodes?.length || 0,
+		edgeCount: snapshot?.edges?.length || 0,
+		dialogueNames: dialogues.slice(0, 5).map((dialogue) => dialogue?.name || '').filter(Boolean),
+	};
+}
+
+export function dedupeRemoteProjects(remoteProjects) {
+	const latestById = new Map();
+	const duplicates = new Map();
+
+	for (const item of remoteProjects) {
+		const existing = latestById.get(item.projectId);
+		if (!existing) {
+			latestById.set(item.projectId, item);
+			continue;
+		}
+		const latest = compareRemoteEntries(existing, item);
+		latestById.set(item.projectId, latest);
+		const list = duplicates.get(item.projectId) || [existing];
+		list.push(item);
+		duplicates.set(item.projectId, list);
+	}
+
+	return {
+		unique: Array.from(latestById.values()),
+		duplicates,
+	};
+}
+
+export async function diffRemoteLocal() {
+	console.log('[sync] Building remote/local diff');
+	const remoteRaw = await listRemoteProjects();
+	const { unique: remoteUnique, duplicates } = dedupeRemoteProjects(remoteRaw);
+	const remoteMap = new Map(remoteUnique.map((item) => [item.projectId, item]));
+
+	const localProjects = await db.projects.toArray();
+	const localMap = new Map(localProjects.map((project) => [project.id, project]));
+
+	const localMeta = await db.syncProjects
+		.where('provider')
+		.equals(PROVIDER)
+		.toArray();
+	const metaMap = new Map(localMeta.map((item) => [item.projectId, item]));
+
+	const allIds = new Set([...remoteMap.keys(), ...localMap.keys()]);
+	const comparisons = [];
+	const actions = {
+		toPull: [],
+		toPush: [],
+		unchanged: [],
+		remoteOnly: [],
+		localOnly: [],
+	};
+
+	for (const projectId of allIds) {
+		const remote = remoteMap.get(projectId) || null;
+		const local = localMap.get(projectId) || null;
+		const meta = metaMap.get(projectId) || null;
+		const localRevision = meta?.revision ? Number(meta.revision) : 0;
+		const remoteRevision = remote?.revision ? Number(remote.revision) : 0;
+		const localUpdated = local?.modifiedAt ? Date.parse(local.modifiedAt) : 0;
+		const remoteUpdated = remote?.updatedAt ? Date.parse(remote.updatedAt) : 0;
+
+		let decision = 'unchanged';
+		if (remote && !local) {
+			decision = 'pull';
+			actions.remoteOnly.push(projectId);
+		} else if (!remote && local) {
+			decision = 'push';
+			actions.localOnly.push(projectId);
+		} else if (remote && local) {
+			if (meta) {
+				if (remoteRevision > localRevision) decision = 'pull';
+				else if (remoteRevision < localRevision) decision = 'push';
+			} else {
+				if (remoteUpdated > localUpdated) decision = 'pull';
+				else if (remoteUpdated < localUpdated) decision = 'push';
+			}
+		}
+
+		if (decision === 'pull') actions.toPull.push(projectId);
+		else if (decision === 'push') actions.toPush.push(projectId);
+		else actions.unchanged.push(projectId);
+
+		comparisons.push({
+			projectId,
+			decision,
+			remote: remote
+				? {
+						fileId: remote.fileId,
+						revision: remoteRevision,
+						updatedAt: remote.updatedAt,
+					}
+				: null,
+			local: local
+				? {
+						modifiedAt: local.modifiedAt,
+						metaRevision: localRevision || null,
+					}
+				: null,
+		});
+	}
+
+	return {
+		remoteRaw,
+		remoteUnique,
+		duplicates,
+		comparisons,
+		actions,
+	};
+}
+
+export async function previewPullFromFile({ projectId, fileId, revision, passphrase }) {
+	console.log('[sync] Preview pull', { projectId, fileId, revision });
+	const encryptedText = await downloadAppDataFile(fileId);
+	const payload = JSON.parse(encryptedText);
+	const snapshot = await decryptPayload(passphrase, payload);
+	return {
+		projectId,
+		fileId,
+		revision: revision ?? 0,
+		summary: summarizeSnapshot(snapshot),
+	};
+}
+
+export async function previewPushProject({ projectId }) {
+	console.log('[sync] Preview push', { projectId });
+	const snapshot = await buildProjectSnapshot(projectId);
+	return {
+		projectId,
+		summary: summarizeSnapshot(snapshot),
+	};
+}
+
 export async function pullProjectFromFile({ projectId, fileId, revision, passphrase }) {
+	console.log('[sync] Pulling project from file', { projectId, fileId, revision });
 	const encryptedText = await downloadAppDataFile(fileId);
 	const payload = JSON.parse(encryptedText);
 	const snapshot = await decryptPayload(passphrase, payload);
@@ -72,6 +233,7 @@ export async function pullProjectFromFile({ projectId, fileId, revision, passphr
 }
 
 export async function pullProject({ projectId, passphrase, onProgress }) {
+	console.log('[sync] Pulling project', { projectId });
 	const fileName = buildFileName(projectId);
 	onProgress?.('checking', 20);
 	const remoteFile = await findAppDataFile(fileName);
@@ -99,6 +261,7 @@ export async function pullProject({ projectId, passphrase, onProgress }) {
 }
 
 export async function pushProject({ projectId, passphrase }) {
+	console.log('[sync] Pushing project', { projectId });
 	const snapshot = await buildProjectSnapshot(projectId);
 	const encryptedPayload = await encryptPayload(passphrase, snapshot);
 	const content = JSON.stringify(encryptedPayload);
@@ -143,6 +306,7 @@ export async function pushProject({ projectId, passphrase }) {
 }
 
 export async function syncAllProjects({ passphrase, onProgress }) {
+	console.log('[sync] Sync all projects start');
 	const remoteProjects = await listRemoteProjects();
 	const remoteMap = new Map(remoteProjects.map((item) => [item.projectId, item]));
 
@@ -151,6 +315,7 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 
 	let index = 0;
 	const total = remoteProjects.length + localProjects.length;
+	onProgress?.({ phase: 'start', remoteCount: remoteProjects.length, localCount: localProjects.length, total });
 
 	for (const remote of remoteProjects) {
 		index += 1;
@@ -177,6 +342,22 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 		}
 
 		const localMeta = await getSyncProject(project.id, PROVIDER);
+		if (!localMeta) {
+			const remoteUpdated = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+			const localUpdated = project.modifiedAt ? Date.parse(project.modifiedAt) : 0;
+			if (remoteUpdated && (!localUpdated || remoteUpdated > localUpdated)) {
+				await pullProjectFromFile({
+					projectId: project.id,
+					fileId: remote.fileId,
+					revision: remote.revision,
+					passphrase,
+				});
+				continue;
+			}
+			await pushProject({ projectId: project.id, passphrase });
+			continue;
+		}
+
 		const localRevision = localMeta?.revision ? Number(localMeta.revision) : 0;
 		const remoteRevision = remote.revision ?? 0;
 
@@ -191,4 +372,7 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 			await pushProject({ projectId: project.id, passphrase });
 		}
 	}
+
+	console.log('[sync] Sync all projects complete');
+	return { remoteCount: remoteProjects.length, localCount: localProjects.length };
 }

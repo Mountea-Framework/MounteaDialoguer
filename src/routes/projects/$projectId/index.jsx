@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { SimpleTooltip } from '@/components/ui/tooltip';
-import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -267,7 +266,6 @@ function ProjectDetailsPage() {
 					</div>
 				</main>
 			</div>
-			<SyncPullDialog />
 		</div>
 	);
 }

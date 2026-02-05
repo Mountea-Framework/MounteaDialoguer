@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X, Cloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useSyncStore } from '@/stores/syncStore';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
-import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 
 /**
  * Project Sidebar Component
@@ -21,8 +19,7 @@ export function ProjectSidebar({
 	onMobileClose
 }) {
 	const { t } = useTranslation();
-	const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-	const { provider, status, accountLabel } = useSyncStore();
+	const { provider, status, accountLabel, setLoginDialogOpen } = useSyncStore();
 
 	const sections = [
 		{
@@ -126,7 +123,7 @@ export function ProjectSidebar({
 			{/* Sync Section */}
 			<div className="p-4 border-t border-border">
 				<button
-					onClick={() => setSyncDialogOpen(true)}
+					onClick={() => setLoginDialogOpen(true)}
 					className={cn(
 						'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
 						'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -159,8 +156,6 @@ export function ProjectSidebar({
 					<span>{t('navigation.settings')}</span>
 				</button>
 			</div>
-
-			<SyncLoginDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} />
 		</aside>
 	);
 }

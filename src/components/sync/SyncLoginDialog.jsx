@@ -10,7 +10,13 @@ import { useSyncStore } from '@/stores/syncStore';
 import { cn } from '@/lib/utils';
 import { getConfiguredClientId } from '@/lib/sync/googleDriveAuth';
 
-export function SyncLoginDialog({ open, onOpenChange }) {
+export function SyncLoginDialog({
+	open,
+	onOpenChange,
+	showPromptControls = false,
+	hideLoginPrompt = false,
+	onHideLoginPromptChange,
+}) {
 	const { t } = useTranslation();
 	const {
 		provider,
@@ -172,6 +178,21 @@ export function SyncLoginDialog({ open, onOpenChange }) {
 								disabled={isConnected}
 							/>
 						</div>
+
+						{showPromptControls && (
+							<div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+								<div>
+									<p className="text-sm font-medium">{t('sync.promptDontShow')}</p>
+									<p className="text-xs text-muted-foreground">
+										{t('sync.promptDontShowHint')}
+									</p>
+								</div>
+								<Switch
+									checked={hideLoginPrompt}
+									onCheckedChange={onHideLoginPromptChange}
+								/>
+							</div>
+						)}
 
 						{error && (
 							<p className="text-xs text-destructive">

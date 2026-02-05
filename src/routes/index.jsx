@@ -24,7 +24,6 @@ import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
 import { useSyncStore } from "@/stores/syncStore";
-import { SyncLoginDialog } from "@/components/sync/SyncLoginDialog";
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -33,8 +32,7 @@ export const Route = createFileRoute("/")({
 // Dashboard Header Component
 function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
-  const { status: syncStatus } = useSyncStore();
-  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const { status: syncStatus, setLoginDialogOpen } = useSyncStore();
 
   const syncLabel =
     syncStatus === "connected"
@@ -42,6 +40,15 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
       : syncStatus === "syncing"
       ? t("sync.status.syncing")
       : t("sync.status.disconnected");
+
+  const syncIconClass =
+    syncStatus === "connected"
+      ? "text-emerald-500"
+      : syncStatus === "syncing"
+      ? "text-amber-500"
+      : syncStatus === "error"
+      ? "text-red-500"
+      : "text-muted-foreground";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -80,13 +87,14 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 
           <LanguageSelector />
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSyncDialogOpen(true)}
-            className="gap-2"
+            variant="ghost"
+            size="icon"
+            onClick={() => setLoginDialogOpen(true)}
+            className="rounded-full"
+            aria-label={`${t("sync.title")} - ${syncLabel}`}
+            title={`${t("sync.title")} - ${syncLabel}`}
           >
-            <Cloud className="h-4 w-4" />
-            <span className="text-xs font-medium">{syncLabel}</span>
+            <Cloud className={`h-4 w-4 ${syncIconClass}`} />
           </Button>
           <Button
             variant="ghost"
@@ -119,7 +127,6 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
           </Button>
         </div>
       </div>
-      <SyncLoginDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} />
     </header>
   );
 }

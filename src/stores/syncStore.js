@@ -10,6 +10,9 @@ import {
 } from '@/lib/sync/googleDriveAuth';
 import {
 	checkRemoteDiff as checkRemoteDiffEngine,
+	diffRemoteLocal as diffRemoteLocalEngine,
+	previewPullFromFile,
+	previewPushProject,
 	pullProject,
 	pushProject as pushProjectToRemote,
 	syncAllProjects as syncAllProjectsEngine,
@@ -31,12 +34,19 @@ export const useSyncStore = create(
 			error: null,
 			passphrase: '',
 			clientId: getStoredClientId(),
-			rememberPassphrase: false,
+			rememberPassphrase: true,
+			hideLoginPrompt: false,
+			loginDialogOpen: false,
+			syncMode: 'list',
+			hasHydrated: false,
 			pullState: {
 				active: false,
 				step: 'checking',
 				progress: 0,
 				projectId: null,
+				mode: 'project',
+				current: 0,
+				total: 0,
 			},
 
 			setPassphrase: (value) => set({ passphrase: value }),
@@ -47,6 +57,10 @@ export const useSyncStore = create(
 				set({ clientId: value });
 			},
 			clearError: () => set({ error: null }),
+			setHasHydrated: () => set({ hasHydrated: true }),
+			setHideLoginPrompt: (value) => set({ hideLoginPrompt: value }),
+			setLoginDialogOpen: (value) => set({ loginDialogOpen: value }),
+			setSyncMode: (value) => set({ syncMode: value }),
 
 			loadAccount: async () => {
 				const account = await getSyncAccount('googleDrive');
@@ -57,10 +71,6 @@ export const useSyncStore = create(
 					accountLabel: account.email || account.accountId || '',
 					clientId: getConfiguredClientId(),
 				});
-				const { passphrase } = get();
-				if (passphrase && passphrase.trim()) {
-					get().syncAllProjects();
-				}
 			},
 
 			connectGoogleDrive: async () => {
@@ -79,6 +89,7 @@ export const useSyncStore = create(
 
 				set({ status: 'connecting', error: null });
 				try {
+					console.log('[sync] Starting Google auth');
 					const authResult = await startGoogleDriveAuth();
 					const accessToken = authResult.accessToken;
 					const expiresIn = Number(authResult.expiresIn || 3600);
@@ -103,7 +114,7 @@ export const useSyncStore = create(
 						accountLabel: userInfo.email || userInfo.name || '',
 						error: null,
 					});
-					await get().syncAllProjects();
+					console.log('[sync] Google auth complete');
 					return true;
 				} catch (error) {
 					console.error('Google Drive connect failed:', error);
@@ -126,19 +137,135 @@ export const useSyncStore = create(
 					lastSyncedAt: null,
 					error: null,
 					passphrase: '',
-					pullState: { active: false, step: 'checking', progress: 0, projectId: null },
+					pullState: {
+						active: false,
+						step: 'checking',
+						progress: 0,
+						projectId: null,
+						mode: 'project',
+						current: 0,
+						total: 0,
+					},
 				});
 			},
 
-			syncAllProjects: async () => {
-				const { status, provider, passphrase } = get();
-				if (status !== 'connected' || !provider) return;
+			syncAllProjects: async (options = {}) => {
+				const { status, provider, passphrase, pullState, syncMode } = get();
+				if (!provider) return;
+				if (status === 'syncing') return;
+				if (status !== 'connected') return;
 				if (!passphrase || !passphrase.trim()) return;
+				if (pullState?.active && pullState?.mode === 'project') return;
+				const { mode = syncMode || 'full' } = options;
 
 				set({ status: 'syncing' });
+				const resetPullState = {
+					active: false,
+					step: 'checking',
+					progress: 0,
+					projectId: null,
+					mode: 'bulk',
+					current: 0,
+					total: 0,
+				};
+				let shouldShow = false;
+				let total = 0;
 				try {
-					await syncAllProjectsEngine({ passphrase });
+					if (mode === 'list') {
+						console.log('[sync] Listing remote projects (debug)');
+						const diff = await diffRemoteLocalEngine();
+						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
+						const duplicateInfo = Array.from(diff.duplicates.entries()).map(([projectId, items]) => ({
+							projectId,
+							count: items.length,
+						}));
+						if (duplicateInfo.length > 0) {
+							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
+						}
+
+						console.log('[sync] Remote/local comparison', diff.comparisons);
+						console.log('[sync] Actions (would pull/push)', diff.actions);
+						const previewPulls = [];
+						const previewPushes = [];
+						for (const item of diff.comparisons) {
+							if (item.decision === 'pull' && item.remote?.fileId) {
+								try {
+									const preview = await previewPullFromFile({
+										projectId: item.projectId,
+										fileId: item.remote.fileId,
+										revision: item.remote.revision,
+										passphrase,
+									});
+									previewPulls.push(preview);
+								} catch (error) {
+									console.error('[sync] Preview pull failed', item.projectId, error);
+								}
+							}
+						}
+
+						for (const projectId of diff.actions.toPush) {
+							try {
+								const preview = await previewPushProject({ projectId });
+								previewPushes.push(preview);
+							} catch (error) {
+								console.error('[sync] Preview push failed', projectId, error);
+							}
+						}
+
+						if (previewPulls.length > 0) {
+							console.log('[sync] Preview pulled snapshots', previewPulls);
+						} else {
+							console.log('[sync] No pull previews available');
+						}
+
+						if (previewPushes.length > 0) {
+							console.log('[sync] Preview push snapshots', previewPushes);
+						} else {
+							console.log('[sync] No push previews available');
+						}
+						set({ status: 'connected', pullState: resetPullState });
+						return;
+					}
+
+					await syncAllProjectsEngine({
+						passphrase,
+						onProgress: (info) => {
+							if (info?.phase === 'start') {
+								total = info.total || 0;
+								if (info.remoteCount > 0) {
+									shouldShow = true;
+									set({
+										pullState: {
+											active: true,
+											step: 'checking',
+											progress: 5,
+											projectId: null,
+											mode: 'bulk',
+											current: 0,
+											total,
+										},
+									});
+								}
+								return;
+							}
+
+							if (!shouldShow || !total) return;
+							const progress = Math.min(100, Math.round((info.index / total) * 100));
+							set({
+								pullState: {
+									active: true,
+									step: info.phase === 'pull' ? 'downloading' : 'applying',
+									progress,
+									projectId: info.projectId || null,
+									mode: 'bulk',
+									current: info.index || 0,
+									total,
+								},
+							});
+						},
+					});
 					set({ status: 'connected', lastSyncedAt: new Date().toISOString() });
+					set({ pullState: resetPullState });
 				} catch (error) {
 					console.error('Sync all failed:', error);
 					const message = (error?.message || '').toLowerCase();
@@ -147,13 +274,18 @@ export const useSyncStore = create(
 					} else {
 						set({ status: 'error', error: 'syncFailed' });
 					}
+					set({ pullState: resetPullState });
 				}
 			},
 
 			schedulePush: (projectId) => {
-				const { status, provider } = get();
+				const { status, provider, syncMode } = get();
 				if (status !== 'connected' || !provider) return;
 				if (!projectId) return;
+				if (syncMode === 'list') {
+					console.log('[sync] Skip auto-push (list mode)');
+					return;
+				}
 
 				const existing = pushQueue.get(projectId);
 				if (existing) {
@@ -161,6 +293,7 @@ export const useSyncStore = create(
 				}
 
 				const timer = setTimeout(() => {
+					console.log('[sync] Auto-push project', projectId);
 					pushQueue.delete(projectId);
 					get().pushProject(projectId);
 				}, 1500);
@@ -187,7 +320,11 @@ export const useSyncStore = create(
 
 			startPull: async (projectId, options = {}) => {
 				const { simulate = false } = options;
-				const { passphrase } = get();
+				const { passphrase, syncMode } = get();
+				if (syncMode === 'list') {
+					console.log('[sync] Skip pull (list mode)');
+					return;
+				}
 				if (!passphrase || !passphrase.trim()) {
 					set({ error: 'passphraseRequired', status: 'error' });
 					return;
@@ -196,7 +333,15 @@ export const useSyncStore = create(
 				set({
 					status: 'syncing',
 					error: null,
-					pullState: { active: true, step: 'checking', progress: 10, projectId },
+					pullState: {
+						active: true,
+						step: 'checking',
+						progress: 10,
+						projectId,
+						mode: 'project',
+						current: 0,
+						total: 0,
+					},
 				});
 
 				let didError = false;
@@ -235,6 +380,9 @@ export const useSyncStore = create(
 									step,
 									progress,
 									projectId,
+									mode: 'project',
+									current: 0,
+									total: 0,
 								},
 							}),
 					});
@@ -253,17 +401,37 @@ export const useSyncStore = create(
 					set({
 						status: 'connected',
 						lastSyncedAt: new Date().toISOString(),
-						pullState: { active: false, step: 'checking', progress: 0, projectId: null },
+						pullState: {
+							active: false,
+							step: 'checking',
+							progress: 0,
+							projectId: null,
+							mode: 'project',
+							current: 0,
+							total: 0,
+						},
 					});
 				} else {
 					set({
-						pullState: { active: false, step: 'checking', progress: 0, projectId: null },
+						pullState: {
+							active: false,
+							step: 'checking',
+							progress: 0,
+							projectId: null,
+							mode: 'project',
+							current: 0,
+							total: 0,
+						},
 					});
 				}
 			},
 
 			pushProject: async (projectId) => {
-				const { passphrase } = get();
+				const { passphrase, syncMode } = get();
+				if (syncMode === 'list') {
+					console.log('[sync] Skip push (list mode)');
+					return;
+				}
 				if (!passphrase || !passphrase.trim()) {
 					set({ error: 'passphraseRequired' });
 					return;
@@ -285,11 +453,19 @@ export const useSyncStore = create(
 				rememberPassphrase: state.rememberPassphrase,
 				passphrase: state.rememberPassphrase ? state.passphrase : '',
 				clientId: state.clientId,
+				hideLoginPrompt: state.hideLoginPrompt,
 			}),
 			onRehydrateStorage: () => (state) => {
 				if (!state) return;
 				state.status = state.provider ? 'connected' : 'disconnected';
 				state.clientId = getStoredClientId();
+				state.hasHydrated = true;
+				if (state.rememberPassphrase === undefined) {
+					state.rememberPassphrase = true;
+				}
+				if (state.hideLoginPrompt === undefined) {
+					state.hideLoginPrompt = false;
+				}
 			},
 		}
 	)
