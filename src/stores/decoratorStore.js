@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
+import { useSyncStore } from '@/stores/syncStore';
 
 export const useDecoratorStore = create((set, get) => ({
 	decorators: [],
@@ -41,6 +42,7 @@ export const useDecoratorStore = create((set, get) => ({
 
 			await db.decorators.add(newDecorator);
 			await get().loadDecorators(decoratorData.projectId);
+			useSyncStore.getState().schedulePush(decoratorData.projectId);
 			toast({
 				variant: 'success',
 				title: 'Decorator Created',
@@ -74,6 +76,7 @@ export const useDecoratorStore = create((set, get) => ({
 
 			await db.decorators.update(id, updatedDecorator);
 			await get().loadDecorators(decorator.projectId);
+			useSyncStore.getState().schedulePush(decorator.projectId);
 			toast({
 				variant: 'success',
 				title: 'Decorator Updated',
@@ -101,6 +104,7 @@ export const useDecoratorStore = create((set, get) => ({
 
 			await db.decorators.delete(id);
 			await get().loadDecorators(decorator.projectId);
+			useSyncStore.getState().schedulePush(decorator.projectId);
 			toast({
 				variant: 'success',
 				title: 'Decorator Deleted',
@@ -131,6 +135,7 @@ export const useDecoratorStore = create((set, get) => ({
 
 			await db.decorators.bulkAdd(decoratorsToImport);
 			await get().loadDecorators(projectId);
+			useSyncStore.getState().schedulePush(projectId);
 			toast({
 				variant: 'success',
 				title: 'Decorators Imported',

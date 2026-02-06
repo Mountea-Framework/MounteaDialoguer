@@ -8,6 +8,7 @@ import {
   MessageCircle,
   HardDrive,
   Calendar,
+  Cloud,
   HelpCircle,
 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
@@ -22,6 +23,7 @@ import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
+import { useSyncStore } from "@/stores/syncStore";
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -30,6 +32,23 @@ export const Route = createFileRoute("/")({
 // Dashboard Header Component
 function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
+  const { status: syncStatus, setLoginDialogOpen } = useSyncStore();
+
+  const syncLabel =
+    syncStatus === "connected"
+      ? t("sync.status.connected")
+      : syncStatus === "syncing"
+      ? t("sync.status.syncing")
+      : t("sync.status.disconnected");
+
+  const syncIconClass =
+    syncStatus === "connected"
+      ? "text-emerald-500"
+      : syncStatus === "syncing"
+      ? "text-amber-500"
+      : syncStatus === "error"
+      ? "text-red-500"
+      : "text-muted-foreground";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -67,6 +86,16 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
           </div>
 
           <LanguageSelector />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLoginDialogOpen(true)}
+            className="rounded-full"
+            aria-label={`${t("sync.title")} - ${syncLabel}`}
+            title={`${t("sync.title")} - ${syncLabel}`}
+          >
+            <Cloud className={`h-4 w-4 ${syncIconClass}`} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -241,7 +270,8 @@ function ProjectCard({ project }) {
 function ProjectsDashboard() {
   const { t } = useTranslation();
   const { projects, loadProjects, isLoading } = useProjectStore();
-  const { dialogues } = useDialogueStore();
+  const { dialogues, loadDialogues } = useDialogueStore();
+  const { lastSyncedAt } = useSyncStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
@@ -250,6 +280,12 @@ function ProjectsDashboard() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    if (!lastSyncedAt) return;
+    loadProjects();
+    loadDialogues();
+  }, [lastSyncedAt, loadProjects, loadDialogues]);
 
   useEffect(() => {
     const loadDiskUsage = async () => {

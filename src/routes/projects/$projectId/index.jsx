@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Download, Trash2, Edit3, Play, Sun, Moon, Menu, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -8,6 +8,7 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useSyncStore } from '@/stores/syncStore';
 import { ProjectSidebar } from '@/components/projects/ProjectSidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,27 +38,50 @@ function ProjectDetailsPage() {
 	const { participants, loadParticipants } = useParticipantStore();
 	const { categories, loadCategories } = useCategoryStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
+	const { status: syncStatus, checkRemoteDiff, startPull, lastSyncedAt } = useSyncStore();
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [activeSection, setActiveSection] = useState(searchParams?.section || 'overview');
 	const [isImporting, setIsImporting] = useState(false);
 	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+	const syncCheckedRef = useRef(new Set());
 	const fileInputRef = useRef(null);
 
-	useEffect(() => {
-		const loadData = async () => {
-			setIsLoading(true);
-			await Promise.all([
-				loadProjects(),
-				loadDialogues(),
-				loadParticipants(projectId),
-				loadCategories(projectId),
-				loadDecorators(projectId),
-			]);
-			setIsLoading(false);
-		};
-		loadData();
+	const loadData = useCallback(async () => {
+		setIsLoading(true);
+		await Promise.all([
+			loadProjects(),
+			loadDialogues(),
+			loadParticipants(projectId),
+			loadCategories(projectId),
+			loadDecorators(projectId),
+		]);
+		setIsLoading(false);
 	}, [loadProjects, loadDialogues, loadParticipants, loadCategories, loadDecorators, projectId]);
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
+
+	useEffect(() => {
+		if (!lastSyncedAt) return;
+		loadData();
+	}, [lastSyncedAt, loadData]);
+
+	useEffect(() => {
+		const runSyncCheck = async () => {
+			if (!projectId || syncStatus !== 'connected') return;
+			if (syncCheckedRef.current.has(projectId)) return;
+
+			syncCheckedRef.current.add(projectId);
+			const hasRemoteChanges = await checkRemoteDiff(projectId);
+			if (hasRemoteChanges) {
+				await startPull(projectId, { simulate: true });
+			}
+		};
+
+		runSyncCheck();
+	}, [projectId, syncStatus, checkRemoteDiff, startPull]);
 
 	const project = projects.find((p) => p.id === projectId);
 	const projectDialogues = dialogues.filter((d) => d.projectId === projectId);

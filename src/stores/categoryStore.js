@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
+import { useSyncStore } from '@/stores/syncStore';
 
 export const useCategoryStore = create((set, get) => ({
 	categories: [],
@@ -41,6 +42,7 @@ export const useCategoryStore = create((set, get) => ({
 
 			await db.categories.add(newCategory);
 			await get().loadCategories(categoryData.projectId);
+			useSyncStore.getState().schedulePush(categoryData.projectId);
 			toast({
 				variant: 'success',
 				title: 'Category Created',
@@ -74,6 +76,7 @@ export const useCategoryStore = create((set, get) => ({
 
 			await db.categories.update(id, updatedCategory);
 			await get().loadCategories(category.projectId);
+			useSyncStore.getState().schedulePush(category.projectId);
 			toast({
 				variant: 'success',
 				title: 'Category Updated',
@@ -101,6 +104,7 @@ export const useCategoryStore = create((set, get) => ({
 
 			await db.categories.delete(id);
 			await get().loadCategories(category.projectId);
+			useSyncStore.getState().schedulePush(category.projectId);
 			toast({
 				variant: 'success',
 				title: 'Category Deleted',
@@ -179,6 +183,7 @@ export const useCategoryStore = create((set, get) => ({
 			}
 
 			await get().loadCategories(projectId);
+			useSyncStore.getState().schedulePush(projectId);
 			toast({
 				variant: 'success',
 				title: 'Categories Imported',

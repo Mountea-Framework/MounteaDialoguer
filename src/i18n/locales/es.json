@@ -140,6 +140,62 @@
 		"darkMode": "Oscuro",
 		"systemMode": "Sistema"
 	},
+	"sync": {
+		"title": "SincronizaciĂłn en la nube",
+		"description": "Conecta Google Drive para sincronizar tus proyectos entre dispositivos.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "No conectado"
+		},
+		"status": {
+			"connected": "Conectado",
+			"connecting": "Conectando...",
+			"syncing": "Sincronizando...",
+			"error": "Error",
+			"disconnected": "Desconectado"
+		},
+		"connectedAs": "Conectado como {{account}}",
+		"accountLabel": "Cuenta (mostrar)",
+		"accountPlaceholder": "tu@ejemplo.com",
+		"passphrase": "Frase de cifrado",
+		"passphrasePlaceholder": "Introduce una frase",
+		"passphraseHint": "Tu frase cifra los datos antes de salir de este dispositivo.",
+		"remember": "Recordar en este dispositivo",
+		"rememberHint": "Guarda la frase localmente en este dispositivo.",
+		"promptDontShow": "No mostrar al inicio",
+		"promptDontShowHint": "Oculta este aviso de inicio de sesión al abrir la aplicación.",
+		"connect": "Conectar Google Drive",
+		"connecting": "Conectando...",
+		"syncNow": "Sincronizar ahora",
+		"disconnect": "Desconectar",
+		"errors": {
+			"passphraseRequired": "Se requiere una frase para activar la sincronizaciĂłn.",
+			"missingClientId": "Falta el ID de cliente de Google. Agrégalo arriba para continuar.",
+			"oauthFailed": "Falló el inicio de sesión de Google. Inténtalo de nuevo.",
+			"popupBlocked": "Popup bloqueado. Permite los popups y vuelve a intentarlo.",
+			"syncFailed": "La sincronización falló. Comprueba la conexión e inténtalo de nuevo.",
+			"redirectUriMismatch": "URI de redirección incorrecta. Verifica oauth-callback.html.",
+			"invalidGrant": "Código de autorización inválido o caducado. Inténtalo de nuevo.",
+			"tokenExpired": "Sesión caducada. Vuelve a conectar Google Drive."
+		},
+		"pullTitle": "Sincronizando proyecto",
+		"pullDescription": "Comprobando Google Drive y aplicando los Ăšltimos cambios.",
+		"progress": {
+			"checking": "Comprobando cambios",
+			"downloading": "Descargando instantĂˇnea",
+			"decrypting": "Descifrando datos",
+			"applying": "Aplicando actualizaciones"
+		},
+		"clientId": "ID de cliente de Google",
+		"clientIdPlaceholder": "tu-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Necesario para iniciar sesión en Google. Solo se guarda en este dispositivo.",
+		"clientIdConfigured": "ID de cliente configurado",
+		"clientIdHiddenHint": "Oculto para simplificar.",
+		"clientIdChange": "Cambiar",
+		"bulkTitle": "Sincronizando proyectos en la nube",
+		"bulkDescription": "Descargando y aplicando los datos de la nube.",
+		"bulkProgress": "Sincronizados {{current}} de {{total}} proyectos."
+	},
 	"validation": {
 		"required": "Este campo es obligatorio",
 		"invalidName": "Nombre inválido",

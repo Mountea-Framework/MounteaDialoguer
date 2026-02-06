@@ -1,7 +1,9 @@
-import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X } from 'lucide-react';
+import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X, Cloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useSyncStore } from '@/stores/syncStore';
+import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 
 /**
  * Project Sidebar Component
@@ -17,6 +19,7 @@ export function ProjectSidebar({
 	onMobileClose
 }) {
 	const { t } = useTranslation();
+	const { provider, status, accountLabel, setLoginDialogOpen } = useSyncStore();
 
 	const sections = [
 		{
@@ -56,11 +59,11 @@ export function ProjectSidebar({
 	return (
 		<aside
 			className={cn(
-				"flex-shrink-0 bg-card border-r border-border flex flex-col transition-transform duration-300 ease-in-out",
+				"flex-shrink-0 bg-card border-border flex flex-col transition-transform duration-300 ease-in-out",
 				"fixed inset-y-0 left-0 z-50 h-full w-64",
 				"lg:static lg:z-0 lg:translate-x-0",
 				"lg:w-80",
-				isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+				isMobileOpen ? "translate-x-0 rounded-none" : "-translate-x-full lg:translate-x-0 md:rounded-xl"
 			)}
 		>
 			{/* Mobile Close Button */}
@@ -116,6 +119,27 @@ export function ProjectSidebar({
 					);
 				})}
 			</nav>
+
+			{/* Sync Section */}
+			<div className="p-4 border-t border-border">
+				<button
+					onClick={() => setLoginDialogOpen(true)}
+					className={cn(
+						'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+						'text-muted-foreground hover:bg-accent hover:text-foreground'
+					)}
+				>
+					<Cloud className="h-5 w-5" />
+					<span>{t('sync.title')}</span>
+				</button>
+				<div className="mt-3">
+					<SyncStatusBadge
+						provider={provider}
+						status={status}
+						accountLabel={accountLabel}
+					/>
+				</div>
+			</div>
 
 			{/* Settings at Bottom */}
 			<div className="p-4 border-t border-border">

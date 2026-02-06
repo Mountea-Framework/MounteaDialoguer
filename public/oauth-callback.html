@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Mountea Dialoguer OAuth</title>
+		<style>
+			body {
+				font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 100vh;
+				margin: 0;
+				background: #0f172a;
+				color: #f8fafc;
+			}
+			.container {
+				text-align: center;
+				max-width: 320px;
+			}
+			.spinner {
+				width: 32px;
+				height: 32px;
+				border: 3px solid rgba(248, 250, 252, 0.2);
+				border-top-color: #38bdf8;
+				border-radius: 50%;
+				animation: spin 1s linear infinite;
+				margin: 0 auto 16px;
+			}
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="spinner"></div>
+			<p>Completing sign in...</p>
+		</div>
+		<script>
+			(function () {
+				const queryParams = new URLSearchParams(window.location.search);
+				const hashParams = new URLSearchParams(window.location.hash.slice(1));
+
+				const code = queryParams.get('code');
+				const accessToken = hashParams.get('access_token');
+				const expiresIn = hashParams.get('expires_in');
+				const tokenType = hashParams.get('token_type');
+				const scope = hashParams.get('scope');
+
+				const state = queryParams.get('state') || hashParams.get('state');
+				const error = queryParams.get('error') || hashParams.get('error');
+
+				const payload = {
+					type: 'GOOGLE_OAUTH_RESULT',
+					code,
+					accessToken,
+					expiresIn,
+					tokenType,
+					scope,
+					state,
+					error,
+				};
+
+				if (window.opener) {
+					window.opener.postMessage(payload, window.location.origin);
+				}
+
+				setTimeout(() => window.close(), 300);
+			})();
+		</script>
+	</body>
+</html>

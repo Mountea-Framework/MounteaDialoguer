@@ -186,6 +186,62 @@
 		"darkMode": "Dark",
 		"systemMode": "System"
 	},
+	"sync": {
+		"title": "Cloud Sync",
+		"description": "Connect Google Drive to keep your projects in sync across devices.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "Not Connected"
+		},
+		"status": {
+			"connected": "Connected",
+			"connecting": "Connecting...",
+			"syncing": "Syncing...",
+			"error": "Error",
+			"disconnected": "Disconnected"
+		},
+		"connectedAs": "Connected as {{account}}",
+		"clientId": "Google Client ID",
+		"clientIdPlaceholder": "your-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Required for Google sign-in. Stored only on this device.",
+		"clientIdConfigured": "Client ID configured",
+		"clientIdHiddenHint": "We keep this hidden for simplicity.",
+		"clientIdChange": "Change",
+		"accountLabel": "Account (display)",
+		"accountPlaceholder": "you@example.com",
+		"passphrase": "Encryption Passphrase",
+		"passphrasePlaceholder": "Enter a passphrase",
+		"passphraseHint": "Your passphrase encrypts data before it leaves this device.",
+		"remember": "Remember on this device",
+		"rememberHint": "Stores the passphrase locally on this device.",
+		"promptDontShow": "Don't show on startup",
+		"promptDontShowHint": "Hide this login prompt when the app opens.",
+		"connect": "Connect Google Drive",
+		"connecting": "Connecting...",
+		"syncNow": "Sync Now",
+		"disconnect": "Disconnect",
+		"errors": {
+			"passphraseRequired": "Passphrase is required to enable sync.",
+			"missingClientId": "Google client ID is missing. Add it above to continue.",
+			"oauthFailed": "Google sign-in failed. Please try again.",
+			"popupBlocked": "Popup blocked. Please allow popups and try again.",
+			"syncFailed": "Sync failed. Check your connection and try again.",
+			"redirectUriMismatch": "Redirect URI mismatch. Make sure oauth-callback.html is allowed.",
+			"invalidGrant": "Authorization code expired or invalid. Try again.",
+			"tokenExpired": "Session expired. Please connect to Google Drive again."
+		},
+		"pullTitle": "Syncing Project",
+		"pullDescription": "Checking Google Drive and applying the latest changes.",
+		"bulkTitle": "Syncing Cloud Projects",
+		"bulkDescription": "Fetching and applying your cloud data.",
+		"bulkProgress": "Synced {{current}} of {{total}} projects.",
+		"progress": {
+			"checking": "Checking for changes",
+			"downloading": "Downloading snapshot",
+			"decrypting": "Decrypting data",
+			"applying": "Applying updates"
+		}
+	},
 	"validation": {
 		"required": "This field is required",
 		"invalidName": "Invalid name",

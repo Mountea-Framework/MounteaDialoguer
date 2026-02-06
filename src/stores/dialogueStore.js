@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { useSyncStore } from '@/stores/syncStore';
 
 /**
  * Dialogue Store
@@ -64,6 +65,7 @@ export const useDialogueStore = create((set, get) => ({
 			};
 			await db.dialogues.add(newDialogue);
 			await get().loadDialogues(dialogueData.projectId);
+			useSyncStore.getState().schedulePush(dialogueData.projectId);
 			toast({
 				variant: 'success',
 				title: 'Dialogue Created',
@@ -94,6 +96,7 @@ export const useDialogueStore = create((set, get) => ({
 			});
 			const dialogue = await db.dialogues.get(id);
 			await get().loadDialogues(dialogue.projectId);
+			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
 				variant: 'success',
 				title: 'Dialogue Updated',
@@ -124,6 +127,7 @@ export const useDialogueStore = create((set, get) => ({
 				await db.edges.where('dialogueId').equals(id).delete();
 			});
 			await get().loadDialogues(dialogue.projectId);
+			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
 				variant: 'success',
 				title: 'Dialogue Deleted',
@@ -269,6 +273,10 @@ export const useDialogueStore = create((set, get) => ({
 				});
 			});
 			set({ nodes, edges, isLoading: false });
+			const dialogue = await db.dialogues.get(dialogueId);
+			if (dialogue?.projectId) {
+				useSyncStore.getState().schedulePush(dialogue.projectId);
+			}
 		} catch (error) {
 			console.error('Error saving dialogue graph:', error);
 			toast({
@@ -851,6 +859,7 @@ export const useDialogueStore = create((set, get) => ({
 
 			// Reload dialogues
 			await get().loadDialogues(projectId);
+			useSyncStore.getState().schedulePush(projectId);
 
 			toast({
 				variant: 'success',
