@@ -44,21 +44,6 @@ function getRedirectUri() {
 	return new URL('./oauth-callback.html', window.location.href).toString();
 }
 
-function toBase64Url(buffer) {
-	const bytes = new Uint8Array(buffer);
-	let binary = '';
-	for (let i = 0; i < bytes.byteLength; i += 1) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-async function sha256(input) {
-	const data = new TextEncoder().encode(input);
-	const digest = await crypto.subtle.digest('SHA-256', data);
-	return toBase64Url(digest);
-}
-
 function randomString(length = 64) {
 	const array = new Uint8Array(length);
 	crypto.getRandomValues(array);
@@ -67,10 +52,6 @@ function randomString(length = 64) {
 
 function storeAuthState(state) {
 	sessionStorage.setItem(STORAGE_KEY, state);
-}
-
-function readAuthState() {
-	return sessionStorage.getItem(STORAGE_KEY);
 }
 
 function clearAuthState() {

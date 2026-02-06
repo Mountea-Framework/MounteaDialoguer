@@ -3,6 +3,7 @@ import { refreshAccessToken } from '@/lib/sync/googleDriveAuth';
 
 const DRIVE_FILES_ENDPOINT = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_ENDPOINT = 'https://www.googleapis.com/upload/drive/v3/files';
+const ALLOWED_PREFIXES = [DRIVE_FILES_ENDPOINT, DRIVE_UPLOAD_ENDPOINT];
 
 async function getValidAccessToken() {
 	const account = await getSyncAccount('googleDrive');
@@ -32,6 +33,9 @@ async function getValidAccessToken() {
 }
 
 async function driveRequest(path, options = {}) {
+	if (!ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+		throw new Error('Blocked non-Google Drive request');
+	}
 	const token = await getValidAccessToken();
 	const response = await fetch(path, {
 		...options,
