@@ -32,12 +32,24 @@ async function getValidAccessToken() {
 	return refreshed.access_token;
 }
 
-async function driveRequest(path, options = {}) {
-	if (!ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+function buildDriveUrl(base, pathSegment, params) {
+	const url = new URL(base);
+	if (pathSegment) {
+		url.pathname = `${url.pathname}/${encodeURIComponent(pathSegment)}`;
+	}
+	if (params) {
+		url.search = params.toString();
+	}
+	return url;
+}
+
+async function driveRequest(url, options = {}) {
+	const urlString = url.toString();
+	if (!ALLOWED_PREFIXES.some((prefix) => urlString.startsWith(prefix))) {
 		throw new Error('Blocked non-Google Drive request');
 	}
 	const token = await getValidAccessToken();
-	const response = await fetch(path, {
+	const response = await fetch(urlString, {
 		...options,
 		headers: {
 			Authorization: `Bearer ${token}`,
@@ -81,7 +93,8 @@ export async function findAppDataFile(fileName) {
 		fields: 'files(id,name,modifiedTime,appProperties)',
 	});
 
-	const response = await driveRequest(`${DRIVE_FILES_ENDPOINT}?${params.toString()}`);
+	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, null, params);
+	const response = await driveRequest(url);
 	const data = await response.json();
 	return data.files?.[0] || null;
 }
@@ -107,7 +120,8 @@ export async function listAppDataFiles({ namePrefix } = {}) {
 			params.set('pageToken', pageToken);
 		}
 
-		const response = await driveRequest(`${DRIVE_FILES_ENDPOINT}?${params.toString()}`);
+		const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, null, params);
+		const response = await driveRequest(url);
 		const data = await response.json();
 		if (Array.isArray(data.files)) {
 			files.push(...data.files);
@@ -119,7 +133,9 @@ export async function listAppDataFiles({ namePrefix } = {}) {
 }
 
 export async function downloadAppDataFile(fileId) {
-	const response = await driveRequest(`${DRIVE_FILES_ENDPOINT}/${fileId}?alt=media`);
+	const params = new URLSearchParams({ alt: 'media' });
+	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, fileId, params);
+	const response = await driveRequest(url);
 	return await response.text();
 }
 
@@ -130,17 +146,19 @@ export async function createAppDataFile({ name, content, mimeType, appProperties
 		appProperties,
 	};
 	const { body, boundary } = buildMultipartBody(metadata, content, mimeType);
+	const params = new URLSearchParams({
+		uploadType: 'multipart',
+		fields: 'id,modifiedTime,appProperties',
+	});
 
-	const response = await driveRequest(
-		`${DRIVE_UPLOAD_ENDPOINT}?uploadType=multipart&fields=id,modifiedTime,appProperties`,
-		{
-			method: 'POST',
-			headers: {
-				'Content-Type': `multipart/related; boundary=${boundary}`,
-			},
-			body,
-		}
-	);
+	const url = buildDriveUrl(DRIVE_UPLOAD_ENDPOINT, null, params);
+	const response = await driveRequest(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': `multipart/related; boundary=${boundary}`,
+		},
+		body,
+	});
 
 	return await response.json();
 }
@@ -150,17 +168,19 @@ export async function updateAppDataFile({ fileId, content, mimeType, appProperti
 		appProperties,
 	};
 	const { body, boundary } = buildMultipartBody(metadata, content, mimeType);
+	const params = new URLSearchParams({
+		uploadType: 'multipart',
+		fields: 'id,modifiedTime,appProperties',
+	});
 
-	const response = await driveRequest(
-		`${DRIVE_UPLOAD_ENDPOINT}/${fileId}?uploadType=multipart&fields=id,modifiedTime,appProperties`,
-		{
-			method: 'PATCH',
-			headers: {
-				'Content-Type': `multipart/related; boundary=${boundary}`,
-			},
-			body,
-		}
-	);
+	const url = buildDriveUrl(DRIVE_UPLOAD_ENDPOINT, fileId, params);
+	const response = await driveRequest(url, {
+		method: 'PATCH',
+		headers: {
+			'Content-Type': `multipart/related; boundary=${boundary}`,
+		},
+		body,
+	});
 
 	return await response.json();
 }
