@@ -196,6 +196,34 @@
 		"bulkDescription": "Récupération et application des données cloud.",
 		"bulkProgress": "{{current}} sur {{total}} projets synchronisés."
 	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "Bienvenue dans Mountea Dialoguer !",
+			"welcomeText": "Faisons un bref tour pour vous aider à démarrer.",
+			"createTitle": "Créez votre premier projet",
+			"createText": "Cliquez ici pour créer un nouveau projet. Les projets aident à organiser vos dialogues.",
+			"searchTitle": "Recherche rapide",
+			"searchText": "Utilisez la barre de recherche pour trouver rapidement des projets et des dialogues."
+		},
+		"editor": {
+			"welcomeTitle": "Visite de l'éditeur de dialogue",
+			"welcomeText": "Découvrez comment créer des dialogues interactifs.",
+			"nodeToolbarTitle": "Barre d'outils des nœuds",
+			"nodeToolbarText": "Glissez ces nœuds sur la toile pour construire votre flux de conversation.",
+			"canvasTitle": "Toile",
+			"canvasText": "C'est ici que vous construirez votre arbre de dialogue. Reliez les nœuds pour créer des chemins.",
+			"saveTitle": "Enregistrez votre travail",
+			"saveText": "N'oubliez pas d'enregistrer ! Vos modifications sont stockées localement."
+		},
+		"controls": {
+			"back": "Retour",
+			"close": "Fermer",
+			"last": "Terminer",
+			"next": "Suivant",
+			"nextWithProgress": "Suivant (Etape {step} sur {steps})",
+			"skip": "Ignorer la visite"
+		}
+	},
 	"validation": {
 		"required": "Ce champ est requis",
 		"invalidName": "Nom invalide",

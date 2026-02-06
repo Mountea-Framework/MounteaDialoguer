@@ -242,6 +242,34 @@
 			"applying": "Applying updates"
 		}
 	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "Welcome to Mountea Dialoguer!",
+			"welcomeText": "Let's take a quick tour to help you get started.",
+			"createTitle": "Create Your First Project",
+			"createText": "Click here to create a new project. Projects help organize your dialogues.",
+			"searchTitle": "Quick Search",
+			"searchText": "Use the search bar to quickly find projects and dialogues."
+		},
+		"editor": {
+			"welcomeTitle": "Dialogue Editor Tour",
+			"welcomeText": "Learn how to create interactive dialogues.",
+			"nodeToolbarTitle": "Node Toolbar",
+			"nodeToolbarText": "Drag these nodes onto the canvas to build your conversation flow.",
+			"canvasTitle": "Canvas",
+			"canvasText": "This is where you'll build your dialogue tree. Connect nodes to create conversation paths.",
+			"saveTitle": "Save Your Work",
+			"saveText": "Don't forget to save! Your changes are stored locally."
+		},
+		"controls": {
+			"back": "Back",
+			"close": "Close",
+			"last": "Finish",
+			"next": "Next",
+			"nextWithProgress": "Next (Step {step} of {steps})",
+			"skip": "Skip tour"
+		}
+	},
 	"validation": {
 		"required": "This field is required",
 		"invalidName": "Invalid name",

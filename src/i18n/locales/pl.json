@@ -242,6 +242,34 @@
 			"applying": "Stosowanie aktualizacji"
 		}
 	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "Witamy w Mountea Dialoguer!",
+			"welcomeText": "Zróbmy krótki przewodnik, aby pomóc Ci zacząć.",
+			"createTitle": "Utwórz pierwszy projekt",
+			"createText": "Kliknij tutaj, aby utworzyć nowy projekt. Projekty pomagają porządkować dialogi.",
+			"searchTitle": "Szybkie wyszukiwanie",
+			"searchText": "Użyj paska wyszukiwania, aby szybko znaleźć projekty i dialogi."
+		},
+		"editor": {
+			"welcomeTitle": "Przewodnik po edytorze dialogów",
+			"welcomeText": "Dowiedz się, jak tworzyć interaktywne dialogi.",
+			"nodeToolbarTitle": "Pasek narzędzi węzłów",
+			"nodeToolbarText": "Przeciągnij te węzły na płótno, aby zbudować przebieg rozmowy.",
+			"canvasTitle": "Płótno",
+			"canvasText": "Tutaj zbudujesz drzewo dialogu. Łącz węzły, aby tworzyć ścieżki rozmowy.",
+			"saveTitle": "Zapisz pracę",
+			"saveText": "Nie zapomnij zapisać! Twoje zmiany są przechowywane lokalnie."
+		},
+		"controls": {
+			"back": "Wstecz",
+			"close": "Zamknij",
+			"last": "Zakończ",
+			"next": "Dalej",
+			"nextWithProgress": "Dalej (krok {step} z {steps})",
+			"skip": "Pomiń przewodnik"
+		}
+	},
 	"validation": {
 		"required": "To pole jest wymagane",
 		"invalidName": "Nieprawidłowa nazwa",
