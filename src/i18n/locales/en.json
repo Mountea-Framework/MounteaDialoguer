@@ -245,7 +245,7 @@
 	"tour": {
 		"dashboard": {
 			"welcomeTitle": "Welcome to Mountea Dialoguer!",
-			"welcomeText": "Let's take a quick tour to help you get started.",
+			"welcomeText": "Let's take a quick tour to help you get started. After the tour, you'll see the Cloud Sync setup.",
 			"createTitle": "Create Your First Project",
 			"createText": "Click here to create a new project. Projects help organize your dialogues.",
 			"searchTitle": "Quick Search",

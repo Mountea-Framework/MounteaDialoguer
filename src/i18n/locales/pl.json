@@ -245,7 +245,7 @@
 	"tour": {
 		"dashboard": {
 			"welcomeTitle": "Witamy w Mountea Dialoguer!",
-			"welcomeText": "Zróbmy krótki przewodnik, aby pomóc Ci zacząć.",
+			"welcomeText": "Zróbmy krótki przewodnik, aby pomóc Ci zacząć. Po zakończeniu zobaczysz konfigurację synchronizacji w chmurze.",
 			"createTitle": "Utwórz pierwszy projekt",
 			"createText": "Kliknij tutaj, aby utworzyć nowy projekt. Projekty pomagają porządkować dialogi.",
 			"searchTitle": "Szybkie wyszukiwanie",

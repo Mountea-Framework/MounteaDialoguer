@@ -199,7 +199,7 @@
 	"tour": {
 		"dashboard": {
 			"welcomeTitle": "Bienvenue dans Mountea Dialoguer !",
-			"welcomeText": "Faisons un bref tour pour vous aider à démarrer.",
+			"welcomeText": "Faisons un bref tour pour vous aider à démarrer. Après la visite, la configuration de la synchronisation cloud s'affichera.",
 			"createTitle": "Créez votre premier projet",
 			"createText": "Cliquez ici pour créer un nouveau projet. Les projets aident à organiser vos dialogues.",
 			"searchTitle": "Recherche rapide",

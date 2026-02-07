@@ -5,6 +5,10 @@ import { useTheme } from '@/contexts/ThemeProvider';
 import { db } from '@/lib/db';
 import { isMobileDevice } from '@/lib/deviceDetection';
 
+const emitOnboardingCompleted = (tourKey) => {
+	window.dispatchEvent(new CustomEvent('onboarding:completed', { detail: { key: tourKey } }));
+};
+
 /**
  * Onboarding Tour Component
  * Guides new users through the application features
@@ -225,6 +229,7 @@ export function useOnboarding(tourKey, options = {}) {
 				if (projectCount > 0) {
 					// User already has projects, mark tour as seen and skip
 					localStorage.setItem(`onboarding-${tourKey}`, 'true');
+					emitOnboardingCompleted(tourKey);
 					return;
 				}
 			} catch (error) {
@@ -253,6 +258,7 @@ export function useOnboarding(tourKey, options = {}) {
 	const finishTour = () => {
 		localStorage.setItem(`onboarding-${tourKey}`, 'true');
 		setRunTour(false);
+		emitOnboardingCompleted(tourKey);
 	};
 
 	const resetTour = () => {
