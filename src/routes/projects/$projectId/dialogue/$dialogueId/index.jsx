@@ -47,6 +47,7 @@ import {
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
+	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
@@ -1563,21 +1564,24 @@ function DialogueEditorPage() {
 			{/* Mobile Cascade Delete Confirmation */}
 			{deviceType === 'mobile' && (
 				<AlertDialog open={isCascadeDeleteOpen} onOpenChange={setIsCascadeDeleteOpen}>
-					<AlertDialogContent>
+					<AlertDialogContent variant="destructive" size="sm">
 						<AlertDialogHeader>
+							<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+								<Trash2 className="h-6 w-6" />
+							</AlertDialogMedia>
 							<AlertDialogTitle>{t('editor.deleteCascadeTitle')}</AlertDialogTitle>
 							<AlertDialogDescription>
 								{t('editor.deleteCascadeDescription')}
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>
-							<AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+							<AlertDialogCancel variant="outline">{t('common.cancel')}</AlertDialogCancel>
 							<AlertDialogAction
+								variant="destructive"
 								onClick={() => {
 									setIsCascadeDeleteOpen(false);
 									deleteSelectedNodeCascade();
 								}}
-								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 							>
 								{t('editor.deleteCascadeConfirm')}
 							</AlertDialogAction>

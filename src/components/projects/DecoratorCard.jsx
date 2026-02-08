@@ -12,6 +12,7 @@ import {
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
+	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useDecoratorStore } from '@/stores/decoratorStore';
@@ -84,21 +85,24 @@ export function DecoratorCard({ decorator }) {
 			/>
 
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-				<AlertDialogContent>
+				<AlertDialogContent variant="destructive" size="sm">
 					<AlertDialogHeader>
+						<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+							<Trash2 className="h-6 w-6" />
+						</AlertDialogMedia>
 						<AlertDialogTitle>{t('decorators.deleteTitle')}</AlertDialogTitle>
 						<AlertDialogDescription>
 							{t('decorators.deleteDescription', { name: decorator.name })}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isDeleting}>
+						<AlertDialogCancel variant="outline" disabled={isDeleting}>
 							{t('common.cancel')}
 						</AlertDialogCancel>
 						<AlertDialogAction
+							variant="destructive"
 							onClick={handleDelete}
 							disabled={isDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							{isDeleting ? t('common.deleting') : t('common.delete')}
 						</AlertDialogAction>

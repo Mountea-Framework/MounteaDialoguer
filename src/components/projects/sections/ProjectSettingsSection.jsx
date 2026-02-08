@@ -15,6 +15,7 @@ import {
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
+	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useProjectStore } from '@/stores/projectStore';
@@ -220,18 +221,21 @@ export function ProjectSettingsSection({ project, onExport, onDelete }) {
 
 			{/* Delete Confirmation Dialog */}
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-				<AlertDialogContent>
+				<AlertDialogContent variant="destructive" size="sm">
 					<AlertDialogHeader>
+						<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+							<Trash2 className="h-6 w-6" />
+						</AlertDialogMedia>
 						<AlertDialogTitle>{t('projects.deleteProject')}</AlertDialogTitle>
 						<AlertDialogDescription>
 							{t('projects.deleteConfirm')}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+						<AlertDialogCancel variant="outline">{t('common.cancel')}</AlertDialogCancel>
 						<AlertDialogAction
+							variant="destructive"
 							onClick={handleDelete}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							{t('common.delete')}
 						</AlertDialogAction>
