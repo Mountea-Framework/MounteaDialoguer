@@ -23,6 +23,17 @@ import { ParticipantsSection } from '@/components/projects/sections/Participants
 import { CategoriesSection } from '@/components/projects/sections/CategoriesSection';
 import { DecoratorsSection } from '@/components/projects/sections/DecoratorsSection';
 import { ProjectSettingsSection } from '@/components/projects/sections/ProjectSettingsSection';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogMedia,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export const Route = createFileRoute('/projects/$projectId/')({
 	component: ProjectDetailsPage,
@@ -44,6 +55,7 @@ function ProjectDetailsPage() {
 	const [activeSection, setActiveSection] = useState(searchParams?.section || 'overview');
 	const [isImporting, setIsImporting] = useState(false);
 	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const syncCheckedRef = useRef(new Set());
 	const fileInputRef = useRef(null);
 
@@ -117,11 +129,12 @@ function ProjectDetailsPage() {
 	};
 
 	const handleDelete = async () => {
-		// TODO: Show delete confirmation modal
-		if (window.confirm(t('projects.deleteConfirm'))) {
-			await deleteProject(projectId);
-			window.location.href = '#/';
-		}
+		await deleteProject(projectId);
+		window.location.href = '#/';
+	};
+
+	const handleDeleteRequest = () => {
+		setShowDeleteDialog(true);
 	};
 
 	if (isLoading) {
@@ -226,7 +239,7 @@ function ProjectDetailsPage() {
 								decorators={projectDecorators}
 								onExport={handleExport}
 								onImport={handleImport}
-								onDelete={handleDelete}
+								onDelete={handleDeleteRequest}
 							onSectionChange={setActiveSection}
 								fileInputRef={fileInputRef}
 								isImporting={isImporting}
@@ -260,12 +273,40 @@ function ProjectDetailsPage() {
 							<ProjectSettingsSection
 								project={project}
 								onExport={handleExport}
-								onDelete={handleDelete}
+								onDelete={handleDeleteRequest}
 							/>
 						)}
 					</div>
 				</main>
 			</div>
+
+			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+				<AlertDialogContent variant="destructive" size="sm">
+					<AlertDialogHeader>
+						<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+							<Trash2 className="h-6 w-6" />
+						</AlertDialogMedia>
+						<AlertDialogTitle>{t('projects.deleteProject')}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t('projects.deleteConfirm')}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel variant="outline">
+							{t('common.cancel')}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							onClick={() => {
+								setShowDeleteDialog(false);
+								handleDelete();
+							}}
+						>
+							{t('common.delete')}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

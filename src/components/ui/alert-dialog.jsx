@@ -58,7 +58,7 @@ AlertDialogHeader.displayName = 'AlertDialogHeader';
 const AlertDialogFooter = ({ className, ...props }) => (
 	<div
 		className={cn(
-			'-mx-4 -mb-4 mt-4 flex items-center justify-center border-t border-border/60 bg-muted/30 px-4 py-3 sm:-mx-6 sm:-mb-6 sm:justify-end sm:space-x-2 sm:space-y-0 sm:px-6 sm:py-4 rounded-b-lg',
+			'-mx-4 -mb-4 mt-4 flex items-center justify-center gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 sm:-mx-6 sm:-mb-6 sm:justify-end sm:space-x-2 sm:space-y-0 sm:px-6 sm:py-3 rounded-b-lg',
 			className
 		)}
 		{...props}
