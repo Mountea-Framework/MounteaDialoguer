@@ -213,7 +213,7 @@ function ProjectCard({ project }) {
 
   return (
     <Link to="/projects/$projectId" params={{ projectId: project.id }}>
-      <Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col overflow-hidden rounded-lg">
+      <Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full min-h-[280px] flex flex-col overflow-hidden rounded-lg">
         <div
           className={`h-32 bg-gradient-to-br ${gradients[colorIndex]} flex items-center justify-center relative overflow-hidden rounded-t-lg`}
         >
@@ -372,7 +372,7 @@ function ProjectsDashboard() {
 
               <button
                 onClick={handleNewProject}
-                className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[320px] hover:border-primary hover:bg-primary/5 transition-all group"
+                className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] hover:border-primary hover:bg-primary/5 transition-all group"
               >
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Plus className="h-8 w-8 text-primary" />
