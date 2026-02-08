@@ -100,7 +100,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+			<DialogContent className="sm:max-w-[600px]">
 				<DialogHeader>
 					<DialogTitle>{t('decorators.addNew')}</DialogTitle>
 					<DialogDescription>
@@ -108,8 +108,9 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit}>
-					<div className="grid gap-4 py-4">
-						<div className="grid gap-2">
+					<div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4 sm:-mx-6 sm:px-6">
+						<div className="grid gap-4 py-4">
+							<div className="grid gap-2">
 							<Label htmlFor="name">
 								{t('decorators.name')} <span className="text-destructive">*</span>
 							</Label>
@@ -128,7 +129,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 								<p className="text-xs text-destructive">{errors.name}</p>
 							)}
 						</div>
-						<div className="grid gap-2">
+							<div className="grid gap-2">
 							<Label htmlFor="type">{t('decorators.type')}</Label>
 							<Input
 								id="type"
@@ -141,8 +142,8 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 						</div>
 
 						{/* Properties Section */}
-						<div className="grid gap-3 border-t pt-4">
-							<div className="flex items-center justify-between">
+							<div className="grid gap-3 border-t pt-4">
+								<div className="flex items-center justify-between">
 								<Label>Properties</Label>
 								<Button
 									type="button"
@@ -156,82 +157,83 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 								</Button>
 							</div>
 
-							{formData.properties.length === 0 && (
-								<p className="text-sm text-muted-foreground text-center py-4">
-									No properties defined. Add properties to customize this decorator.
-								</p>
-							)}
+								{formData.properties.length === 0 && (
+									<p className="text-sm text-muted-foreground text-center py-4">
+										No properties defined. Add properties to customize this decorator.
+									</p>
+								)}
 
-							{formData.properties.map((property, index) => (
-								<div
-									key={index}
-									className="grid grid-cols-[1fr,120px,1fr,auto] gap-2 items-end bg-muted p-3 rounded-md"
-								>
-									<div className="grid gap-1.5">
-										<Label className="text-xs">Property Name</Label>
-										<Input
-											value={property.name}
-											onChange={(e) =>
-												updateProperty(index, 'name', e.target.value)
-											}
-											placeholder="e.g., Speed"
-											size="sm"
-											required
-										/>
-									</div>
-
-									<div className="grid gap-1.5">
-										<Label className="text-xs">Type</Label>
-										<Select
-											value={property.type}
-											onValueChange={(value) =>
-												updateProperty(index, 'type', value)
-											}
-										>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												{PROPERTY_TYPES.map((type) => (
-													<SelectItem key={type.value} value={type.value}>
-														{type.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className="grid gap-1.5">
-										<Label className="text-xs">Default Value</Label>
-										<Input
-											value={property.defaultValue}
-											onChange={(e) =>
-												updateProperty(index, 'defaultValue', e.target.value)
-											}
-											placeholder={
-												property.type === 'bool'
-													? 'true/false'
-													: property.type === 'int'
-													? '0'
-													: property.type === 'float'
-													? '0.0'
-													: 'value'
-											}
-											size="sm"
-										/>
-									</div>
-
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon"
-										onClick={() => removeProperty(index)}
-										className="h-9 w-9"
+								{formData.properties.map((property, index) => (
+									<div
+										key={index}
+										className="grid grid-cols-[1fr,120px,1fr,auto] gap-2 items-end bg-muted p-3 rounded-md"
 									>
-										<X className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
+										<div className="grid gap-1.5">
+											<Label className="text-xs">Property Name</Label>
+											<Input
+												value={property.name}
+												onChange={(e) =>
+													updateProperty(index, 'name', e.target.value)
+												}
+												placeholder="e.g., Speed"
+												size="sm"
+												required
+											/>
+										</div>
+
+										<div className="grid gap-1.5">
+											<Label className="text-xs">Type</Label>
+											<Select
+												value={property.type}
+												onValueChange={(value) =>
+													updateProperty(index, 'type', value)
+												}
+											>
+												<SelectTrigger>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{PROPERTY_TYPES.map((type) => (
+														<SelectItem key={type.value} value={type.value}>
+															{type.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+
+										<div className="grid gap-1.5">
+											<Label className="text-xs">Default Value</Label>
+											<Input
+												value={property.defaultValue}
+												onChange={(e) =>
+													updateProperty(index, 'defaultValue', e.target.value)
+												}
+												placeholder={
+													property.type === 'bool'
+														? 'true/false'
+														: property.type === 'int'
+														? '0'
+														: property.type === 'float'
+														? '0.0'
+														: 'value'
+												}
+												size="sm"
+											/>
+										</div>
+
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											onClick={() => removeProperty(index)}
+											className="h-9 w-9"
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+								))}
+							</div>
 						</div>
 					</div>
 					<DialogFooter>
