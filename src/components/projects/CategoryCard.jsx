@@ -40,15 +40,8 @@ export function CategoryCard({ category }) {
 	const getCategoryPath = () => {
 		if (!category.parentCategoryId) return null;
 
-		const path = [];
-		let currentId = category.parentCategoryId;
-		while (currentId) {
-			const parent = categories.find((c) => c.id === currentId);
-			if (!parent) break;
-			path.unshift(parent.name);
-			currentId = parent.parentCategoryId;
-		}
-		return path.length > 0 ? path.join(' > ') : null;
+		const parent = categories.find((c) => c.id === category.parentCategoryId);
+		return parent ? parent.name : null;
 	};
 
 	const parentPath = getCategoryPath();
