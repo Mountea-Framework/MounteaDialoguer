@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useSyncStore } from '@/stores/syncStore';
-import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 
 /**
  * Project Sidebar Component
@@ -19,7 +18,14 @@ export function ProjectSidebar({
 	onMobileClose
 }) {
 	const { t } = useTranslation();
-	const { provider, status, accountLabel, setLoginDialogOpen } = useSyncStore();
+	const { status, setLoginDialogOpen } = useSyncStore();
+	const cloudStatusColor = {
+		connected: 'text-green-500',
+		connecting: 'text-blue-500',
+		syncing: 'text-blue-500',
+		error: 'text-red-500',
+		disconnected: 'text-muted-foreground',
+	}[status] || 'text-muted-foreground';
 
 	const sections = [
 		{
@@ -129,16 +135,9 @@ export function ProjectSidebar({
 						'text-muted-foreground hover:bg-accent hover:text-foreground'
 					)}
 				>
-					<Cloud className="h-5 w-5" />
+					<Cloud className={cn('h-5 w-5', cloudStatusColor)} />
 					<span>{t('sync.title')}</span>
 				</button>
-				<div className="mt-3">
-					<SyncStatusBadge
-						provider={provider}
-						status={status}
-						accountLabel={accountLabel}
-					/>
-				</div>
 			</div>
 
 			{/* Settings at Bottom */}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cloud, LogOut, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useSyncStore } from '@/stores/syncStore';
 import { cn } from '@/lib/utils';
-import { getConfiguredClientId } from '@/lib/sync/googleDriveAuth';
 
 export function SyncLoginDialog({
 	open,
@@ -23,13 +22,11 @@ export function SyncLoginDialog({
 		status,
 		accountLabel,
 		passphrase,
-		clientId,
 		rememberPassphrase,
 		error,
 		setPassphrase,
 		setAccountLabel,
 		setRememberPassphrase,
-		setClientId,
 		clearError,
 		connectGoogleDrive,
 		syncAllProjects,
@@ -40,10 +37,6 @@ export function SyncLoginDialog({
 	const isConnecting = status === 'connecting';
 	const isSyncing = status === 'syncing';
 	const canConnect = passphrase.trim().length > 0 && !isConnecting;
-	const configuredClientId = getConfiguredClientId();
-	const clientIdValue = clientId || configuredClientId;
-	const [showClientId, setShowClientId] = useState(!clientIdValue);
-
 	const handleConnect = async () => {
 		const success = await connectGoogleDrive();
 		if (success) {
@@ -103,41 +96,6 @@ export function SyncLoginDialog({
 					</div>
 
 					<div className="grid gap-4">
-						{!showClientId && clientIdValue && (
-							<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-								<div>
-									<p className="text-sm font-medium">{t('sync.clientIdConfigured')}</p>
-									<p className="text-xs text-muted-foreground">{t('sync.clientIdHiddenHint')}</p>
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setShowClientId(true)}
-								>
-									{t('sync.clientIdChange')}
-								</Button>
-							</div>
-						)}
-
-						{(showClientId || !clientIdValue) && (
-							<div className="grid gap-2">
-								<Label htmlFor="sync-client-id">{t('sync.clientId')}</Label>
-								<Input
-									id="sync-client-id"
-									value={clientIdValue}
-									onChange={(e) => {
-										setClientId(e.target.value);
-										clearError?.();
-									}}
-									placeholder={t('sync.clientIdPlaceholder')}
-									disabled={isConnected}
-								/>
-								<p className="text-xs text-muted-foreground">
-									{t('sync.clientIdHint')}
-								</p>
-							</div>
-						)}
-
 						<div className="grid gap-2">
 							<Label htmlFor="sync-account">{t('sync.accountLabel')}</Label>
 							<Input
