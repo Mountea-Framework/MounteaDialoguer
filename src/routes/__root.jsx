@@ -9,6 +9,7 @@ import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -19,6 +20,7 @@ function RootComponent() {
 	const [showContent, setShowContent] = useState(false);
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [promptedThisSession, setPromptedThisSession] = useState(false);
+	const [onboardingSignal, setOnboardingSignal] = useState(0);
 	const hasAutoSyncedRef = useRef(false);
 	const {
 		loadAccount,
@@ -72,10 +74,29 @@ function RootComponent() {
 	}, [status]);
 
 	useEffect(() => {
+		const handleOnboardingComplete = (event) => {
+			if (event?.detail?.key === 'dashboard') {
+				setOnboardingSignal((value) => value + 1);
+			}
+		};
+
+		window.addEventListener('onboarding:completed', handleOnboardingComplete);
+		return () => {
+			window.removeEventListener('onboarding:completed', handleOnboardingComplete);
+		};
+	}, []);
+
+	useEffect(() => {
 		if (!hasHydrated || isLoading) return;
 		if (promptedThisSession) return;
 		if (hideLoginPrompt) return;
 		if (status === 'connected' || status === 'connecting' || status === 'syncing') return;
+
+		// On first dashboard visit (desktop), wait for onboarding tour completion before showing sync login.
+		const isDashboardPath = window.location.pathname === '/';
+		const hasCompletedDashboardOnboarding = Boolean(localStorage.getItem('onboarding-dashboard'));
+		if (!isMobileDevice() && isDashboardPath && !hasCompletedDashboardOnboarding) return;
+
 		console.log('[sync] Showing login prompt');
 		setLoginDialogOpen(true);
 		setPromptedThisSession(true);
@@ -85,6 +106,7 @@ function RootComponent() {
 		promptedThisSession,
 		hideLoginPrompt,
 		status,
+		onboardingSignal,
 		setLoginDialogOpen,
 	]);
 

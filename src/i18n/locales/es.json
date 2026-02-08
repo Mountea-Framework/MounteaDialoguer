@@ -196,6 +196,34 @@
 		"bulkDescription": "Descargando y aplicando los datos de la nube.",
 		"bulkProgress": "Sincronizados {{current}} de {{total}} proyectos."
 	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "¡Bienvenido a Mountea Dialoguer!",
+			"welcomeText": "Hagamos un breve recorrido para ayudarte a empezar. Despu\u00e9s del tour, ver\u00e1s la configuraci\u00f3n de sincronizaci\u00f3n en la nube.",
+			"createTitle": "Crea tu primer proyecto",
+			"createText": "Haz clic aquí para crear un nuevo proyecto. Los proyectos ayudan a organizar tus diálogos.",
+			"searchTitle": "Búsqueda rápida",
+			"searchText": "Usa la barra de búsqueda para encontrar rápidamente proyectos y diálogos."
+		},
+		"editor": {
+			"welcomeTitle": "Tour del editor de diálogos",
+			"welcomeText": "Aprende a crear diálogos interactivos.",
+			"nodeToolbarTitle": "Barra de nodos",
+			"nodeToolbarText": "Arrastra estos nodos al lienzo para construir el flujo de conversación.",
+			"canvasTitle": "Lienzo",
+			"canvasText": "Aquí construirás tu árbol de diálogo. Conecta nodos para crear rutas de conversación.",
+			"saveTitle": "Guarda tu trabajo",
+			"saveText": "¡No olvides guardar! Tus cambios se almacenan localmente."
+		},
+		"controls": {
+			"back": "Atrás",
+			"close": "Cerrar",
+			"last": "Finalizar",
+			"next": "Siguiente",
+			"nextWithProgress": "Siguiente (Paso {step} de {steps})",
+			"skip": "Omitir tour"
+		}
+	},
 	"validation": {
 		"required": "Este campo es obligatorio",
 		"invalidName": "Nombre inválido",

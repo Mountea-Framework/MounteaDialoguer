@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import Joyride, { STATUS } from 'react-joyride';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { db } from '@/lib/db';
 import { isMobileDevice } from '@/lib/deviceDetection';
+
+const emitOnboardingCompleted = (tourKey) => {
+	window.dispatchEvent(new CustomEvent('onboarding:completed', { detail: { key: tourKey } }));
+};
 
 /**
  * Onboarding Tour Component
@@ -11,6 +16,7 @@ import { isMobileDevice } from '@/lib/deviceDetection';
 export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 	const [stepIndex, setStepIndex] = useState(0);
 	const { theme } = useTheme();
+	const { t } = useTranslation();
 
 	// Determine if we're in dark mode
 	const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -20,9 +26,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: 'body',
 			content: (
 				<div>
-					<h2 className="text-lg font-bold mb-2">Welcome to Mountea Dialoguer!</h2>
+					<h2 className="text-lg font-bold mb-2">{t('tour.dashboard.welcomeTitle')}</h2>
 					<p className="text-sm text-muted-foreground">
-						Let's take a quick tour to help you get started.
+						{t('tour.dashboard.welcomeText')}
 					</p>
 				</div>
 			),
@@ -33,9 +39,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: '[data-tour="create-project"]',
 			content: (
 				<div>
-					<h3 className="font-semibold mb-1">Create Your First Project</h3>
+					<h3 className="font-semibold mb-1">{t('tour.dashboard.createTitle')}</h3>
 					<p className="text-sm">
-						Click here to create a new project. Projects help organize your dialogues.
+						{t('tour.dashboard.createText')}
 					</p>
 				</div>
 			),
@@ -45,9 +51,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: '[data-tour="search"]',
 			content: (
 				<div>
-					<h3 className="font-semibold mb-1">Quick Search</h3>
+					<h3 className="font-semibold mb-1">{t('tour.dashboard.searchTitle')}</h3>
 					<p className="text-sm">
-						Use the search bar to quickly find projects and dialogues.
+						{t('tour.dashboard.searchText')}
 					</p>
 				</div>
 			),
@@ -60,9 +66,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: 'body',
 			content: (
 				<div>
-					<h2 className="text-lg font-bold mb-2">Dialogue Editor Tour</h2>
+					<h2 className="text-lg font-bold mb-2">{t('tour.editor.welcomeTitle')}</h2>
 					<p className="text-sm text-muted-foreground">
-						Learn how to create interactive dialogues.
+						{t('tour.editor.welcomeText')}
 					</p>
 				</div>
 			),
@@ -73,9 +79,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: '[data-tour="node-toolbar"]',
 			content: (
 				<div>
-					<h3 className="font-semibold mb-1">Node Toolbar</h3>
+					<h3 className="font-semibold mb-1">{t('tour.editor.nodeToolbarTitle')}</h3>
 					<p className="text-sm">
-						Drag these nodes onto the canvas to build your conversation flow.
+						{t('tour.editor.nodeToolbarText')}
 					</p>
 				</div>
 			),
@@ -85,9 +91,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: '[data-tour="canvas"]',
 			content: (
 				<div>
-					<h3 className="font-semibold mb-1">Canvas</h3>
+					<h3 className="font-semibold mb-1">{t('tour.editor.canvasTitle')}</h3>
 					<p className="text-sm">
-						This is where you'll build your dialogue tree. Connect nodes to create conversation paths.
+						{t('tour.editor.canvasText')}
 					</p>
 				</div>
 			),
@@ -97,9 +103,9 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			target: '[data-tour="save-button"]',
 			content: (
 				<div>
-					<h3 className="font-semibold mb-1">Save Your Work</h3>
+					<h3 className="font-semibold mb-1">{t('tour.editor.saveTitle')}</h3>
 					<p className="text-sm">
-						Don't forget to save! Your changes are stored locally.
+						{t('tour.editor.saveText')}
 					</p>
 				</div>
 			),
@@ -110,15 +116,24 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 	const steps = tourType === 'dashboard' ? dashboardSteps : dialogueEditorSteps;
 
 	const handleJoyrideCallback = (data) => {
-		const { status, type, index } = data;
+		const { status, type, index, action } = data;
 
-		if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+		if (
+			[STATUS.FINISHED, STATUS.SKIPPED].includes(status) ||
+			action === 'close' ||
+			type === 'tour:end'
+		) {
 			setStepIndex(0);
 			if (onFinish) {
 				onFinish();
 			}
-		} else if (type === 'step:after') {
-			setStepIndex(index + 1);
+			return;
+		}
+
+		if (type === 'step:after') {
+			const delta = action === 'prev' ? -1 : 1;
+			const nextIndex = Math.max(0, index + delta);
+			setStepIndex(nextIndex);
 		}
 	};
 
@@ -130,6 +145,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			continuous
 			showProgress
 			showSkipButton
+			showCloseButton
 			callback={handleJoyrideCallback}
 			styles={{
 				options: {
@@ -170,11 +186,12 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 				},
 			}}
 			locale={{
-				back: 'Back',
-				close: 'Close',
-				last: 'Finish',
-				next: 'Next',
-				skip: 'Skip tour',
+				back: t('tour.controls.back'),
+				close: t('tour.controls.close'),
+				last: t('tour.controls.last'),
+				next: t('tour.controls.next'),
+				nextLabelWithProgress: t('tour.controls.nextWithProgress'),
+				skip: t('tour.controls.skip'),
 			}}
 		/>
 	);
@@ -212,6 +229,7 @@ export function useOnboarding(tourKey, options = {}) {
 				if (projectCount > 0) {
 					// User already has projects, mark tour as seen and skip
 					localStorage.setItem(`onboarding-${tourKey}`, 'true');
+					emitOnboardingCompleted(tourKey);
 					return;
 				}
 			} catch (error) {
@@ -240,6 +258,7 @@ export function useOnboarding(tourKey, options = {}) {
 	const finishTour = () => {
 		localStorage.setItem(`onboarding-${tourKey}`, 'true');
 		setRunTour(false);
+		emitOnboardingCompleted(tourKey);
 	};
 
 	const resetTour = () => {

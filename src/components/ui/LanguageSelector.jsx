@@ -13,6 +13,7 @@ const LANGUAGES = [
 	{ code: 'de', name: 'Deutsch', flag: '🇩🇪' },
 	{ code: 'fr', name: 'Français', flag: '🇫🇷' },
 	{ code: 'es', name: 'Español', flag: '🇪🇸' },
+	{ code: 'pl', name: 'Polski', flag: '🇵🇱' },
 ];
 
 /**
@@ -27,11 +28,13 @@ export function LanguageSelector({ variant = 'default' }) {
 		localStorage.setItem('i18nextLng', languageCode);
 	};
 
-	const currentLanguage = LANGUAGES.find((lang) => lang.code === i18n.language) || LANGUAGES[0];
+	const activeLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+	const normalizedLanguage = activeLanguage.split('-')[0];
+	const currentLanguage = LANGUAGES.find((lang) => lang.code === normalizedLanguage) || LANGUAGES[0];
 
 	if (variant === 'icon') {
 		return (
-			<Select value={i18n.language} onValueChange={handleLanguageChange}>
+			<Select value={normalizedLanguage} onValueChange={handleLanguageChange}>
 				<SelectTrigger className="w-[50px] px-2">
 					<Languages className="h-4 w-4" />
 				</SelectTrigger>
@@ -50,7 +53,7 @@ export function LanguageSelector({ variant = 'default' }) {
 	}
 
 	return (
-		<Select value={i18n.language} onValueChange={handleLanguageChange}>
+		<Select value={normalizedLanguage} onValueChange={handleLanguageChange}>
 			<SelectTrigger className="w-[180px]">
 				<SelectValue>
 					<div className="flex items-center gap-2">

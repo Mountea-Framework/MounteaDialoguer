@@ -196,6 +196,34 @@
 			"applying": "Updates werden angewendet"
 		}
 	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "Willkommen bei Mountea Dialoguer!",
+			"welcomeText": "Lass uns einen kurzen Rundgang machen, um dir den Einstieg zu erleichtern. Nach der Tour wird die Cloud-Sync-Einrichtung angezeigt.",
+			"createTitle": "Erstelle dein erstes Projekt",
+			"createText": "Klicke hier, um ein neues Projekt zu erstellen. Projekte helfen, deine Dialoge zu organisieren.",
+			"searchTitle": "Schnellsuche",
+			"searchText": "Nutze die Suchleiste, um Projekte und Dialoge schnell zu finden."
+		},
+		"editor": {
+			"welcomeTitle": "Dialog-Editor-Tour",
+			"welcomeText": "Lerne, wie du interaktive Dialoge erstellst.",
+			"nodeToolbarTitle": "Knoten-Werkzeugleiste",
+			"nodeToolbarText": "Ziehe diese Knoten auf die Leinwand, um deinen Gespraechsfluss zu bauen.",
+			"canvasTitle": "Leinwand",
+			"canvasText": "Hier baust du deinen Dialogbaum. Verbinde Knoten, um Gespraechspfade zu erstellen.",
+			"saveTitle": "Arbeit speichern",
+			"saveText": "Nicht vergessen zu speichern! Deine Aenderungen werden lokal gespeichert."
+		},
+		"controls": {
+			"back": "Zurueck",
+			"close": "Schliessen",
+			"last": "Fertig",
+			"next": "Weiter",
+			"nextWithProgress": "Weiter (Schritt {step} von {steps})",
+			"skip": "Tour ueberspringen"
+		}
+	},
 	"validation": {
 		"required": "Dieses Feld ist erforderlich",
 		"invalidName": "Ungültiger Name",
