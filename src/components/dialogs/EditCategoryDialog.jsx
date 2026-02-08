@@ -11,13 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
 import { useCategoryStore } from '@/stores/categoryStore';
 
 export function EditCategoryDialog({ open, onOpenChange, category, projectId }) {
@@ -193,6 +187,31 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 		return path.join(' > ');
 	};
 
+	const groupedParentOptions = (() => {
+		const groups = new Map();
+		categories
+			.filter((cat) => cat.id !== category?.id)
+			.forEach((cat) => {
+				const path = getCategoryPath(cat.id);
+				if (!path) return;
+				const [root] = path.split(' > ');
+				if (!groups.has(root)) {
+					groups.set(root, []);
+				}
+				groups.get(root).push({
+					id: cat.id,
+					label: path,
+				});
+			});
+
+		return Array.from(groups.entries())
+			.map(([label, options]) => ({
+				label,
+				options: options.sort((a, b) => a.label.localeCompare(b.label)),
+			}))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	})();
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
@@ -227,38 +246,35 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 							<Label htmlFor="parentCategory">
 								{t('categories.parentCategory')}
 							</Label>
-							<Select
+							<NativeSelect
+								id="parentCategory"
 								value={formData.parentCategoryId || 'none'}
-								onValueChange={(value) =>
-									{
-										setFormData({
-											...formData,
-											parentCategoryId: value === 'none' ? null : value,
-										});
-										if (errors.parentCategoryId) {
-											setErrors({ ...errors, parentCategoryId: null });
-										} else if (errors.name) {
-											setErrors({ ...errors, name: null });
-										}
+								onChange={(e) => {
+									const value = e.target.value;
+									setFormData({
+										...formData,
+										parentCategoryId: value === 'none' ? null : value,
+									});
+									if (errors.parentCategoryId) {
+										setErrors({ ...errors, parentCategoryId: null });
+									} else if (errors.name) {
+										setErrors({ ...errors, name: null });
 									}
-								}
+								}}
 							>
-								<SelectTrigger>
-									<SelectValue placeholder={t('categories.parentCategoryPlaceholder')} />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="none">
-										{t('categories.noParent')}
-									</SelectItem>
-									{categories
-										.filter((cat) => cat.id !== category?.id) // Don't allow selecting itself
-										.map((cat) => (
-											<SelectItem key={cat.id} value={cat.id}>
-												{getCategoryPath(cat.id)}
-											</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								<option value="none">
+									{t('categories.noParent')}
+								</option>
+								{groupedParentOptions.map((group) => (
+									<optgroup key={group.label} label={group.label}>
+										{group.options.map((option) => (
+											<option key={option.id} value={option.id}>
+												{option.label}
+											</option>
+										))}
+									</optgroup>
+								))}
+							</NativeSelect>
 							{errors.parentCategoryId && (
 								<p className="text-xs text-destructive">{errors.parentCategoryId}</p>
 							)}

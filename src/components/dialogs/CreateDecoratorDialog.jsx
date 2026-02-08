@@ -12,13 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 
 const PROPERTY_TYPES = [
@@ -183,23 +177,18 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 
 										<div className="grid gap-1.5">
 											<Label className="text-xs">Type</Label>
-											<Select
+											<NativeSelect
 												value={property.type}
-												onValueChange={(value) =>
-													updateProperty(index, 'type', value)
+												onChange={(e) =>
+													updateProperty(index, 'type', e.target.value)
 												}
 											>
-												<SelectTrigger>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{PROPERTY_TYPES.map((type) => (
-														<SelectItem key={type.value} value={type.value}>
-															{type.label}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
+												{PROPERTY_TYPES.map((type) => (
+													<option key={type.value} value={type.value}>
+														{type.label}
+													</option>
+												))}
+											</NativeSelect>
 										</div>
 
 										<div className="grid gap-1.5">

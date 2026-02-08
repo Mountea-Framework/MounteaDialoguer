@@ -59,13 +59,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 import { v4 as uuidv4 } from 'uuid';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -408,60 +402,109 @@ function DialogueEditorPage() {
 				);
 			case 'select':
 				if (field.options === 'participants') {
+					const groups = new Map();
+					const getCategoryPath = (categoryName) => {
+						const category = categories.find((c) => c.name === categoryName);
+						if (!category) return categoryName;
+						const path = [];
+						let current = category;
+						while (current) {
+							path.unshift(current.name);
+							current = categories.find((c) => c.id === current.parentCategoryId);
+						}
+						return path.join(' > ');
+					};
+					participants.forEach((participant) => {
+						const categoryName = participant.category || t('categories.title');
+						const categoryPath = getCategoryPath(categoryName);
+						const root = categoryPath.split(' > ')[0] || categoryName;
+						if (!groups.has(root)) {
+							groups.set(root, []);
+						}
+						groups.get(root).push({
+							id: participant.id,
+							name: participant.name,
+							label: `${categoryPath} · ${participant.name}`,
+						});
+					});
+					const groupedParticipants = Array.from(groups.entries())
+						.map(([label, options]) => ({
+							label,
+							options: options.sort((a, b) => a.label.localeCompare(b.label)),
+						}))
+						.sort((a, b) => a.label.localeCompare(b.label));
+
 					return (
 						<div className="space-y-2" key={field.id}>
 							<Label htmlFor={field.id}>{requiredLabel}</Label>
-							<Select
+							<NativeSelect
+								id={field.id}
 								value={selectedNode.data[field.id] || ''}
-								onValueChange={(value) =>
-								updateNodeData(selectedNode.id, { [field.id]: value })
-							}
-						>
-								<SelectTrigger>
-									<SelectValue
-										placeholder={
-											field.placeholderKey ? t(field.placeholderKey) : undefined
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{participants.map((participant) => (
-										<SelectItem key={participant.id} value={participant.name}>
-											{participant.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								onChange={(e) =>
+									updateNodeData(selectedNode.id, { [field.id]: e.target.value })
+								}
+							>
+								<option value="" disabled>
+									{field.placeholderKey ? t(field.placeholderKey) : undefined}
+								</option>
+								{groupedParticipants.map((group) => (
+									<optgroup key={group.label} label={group.label}>
+										{group.options.map((option) => (
+											<option key={option.id} value={option.name}>
+												{option.label}
+											</option>
+										))}
+									</optgroup>
+								))}
+							</NativeSelect>
 						</div>
 					);
 				}
 				if (field.options === 'nodes') {
+					const groups = new Map();
+					nodes
+						.filter((n) => n.id !== selectedNode.id)
+						.forEach((node) => {
+							const nodeLabel =
+								getNodeDefinition(node.type)?.label || node.type || 'Node';
+							if (!groups.has(nodeLabel)) {
+								groups.set(nodeLabel, []);
+							}
+							groups.get(nodeLabel).push({
+								id: node.id,
+								label: node.data.displayName || node.data.label || node.id,
+							});
+						});
+					const groupedNodes = Array.from(groups.entries())
+						.map(([label, options]) => ({
+							label,
+							options: options.sort((a, b) => a.label.localeCompare(b.label)),
+						}))
+						.sort((a, b) => a.label.localeCompare(b.label));
+
 					return (
 						<div className="space-y-2" key={field.id}>
 							<Label htmlFor={field.id}>{requiredLabel}</Label>
-							<Select
+							<NativeSelect
+								id={field.id}
 								value={selectedNode.data[field.id] || ''}
-								onValueChange={(value) =>
-								updateNodeData(selectedNode.id, { [field.id]: value })
-							}
-						>
-								<SelectTrigger>
-									<SelectValue
-										placeholder={
-											field.placeholderKey ? t(field.placeholderKey) : undefined
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{nodes
-										.filter((n) => n.id !== selectedNode.id)
-										.map((node) => (
-											<SelectItem key={node.id} value={node.id}>
-												{node.data.displayName || node.data.label || node.id}
-											</SelectItem>
+								onChange={(e) =>
+									updateNodeData(selectedNode.id, { [field.id]: e.target.value })
+								}
+							>
+								<option value="" disabled>
+									{field.placeholderKey ? t(field.placeholderKey) : undefined}
+								</option>
+								{groupedNodes.map((group) => (
+									<optgroup key={group.label} label={group.label}>
+										{group.options.map((option) => (
+											<option key={option.id} value={option.id}>
+												{option.label}
+											</option>
 										))}
-								</SelectContent>
-							</Select>
+									</optgroup>
+								))}
+							</NativeSelect>
 						</div>
 					);
 				}

@@ -11,13 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 
@@ -55,6 +49,30 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 		}
 		return path.join(' > ');
 	};
+
+	const groupedCategories = (() => {
+		const groups = new Map();
+		categories.forEach((category) => {
+			const path = getCategoryPath(category.id);
+			if (!path) return;
+			const [root] = path.split(' > ');
+			if (!groups.has(root)) {
+				groups.set(root, []);
+			}
+			groups.get(root).push({
+				id: category.id,
+				name: category.name,
+				label: path,
+			});
+		});
+
+		return Array.from(groups.entries())
+			.map(([label, options]) => ({
+				label,
+				options: options.sort((a, b) => a.label.localeCompare(b.label)),
+			}))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	})();
 
 	// Reset form when dialog closes
 	useEffect(() => {
@@ -167,31 +185,35 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 							<Label htmlFor="category">
 								{t('participants.category')} <span className="text-destructive">*</span>
 							</Label>
-							<Select
+							<NativeSelect
+								id="category"
 								value={formData.category}
-								onValueChange={(value) => {
-									setFormData({ ...formData, category: value });
+								onChange={(e) => {
+									setFormData({ ...formData, category: e.target.value });
 									if (errors.category) setErrors({ ...errors, category: null });
 								}}
+								className={errors.category ? 'border-destructive' : ''}
 								required
 							>
-								<SelectTrigger className={errors.category ? 'border-destructive' : ''}>
-									<SelectValue placeholder={t('participants.categoryPlaceholder')} />
-								</SelectTrigger>
-								<SelectContent>
-									{categories.length === 0 ? (
-										<div className="py-6 text-center text-sm text-muted-foreground">
-											{t('categories.noCategories')}
-										</div>
-									) : (
-										categories.map((category) => (
-											<SelectItem key={category.id} value={category.name}>
-												{getCategoryPath(category.id)}
-											</SelectItem>
-										))
-									)}
-								</SelectContent>
-							</Select>
+								<option value="" disabled>
+									{t('participants.categoryPlaceholder')}
+								</option>
+								{groupedCategories.length === 0 ? (
+									<option value="" disabled>
+										{t('categories.noCategories')}
+									</option>
+								) : (
+									groupedCategories.map((group) => (
+										<optgroup key={group.label} label={group.label}>
+											{group.options.map((option) => (
+												<option key={option.id} value={option.name}>
+													{option.label}
+												</option>
+											))}
+										</optgroup>
+									))
+								)}
+							</NativeSelect>
 							{errors.category && (
 								<p className="text-xs text-destructive">{errors.category}</p>
 							)}
