@@ -15,11 +15,13 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { EditDecoratorDialog } from '@/components/dialogs/EditDecoratorDialog';
 
 export function DecoratorCard({ decorator }) {
 	const { t } = useTranslation();
 	const { deleteDecorator } = useDecoratorStore();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleDelete = async () => {
@@ -57,6 +59,7 @@ export function DecoratorCard({ decorator }) {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-muted-foreground hover:text-primary"
+								onClick={() => setShowEditDialog(true)}
 							>
 								<Edit3 className="h-4 w-4" />
 							</Button>
@@ -72,6 +75,13 @@ export function DecoratorCard({ decorator }) {
 					</div>
 				</CardContent>
 			</Card>
+
+			<EditDecoratorDialog
+				open={showEditDialog}
+				onOpenChange={setShowEditDialog}
+				decorator={decorator}
+				projectId={decorator.projectId}
+			/>
 
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
 				<AlertDialogContent>
