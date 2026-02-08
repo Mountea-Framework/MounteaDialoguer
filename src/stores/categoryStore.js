@@ -8,6 +8,14 @@ export const useCategoryStore = create((set, get) => ({
 	categories: [],
 	isLoading: false,
 	maxCategoryDepth: 5,
+	maxCategoryNameLength: 16,
+
+	isCategoryNameValid: (name) => {
+		if (!name) return false;
+		if (!/^[A-Za-z0-9]+$/.test(name)) return false;
+		if (name.length > get().maxCategoryNameLength) return false;
+		return true;
+	},
 
 	getRootCategoryId: (categoryId, categoriesList) => {
 		let currentId = categoryId;
@@ -114,6 +122,17 @@ export const useCategoryStore = create((set, get) => ({
 	// Create a new category
 	createCategory: async (categoryData) => {
 		try {
+			const name = categoryData.name?.trim() || '';
+			if (!name) {
+				throw new Error('Category name is required');
+			}
+			if (!/^[A-Za-z0-9]+$/.test(name)) {
+				throw new Error('Category name must contain only letters and numbers');
+			}
+			if (name.length > get().maxCategoryNameLength) {
+				throw new Error(`Category name must be ${get().maxCategoryNameLength} characters or fewer`);
+			}
+
 			const categories = await db.categories
 				.where('projectId')
 				.equals(categoryData.projectId)
@@ -173,6 +192,17 @@ export const useCategoryStore = create((set, get) => ({
 			const category = await db.categories.get(id);
 			if (!category) {
 				throw new Error('Category not found');
+			}
+
+			const name = (updates.name ?? category.name)?.trim() || '';
+			if (!name) {
+				throw new Error('Category name is required');
+			}
+			if (!/^[A-Za-z0-9]+$/.test(name)) {
+				throw new Error('Category name must contain only letters and numbers');
+			}
+			if (name.length > get().maxCategoryNameLength) {
+				throw new Error(`Category name must be ${get().maxCategoryNameLength} characters or fewer`);
 			}
 
 			const categories = await db.categories
@@ -320,6 +350,12 @@ export const useCategoryStore = create((set, get) => ({
 				const rootSet = getRootNameSet(rootName);
 				for (let i = 0; i < pathParts.length; i++) {
 					const name = pathParts[i];
+					if (!/^[A-Za-z0-9]+$/.test(name)) {
+						throw new Error('Category name must contain only letters and numbers');
+					}
+					if (name.length > get().maxCategoryNameLength) {
+						throw new Error(`Category name must be ${get().maxCategoryNameLength} characters or fewer`);
+					}
 					if (rootSet.has(name) && !(i === 0 && name === rootName)) {
 						throw new Error('Category name must be unique within its tree.');
 					}
