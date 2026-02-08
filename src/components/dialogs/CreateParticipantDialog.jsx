@@ -23,7 +23,7 @@ import { useCategoryStore } from '@/stores/categoryStore';
 
 export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 	const { t } = useTranslation();
-	const { createParticipant } = useParticipantStore();
+	const { createParticipant, participants } = useParticipantStore();
 	const { categories, loadCategories } = useCategoryStore();
 	const [isCreating, setIsCreating] = useState(false);
 	const [formData, setFormData] = useState({
@@ -39,17 +39,65 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 		}
 	}, [open, projectId, loadCategories]);
 
+	// Build hierarchical category display
+	const getCategoryPath = (categoryId) => {
+		const path = [];
+		let current = categories.find((c) => c.id === categoryId);
+		while (current) {
+			path.unshift(current.name);
+			current = categories.find((c) => c.id === current.parentCategoryId);
+		}
+		return path.join(' > ');
+	};
+
 	const validate = () => {
 		const newErrors = {};
 
 		if (!formData.name.trim()) {
 			newErrors.name = t('validation.required');
-		} else if (/\s/.test(formData.name)) {
-			newErrors.name = 'Name cannot contain whitespace';
+		} else if (!/^[A-Za-z0-9]+$/.test(formData.name)) {
+			newErrors.name = 'Name must contain only letters and numbers';
+		} else if (formData.name.length > 16) {
+			newErrors.name = 'Name must be 16 characters or fewer';
 		}
 
 		if (!formData.category) {
 			newErrors.category = t('validation.required');
+		}
+
+		if (!newErrors.name && formData.category) {
+			const name = formData.name.trim();
+			const categoryMatches = categories.filter((c) => c.name === formData.category);
+			const getRootId = (categoryId) => {
+				let currentId = categoryId;
+				const visited = new Set();
+				while (currentId) {
+					if (visited.has(currentId)) return null;
+					visited.add(currentId);
+					const current = categories.find((c) => c.id === currentId);
+					if (!current) return null;
+					if (!current.parentCategoryId) return current.id;
+					currentId = current.parentCategoryId;
+				}
+				return null;
+			};
+
+			const rootIds = categoryMatches
+				.map((cat) => getRootId(cat.id))
+				.filter(Boolean);
+
+			const projectParticipants = participants.filter((p) => p.projectId === projectId);
+			const isDuplicate = projectParticipants.some((p) => {
+				if (p.name !== name) return false;
+				const matchCategory = categories.find((c) => c.name === p.category);
+				if (!matchCategory) return false;
+				const rootId = getRootId(matchCategory.id);
+				return rootId && rootIds.includes(rootId);
+			});
+
+			if (rootIds.length > 0 && isDuplicate) {
+				newErrors.name = 'Participant name must be unique within its category tree';
+			}
 		}
 
 		setErrors(newErrors);
@@ -129,7 +177,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 									) : (
 										categories.map((category) => (
 											<SelectItem key={category.id} value={category.name}>
-												{category.name}
+												{getCategoryPath(category.id)}
 											</SelectItem>
 										))
 									)}

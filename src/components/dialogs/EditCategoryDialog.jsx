@@ -55,8 +55,109 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 
 		if (!formData.name.trim()) {
 			newErrors.name = t('validation.required');
-		} else if (/\s/.test(formData.name)) {
-			newErrors.name = 'Name cannot contain whitespace';
+		} else if (!/^[A-Za-z0-9]+$/.test(formData.name)) {
+			newErrors.name = 'Name must contain only letters and numbers';
+		} else if (formData.name.length > 16) {
+			newErrors.name = 'Name must be 16 characters or fewer';
+		}
+
+		const maxDepth = 5;
+		const childrenByParent = new Map();
+		categories.forEach((cat) => {
+			const parentId = cat.parentCategoryId || null;
+			if (!childrenByParent.has(parentId)) {
+				childrenByParent.set(parentId, []);
+			}
+			childrenByParent.get(parentId).push(cat.id);
+		});
+
+		const getMaxSubtreeDepth = (categoryId) => {
+			const visited = new Set();
+			const dfs = (nodeId) => {
+				if (visited.has(nodeId)) return 0;
+				visited.add(nodeId);
+				const children = childrenByParent.get(nodeId) || [];
+				if (children.length === 0) return 1;
+				let maxChildDepth = 0;
+				children.forEach((childId) => {
+					maxChildDepth = Math.max(maxChildDepth, dfs(childId));
+				});
+				return 1 + maxChildDepth;
+			};
+			return dfs(category?.id);
+		};
+
+		const getDepthToRoot = (categoryId) => {
+			let depth = 0;
+			let currentId = categoryId;
+			const visited = new Set();
+			while (currentId) {
+				if (visited.has(currentId)) {
+					return Number.POSITIVE_INFINITY;
+				}
+				visited.add(currentId);
+				const current = categories.find((c) => c.id === currentId);
+				if (!current) break;
+				depth += 1;
+				currentId = current.parentCategoryId || null;
+			}
+			return depth;
+		};
+
+		if (category) {
+			const parentDepth = formData.parentCategoryId
+				? getDepthToRoot(formData.parentCategoryId)
+				: 0;
+			const subtreeDepth = getMaxSubtreeDepth(category.id);
+			const totalDepth = parentDepth + subtreeDepth;
+
+			if (!Number.isFinite(parentDepth) || totalDepth > maxDepth) {
+				newErrors.parentCategoryId = `Category depth cannot exceed ${maxDepth} levels`;
+			}
+		}
+
+		if (category && formData.name.trim()) {
+			const name = formData.name.trim();
+			const getRootId = (categoryId) => {
+				let currentId = categoryId;
+				const visited = new Set();
+				while (currentId) {
+					if (visited.has(currentId)) return null;
+					visited.add(currentId);
+					const current = categories.find((c) => c.id === currentId);
+					if (!current) return null;
+					if (!current.parentCategoryId) return current.id;
+					currentId = current.parentCategoryId;
+				}
+				return null;
+			};
+			const rootId = formData.parentCategoryId
+				? getRootId(formData.parentCategoryId)
+				: category.id;
+			const isNameInTree = (rootCategoryId) => {
+				const stack = [rootCategoryId];
+				const visited = new Set();
+				while (stack.length > 0) {
+					const currentId = stack.pop();
+					if (!currentId || visited.has(currentId)) continue;
+					visited.add(currentId);
+					const current = categories.find((c) => c.id === currentId);
+					if (!current) continue;
+					if (current.id !== category.id && current.name === name) return true;
+					categories
+						.filter((c) => c.parentCategoryId === current.id)
+						.forEach((child) => stack.push(child.id));
+				}
+				return false;
+			};
+			const isUnique = rootId
+				? !isNameInTree(rootId)
+				: !categories.some(
+					(c) => !c.parentCategoryId && c.id !== category.id && c.name === name
+				);
+			if (!isUnique) {
+				newErrors.name = 'Category name must be unique within its tree';
+			}
 		}
 
 		setErrors(newErrors);
@@ -129,10 +230,17 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 							<Select
 								value={formData.parentCategoryId || 'none'}
 								onValueChange={(value) =>
-									setFormData({
-										...formData,
-										parentCategoryId: value === 'none' ? null : value,
-									})
+									{
+										setFormData({
+											...formData,
+											parentCategoryId: value === 'none' ? null : value,
+										});
+										if (errors.parentCategoryId) {
+											setErrors({ ...errors, parentCategoryId: null });
+										} else if (errors.name) {
+											setErrors({ ...errors, name: null });
+										}
+									}
 								}
 							>
 								<SelectTrigger>
@@ -148,9 +256,12 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 											<SelectItem key={cat.id} value={cat.id}>
 												{getCategoryPath(cat.id)}
 											</SelectItem>
-										))}
+									))}
 								</SelectContent>
 							</Select>
+							{errors.parentCategoryId && (
+								<p className="text-xs text-destructive">{errors.parentCategoryId}</p>
+							)}
 							<p className="text-xs text-muted-foreground">
 								{t('categories.parentCategoryHelp')}
 							</p>

@@ -50,8 +50,75 @@ export function CreateCategoryDialog({ open, onOpenChange, projectId }) {
 
 		if (!formData.name.trim()) {
 			newErrors.name = t('validation.required');
-		} else if (/\s/.test(formData.name)) {
-			newErrors.name = 'Name cannot contain whitespace';
+		} else if (!/^[A-Za-z0-9]+$/.test(formData.name)) {
+			newErrors.name = 'Name must contain only letters and numbers';
+		} else if (formData.name.length > 16) {
+			newErrors.name = 'Name must be 16 characters or fewer';
+		}
+
+		if (formData.parentCategoryId) {
+			const maxDepth = 5;
+			let depth = 0;
+			let currentId = formData.parentCategoryId;
+			const visited = new Set();
+
+			while (currentId) {
+				if (visited.has(currentId)) {
+					depth = Number.POSITIVE_INFINITY;
+					break;
+				}
+				visited.add(currentId);
+				const current = categories.find((c) => c.id === currentId);
+				if (!current) break;
+				depth += 1;
+				currentId = current.parentCategoryId || null;
+			}
+
+			if (!Number.isFinite(depth) || depth + 1 > maxDepth) {
+				newErrors.parentCategoryId = `Category depth cannot exceed ${maxDepth} levels`;
+			}
+		}
+
+		if (formData.name.trim()) {
+			const name = formData.name.trim();
+			const getRootId = (categoryId) => {
+				let currentId = categoryId;
+				const visited = new Set();
+				while (currentId) {
+					if (visited.has(currentId)) return null;
+					visited.add(currentId);
+					const current = categories.find((c) => c.id === currentId);
+					if (!current) return null;
+					if (!current.parentCategoryId) return current.id;
+					currentId = current.parentCategoryId;
+				}
+				return null;
+			};
+			const rootId = formData.parentCategoryId
+				? getRootId(formData.parentCategoryId)
+				: null;
+			const isNameInTree = (rootCategoryId) => {
+				const stack = [rootCategoryId];
+				const visited = new Set();
+				while (stack.length > 0) {
+					const currentId = stack.pop();
+					if (!currentId || visited.has(currentId)) continue;
+					visited.add(currentId);
+					const current = categories.find((c) => c.id === currentId);
+					if (!current) continue;
+					if (current.name === name) return true;
+					categories
+						.filter((c) => c.parentCategoryId === current.id)
+						.forEach((child) => stack.push(child.id));
+				}
+				return false;
+			};
+			const isUnique = rootId
+				? !isNameInTree(rootId)
+				: !categories.some((c) => !c.parentCategoryId && c.name === name);
+			if (!isUnique) {
+				newErrors.name = 'Category name must be unique within its tree';
+			}
 		}
 
 		setErrors(newErrors);
@@ -127,10 +194,17 @@ export function CreateCategoryDialog({ open, onOpenChange, projectId }) {
 							<Select
 								value={formData.parentCategoryId || 'none'}
 								onValueChange={(value) =>
-									setFormData({
-										...formData,
-										parentCategoryId: value === 'none' ? null : value,
-									})
+									{
+										setFormData({
+											...formData,
+											parentCategoryId: value === 'none' ? null : value,
+										});
+										if (errors.parentCategoryId) {
+											setErrors({ ...errors, parentCategoryId: null });
+										} else if (errors.name) {
+											setErrors({ ...errors, name: null });
+										}
+									}
 								}
 							>
 								<SelectTrigger>
@@ -147,6 +221,9 @@ export function CreateCategoryDialog({ open, onOpenChange, projectId }) {
 									))}
 								</SelectContent>
 							</Select>
+							{errors.parentCategoryId && (
+								<p className="text-xs text-destructive">{errors.parentCategoryId}</p>
+							)}
 							<p className="text-xs text-muted-foreground">
 								{t('categories.parentCategoryHelp')}
 							</p>
