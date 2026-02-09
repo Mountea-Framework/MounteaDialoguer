@@ -157,7 +157,7 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 				<DialogHeader>
 					<DialogTitle>{t('common.edit')} {t('participants.title').slice(0, -1)}</DialogTitle>
 					<DialogDescription>
-						Update the participant's information
+						{t('participants.updateDescription')}
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit}>

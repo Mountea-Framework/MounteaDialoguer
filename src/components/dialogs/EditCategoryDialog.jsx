@@ -218,7 +218,7 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 				<DialogHeader>
 					<DialogTitle>{t('common.edit')} {t('categories.title').slice(0, -1)}</DialogTitle>
 					<DialogDescription>
-						Update the category's information
+						{t('categories.updateDescription')}
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit}>

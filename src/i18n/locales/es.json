@@ -238,6 +238,7 @@
 	"participants": {
 		"title": "Participantes",
 		"addNew": "Añadir participante",
+		"updateDescription": "Actualiza la información del participante",
 		"name": "Nombre",
 		"top": "Principales participantes",
 		"inProject": "{{count}} participante en este proyecto.",
@@ -249,6 +250,7 @@
 	"categories": {
 		"title": "Categorías",
 		"addNew": "Añadir categoría",
+		"updateDescription": "Actualiza la información de la categoría",
 		"name": "Nombre de la categoría",
 		"noCategories": "No se encontraron categorías"
 	},
