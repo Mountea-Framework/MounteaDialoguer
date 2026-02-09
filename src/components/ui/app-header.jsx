@@ -60,20 +60,20 @@ export function AppHeader({
 		>
 			<div
 				className={cn(
-					'flex flex-col md:flex-row md:h-16 md:items-center px-4 py-3 md:px-12 w-full gap-3',
+					'flex items-center justify-between flex-nowrap min-w-0 px-4 py-3 md:px-12 w-full gap-3',
 					containerClassName
 				)}
 			>
 				{left ? (
-					<div className={cn('flex items-center gap-2 min-w-0', leftClassName)}>
+					<div className={cn('flex items-center gap-2 min-w-0 flex-1', leftClassName)}>
 						{left}
 					</div>
 				) : null}
-				{right ? (
+				{rightItems.length || menuItemsArray.length ? (
 					<>
 						<div
 							className={cn(
-								'flex items-center gap-2 flex-1 md:justify-end md:hidden',
+								'flex items-center gap-2 shrink-0 md:hidden',
 								rightClassName
 							)}
 						>
@@ -86,7 +86,7 @@ export function AppHeader({
 											<MoreVertical className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-56">
+									<DropdownMenuContent align="end" className="w-128">
 										{mobileOverflowItems.map((item, index) => {
 											const key = `overflow-${index}`;
 											if (isValidElement(item)) {
@@ -106,7 +106,7 @@ export function AppHeader({
 						</div>
 						<div
 							className={cn(
-								'hidden items-center gap-2 flex-1 md:flex md:justify-end',
+								'hidden items-center gap-2 shrink-0 md:flex md:justify-end',
 								rightClassName
 							)}
 						>
