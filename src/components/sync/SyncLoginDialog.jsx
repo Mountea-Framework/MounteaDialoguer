@@ -73,100 +73,102 @@ export function SyncLoginDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+			<DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
 				<DialogHeader>
 					<DialogTitle>{t('sync.title')}</DialogTitle>
 					<DialogDescription>{t('sync.description')}</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4">
-					<div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center">
-						<div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-blue-500 text-white flex items-center justify-center">
-							<Cloud className="h-5 w-5" />
-						</div>
-						<div className="flex-1 min-w-0">
-							<p className="text-sm font-semibold">{t('sync.providers.googleDrive')}</p>
-							<p className="text-xs text-muted-foreground truncate">
-								{isConnected && accountLabel
-									? t('sync.connectedAs', { account: accountLabel })
-									: statusLabel}
-							</p>
-						</div>
-						<div className="text-xs font-medium text-muted-foreground">{statusLabel}</div>
-					</div>
-
-					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="sync-account">{t('sync.accountLabel')}</Label>
-							<Input
-								id="sync-account"
-								value={accountLabel}
-								onChange={(e) => {
-									setAccountLabel(e.target.value);
-									clearError?.();
-								}}
-								placeholder={t('sync.accountPlaceholder')}
-								disabled={isConnected}
-							/>
-						</div>
-
-						<div className="grid gap-2">
-							<Label htmlFor="sync-passphrase" className="flex items-center gap-2">
-								<Shield className="h-4 w-4 text-primary" />
-								{t('sync.passphrase')}
-							</Label>
-							<Input
-								id="sync-passphrase"
-								type="password"
-								value={passphrase}
-								onChange={(e) => {
-									setPassphrase(e.target.value);
-									clearError?.();
-								}}
-								placeholder={t('sync.passphrasePlaceholder')}
-								disabled={isConnected}
-							/>
-							<p className="text-xs text-muted-foreground">
-								{t('sync.passphraseHint')}
-							</p>
-						</div>
-
-						<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-							<div>
-								<p className="text-sm font-medium">{t('sync.remember')}</p>
-								<p className="text-xs text-muted-foreground">{t('sync.rememberHint')}</p>
+				<div className="no-scrollbar -mx-4 flex-1 min-h-0 overflow-y-auto px-4 sm:-mx-6 sm:px-6">
+					<div className="space-y-4 pb-2">
+						<div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center">
+							<div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-blue-500 text-white flex items-center justify-center">
+								<Cloud className="h-5 w-5" />
 							</div>
-							<Switch
-								checked={rememberPassphrase}
-								onCheckedChange={setRememberPassphrase}
-								disabled={isConnected}
-							/>
+							<div className="flex-1 min-w-0">
+								<p className="text-sm font-semibold">{t('sync.providers.googleDrive')}</p>
+								<p className="text-xs text-muted-foreground truncate">
+									{isConnected && accountLabel
+										? t('sync.connectedAs', { account: accountLabel })
+										: statusLabel}
+								</p>
+							</div>
+							<div className="text-xs font-medium text-muted-foreground">{statusLabel}</div>
 						</div>
 
-						{showPromptControls && (
-							<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-								<div>
-									<p className="text-sm font-medium">{t('sync.promptDontShow')}</p>
-									<p className="text-xs text-muted-foreground">
-										{t('sync.promptDontShowHint')}
-									</p>
-								</div>
-								<Switch
-									checked={hideLoginPrompt}
-									onCheckedChange={onHideLoginPromptChange}
+						<div className="grid gap-4">
+							<div className="grid gap-2">
+								<Label htmlFor="sync-account">{t('sync.accountLabel')}</Label>
+								<Input
+									id="sync-account"
+									value={accountLabel}
+									onChange={(e) => {
+										setAccountLabel(e.target.value);
+										clearError?.();
+									}}
+									placeholder={t('sync.accountPlaceholder')}
+									disabled={isConnected}
 								/>
 							</div>
-						)}
 
-						{error && (
-							<p className="text-xs text-destructive">
-								{errorMessage}
-							</p>
-						)}
+							<div className="grid gap-2">
+								<Label htmlFor="sync-passphrase" className="flex items-center gap-2">
+									<Shield className="h-4 w-4 text-primary" />
+									{t('sync.passphrase')}
+								</Label>
+								<Input
+									id="sync-passphrase"
+									type="password"
+									value={passphrase}
+									onChange={(e) => {
+										setPassphrase(e.target.value);
+										clearError?.();
+									}}
+									placeholder={t('sync.passphrasePlaceholder')}
+									disabled={isConnected}
+								/>
+								<p className="text-xs text-muted-foreground">
+									{t('sync.passphraseHint')}
+								</p>
+							</div>
+
+							<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+								<div>
+									<p className="text-sm font-medium">{t('sync.remember')}</p>
+									<p className="text-xs text-muted-foreground">{t('sync.rememberHint')}</p>
+								</div>
+								<Switch
+									checked={rememberPassphrase}
+									onCheckedChange={setRememberPassphrase}
+									disabled={isConnected}
+								/>
+							</div>
+
+							{showPromptControls && (
+								<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+									<div>
+										<p className="text-sm font-medium">{t('sync.promptDontShow')}</p>
+										<p className="text-xs text-muted-foreground">
+											{t('sync.promptDontShowHint')}
+										</p>
+									</div>
+									<Switch
+										checked={hideLoginPrompt}
+										onCheckedChange={onHideLoginPromptChange}
+									/>
+								</div>
+							)}
+
+							{error && (
+								<p className="text-xs text-destructive">
+									{errorMessage}
+								</p>
+							)}
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter className="mt-4 flex-col gap-2 sm:flex-row sm:justify-end">
+				<DialogFooter>
 					{isConnected ? (
 						<>
 							<Button

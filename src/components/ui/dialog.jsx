@@ -21,13 +21,14 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef(
-	({ className, children, showClose = true, ...props }, ref) => (
+	({ className, children, showClose = true, stickyFooter = false, ...props }, ref) => (
 		<DialogPortal>
 			<DialogOverlay />
 			<DialogPrimitive.Content
 				ref={ref}
+				data-sticky-footer={stickyFooter ? 'true' : 'false'}
 				className={cn(
-					'fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg',
+					'group/dialog fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg',
 					className
 				)}
 				{...props}
@@ -59,7 +60,7 @@ DialogHeader.displayName = 'DialogHeader';
 const DialogFooter = ({ className, ...props }) => (
 	<div
 		className={cn(
-			'-mx-4 -mb-4 mt-4 flex items-center justify-center gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 sm:-mx-6 sm:-mb-6 sm:justify-end sm:px-6 sm:py-3 rounded-b-lg [&_button]:rounded-xl [&_button]:h-9 [&_button]:text-sm [&_button]:px-3',
+			'-mx-4 -mb-4 mt-4 flex items-center justify-center gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 sm:-mx-6 sm:-mb-6 sm:justify-end sm:px-6 sm:py-3 rounded-b-lg [&_button]:rounded-xl [&_button]:h-9 [&_button]:text-sm [&_button]:px-3 group-data-[sticky-footer=true]/dialog:sticky group-data-[sticky-footer=true]/dialog:bottom-0 group-data-[sticky-footer=true]/dialog:z-10',
 			className
 		)}
 		{...props}
