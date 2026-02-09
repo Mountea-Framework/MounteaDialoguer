@@ -1435,7 +1435,7 @@ function DialogueEditorPage() {
 									<Menu className="h-4 w-4" />
 								</Button>
 							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-56">
+							<DropdownMenuContent align="end" className="w-auto">
 							{/* File Section */}
 							<DropdownMenuLabel>{t('editor.menu.file')}</DropdownMenuLabel>
 							<DropdownMenuItem

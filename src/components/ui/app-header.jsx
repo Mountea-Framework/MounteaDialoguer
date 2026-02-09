@@ -40,7 +40,7 @@ export function AppHeader({
 					<MoreVertical className="h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-56">
+			<DropdownMenuContent align="end" className="w-auto">
 				<div className="flex flex-col gap-2 p-2">
 					{menuItemsArray.map((item, index) => (
 						<div key={`menu-${index}`}>{item}</div>
@@ -86,7 +86,7 @@ export function AppHeader({
 											<MoreVertical className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-128">
+									<DropdownMenuContent align="end" className="w-auto">
 										{mobileOverflowItems.map((item, index) => {
 											const key = `overflow-${index}`;
 											if (isValidElement(item)) {
