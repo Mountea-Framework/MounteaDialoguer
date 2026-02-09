@@ -20,7 +20,18 @@
 		"success": "Erfolg",
 		"confirm": "Bestätigen",
 		"back": "Zurück",
-		"new": "Neu"
+		"new": "Neu",
+		"add": "Hinzufügen",
+		"manage": "Verwalten",
+		"true": "Wahr",
+		"false": "Falsch",
+		"time": {
+			"justNow": "gerade eben",
+			"minutesAgo": "vor {{count}} Min",
+			"minutesAgo_plural": "vor {{count}} Min",
+			"hoursAgo": "vor {{count}} Std",
+			"hoursAgo_plural": "vor {{count}} Std"
+		}
 	},
 	"navigation": {
 		"dashboard": "Dashboard",
@@ -33,6 +44,52 @@
 	},
 	"dashboard": {
 		"diskUsage": "Speichernutzung"
+	},
+	"decorators": {
+		"title": "Dekoratoren",
+		"addNew": "Dekorator hinzufügen",
+		"createDescription": "Fügen Sie einen neuen Dekorator hinzu, um Ihre Dialoge zu verbessern",
+		"updateDescription": "Aktualisieren Sie die Dekorator-Informationen",
+		"description": "Verwalten Sie Dekoratoren, um Spezialeffekte und Verhaltensweisen zu Dialogknoten hinzuzufügen",
+		"name": "Dekoratorname",
+		"namePlaceholder": "Dekoratorname eingeben",
+		"type": "Typ",
+		"typePlaceholder": "z. B. Audio, Visuell, Animation",
+		"panelTitle": "Dekoratoren",
+		"count": "{{count}} Dekorator",
+		"count_plural": "{{count}} Dekoratoren",
+		"none": "Noch keine Dekoratoren",
+		"unnamed": "Unbenannter Dekorator",
+		"selectPlaceholder": "Dekorator zum Hinzufügen auswählen...",
+		"enterProperty": "{{name}} eingeben...",
+		"validation": {
+			"noWhitespace": "Der Name darf keine Leerzeichen enthalten"
+		},
+		"properties": {
+			"title": "Eigenschaften",
+			"add": "Eigenschaft hinzufügen",
+			"empty": "Keine Eigenschaften definiert. Fügen Sie Eigenschaften hinzu, um diesen Dekorator anzupassen.",
+			"name": "Eigenschaftsname",
+			"namePlaceholder": "z. B. Geschwindigkeit",
+			"type": "Typ",
+			"defaultValue": "Standardwert",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "Wert"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
+		"noDecorators": "Keine Dekoratoren",
+		"noDecoratorsDescription": "Fügen Sie Dekoratoren hinzu, um Ihre Dialogknoten mit Spezialeffekten zu verbessern",
+		"deleteTitle": "Dekorator löschen",
+		"deleteDescription": "Möchten Sie {{name}} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
 	},
 	"projects": {
 		"title": "Projekte",
@@ -68,12 +125,29 @@
 		"dialogueEditor": "Dialog-Editor",
 		"noDialogues": "Keine Dialoge gefunden",
 		"createFirst": "Erstellen Sie Ihren ersten Dialog",
-		"nodes": "Knoten",
-		"edges": "Kanten",
+		"nodes": "Nodes",
+		"nodeCount": "{{count}} nodes",
+		"nodeCount_plural": "{{count}} nodes",
+		"edges": "Edges",
 		"autoSaved": "Automatisch gespeichert",
 		"unsavedChanges": "Nicht gespeicherte Änderungen"
 	},
 	"editor": {
+		"menu": {
+			"file": "Datei",
+			"edit": "Bearbeiten",
+			"view": "Ansicht",
+			"undo": "Rückgängig",
+			"redo": "Wiederholen",
+			"showTour": "Tour anzeigen",
+			"support": "Mountea unterstützen"
+		},
+		"saveStatus": {
+			"saved": "Alle Änderungen gespeichert",
+			"saving": "Speichern...",
+			"unsaved": "Nicht gespeicherte Änderungen",
+			"error": "Speichern fehlgeschlagen"
+		},
 		"toolbar": {
 			"undo": "Rückgängig",
 			"redo": "Wiederholen",
@@ -82,6 +156,49 @@
 			"settings": "Einstellungen",
 			"darkMode": "Dunkler Modus",
 			"lightMode": "Heller Modus"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Auto-Layout",
+			"autoLayoutTooltip": "Knoten mit dem dagre-Algorithmus automatisch anordnen",
+			"npc": "NPC",
+			"addNpcTooltip": "NPC-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
+			"player": "Spieler",
+			"addPlayerTooltip": "Spieler-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
+			"return": "Zurück",
+			"addReturnTooltip": "Zurück-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
+			"complete": "Abschluss",
+			"addCompleteTooltip": "Abschluss-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
+			"delay": "Verzögerung",
+			"addDelayTooltip": "Verzögerungs-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
+			"poweredBy": "Bereitgestellt von"
+		},
+		"nodes": {
+			"start": "Start",
+			"startDescription": "Einstiegspunkt des Dialogs",
+			"npc": "NPC",
+			"npcPlaceholder": "NPC-Dialogtext...",
+			"player": "Spieler",
+			"playerPlaceholder": "Antworttext des Spielers...",
+			"complete": "Abschluss",
+			"completePlaceholder": "Dialogabschluss-Text...",
+			"delay": "Verzögerung",
+			"delayDescription": "Warten Sie {{count}} Sekunde.",
+			"delayDescription_plural": "Warten Sie {{count}} Sekunden.",
+			"delaySeconds": "{{count}} s",
+			"delaySeconds_plural": "{{count}} s",
+			"return": "Zurück zu",
+			"returnTarget": "Ziel:",
+			"returnSelectNode": "Knoten auswählen...",
+			"rows": "{{count}} Zeile",
+			"rows_plural": "{{count}} Zeilen",
+			"tooltip": {
+				"participant": "Teilnehmer",
+				"decorators": "Dekoratoren",
+				"dialogueRows": "Dialogzeilen"
+			}
+		},
+		"placeholder": {
+			"addNode": "Knoten hinzufügen"
 		},
 		"nodeDetails": "Knotendetails",
 		"speaker": "Sprecher",
@@ -122,6 +239,9 @@
 		"title": "Teilnehmer",
 		"addNew": "Teilnehmer hinzufügen",
 		"name": "Name",
+		"top": "Top Teilnehmer",
+		"inProject": "{{count}} Teilnehmer in diesem Projekt.",
+		"inProject_plural": "{{count}} Teilnehmer in diesem Projekt.",
 		"category": "Kategorie",
 		"avatar": "Avatar",
 		"noParticipants": "Keine Teilnehmer gefunden"

@@ -62,7 +62,9 @@ export function DialogueCard({ dialogue, projectId }) {
 					<div className="mt-auto pt-3 border-t flex items-center justify-center text-xs text-muted-foreground">
 						<span className="flex items-center gap-1.5">
 							<MessageCircle className="h-3.5 w-3.5 group-hover:text-purple-500 transition-colors" />
-							<span className="font-medium">{nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}</span>
+							<span className="font-medium">
+								{t('dialogues.nodeCount', { count: nodeCount })}
+							</span>
 						</span>
 					</div>
 				</CardContent>

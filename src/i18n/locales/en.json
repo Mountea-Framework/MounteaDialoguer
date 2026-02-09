@@ -23,7 +23,18 @@
 		"success": "Success",
 		"confirm": "Confirm",
 		"back": "Back",
-		"new": "New"
+		"new": "New",
+		"add": "Add",
+		"manage": "Manage",
+		"true": "True",
+		"false": "False",
+		"time": {
+			"justNow": "just now",
+			"minutesAgo": "{{count}}m ago",
+			"minutesAgo_plural": "{{count}}m ago",
+			"hoursAgo": "{{count}}h ago",
+			"hoursAgo_plural": "{{count}}h ago"
+		}
 	},
 	"navigation": {
 		"dashboard": "Dashboard",
@@ -41,11 +52,43 @@
 		"title": "Decorators",
 		"addNew": "Add Decorator",
 		"createDescription": "Add a new decorator to enhance your dialogues",
+		"updateDescription": "Update the decorator's information",
 		"description": "Manage decorators to add special effects and behaviors to dialogue nodes",
 		"name": "Decorator Name",
 		"namePlaceholder": "Enter decorator name",
 		"type": "Type",
 		"typePlaceholder": "e.g., Audio, Visual, Animation",
+		"panelTitle": "Decorators",
+		"count": "{{count}} decorator",
+		"count_plural": "{{count}} decorators",
+		"none": "No decorators yet",
+		"unnamed": "Unnamed Decorator",
+		"selectPlaceholder": "Select decorator to add...",
+		"enterProperty": "Enter {{name}}...",
+		"validation": {
+			"noWhitespace": "Name cannot contain whitespace"
+		},
+		"properties": {
+			"title": "Properties",
+			"add": "Add Property",
+			"empty": "No properties defined. Add properties to customize this decorator.",
+			"name": "Property Name",
+			"namePlaceholder": "e.g., Speed",
+			"type": "Type",
+			"defaultValue": "Default Value",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "value"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
 		"noDecorators": "No decorators yet",
 		"noDecoratorsDescription": "Add decorators to enhance your dialogue nodes with special effects",
 		"deleteTitle": "Delete Decorator",
@@ -85,11 +128,28 @@
 		"noDialogues": "No dialogues found",
 		"createFirst": "Create your first dialogue",
 		"nodes": "Nodes",
+		"nodeCount": "{{count}} node",
+		"nodeCount_plural": "{{count}} nodes",
 		"edges": "Edges",
 		"autoSaved": "Auto-saved",
 		"unsavedChanges": "Unsaved Changes"
 	},
 	"editor": {
+		"menu": {
+			"file": "File",
+			"edit": "Edit",
+			"view": "View",
+			"undo": "Undo",
+			"redo": "Redo",
+			"showTour": "Show Tour",
+			"support": "Support Mountea"
+		},
+		"saveStatus": {
+			"saved": "All changes saved",
+			"saving": "Saving...",
+			"unsaved": "Unsaved changes",
+			"error": "Failed to save"
+		},
 		"toolbar": {
 			"undo": "Undo",
 			"redo": "Redo",
@@ -98,6 +158,49 @@
 			"settings": "Settings",
 			"darkMode": "Dark Mode",
 			"lightMode": "Light Mode"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Auto Layout",
+			"autoLayoutTooltip": "Auto-layout nodes using dagre algorithm",
+			"npc": "NPC",
+			"addNpcTooltip": "Add NPC node - drag to canvas or click",
+			"player": "Player",
+			"addPlayerTooltip": "Add Player node - drag to canvas or click",
+			"return": "Return",
+			"addReturnTooltip": "Add Return node - drag to canvas or click",
+			"complete": "Complete",
+			"addCompleteTooltip": "Add Complete node - drag to canvas or click",
+			"delay": "Delay",
+			"addDelayTooltip": "Add Delay node - drag to canvas or click",
+			"poweredBy": "Powered by"
+		},
+		"nodes": {
+			"start": "Start",
+			"startDescription": "Dialogue entry point",
+			"npc": "NPC",
+			"npcPlaceholder": "NPC dialogue text...",
+			"player": "Player",
+			"playerPlaceholder": "Player response text...",
+			"complete": "Complete",
+			"completePlaceholder": "Dialogue completion text...",
+			"delay": "Delay",
+			"delayDescription": "Wait for {{count}} second.",
+			"delayDescription_plural": "Wait for {{count}} seconds.",
+			"delaySeconds": "{{count}}s",
+			"delaySeconds_plural": "{{count}}s",
+			"return": "Return To",
+			"returnTarget": "Target:",
+			"returnSelectNode": "Select node...",
+			"rows": "{{count}} row",
+			"rows_plural": "{{count}} rows",
+			"tooltip": {
+				"participant": "Participant",
+				"decorators": "Decorators",
+				"dialogueRows": "Dialogue rows"
+			}
+		},
+		"placeholder": {
+			"addNode": "Add Node"
 		},
 		"nodeDetails": "Node Details",
 		"speaker": "Speaker",
@@ -139,6 +242,9 @@
 		"addNew": "Add Participant",
 		"createDescription": "Add a new participant to your project",
 		"description": "Manage characters and speakers in your dialogues",
+		"top": "Top Participants",
+		"inProject": "{{count}} participant in this project.",
+		"inProject_plural": "{{count}} participants in this project.",
 		"name": "Name",
 		"namePlaceholder": "Enter participant name",
 		"category": "Category",

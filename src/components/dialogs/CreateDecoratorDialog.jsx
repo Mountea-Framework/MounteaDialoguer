@@ -15,13 +15,6 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 
-const PROPERTY_TYPES = [
-	{ value: 'string', label: 'String' },
-	{ value: 'int', label: 'Integer' },
-	{ value: 'float', label: 'Float' },
-	{ value: 'bool', label: 'Boolean' },
-];
-
 export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 	const { t } = useTranslation();
 	const { createDecorator } = useDecoratorStore();
@@ -65,7 +58,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 		if (!formData.name.trim()) {
 			newErrors.name = t('validation.required');
 		} else if (/\s/.test(formData.name)) {
-			newErrors.name = 'Name cannot contain whitespace';
+			newErrors.name = t('decorators.validation.noWhitespace');
 		}
 
 		setErrors(newErrors);
@@ -138,7 +131,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 						{/* Properties Section */}
 							<div className="grid gap-3 border-t pt-4">
 								<div className="flex items-center justify-between">
-								<Label>Properties</Label>
+								<Label>{t('decorators.properties.title')}</Label>
 								<Button
 									type="button"
 									variant="outline"
@@ -147,13 +140,13 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 									className="gap-2"
 								>
 									<Plus className="h-3 w-3" />
-									Add Property
+									{t('decorators.properties.add')}
 								</Button>
 							</div>
 
 								{formData.properties.length === 0 && (
 									<p className="text-sm text-muted-foreground text-center py-4">
-										No properties defined. Add properties to customize this decorator.
+										{t('decorators.properties.empty')}
 									</p>
 								)}
 
@@ -163,27 +156,36 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 										className="grid grid-cols-[1fr,120px,1fr,auto] gap-2 items-end bg-muted p-3 rounded-md"
 									>
 										<div className="grid gap-1.5">
-											<Label className="text-xs">Property Name</Label>
+											<Label className="text-xs">
+												{t('decorators.properties.name')}
+											</Label>
 											<Input
 												value={property.name}
 												onChange={(e) =>
 													updateProperty(index, 'name', e.target.value)
 												}
-												placeholder="e.g., Speed"
+												placeholder={t('decorators.properties.namePlaceholder')}
 												size="sm"
 												required
 											/>
 										</div>
 
 										<div className="grid gap-1.5">
-											<Label className="text-xs">Type</Label>
+											<Label className="text-xs">
+												{t('decorators.properties.type')}
+											</Label>
 											<NativeSelect
 												value={property.type}
 												onChange={(e) =>
 													updateProperty(index, 'type', e.target.value)
 												}
 											>
-												{PROPERTY_TYPES.map((type) => (
+												{[
+													{ value: 'string', label: t('decorators.types.string') },
+													{ value: 'int', label: t('decorators.types.integer') },
+													{ value: 'float', label: t('decorators.types.float') },
+													{ value: 'bool', label: t('decorators.types.boolean') },
+												].map((type) => (
 													<option key={type.value} value={type.value}>
 														{type.label}
 													</option>
@@ -192,7 +194,9 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 										</div>
 
 										<div className="grid gap-1.5">
-											<Label className="text-xs">Default Value</Label>
+											<Label className="text-xs">
+												{t('decorators.properties.defaultValue')}
+											</Label>
 											<Input
 												value={property.defaultValue}
 												onChange={(e) =>
@@ -200,12 +204,12 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 												}
 												placeholder={
 													property.type === 'bool'
-														? 'true/false'
+														? t('decorators.properties.placeholders.bool')
 														: property.type === 'int'
-														? '0'
+														? t('decorators.properties.placeholders.int')
 														: property.type === 'float'
-														? '0.0'
-														: 'value'
+														? t('decorators.properties.placeholders.float')
+														: t('decorators.properties.placeholders.value')
 												}
 												size="sm"
 											/>

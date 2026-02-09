@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Handle, Position } from '@xyflow/react';
 import { CheckCircle2, Volume2, Tag, User } from 'lucide-react';
 
@@ -9,6 +10,8 @@ import { CheckCircle2, Volume2, Tag, User } from 'lucide-react';
  * - Marks dialogue completion
  */
 const CompleteNode = memo(({ data, selected }) => {
+	const { t } = useTranslation();
+
 	const accentColor = '#CC2100';
 	const accentSoft = 'rgba(204, 33, 0, 0.12)';
 	// Get dialogue rows or fallback to legacy text
@@ -19,15 +22,20 @@ const CompleteNode = memo(({ data, selected }) => {
 		? firstRow.text.length > 50
 			? firstRow.text.substring(0, 50) + '...'
 			: firstRow.text
-		: 'Dialogue completion text...';
+		: t('editor.nodes.completePlaceholder');
 
 	// Tooltip content
 	const tooltipParts = [];
-	if (data.participant) tooltipParts.push(`Participant: ${data.participant}`);
+	if (data.participant)
+		tooltipParts.push(`${t('editor.nodes.tooltip.participant')}: ${data.participant}`);
 	if (data.decorators && data.decorators.length > 0)
-		tooltipParts.push(`Decorators: ${data.decorators.length}`);
+		tooltipParts.push(
+			`${t('editor.nodes.tooltip.decorators')}: ${data.decorators.length}`
+		);
 	if (dialogueRows.length > 0)
-		tooltipParts.push(`Dialogue rows: ${dialogueRows.length}`);
+		tooltipParts.push(
+			`${t('editor.nodes.tooltip.dialogueRows')}: ${dialogueRows.length}`
+		);
 	const tooltip = tooltipParts.join('\n');
 
 	return (
@@ -55,12 +63,14 @@ const CompleteNode = memo(({ data, selected }) => {
 				<div className="flex items-center gap-2">
 					<CheckCircle2 className="h-4 w-4" />
 					<span className="font-semibold text-sm">
-						{data.displayName || data.participant || 'Complete'}
+						{data.displayName || data.participant || t('editor.nodes.complete')}
 					</span>
 				</div>
 				<div className="flex items-center gap-1">
 					{hasMultipleRows && (
-						<span className="text-xs opacity-80">{dialogueRows.length} rows</span>
+						<span className="text-xs opacity-80">
+							{t('editor.nodes.rows', { count: dialogueRows.length })}
+						</span>
 					)}
 					{data.hasAudio && <Volume2 className="h-3 w-3" />}
 				</div>

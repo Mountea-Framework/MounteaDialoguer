@@ -20,7 +20,18 @@
 		"success": "Succès",
 		"confirm": "Confirmer",
 		"back": "Retour",
-		"new": "Nouveau"
+		"new": "Nouveau",
+		"add": "Ajouter",
+		"manage": "Gérer",
+		"true": "Vrai",
+		"false": "Faux",
+		"time": {
+			"justNow": "à l'instant",
+			"minutesAgo": "il y a {{count}} min",
+			"minutesAgo_plural": "il y a {{count}} min",
+			"hoursAgo": "il y a {{count}} h",
+			"hoursAgo_plural": "il y a {{count}} h"
+		}
 	},
 	"navigation": {
 		"dashboard": "Tableau de bord",
@@ -33,6 +44,52 @@
 	},
 	"dashboard": {
 		"diskUsage": "Utilisation du Disque"
+	},
+	"decorators": {
+		"title": "Décorateurs",
+		"addNew": "Ajouter un décorateur",
+		"createDescription": "Ajouter un nouveau décorateur pour enrichir vos dialogues",
+		"updateDescription": "Mettre à jour les informations du décorateur",
+		"description": "Gérer les décorateurs pour ajouter des effets spéciaux et des comportements aux nœuds de dialogue",
+		"name": "Nom du décorateur",
+		"namePlaceholder": "Saisir le nom du décorateur",
+		"type": "Type",
+		"typePlaceholder": "p. ex. Audio, Visuel, Animation",
+		"panelTitle": "Décorateurs",
+		"count": "{{count}} décorateur",
+		"count_plural": "{{count}} décorateurs",
+		"none": "Aucun décorateur pour l'instant",
+		"unnamed": "Décorateur sans nom",
+		"selectPlaceholder": "Sélectionner un décorateur à ajouter...",
+		"enterProperty": "Saisir {{name}}...",
+		"validation": {
+			"noWhitespace": "Le nom ne peut pas contenir d'espaces"
+		},
+		"properties": {
+			"title": "Propriétés",
+			"add": "Ajouter une propriété",
+			"empty": "Aucune propriété définie. Ajoutez-en pour personnaliser ce décorateur.",
+			"name": "Nom de la propriété",
+			"namePlaceholder": "ex. Vitesse",
+			"type": "Type",
+			"defaultValue": "Valeur par défaut",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "valeur"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
+		"noDecorators": "Aucun décorateur",
+		"noDecoratorsDescription": "Ajoutez des décorateurs pour améliorer vos nœuds de dialogue avec des effets spéciaux",
+		"deleteTitle": "Supprimer le décorateur",
+		"deleteDescription": "Êtes-vous sûr de vouloir supprimer {{name}} ? Cette action est irréversible."
 	},
 	"projects": {
 		"title": "Projets",
@@ -68,12 +125,29 @@
 		"dialogueEditor": "Éditeur de dialogue",
 		"noDialogues": "Aucun dialogue trouvé",
 		"createFirst": "Créez votre premier dialogue",
-		"nodes": "Nœuds",
-		"edges": "Arêtes",
+		"nodes": "Nodes",
+		"nodeCount": "{{count}} nodes",
+		"nodeCount_plural": "{{count}} nodes",
+		"edges": "Edges",
 		"autoSaved": "Sauvegarde automatique",
 		"unsavedChanges": "Modifications non enregistrées"
 	},
 	"editor": {
+		"menu": {
+			"file": "Fichier",
+			"edit": "Édition",
+			"view": "Affichage",
+			"undo": "Annuler",
+			"redo": "Refaire",
+			"showTour": "Afficher la visite",
+			"support": "Soutenir Mountea"
+		},
+		"saveStatus": {
+			"saved": "Toutes les modifications sont enregistrées",
+			"saving": "Enregistrement...",
+			"unsaved": "Modifications non enregistrées",
+			"error": "Échec de l'enregistrement"
+		},
 		"toolbar": {
 			"undo": "Annuler",
 			"redo": "Refaire",
@@ -82,6 +156,49 @@
 			"settings": "Paramètres",
 			"darkMode": "Mode sombre",
 			"lightMode": "Mode clair"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Disposition auto",
+			"autoLayoutTooltip": "Disposition automatique des nœuds avec l'algorithme dagre",
+			"npc": "PNJ",
+			"addNpcTooltip": "Ajouter un nœud PNJ - glisser sur le canevas ou cliquer",
+			"player": "Joueur",
+			"addPlayerTooltip": "Ajouter un nœud Joueur - glisser sur le canevas ou cliquer",
+			"return": "Retour",
+			"addReturnTooltip": "Ajouter un nœud Retour - glisser sur le canevas ou cliquer",
+			"complete": "Terminer",
+			"addCompleteTooltip": "Ajouter un nœud Terminer - glisser sur le canevas ou cliquer",
+			"delay": "Délai",
+			"addDelayTooltip": "Ajouter un nœud Délai - glisser sur le canevas ou cliquer",
+			"poweredBy": "Propulsé par"
+		},
+		"nodes": {
+			"start": "Début",
+			"startDescription": "Point d'entrée du dialogue",
+			"npc": "PNJ",
+			"npcPlaceholder": "Texte du dialogue PNJ...",
+			"player": "Joueur",
+			"playerPlaceholder": "Texte de réponse du joueur...",
+			"complete": "Terminer",
+			"completePlaceholder": "Texte de fin du dialogue...",
+			"delay": "Délai",
+			"delayDescription": "Attendre {{count}} seconde.",
+			"delayDescription_plural": "Attendre {{count}} secondes.",
+			"delaySeconds": "{{count}} s",
+			"delaySeconds_plural": "{{count}} s",
+			"return": "Retourner à",
+			"returnTarget": "Cible :",
+			"returnSelectNode": "Sélectionner un nœud...",
+			"rows": "{{count}} ligne",
+			"rows_plural": "{{count}} lignes",
+			"tooltip": {
+				"participant": "Participant",
+				"decorators": "Décorateurs",
+				"dialogueRows": "Lignes de dialogue"
+			}
+		},
+		"placeholder": {
+			"addNode": "Ajouter un nœud"
 		},
 		"nodeDetails": "Détails du nœud",
 		"speaker": "Locuteur",
@@ -122,6 +239,9 @@
 		"title": "Participants",
 		"addNew": "Ajouter un participant",
 		"name": "Nom",
+		"top": "Principaux participants",
+		"inProject": "{{count}} participant dans ce projet.",
+		"inProject_plural": "{{count}} participants dans ce projet.",
 		"category": "Catégorie",
 		"avatar": "Avatar",
 		"noParticipants": "Aucun participant trouvé"

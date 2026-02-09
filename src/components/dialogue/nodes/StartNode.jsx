@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Handle, Position } from '@xyflow/react';
 import { Play } from 'lucide-react';
 
@@ -9,6 +10,8 @@ import { Play } from 'lucide-react';
  * - Only has output handles (no inputs)
  */
 const StartNode = memo(({ data, selected }) => {
+	const { t } = useTranslation();
+
 	return (
 		<div
 			className={`
@@ -19,12 +22,16 @@ const StartNode = memo(({ data, selected }) => {
 			{/* Header */}
 			<div className="bg-green-500 text-white px-4 py-2 rounded-t-md flex items-center gap-2">
 				<Play className="h-4 w-4" />
-				<span className="font-semibold text-sm">{data.displayName || 'Start'}</span>
+				<span className="font-semibold text-sm">
+					{data.displayName || t('editor.nodes.start')}
+				</span>
 			</div>
 
 			{/* Content */}
 			<div className="p-4">
-				<p className="text-xs text-muted-foreground">Dialogue entry point</p>
+				<p className="text-xs text-muted-foreground">
+					{t('editor.nodes.startDescription')}
+				</p>
 			</div>
 
 			{/* Output Handle */}

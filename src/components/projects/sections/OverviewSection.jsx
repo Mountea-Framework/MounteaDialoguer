@@ -338,12 +338,14 @@ export function OverviewSection({
 						<Card>
 							<CardContent className="p-6">
 								<div className="flex items-center justify-between mb-4">
-									<h3 className="text-sm font-bold uppercase tracking-wider">Top Participants</h3>
+									<h3 className="text-sm font-bold uppercase tracking-wider">
+										{t('participants.top')}
+									</h3>
 									<button
 										onClick={() => onSectionChange?.('participants')}
 										className="text-xs text-primary hover:underline"
 									>
-										Manage
+										{t('common.manage')}
 									</button>
 								</div>
 								<div className="flex -space-x-2 overflow-hidden mb-3">
@@ -362,7 +364,7 @@ export function OverviewSection({
 									)}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									{participants.length} {participants.length === 1 ? 'participant' : 'participants'} in this project.
+									{t('participants.inProject', { count: participants.length })}
 								</p>
 							</CardContent>
 						</Card>

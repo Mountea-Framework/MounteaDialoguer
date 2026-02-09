@@ -23,7 +23,18 @@
 		"success": "Sukces",
 		"confirm": "Potwierdź",
 		"back": "Wstecz",
-		"new": "Nowy"
+		"new": "Nowy",
+		"add": "Dodaj",
+		"manage": "Zarządzaj",
+		"true": "Prawda",
+		"false": "Fałsz",
+		"time": {
+			"justNow": "przed chwilą",
+			"minutesAgo": "{{count}} min temu",
+			"minutesAgo_plural": "{{count}} min temu",
+			"hoursAgo": "{{count}} godz. temu",
+			"hoursAgo_plural": "{{count}} godz. temu"
+		}
 	},
 	"navigation": {
 		"dashboard": "Pulpit",
@@ -41,11 +52,43 @@
 		"title": "Dekoratory",
 		"addNew": "Dodaj dekorator",
 		"createDescription": "Dodaj nowy dekorator, aby wzbogacić dialogi",
+		"updateDescription": "Zaktualizuj informacje o dekoratorze",
 		"description": "Zarządzaj dekoratorami, aby dodawać efekty specjalne i zachowania do węzłów dialogu",
 		"name": "Nazwa dekoratora",
 		"namePlaceholder": "Wpisz nazwę dekoratora",
 		"type": "Typ",
 		"typePlaceholder": "np. Audio, Wizualny, Animacja",
+		"panelTitle": "Dekoratory",
+		"count": "{{count}} dekorator",
+		"count_plural": "{{count}} dekoratory",
+		"none": "Brak dekoratorów",
+		"unnamed": "Dekorator bez nazwy",
+		"selectPlaceholder": "Wybierz dekorator do dodania...",
+		"enterProperty": "Wpisz {{name}}...",
+		"validation": {
+			"noWhitespace": "Nazwa nie może zawierać spacji"
+		},
+		"properties": {
+			"title": "Właściwości",
+			"add": "Dodaj właściwość",
+			"empty": "Brak zdefiniowanych właściwości. Dodaj właściwości, aby dostosować dekorator.",
+			"name": "Nazwa właściwości",
+			"namePlaceholder": "np. Szybkość",
+			"type": "Typ",
+			"defaultValue": "Wartość domyślna",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "tekst"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
 		"noDecorators": "Brak dekoratorów",
 		"noDecoratorsDescription": "Dodaj dekoratory, aby wzbogacić węzły dialogu o efekty specjalne",
 		"deleteTitle": "Usuń dekorator",
@@ -84,12 +127,29 @@
 		"dialogueEditor": "Edytor dialogu",
 		"noDialogues": "Brak dialogów",
 		"createFirst": "Utwórz pierwszy dialog",
-		"nodes": "Węzły",
-		"edges": "Krawędzie",
+		"nodes": "Nodes",
+		"nodeCount": "{{count}} nodes",
+		"nodeCount_plural": "{{count}} nodes",
+		"edges": "Edges",
 		"autoSaved": "Zapisano automatycznie",
 		"unsavedChanges": "Niezapisane zmiany"
 	},
 	"editor": {
+		"menu": {
+			"file": "Plik",
+			"edit": "Edycja",
+			"view": "Widok",
+			"undo": "Cofnij",
+			"redo": "Ponów",
+			"showTour": "Pokaż samouczek",
+			"support": "Wesprzyj Mountea"
+		},
+		"saveStatus": {
+			"saved": "Wszystkie zmiany zapisane",
+			"saving": "Zapisywanie...",
+			"unsaved": "Niezapisane zmiany",
+			"error": "Nie udało się zapisać"
+		},
 		"toolbar": {
 			"undo": "Cofnij",
 			"redo": "Ponów",
@@ -98,6 +158,49 @@
 			"settings": "Ustawienia",
 			"darkMode": "Tryb ciemny",
 			"lightMode": "Tryb jasny"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Auto układ",
+			"autoLayoutTooltip": "Automatyczny układ węzłów z użyciem algorytmu dagre",
+			"npc": "NPC",
+			"addNpcTooltip": "Dodaj węzeł NPC — przeciągnij na płótno lub kliknij",
+			"player": "Gracz",
+			"addPlayerTooltip": "Dodaj węzeł Gracz — przeciągnij na płótno lub kliknij",
+			"return": "Powrót",
+			"addReturnTooltip": "Dodaj węzeł Powrót — przeciągnij na płótno lub kliknij",
+			"complete": "Zakończ",
+			"addCompleteTooltip": "Dodaj węzeł Zakończ — przeciągnij na płótno lub kliknij",
+			"delay": "Opóźnienie",
+			"addDelayTooltip": "Dodaj węzeł Opóźnienie — przeciągnij na płótno lub kliknij",
+			"poweredBy": "Zasilane przez"
+		},
+		"nodes": {
+			"start": "Start",
+			"startDescription": "Punkt wejścia dialogu",
+			"npc": "NPC",
+			"npcPlaceholder": "Tekst dialogu NPC...",
+			"player": "Gracz",
+			"playerPlaceholder": "Tekst odpowiedzi gracza...",
+			"complete": "Zakończ",
+			"completePlaceholder": "Tekst zakończenia dialogu...",
+			"delay": "Opóźnienie",
+			"delayDescription": "Poczekaj {{count}} sekundę.",
+			"delayDescription_plural": "Poczekaj {{count}} sekundy.",
+			"delaySeconds": "{{count}} s",
+			"delaySeconds_plural": "{{count}} s",
+			"return": "Powrót do",
+			"returnTarget": "Cel:",
+			"returnSelectNode": "Wybierz węzeł...",
+			"rows": "{{count}} wiersz",
+			"rows_plural": "{{count}} wiersze",
+			"tooltip": {
+				"participant": "Uczestnik",
+				"decorators": "Dekoratory",
+				"dialogueRows": "Wiersze dialogu"
+			}
+		},
+		"placeholder": {
+			"addNode": "Dodaj węzeł"
 		},
 		"nodeDetails": "Szczegóły węzła",
 		"speaker": "Mówca",
@@ -139,6 +242,9 @@
 		"addNew": "Dodaj uczestnika",
 		"createDescription": "Dodaj nowego uczestnika do projektu",
 		"description": "Zarządzaj postaciami i mówcami w dialogach",
+		"top": "Najlepsi uczestnicy",
+		"inProject": "{{count}} uczestnik w tym projekcie.",
+		"inProject_plural": "{{count}} uczestników w tym projekcie.",
 		"name": "Imię",
 		"namePlaceholder": "Wpisz imię uczestnika",
 		"category": "Kategoria",

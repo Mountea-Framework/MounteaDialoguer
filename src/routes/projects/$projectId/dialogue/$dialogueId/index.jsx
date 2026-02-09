@@ -102,7 +102,7 @@ const startNodeDefinition = getNodeDefinition('startNode');
 const startNodeDefaults = getNodeDefaultData('startNode');
 
 // Initial nodes and edges for new dialogues
-const initialNodes = [
+const getInitialNodes = (t) => [
 	{
 		id: '00000000-0000-0000-0000-000000000001',
 		type: 'startNode',
@@ -111,8 +111,11 @@ const initialNodes = [
 			label:
 				startNodeDefaults.label ||
 				startNodeDefinition?.description ||
-				'Dialogue entry point',
-			displayName: startNodeDefaults.displayName || startNodeDefinition?.label || 'Start',
+				t('editor.nodes.startDescription'),
+			displayName:
+				startNodeDefaults.displayName ||
+				startNodeDefinition?.label ||
+				t('editor.nodes.start'),
 		},
 		position: { x: 250, y: 100 },
 		deletable: false,
@@ -177,7 +180,7 @@ function DialogueEditorPage() {
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
 
-	const [nodes, setNodes, onNodesChangeBase] = useNodesState(initialNodes);
+	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
 	// Prevent deletion of Start Node
@@ -223,7 +226,7 @@ function DialogueEditorPage() {
 
 	// History for undo/redo
 	const [history, setHistory] = useState([
-		{ nodes: initialNodes, edges: initialEdges },
+		{ nodes: getInitialNodes(t), edges: initialEdges },
 	]);
 	const [historyIndex, setHistoryIndex] = useState(0);
 
@@ -1426,7 +1429,7 @@ function DialogueEditorPage() {
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-56">
 							{/* File Section */}
-							<DropdownMenuLabel>File</DropdownMenuLabel>
+							<DropdownMenuLabel>{t('editor.menu.file')}</DropdownMenuLabel>
 							<DropdownMenuItem
 								onClick={handleSave}
 								disabled={isSaving}
@@ -1437,19 +1440,19 @@ function DialogueEditorPage() {
 							</DropdownMenuItem>
 							<DropdownMenuItem onClick={handleExport}>
 								<Download className="h-4 w-4 mr-2" />
-								Export
+								{t('common.export')}
 							</DropdownMenuItem>
 
 							<DropdownMenuSeparator />
 
 							{/* Edit Section */}
-							<DropdownMenuLabel>Edit</DropdownMenuLabel>
+							<DropdownMenuLabel>{t('editor.menu.edit')}</DropdownMenuLabel>
 							<DropdownMenuItem
 								onClick={handleUndo}
 								disabled={historyIndex === 0}
 							>
 								<Undo2 className="h-4 w-4 mr-2" />
-								Undo
+								{t('editor.menu.undo')}
 								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Z</span>
 							</DropdownMenuItem>
 							<DropdownMenuItem
@@ -1457,14 +1460,14 @@ function DialogueEditorPage() {
 								disabled={historyIndex === history.length - 1}
 							>
 								<Redo2 className="h-4 w-4 mr-2" />
-								Redo
+								{t('editor.menu.redo')}
 								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Y</span>
 							</DropdownMenuItem>
 
 							<DropdownMenuSeparator />
 
 							{/* View Section */}
-							<DropdownMenuLabel>View</DropdownMenuLabel>
+							<DropdownMenuLabel>{t('editor.menu.view')}</DropdownMenuLabel>
 							<DropdownMenuItem
 								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
 							>
@@ -1473,12 +1476,14 @@ function DialogueEditorPage() {
 								) : (
 									<Moon className="h-4 w-4 mr-2" />
 								)}
-								{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+								{resolvedTheme === 'dark'
+									? t('settings.lightMode')
+									: t('settings.darkMode')}
 							</DropdownMenuItem>
 							{deviceType !== 'mobile' && (
 								<DropdownMenuItem onClick={resetTour}>
 									<HelpCircle className="h-4 w-4 mr-2" />
-									Show Tour
+									{t('editor.menu.showTour')}
 								</DropdownMenuItem>
 							)}
 
@@ -1491,7 +1496,7 @@ function DialogueEditorPage() {
 							>
 								<DropdownMenuItem>
 									<Settings className="h-4 w-4 mr-2" />
-									Settings
+									{t('settings.title')}
 								</DropdownMenuItem>
 							</Link>
 							<DropdownMenuItem
@@ -1503,7 +1508,7 @@ function DialogueEditorPage() {
 								}
 							>
 								<Heart className="h-4 w-4 mr-2" />
-								Support Mountea
+								{t('editor.menu.support')}
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -1689,7 +1694,7 @@ function DialogueEditorPage() {
 			{deviceType !== 'mobile' && (
 			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
-					<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.autoLayoutTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1697,11 +1702,11 @@ function DialogueEditorPage() {
 							onClick={onLayout}
 						>
 							<Network className="h-4 w-4" />
-							Auto Layout
+							{t('editor.nodeToolbar.autoLayout')}
 						</Button>
 					</SimpleTooltip>
 					<div className="h-6 w-px bg-border mx-1"></div>
-					<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addNpcTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1711,10 +1716,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('leadNode')}
 						>
 							<MessageCircle className="h-4 w-4" />
-							NPC
+							{t('editor.nodeToolbar.npc')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addPlayerTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1724,10 +1729,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('answerNode')}
 						>
 							<User className="h-4 w-4" />
-							Player
+							{t('editor.nodeToolbar.player')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addReturnTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1737,10 +1742,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('returnNode')}
 						>
 							<CornerUpLeft className="h-4 w-4" />
-							Return
+							{t('editor.nodeToolbar.return')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addCompleteTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1750,10 +1755,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('completeNode')}
 						>
 							<CheckCircle2 className="h-4 w-4" />
-							Complete
+							{t('editor.nodeToolbar.complete')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Delay node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addDelayTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1763,7 +1768,7 @@ function DialogueEditorPage() {
 							onClick={() => addNode('delayNode')}
 						>
 							<Clock className="h-4 w-4" />
-							Delay
+							{t('editor.nodeToolbar.delay')}
 						</Button>
 					</SimpleTooltip>
 				</div>
@@ -1773,7 +1778,7 @@ function DialogueEditorPage() {
 						{t('dialogues.edges')}
 					</span>
 					<span className="text-xs hidden md:block">
-						Powered by{' '}
+						{t('editor.nodeToolbar.poweredBy')}{' '}
 						<a
 							href="https://reactflow.dev"
 							target="_blank"
