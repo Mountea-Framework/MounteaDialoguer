@@ -69,6 +69,7 @@ export function ProjectSidebar({
 				"fixed inset-y-0 left-0 z-50 h-full w-64",
 				"lg:static lg:z-0 lg:translate-x-0",
 				"lg:w-80",
+				"lg:rounded-none",
 				isMobileOpen ? "translate-x-0 rounded-none" : "-translate-x-full lg:translate-x-0 md:rounded-xl"
 			)}
 		>

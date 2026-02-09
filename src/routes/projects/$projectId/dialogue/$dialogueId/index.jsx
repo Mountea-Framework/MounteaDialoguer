@@ -85,6 +85,8 @@ import { SaveIndicator } from '@/components/ui/save-indicator';
 import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 import { celebrateSuccess } from '@/lib/confetti';
 import { SimpleTooltip } from '@/components/ui/tooltip';
+import { AppHeader } from '@/components/ui/app-header';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
 import { getDeviceType } from '@/lib/deviceDetection';
 import {
@@ -1396,38 +1398,44 @@ function DialogueEditorPage() {
 			)}
 
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between" data-tour="editor-header">
-				<div className="flex items-center gap-2 md:gap-4 min-w-0">
-					<Link to="/projects/$projectId" params={{ projectId }}>
-						<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
-					</Link>
-					<div className="min-w-0">
-						<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
-						<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-2">
-					<SaveIndicator
-						status={saveStatus}
-						lastSaved={lastSaved}
-						className="hidden md:flex"
-					/>
-
-					{/* Single Menu with all actions */}
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="outline"
-								size="icon"
-								className="rounded-full"
-								data-tour="save-button"
-							>
-								<Menu className="h-4 w-4" />
+			<AppHeader
+				data-tour="editor-header"
+				left={
+					<>
+						<Link to="/projects/$projectId" params={{ projectId }}>
+							<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+								<ArrowLeft className="h-5 w-5" />
 							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-56">
+						</Link>
+						<div className="min-w-0">
+							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
+							<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
+						</div>
+					</>
+				}
+				right={
+					<>
+						<span className="hidden md:flex" data-header-mobile-hidden>
+							<SaveIndicator
+								status={saveStatus}
+								lastSaved={lastSaved}
+								className="hidden md:flex"
+							/>
+						</span>
+
+						{/* Single Menu with all actions */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="icon"
+									className="rounded-full"
+									data-tour="save-button"
+								>
+									<Menu className="h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
 							{/* File Section */}
 							<DropdownMenuLabel>{t('editor.menu.file')}</DropdownMenuLabel>
 							<DropdownMenuItem
@@ -1468,6 +1476,9 @@ function DialogueEditorPage() {
 
 							{/* View Section */}
 							<DropdownMenuLabel>{t('editor.menu.view')}</DropdownMenuLabel>
+							<div className="px-2 py-1.5">
+								<LanguageSelector />
+							</div>
 							<DropdownMenuItem
 								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
 							>
@@ -1510,10 +1521,11 @@ function DialogueEditorPage() {
 								<Heart className="h-4 w-4 mr-2" />
 								{t('editor.menu.support')}
 							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</div>
-			</header>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</>
+				}
+			/>
 
 			{/* Main Content */}
 			<div className="flex-1 flex overflow-hidden">

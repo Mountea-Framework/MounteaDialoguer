@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { SimpleTooltip } from '@/components/ui/tooltip';
+import { AppHeader } from '@/components/ui/app-header';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -159,51 +161,65 @@ function ProjectDetailsPage() {
 	return (
 		<div className="h-screen flex flex-col">
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between shrink-0">
-				<div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => setIsMobileSidebarOpen(true)}
-						className="lg:hidden rounded-full shrink-0"
+			<AppHeader
+				left={
+					<>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => setIsMobileSidebarOpen(true)}
+							className="lg:hidden rounded-full shrink-0"
+						>
+							<Menu className="h-5 w-5" />
+						</Button>
+						<Link to="/">
+							<SimpleTooltip content={t('common.back')} side="bottom">
+								<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+									<ArrowLeft className="h-5 w-5" />
+								</Button>
+							</SimpleTooltip>
+						</Link>
+						<div className="min-w-0">
+							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
+							<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+								{t('projects.projectDetails')}
+							</p>
+						</div>
+					</>
+				}
+				right={
+					<div
+						className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
+						data-header-mobile-hidden
 					>
-						<Menu className="h-5 w-5" />
-					</Button>
-					<Link to="/">
-						<SimpleTooltip content="Back to projects" side="bottom">
-							<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-								<ArrowLeft className="h-5 w-5" />
-							</Button>
-						</SimpleTooltip>
-					</Link>
-					<div className="min-w-0">
-						<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
-						<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
-							{t('projects.projectDetails')}
-						</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-2 md:gap-4">
-					<div className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
 						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
 						{t('dialogues.autoSaved')}
 					</div>
-					<SimpleTooltip content={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
+				}
+				menuItems={
+					<>
+						<LanguageSelector />
 						<Button
-							variant="outline"
-							size="icon"
+							variant="ghost"
+							size="sm"
 							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							className="rounded-full"
+							className="justify-start"
 						>
 							{resolvedTheme === 'dark' ? (
-								<Sun className="h-4 w-4" />
+								<>
+									<Sun className="h-4 w-4 mr-2" />
+									{t('settings.lightMode')}
+								</>
 							) : (
-								<Moon className="h-4 w-4" />
+								<>
+									<Moon className="h-4 w-4 mr-2" />
+									{t('settings.darkMode')}
+								</>
 							)}
 						</Button>
-					</SimpleTooltip>
-				</div>
-			</header>
+					</>
+				}
+			/>
 
 			{/* Mobile Sidebar Overlay */}
 			{isMobileSidebarOpen && (

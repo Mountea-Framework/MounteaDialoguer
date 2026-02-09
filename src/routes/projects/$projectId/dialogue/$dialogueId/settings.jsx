@@ -25,6 +25,8 @@ import {
 	CardDescription,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { AppHeader } from '@/components/ui/app-header';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -137,36 +139,51 @@ function DialogueSettingsPage() {
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-6 md:px-12 py-4 flex items-center justify-between">
-				<div className="flex items-center gap-4">
-					<Link
-						to="/projects/$projectId/dialogue/$dialogueId"
-						params={{ projectId, dialogueId }}
-					>
-						<Button variant="ghost" size="icon" className="rounded-full">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
-					</Link>
-					<div className="flex items-center gap-4">
-						<div>
-							<h1 className="text-2xl font-bold tracking-tight">
-								{t('dialogues.dialogueSettings')}
-							</h1>
-							<p className="text-sm text-muted-foreground">{dialogue.name}</p>
+			<AppHeader
+				left={
+					<>
+						<Link
+							to="/projects/$projectId/dialogue/$dialogueId"
+							params={{ projectId, dialogueId }}
+						>
+							<Button variant="ghost" size="icon" className="rounded-full">
+								<ArrowLeft className="h-5 w-5" />
+							</Button>
+						</Link>
+						<div className="flex items-center gap-4">
+							<div>
+								<h1 className="text-2xl font-bold tracking-tight">
+									{t('dialogues.dialogueSettings')}
+								</h1>
+								<p className="text-sm text-muted-foreground">{dialogue.name}</p>
+							</div>
 						</div>
-					</div>
-				</div>
-				<div className="flex items-center gap-4">
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-						className="rounded-full"
-					>
-						{resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-					</Button>
-				</div>
-			</header>
+					</>
+				}
+				menuItems={
+					<>
+						<LanguageSelector />
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+							className="justify-start"
+						>
+							{resolvedTheme === 'dark' ? (
+								<>
+									<Sun className="h-4 w-4 mr-2" />
+									{t('settings.lightMode')}
+								</>
+							) : (
+								<>
+									<Moon className="h-4 w-4 mr-2" />
+									{t('settings.darkMode')}
+								</>
+							)}
+						</Button>
+					</>
+				}
+			/>
 
 			{/* Content */}
 			<main className="flex-1 overflow-y-auto">
