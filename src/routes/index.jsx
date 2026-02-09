@@ -129,7 +129,9 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
             aria-label={t("projects.createNew")}
           >
             <Plus className="h-4 w-4" />
-            <span className="">{t("projects.createNew")}</span>
+            <span className="hidden [@media(min-width:400px)]:inline">
+              {t("projects.createNew")}
+            </span>
           </Button>
         </>
       }
@@ -313,7 +315,7 @@ function ProjectsDashboard() {
   const diskUsage = formatFileSize(diskUsageBytes);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 overflow-x-clip">
       <OnboardingTour
         run={runTour}
         onFinish={finishTour}
