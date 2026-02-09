@@ -17,6 +17,7 @@ import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -46,6 +47,7 @@ function ProjectDetailsPage() {
 	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
+	const isMobile = isMobileDevice();
 	const { projects, loadProjects, deleteProject, exportProject, importProject } = useProjectStore();
 	const { dialogues, loadDialogues } = useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
@@ -141,7 +143,7 @@ function ProjectDetailsPage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className={`${isMobile ? 'min-h-screen' : 'h-screen'} flex items-center justify-center`}>
 				<p className="text-muted-foreground">{t('common.loading')}</p>
 			</div>
 		);
@@ -149,7 +151,7 @@ function ProjectDetailsPage() {
 
 	if (!project) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className={`${isMobile ? 'min-h-screen' : 'h-screen'} flex items-center justify-center`}>
 				<div className="text-center">
 					<h2 className="text-2xl font-bold mb-2">{t('projects.notFound')}</h2>
 					<p className="text-muted-foreground">{t('projects.notFoundDescription')}</p>
@@ -159,7 +161,7 @@ function ProjectDetailsPage() {
 	}
 
 	return (
-		<div className="h-screen flex flex-col">
+		<div className={`${isMobile ? 'min-h-screen' : 'h-screen'} flex flex-col`}>
 			{/* Header */}
 			<AppHeader
 				className={isMobileSidebarOpen ? 'z-40' : undefined}
@@ -231,7 +233,7 @@ function ProjectDetailsPage() {
 			)}
 
 			{/* Main Content */}
-			<div className="flex-1 flex min-h-0 overflow-hidden">
+			<div className={`flex-1 flex min-h-0 ${isMobile ? '' : 'overflow-hidden'}`}>
 				<ProjectSidebar
 					activeSection={activeSection}
 					onSectionChange={(section) => {
@@ -245,7 +247,7 @@ function ProjectDetailsPage() {
 					onMobileClose={() => setIsMobileSidebarOpen(false)}
 				/>
 
-				<main className="flex-1 bg-grid overflow-y-auto">
+				<main className={`flex-1 bg-grid ${isMobile ? '' : 'overflow-y-auto'}`}>
 					<div className="max-w-5xl mx-auto p-4 md:p-8 lg:p-12">
 						{activeSection === 'overview' && (
 							<OverviewSection
