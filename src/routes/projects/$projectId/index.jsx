@@ -162,6 +162,7 @@ function ProjectDetailsPage() {
 		<div className="h-screen flex flex-col">
 			{/* Header */}
 			<AppHeader
+				className={isMobileSidebarOpen ? 'z-40' : undefined}
 				left={
 					<>
 						<Button
@@ -224,7 +225,7 @@ function ProjectDetailsPage() {
 			{/* Mobile Sidebar Overlay */}
 			{isMobileSidebarOpen && (
 				<div
-					className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+					className="fixed inset-0 bg-black/50 z-50 lg:hidden"
 					onClick={() => setIsMobileSidebarOpen(false)}
 				/>
 			)}

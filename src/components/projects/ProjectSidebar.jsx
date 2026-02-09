@@ -87,8 +87,13 @@ export function ProjectSidebar({
 
 			{/* Project Info Card */}
 			<div className="p-4">
-				<div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center text-center">
-					<div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md mb-2">
+				<div className={cn(
+					`p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center text-center`,
+					isMobileOpen ? "flex-row justify-between" : ""
+				)}>
+					<div className={cn(`w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md mb-2`,
+						isMobileOpen ? "hidden" : ""
+					)}>
 						<Folder className="h-6 w-6" />
 					</div>
 					<h3 className="font-bold text-sm line-clamp-1">{project?.name}</h3>
