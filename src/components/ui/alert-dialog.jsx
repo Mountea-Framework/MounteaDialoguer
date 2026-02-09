@@ -58,7 +58,7 @@ AlertDialogHeader.displayName = 'AlertDialogHeader';
 const AlertDialogFooter = ({ className, ...props }) => (
 	<div
 		className={cn(
-			'-mx-4 -mb-4 mt-4 flex items-center justify-center gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 sm:-mx-6 sm:-mb-6 sm:justify-end sm:space-x-2 sm:space-y-0 sm:px-6 sm:py-3 rounded-b-lg',
+			'-mx-4 -mb-4 mt-4 flex items-center justify-center gap-2 border-t border-border/60 bg-muted/30 px-4 py-2 sm:-mx-6 sm:-mb-6 sm:justify-end sm:space-x-2 sm:space-y-0 sm:px-6 sm:py-3 rounded-b-lg min-h-[52px] sm:min-h-0',
 			className
 		)}
 		{...props}
@@ -121,7 +121,7 @@ const AlertDialogCancel = React.forwardRef(
 	<AlertDialogPrimitive.Cancel
 		ref={ref}
 		className={cn(
-			'mt-2 sm:mt-0 inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+			'inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
 			buttonVariants.variant[variant] || buttonVariants.variant.outline,
 			buttonVariants.size[size] || buttonVariants.size.default,
 			'rounded-xl',
