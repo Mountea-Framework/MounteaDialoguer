@@ -10,6 +10,7 @@ import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
+import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { isMobileDevice } from '@/lib/deviceDetection';
 
 export const Route = createRootRoute({
@@ -19,10 +20,11 @@ export const Route = createRootRoute({
 function RootComponent() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [showContent, setShowContent] = useState(false);
-	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [promptedThisSession, setPromptedThisSession] = useState(false);
 	const [onboardingSignal, setOnboardingSignal] = useState(0);
 	const hasAutoSyncedRef = useRef(false);
+	const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } =
+		useCommandPaletteStore();
 	const {
 		loadAccount,
 		hasHydrated,

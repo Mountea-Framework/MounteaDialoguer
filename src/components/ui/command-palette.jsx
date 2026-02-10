@@ -14,14 +14,16 @@ import {
 	Palette,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 
 /**
  * Command Palette Component
  * Quick access to actions via keyboard shortcut (Ctrl/Cmd + K)
  */
-export function CommandPalette({ open, onOpenChange }) {
+export function CommandPalette({ open, onOpenChange, actions: actionsProp, placeholder }) {
 	const navigate = useNavigate();
 	const [search, setSearch] = useState('');
+	const { actions: storeActions, placeholder: storePlaceholder } = useCommandPaletteStore();
 
 	// Handle keyboard shortcut
 	useEffect(() => {
@@ -45,7 +47,7 @@ export function CommandPalette({ open, onOpenChange }) {
 
 	if (!open) return null;
 
-	const actions = [
+	const defaultActions = [
 		{
 			group: 'Navigation',
 			items: [
@@ -148,6 +150,11 @@ export function CommandPalette({ open, onOpenChange }) {
 			],
 		},
 	];
+	const actions =
+		(actionsProp && actionsProp.length ? actionsProp : null) ||
+		(storeActions && storeActions.length ? storeActions : null) ||
+		defaultActions;
+	const resolvedPlaceholder = placeholder || storePlaceholder || "Type a command or search...";
 
 	return (
 		<>
@@ -167,10 +174,10 @@ export function CommandPalette({ open, onOpenChange }) {
 				>
 					<div className="flex items-center border-b px-3">
 						<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-						<Command.Input
-							placeholder="Type a command or search..."
-							className="flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-						/>
+					<Command.Input
+						placeholder={resolvedPlaceholder}
+						className="flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+					/>
 						<kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
 							<span className="text-xs">ESC</span>
 						</kbd>
@@ -187,25 +194,38 @@ export function CommandPalette({ open, onOpenChange }) {
 								heading={group.group}
 								className="px-2 py-2"
 							>
-								{group.items.map((item) => (
-									<Command.Item
-										key={item.label}
-										onSelect={() => item.onSelect()}
-										className={cn(
-											'flex items-center gap-2 rounded-md px-2 py-2 text-sm cursor-pointer',
-											'hover:bg-accent hover:text-accent-foreground',
-											'data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground'
-										)}
-									>
-										<item.icon className="h-4 w-4" />
-										<span className="flex-1">{item.label}</span>
-										{item.shortcut && (
-											<kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-												{item.shortcut}
-											</kbd>
-										)}
-									</Command.Item>
-								))}
+								{group.items.map((item) => {
+									if (item.render) {
+										return (
+											<div key={item.key || item.label} className="px-2 py-2">
+												{item.render()}
+											</div>
+										);
+									}
+
+									return (
+										<Command.Item
+											key={item.label}
+											onSelect={() => {
+												item.onSelect?.();
+												onOpenChange(false);
+											}}
+											className={cn(
+												'flex items-center gap-2 rounded-md px-2 py-2 text-sm cursor-pointer',
+												'hover:bg-accent hover:text-accent-foreground',
+												'data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground'
+											)}
+										>
+											<item.icon className="h-4 w-4" />
+											<span className="flex-1">{item.label}</span>
+											{item.shortcut && (
+												<kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+													{item.shortcut}
+												</kbd>
+											)}
+										</Command.Item>
+									);
+								})}
 							</Command.Group>
 						))}
 					</Command.List>

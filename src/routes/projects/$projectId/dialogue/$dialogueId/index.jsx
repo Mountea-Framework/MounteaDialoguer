@@ -1,4 +1,4 @@
-import { createFileRoute, useBlocker, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -62,14 +62,7 @@ import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-	DropdownMenuSeparator,
-	DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
@@ -177,7 +170,6 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 function DialogueEditorPage() {
 	const { t } = useTranslation();
-	const navigate = useNavigate();
 	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
@@ -214,6 +206,7 @@ function DialogueEditorPage() {
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
 	const { dismiss } = useToast();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
+	const openCommandPalette = useCommandPaletteStore((state) => state.openWithActions);
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
@@ -1485,118 +1478,124 @@ function DialogueEditorPage() {
 							/>
 						</span>
 
-						{/* Single Menu with all actions */}
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="icon"
-									className="rounded-full"
-									data-tour="save-button"
-								>
-									<Menu className="h-4 w-4" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-auto">
-							{/* File Section */}
-							<DropdownMenuLabel>{t('editor.menu.file')}</DropdownMenuLabel>
-							<DropdownMenuItem
-								onClick={handleSave}
-								disabled={isSaving}
-							>
-								<Save className="h-4 w-4 mr-2" />
-								{isSaving ? t('common.saving') : t('common.save')}
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+S</span>
-							</DropdownMenuItem>
-							<DropdownMenuItem onClick={handleExport}>
-								<Download className="h-4 w-4 mr-2" />
-								{t('common.export')}
-							</DropdownMenuItem>
-
-							<DropdownMenuSeparator />
-
-							{/* Edit Section */}
-							<DropdownMenuLabel>{t('editor.menu.edit')}</DropdownMenuLabel>
-							<DropdownMenuItem
-								onClick={handleUndo}
-								disabled={historyIndex === 0}
-							>
-								<Undo2 className="h-4 w-4 mr-2" />
-								{t('editor.menu.undo')}
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Z</span>
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={handleRedo}
-								disabled={historyIndex === history.length - 1}
-							>
-								<Redo2 className="h-4 w-4 mr-2" />
-								{t('editor.menu.redo')}
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Y</span>
-							</DropdownMenuItem>
-
-							<DropdownMenuSeparator />
-
-							{/* View Section */}
-							<DropdownMenuLabel>{t('editor.menu.view')}</DropdownMenuLabel>
-							<div className="px-2 py-1.5">
-								<LanguageSelector />
-							</div>
-							<DropdownMenuItem
-								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							>
-								{resolvedTheme === 'dark' ? (
-									<Sun className="h-4 w-4 mr-2" />
-								) : (
-									<Moon className="h-4 w-4 mr-2" />
-								)}
-								{resolvedTheme === 'dark'
-									? t('settings.lightMode')
-									: t('settings.darkMode')}
-							</DropdownMenuItem>
-							{deviceType !== 'mobile' && (
-								<DropdownMenuItem onClick={resetTour}>
-									<HelpCircle className="h-4 w-4 mr-2" />
-									{t('editor.menu.showTour')}
-								</DropdownMenuItem>
-							)}
-
-							<DropdownMenuSeparator />
-
-							{/* Settings & Support */}
-							<DropdownMenuItem
-								onClick={() =>
-									openSettingsCommand({
-										context: {
-											type: 'dialogue',
-											name: dialogue.name,
-											projectId,
-											dialogueId,
+						{/* Command Palette Trigger */}
+						<Button
+							variant="outline"
+							size="icon"
+							className="rounded-full"
+							data-tour="save-button"
+							onClick={() =>
+								openCommandPalette({
+									placeholder: t('common.search'),
+									actions: [
+										{
+											group: t('editor.menu.file'),
+											items: [
+												{
+													icon: Save,
+													label: isSaving ? t('common.saving') : t('common.save'),
+													shortcut: 'Ctrl+S',
+													onSelect: handleSave,
+												},
+												{
+													icon: Download,
+													label: t('common.export'),
+													shortcut: 'Ctrl+E',
+													onSelect: handleExport,
+												},
+											],
 										},
-										onOpenSettings: () =>
-											navigate({
-												to: '/projects/$projectId/dialogue/$dialogueId/settings',
-												params: { projectId, dialogueId },
-											}),
-										mode: 'detail',
-									})
-								}
-							>
-								<Settings className="h-4 w-4 mr-2" />
-								{t('settings.title')}
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() =>
-									window.open(
-										'https://github.com/sponsors/Mountea-Framework',
-										'_blank'
-									)
-								}
-							>
-								<Heart className="h-4 w-4 mr-2" />
-								{t('editor.menu.support')}
-							</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+										{
+											group: t('editor.menu.edit'),
+											items: [
+												{
+													icon: Undo2,
+													label: t('editor.menu.undo'),
+													shortcut: 'Ctrl+Z',
+													onSelect: handleUndo,
+												},
+												{
+													icon: Redo2,
+													label: t('editor.menu.redo'),
+													shortcut: 'Ctrl+Y',
+													onSelect: handleRedo,
+												},
+											],
+										},
+										{
+											group: t('editor.menu.view'),
+											items: [
+												{
+													key: 'language-selector',
+													render: () => (
+														<div className="flex items-center gap-3">
+															<span className="text-xs font-medium text-muted-foreground">
+																{t('settings.language')}
+															</span>
+															<LanguageSelector />
+														</div>
+													),
+												},
+												{
+													icon: resolvedTheme === 'dark' ? Sun : Moon,
+													label:
+														resolvedTheme === 'dark'
+															? t('settings.lightMode')
+															: t('settings.darkMode'),
+													shortcut: '',
+													onSelect: () =>
+														setTheme(
+															resolvedTheme === 'dark' ? 'light' : 'dark'
+														),
+												},
+												...(deviceType !== 'mobile'
+													? [
+															{
+																icon: HelpCircle,
+																label: t('editor.menu.showTour'),
+																shortcut: '',
+																onSelect: resetTour,
+															},
+													  ]
+													: []),
+											],
+										},
+										{
+											group: t('settings.title'),
+											items: [
+												{
+													icon: Settings,
+													label: t('settings.title'),
+													shortcut: '',
+													onSelect: () =>
+														openSettingsCommand({
+															context: {
+																type: 'dialogue',
+																name: dialogue.name,
+																projectId,
+																dialogueId,
+															},
+															mode: 'detail',
+														}),
+												},
+												{
+													icon: Heart,
+													label: t('editor.menu.support'),
+													shortcut: '',
+													onSelect: () =>
+														window.open(
+															'https://github.com/sponsors/Mountea-Framework',
+															'_blank'
+														),
+												},
+											],
+										},
+									],
+								})
+							}
+						>
+							<Menu className="h-4 w-4" />
+						</Button>
 					</>
 				}
 			/>
