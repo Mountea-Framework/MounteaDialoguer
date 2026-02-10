@@ -1730,12 +1730,12 @@ function DialogueEditorPage() {
 			{/* Right Sidebar - Node Properties */}
 			{selectedNode && (deviceType !== 'mobile' || isMobilePanelOpen) && (
 					<div
-						className={`${deviceType === 'mobile' ? 'fixed right-0 z-40 w-80 overscroll-contain' : 'w-96'} border-l bg-card overflow-y-auto`}
+						className={`${deviceType === 'mobile' ? 'fixed right-0 z-40 w-80 overscroll-contain touch-pan-y' : 'w-96'} border-l bg-card overflow-y-auto`}
 						style={
 							deviceType === 'mobile'
 								? {
 										top: 'var(--app-header-height)',
-										height: 'calc(100dvh - var(--app-header-height))',
+										bottom: 0,
 									}
 								: undefined
 						}
