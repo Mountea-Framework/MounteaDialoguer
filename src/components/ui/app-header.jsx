@@ -1,4 +1,4 @@
-import { Children, isValidElement } from 'react';
+import { Children, isValidElement, forwardRef } from 'react';
 import { MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,20 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function AppHeader({
-	left,
-	right,
-	className,
-	containerClassName,
-	leftClassName,
-	rightClassName,
-	mobileMaxItems = 3,
-	menuItems,
-	...props
-}) {
+export const AppHeader = forwardRef(function AppHeader(
+	{
+		left,
+		right,
+		className,
+		containerClassName,
+		leftClassName,
+		rightClassName,
+		mobileMaxItems = 3,
+		menuItems,
+		...props
+	},
+	ref
+) {
 	const rightItems = Children.toArray(right).filter(Boolean);
 	const menuItemsArray = Children.toArray(menuItems).filter(Boolean);
 	const mobileEligibleItems = rightItems.filter(
@@ -52,6 +55,7 @@ export function AppHeader({
 
 	return (
 		<header
+			ref={ref}
 			className={cn(
 				'sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
 				className
@@ -118,4 +122,6 @@ export function AppHeader({
 			</div>
 		</header>
 	);
-}
+});
+
+AppHeader.displayName = 'AppHeader';

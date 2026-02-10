@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
 import {
@@ -58,6 +58,7 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useCategoryStore } from '@/stores/categoryStore';
 import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
 import {
@@ -181,6 +182,7 @@ function DialogueEditorPage() {
 		useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
+	const { categories, loadCategories } = useCategoryStore();
 
 	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -215,6 +217,8 @@ function DialogueEditorPage() {
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
+	const headerRef = useRef(null);
+	const bodyOverflowRef = useRef(null);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -225,6 +229,52 @@ function DialogueEditorPage() {
 		window.addEventListener('resize', updateDeviceType);
 		return () => window.removeEventListener('resize', updateDeviceType);
 	}, []);
+
+	useLayoutEffect(() => {
+		if (!headerRef.current) return undefined;
+
+		const updateHeaderHeight = () => {
+			const height = headerRef.current.getBoundingClientRect().height;
+			document.documentElement.style.setProperty('--app-header-height', `${height}px`);
+		};
+
+		updateHeaderHeight();
+		const observer = new ResizeObserver(updateHeaderHeight);
+		observer.observe(headerRef.current);
+		window.addEventListener('resize', updateHeaderHeight);
+
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', updateHeaderHeight);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (deviceType !== 'mobile') {
+			if (bodyOverflowRef.current !== null) {
+				document.body.style.overflow = bodyOverflowRef.current;
+				bodyOverflowRef.current = null;
+			}
+			return undefined;
+		}
+
+		if (isMobilePanelOpen) {
+			if (bodyOverflowRef.current === null) {
+				bodyOverflowRef.current = document.body.style.overflow;
+			}
+			document.body.style.overflow = 'hidden';
+		} else if (bodyOverflowRef.current !== null) {
+			document.body.style.overflow = bodyOverflowRef.current;
+			bodyOverflowRef.current = null;
+		}
+
+		return () => {
+			if (bodyOverflowRef.current !== null) {
+				document.body.style.overflow = bodyOverflowRef.current;
+				bodyOverflowRef.current = null;
+			}
+		};
+	}, [deviceType, isMobilePanelOpen]);
 
 	// History for undo/redo
 	const [history, setHistory] = useState([
@@ -238,7 +288,15 @@ function DialogueEditorPage() {
 		loadDialogues(projectId);
 		loadParticipants(projectId);
 		loadDecorators(projectId);
-	}, [loadProjects, loadDialogues, loadParticipants, loadDecorators, projectId]);
+		loadCategories(projectId);
+	}, [
+		loadProjects,
+		loadDialogues,
+		loadParticipants,
+		loadDecorators,
+		loadCategories,
+		projectId,
+	]);
 
 	// Track if viewport was loaded from save
 	const [hasLoadedViewport, setHasLoadedViewport] = useState(false);
@@ -380,6 +438,7 @@ function DialogueEditorPage() {
 	const selectedNodeDefinition = selectedNode
 		? getNodeDefinition(selectedNode.type)
 		: null;
+	const projectCategories = categories.filter((c) => c.projectId === projectId);
 
 	const renderNodeField = (field) => {
 		if (!selectedNode) return null;
@@ -409,13 +468,15 @@ function DialogueEditorPage() {
 				if (field.options === 'participants') {
 					const groups = new Map();
 					const getCategoryPath = (categoryName) => {
-						const category = categories.find((c) => c.name === categoryName);
+						const category = projectCategories.find((c) => c.name === categoryName);
 						if (!category) return categoryName;
 						const path = [];
 						let current = category;
 						while (current) {
 							path.unshift(current.name);
-							current = categories.find((c) => c.id === current.parentCategoryId);
+							current = projectCategories.find(
+								(c) => c.id === current.parentCategoryId
+							);
 						}
 						return path.join(' > ');
 					};
@@ -1399,6 +1460,7 @@ function DialogueEditorPage() {
 
 			{/* Header */}
 			<AppHeader
+				ref={headerRef}
 				data-tour="editor-header"
 				left={
 					<>
@@ -1660,7 +1722,17 @@ function DialogueEditorPage() {
 
 			{/* Right Sidebar - Node Properties */}
 			{selectedNode && (deviceType !== 'mobile' || isMobilePanelOpen) && (
-					<div className={`${deviceType === 'mobile' ? 'fixed inset-y-0 right-0 z-40 w-80' : 'w-96'} border-l bg-card overflow-y-auto`}>
+					<div
+						className={`${deviceType === 'mobile' ? 'fixed right-0 z-40 w-80 overscroll-contain' : 'w-96'} border-l bg-card overflow-y-auto`}
+						style={
+							deviceType === 'mobile'
+								? {
+										top: 'var(--app-header-height)',
+										height: 'calc(100dvh - var(--app-header-height))',
+									}
+								: undefined
+						}
+					>
 						<div className="p-6 space-y-6">
 							{/* Header */}
 							<div className="flex items-center justify-between">
