@@ -39,6 +39,7 @@ import {
 	Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -1633,8 +1634,10 @@ function DialogueEditorPage() {
 				maxZoom={2}
 			>
 				<Background />
-				<Panel position="bottom-left">
-					<ZoomSlider className="!bg-card !border !border-border !rounded-lg !shadow-lg" />
+				<Panel position="bottom-left" className="mb-2">
+					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-3 absolute bottom-6">
+						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none" />
+					</div>
 				</Panel>
 				{deviceType !== 'mobile' && (
 					<MiniMap
@@ -1649,37 +1652,41 @@ function DialogueEditorPage() {
 
 			{/* Mobile Node Action Bar */}
 			{deviceType === 'mobile' && selectedNode && (
-				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
+				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
 					<span className="text-sm font-medium truncate max-w-32">
 						{selectedNode.data.displayName || selectedNode.type?.replace('Node', '')}
 					</span>
 					<div className="h-4 w-px bg-border" />
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						onClick={() => setIsMobilePanelOpen(true)}
-					>
-						<PanelRightOpen className="h-4 w-4" />
-					</Button>
-					{selectedNode.id !== '00000000-0000-0000-0000-000000000001' && (
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-							onClick={() => setIsCascadeDeleteOpen(true)}
-						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					)}
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						onClick={() => setSelectedNode(null)}
-					>
-						<X className="h-4 w-4" />
-					</Button>
+					<div className="flex items-center gap-1">
+						<ButtonGroup>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setIsMobilePanelOpen(true)}
+							>
+								<PanelRightOpen className="h-4 w-4" />
+							</Button>
+							{selectedNode.id !== '00000000-0000-0000-0000-000000000001' && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+									onClick={() => setIsCascadeDeleteOpen(true)}
+								>
+									<Trash2 className="h-4 w-4" />
+								</Button>
+							)}
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setSelectedNode(null)}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</ButtonGroup>
+					</div>					
 				</div>
 			)}
 
