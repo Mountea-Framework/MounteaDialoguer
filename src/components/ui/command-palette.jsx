@@ -1,20 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import { useNavigate } from '@tanstack/react-router';
 import {
 	Search,
-	Plus,
 	Save,
 	Download,
 	FolderOpen,
-	MessageCircle,
-	Users,
-	Tag,
 	Settings,
 	Palette,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
+import { useTheme } from '@/contexts/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Command Palette Component
@@ -24,6 +23,9 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 	const navigate = useNavigate();
 	const [search, setSearch] = useState('');
 	const { actions: storeActions, placeholder: storePlaceholder } = useCommandPaletteStore();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
+	const { resolvedTheme, setTheme } = useTheme();
+	const { t } = useTranslation();
 
 	// Handle keyboard shortcut
 	useEffect(() => {
@@ -45,116 +47,181 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 		}
 	}, [open]);
 
-	if (!open) return null;
+	const routeContext = useMemo(() => {
+		const rawPath =
+			(window.location.hash && window.location.hash.replace(/^#/, '')) ||
+			window.location.pathname ||
+			'';
 
-	const defaultActions = [
-		{
-			group: 'Navigation',
-			items: [
-				{
-					icon: FolderOpen,
-					label: 'Go to Projects',
-					shortcut: '',
-					onSelect: () => {
-						navigate({ to: '/' });
-						onOpenChange(false);
+		const dialogueMatch = rawPath.match(/\/projects\/([^/]+)\/dialogue\/([^/]+)/);
+		if (dialogueMatch) {
+			return {
+				type: 'dialogue',
+				projectId: dialogueMatch[1],
+				dialogueId: dialogueMatch[2],
+			};
+		}
+
+		const projectMatch = rawPath.match(/\/projects\/([^/]+)\/?$/);
+		if (projectMatch) {
+			return { type: 'project', projectId: projectMatch[1] };
+		}
+
+		return { type: 'none' };
+	}, [open]);
+
+	const defaultActions = useMemo(() => {
+		const actions = [
+			{
+				group: t('navigation.dashboard'),
+				items: [
+					{
+						icon: FolderOpen,
+						label: t('navigation.projects'),
+						shortcut: '',
+						onSelect: () => {
+							navigate({ to: '/' });
+							onOpenChange(false);
+						},
 					},
-				},
-			],
-		},
-		{
-			group: 'Create',
-			items: [
-				{
-					icon: Plus,
-					label: 'New Project',
-					shortcut: '',
-					onSelect: () => {
-						// Trigger project creation dialog
-						onOpenChange(false);
-					},
-				},
-				{
-					icon: MessageCircle,
-					label: 'New Dialogue',
-					shortcut: 'Ctrl+N',
-					onSelect: () => {
-						// Trigger dialogue creation
-						onOpenChange(false);
-					},
-				},
-				{
-					icon: Users,
-					label: 'New Participant',
-					shortcut: '',
-					onSelect: () => {
-						// Trigger participant creation
-						onOpenChange(false);
-					},
-				},
-				{
-					icon: Tag,
-					label: 'New Category',
-					shortcut: '',
-					onSelect: () => {
-						// Trigger category creation
-						onOpenChange(false);
-					},
-				},
-			],
-		},
-		{
-			group: 'Actions',
-			items: [
+				],
+			},
+		];
+
+		const actionItems = [];
+		if (routeContext.type === 'dialogue') {
+			actionItems.push(
 				{
 					icon: Save,
-					label: 'Save',
+					label: t('common.save'),
 					shortcut: 'Ctrl+S',
 					onSelect: () => {
-						// Trigger save
-						onOpenChange(false);
+						window.dispatchEvent(
+							new CustomEvent('command:dialogue-save', {
+								detail: {
+									projectId: routeContext.projectId,
+									dialogueId: routeContext.dialogueId,
+								},
+							})
+						);
 					},
 				},
 				{
 					icon: Download,
-					label: 'Export',
+					label: t('common.export'),
 					shortcut: 'Ctrl+E',
 					onSelect: () => {
-						// Trigger export
-						onOpenChange(false);
+						window.dispatchEvent(
+							new CustomEvent('command:dialogue-export', {
+								detail: {
+									projectId: routeContext.projectId,
+									dialogueId: routeContext.dialogueId,
+								},
+							})
+						);
 					},
-				},
-			],
-		},
-		{
-			group: 'Settings',
-			items: [
+				}
+			);
+		} else if (routeContext.type === 'project') {
+			actionItems.push(
 				{
-					icon: Palette,
-					label: 'Toggle Theme',
-					shortcut: '',
+					icon: Save,
+					label: t('common.save'),
+					shortcut: 'Ctrl+S',
 					onSelect: () => {
-						// Toggle theme
-						onOpenChange(false);
+						window.dispatchEvent(
+							new CustomEvent('command:project-save', {
+								detail: { projectId: routeContext.projectId },
+							})
+						);
 					},
 				},
 				{
-					icon: Settings,
-					label: 'Preferences',
-					shortcut: '',
+					icon: Download,
+					label: t('common.export'),
+					shortcut: 'Ctrl+E',
 					onSelect: () => {
-						// Open preferences
-						onOpenChange(false);
+						window.dispatchEvent(
+							new CustomEvent('command:project-export', {
+								detail: { projectId: routeContext.projectId },
+							})
+						);
 					},
+				}
+			);
+		}
+
+		if (actionItems.length) {
+			actions.push({ group: t('common.manage'), items: actionItems });
+		}
+
+		const settingsItems = [
+			{
+				icon: Palette,
+				label:
+					resolvedTheme === 'dark'
+						? t('settings.lightMode')
+						: t('settings.darkMode'),
+				shortcut: '',
+				onSelect: () => {
+					setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
 				},
-			],
-		},
-	];
+			},
+		];
+
+		if (routeContext.type === 'project') {
+			settingsItems.push({
+				icon: Settings,
+				label: t('settings.title'),
+				shortcut: '',
+				onSelect: () =>
+					openSettingsCommand({
+						context: { type: 'project', projectId: routeContext.projectId },
+						mode: 'detail',
+					}),
+			});
+		}
+
+		if (routeContext.type === 'dialogue') {
+			settingsItems.push({
+				icon: Settings,
+				label: t('settings.title'),
+				shortcut: '',
+				onSelect: () =>
+					openSettingsCommand({
+						context: {
+							type: 'dialogue',
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						},
+						mode: 'detail',
+					}),
+			});
+		}
+
+		if (settingsItems.length) {
+			actions.push({ group: t('settings.title'), items: settingsItems });
+		}
+
+		return actions;
+	}, [
+		navigate,
+		onOpenChange,
+		openSettingsCommand,
+		resolvedTheme,
+		routeContext.type,
+		routeContext.projectId,
+		routeContext.dialogueId,
+		setTheme,
+		t,
+	]);
 	const actions =
 		(actionsProp && actionsProp.length ? actionsProp : null) ||
 		(storeActions && storeActions.length ? storeActions : null) ||
 		defaultActions;
 	const resolvedPlaceholder = placeholder || storePlaceholder || "Type a command or search...";
+
+	if (!open) return null;
 
 	return (
 		<>

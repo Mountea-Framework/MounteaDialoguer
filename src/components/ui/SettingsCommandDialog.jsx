@@ -27,6 +27,7 @@ import {
 	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
 import {
 	AlertTriangle,
@@ -173,6 +174,7 @@ export function SettingsCommandDialog() {
 				onOpenChange={setOpen}
 				contentClassName={mode === 'detail' ? 'max-w-4xl w-[calc(100%-2rem)]' : 'max-w-2xl w-[calc(100%-2rem)]'}
 			>
+				<DialogTitle className="sr-only">{t('settingsCommand.title')}</DialogTitle>
 				{mode === 'detail' ? (
 					<div className="max-h-[85vh] w-full max-w-4xl overflow-y-auto p-6">
 						{context?.type === 'dialogue' ? (

@@ -1432,6 +1432,28 @@ function DialogueEditorPage() {
 		}
 	};
 
+	useEffect(() => {
+		const handleCommandSave = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleSave();
+		};
+
+		const handleCommandExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleExport();
+		};
+
+		window.addEventListener('command:dialogue-save', handleCommandSave);
+		window.addEventListener('command:dialogue-export', handleCommandExport);
+
+		return () => {
+			window.removeEventListener('command:dialogue-save', handleCommandSave);
+			window.removeEventListener('command:dialogue-export', handleCommandExport);
+		};
+	}, [dialogueId, handleSave, handleExport]);
+
 	if (!dialogue || !project) {
 		return (
 			<div className="h-screen flex items-center justify-center">

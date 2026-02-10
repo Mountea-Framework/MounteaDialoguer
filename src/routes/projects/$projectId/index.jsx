@@ -48,7 +48,8 @@ function ProjectDetailsPage() {
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
 	const isMobile = isMobileDevice();
-	const { projects, loadProjects, deleteProject, exportProject, importProject } = useProjectStore();
+	const { projects, loadProjects, deleteProject, exportProject, importProject, updateProject } =
+		useProjectStore();
 	const { dialogues, loadDialogues } = useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
 	const { categories, loadCategories } = useCategoryStore();
@@ -112,6 +113,33 @@ function ProjectDetailsPage() {
 			console.error('Failed to export project:', error);
 		}
 	};
+
+	useEffect(() => {
+		const handleCommandSave = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			if (!project) return;
+			updateProject(projectId, {
+				name: project.name,
+				description: project.description,
+				version: project.version,
+			});
+		};
+
+		const handleCommandExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			handleExport();
+		};
+
+		window.addEventListener('command:project-save', handleCommandSave);
+		window.addEventListener('command:project-export', handleCommandExport);
+
+		return () => {
+			window.removeEventListener('command:project-save', handleCommandSave);
+			window.removeEventListener('command:project-export', handleCommandExport);
+		};
+	}, [projectId, project, updateProject, handleExport]);
 
 	const handleImport = async (event) => {
 		const file = event.target.files?.[0];
