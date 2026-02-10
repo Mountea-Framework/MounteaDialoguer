@@ -259,15 +259,11 @@ function DialogueEditorPage() {
 			return undefined;
 		}
 
-		if (isMobilePanelOpen) {
-			if (bodyOverflowRef.current === null) {
-				bodyOverflowRef.current = document.body.style.overflow;
-			}
-			document.body.style.overflow = 'hidden';
-		} else if (bodyOverflowRef.current !== null) {
-			document.body.style.overflow = bodyOverflowRef.current;
-			bodyOverflowRef.current = null;
+		// On mobile, lock page scroll for the graph editor. Only the right panel should scroll.
+		if (bodyOverflowRef.current === null) {
+			bodyOverflowRef.current = document.body.style.overflow;
 		}
+		document.body.style.overflow = 'hidden';
 
 		return () => {
 			if (bodyOverflowRef.current !== null) {
