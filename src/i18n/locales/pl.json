@@ -294,6 +294,36 @@
 		"darkMode": "Ciemny",
 		"systemMode": "Systemowy"
 	},
+	"settingsCommand": {
+		"title": "Paleta ustawieÅ„",
+		"description": "Kontekstowe ustawienia dla tego ekranu.",
+		"searchPlaceholder": "Szukaj ustawieÅ„ lub skrÃ³tÃ³w...",
+		"noResults": "Brak wynikÃ³w.",
+		"groups": {
+			"actions": "Akcje",
+			"project": "Ustawienia projektu",
+			"dialogue": "Ustawienia dialogu",
+			"shortcuts": "SkrÃ³ty"
+		},
+		"actions": {
+			"openProjectSettings": "OtwÃ³rz ustawienia projektu",
+			"openDialogueSettings": "OtwÃ³rz ustawienia dialogu",
+			"openSettings": "OtwÃ³rz ustawienia"
+		},
+		"items": {
+			"dialogueInfo": "Informacje o dialogu",
+			"dialogueMetadata": "Metadane dialogu",
+			"dialogueExport": "Eksportuj dialog",
+			"dialogueDanger": "Strefa zagroÅ¼enia",
+			"save": "Zapisz",
+			"undo": "Cofnij",
+			"redo": "PonÃ³w",
+			"commandPalette": "OtwÃ³rz paletÄ™ poleceÅ„",
+			"showShortcuts": "PokaÅ¼ skrÃ³ty klawiaturowe",
+			"deleteSelection": "UsuÅ„ zaznaczenie",
+			"deselectAll": "Odznacz wszystko"
+		}
+	},
 	"sync": {
 		"title": "Synchronizacja w chmurze",
 		"description": "Połącz Google Drive, aby synchronizować projekty między urządzeniami.",

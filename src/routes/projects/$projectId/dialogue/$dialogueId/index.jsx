@@ -1,4 +1,4 @@
-import { createFileRoute, useBlocker } from '@tanstack/react-router';
+import { createFileRoute, useBlocker, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -71,6 +71,7 @@ import {
 	DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -176,6 +177,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 function DialogueEditorPage() {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
@@ -211,6 +213,7 @@ function DialogueEditorPage() {
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
 	const { dismiss } = useToast();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
@@ -1560,15 +1563,27 @@ function DialogueEditorPage() {
 							<DropdownMenuSeparator />
 
 							{/* Settings & Support */}
-							<Link
-								to="/projects/$projectId/dialogue/$dialogueId/settings"
-								params={{ projectId, dialogueId }}
+							<DropdownMenuItem
+								onClick={() =>
+									openSettingsCommand({
+										context: {
+											type: 'dialogue',
+											name: dialogue.name,
+											projectId,
+											dialogueId,
+										},
+										onOpenSettings: () =>
+											navigate({
+												to: '/projects/$projectId/dialogue/$dialogueId/settings',
+												params: { projectId, dialogueId },
+											}),
+										mode: 'detail',
+									})
+								}
 							>
-								<DropdownMenuItem>
-									<Settings className="h-4 w-4 mr-2" />
-									{t('settings.title')}
-								</DropdownMenuItem>
-							</Link>
+								<Settings className="h-4 w-4 mr-2" />
+								{t('settings.title')}
+							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={() =>
 									window.open(

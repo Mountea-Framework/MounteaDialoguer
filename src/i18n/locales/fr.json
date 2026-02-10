@@ -262,6 +262,36 @@
 		"darkMode": "Sombre",
 		"systemMode": "Système"
 	},
+	"settingsCommand": {
+		"title": "Palette des paramètres",
+		"description": "Paramètres contextuels pour cet écran.",
+		"searchPlaceholder": "Rechercher des paramètres ou des raccourcis...",
+		"noResults": "Aucun résultat.",
+		"groups": {
+			"actions": "Actions",
+			"project": "Paramètres du projet",
+			"dialogue": "Paramètres du dialogue",
+			"shortcuts": "Raccourcis"
+		},
+		"actions": {
+			"openProjectSettings": "Ouvrir les paramètres du projet",
+			"openDialogueSettings": "Ouvrir les paramètres du dialogue",
+			"openSettings": "Ouvrir les paramètres"
+		},
+		"items": {
+			"dialogueInfo": "Informations du dialogue",
+			"dialogueMetadata": "Métadonnées du dialogue",
+			"dialogueExport": "Exporter le dialogue",
+			"dialogueDanger": "Zone de danger",
+			"save": "Enregistrer",
+			"undo": "Annuler",
+			"redo": "Rétablir",
+			"commandPalette": "Ouvrir la palette de commandes",
+			"showShortcuts": "Afficher les raccourcis clavier",
+			"deleteSelection": "Supprimer la sélection",
+			"deselectAll": "Tout désélectionner"
+		}
+	},
 	"sync": {
 		"title": "Sync Cloud",
 		"description": "Connectez Google Drive pour synchroniser vos projets entre appareils.",

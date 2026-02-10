@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Toaster } from '@/components/ui/toaster';
 import { CommandPalette } from '@/components/ui/command-palette';
+import { SettingsCommandDialog } from '@/components/ui/SettingsCommandDialog';
 import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
@@ -134,6 +135,7 @@ function RootComponent() {
 				open={commandPaletteOpen}
 				onOpenChange={setCommandPaletteOpen}
 			/>
+			<SettingsCommandDialog />
 		</ThemeProvider>
 	);
 }

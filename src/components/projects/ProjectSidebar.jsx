@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useSyncStore } from '@/stores/syncStore';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 /**
  * Project Sidebar Component
@@ -19,6 +20,7 @@ export function ProjectSidebar({
 }) {
 	const { t } = useTranslation();
 	const { status, setLoginDialogOpen } = useSyncStore();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const cloudStatusColor = {
 		connected: 'text-green-500',
 		connecting: 'text-blue-500',
@@ -149,7 +151,15 @@ export function ProjectSidebar({
 			{/* Settings at Bottom */}
 			<div className="p-4 border-t border-border">
 				<button
-					onClick={() => onSectionChange('settings')}
+					onClick={() =>
+						openSettingsCommand({
+							context: { type: 'project', projectId: project?.id },
+							onOpenSettings: onSectionChange
+								? () => onSectionChange('settings')
+								: null,
+							mode: 'detail',
+						})
+					}
 					className={cn(
 						'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
 						activeSection === 'settings'

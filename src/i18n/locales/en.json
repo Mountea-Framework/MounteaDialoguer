@@ -294,6 +294,36 @@
 		"darkMode": "Dark",
 		"systemMode": "System"
 	},
+	"settingsCommand": {
+		"title": "Settings Palette",
+		"description": "Contextual settings for this screen.",
+		"searchPlaceholder": "Search settings or shortcuts...",
+		"noResults": "No results found.",
+		"groups": {
+			"actions": "Actions",
+			"project": "Project Settings",
+			"dialogue": "Dialogue Settings",
+			"shortcuts": "Shortcuts"
+		},
+		"actions": {
+			"openProjectSettings": "Open Project Settings",
+			"openDialogueSettings": "Open Dialogue Settings",
+			"openSettings": "Open Settings"
+		},
+		"items": {
+			"dialogueInfo": "Dialogue Information",
+			"dialogueMetadata": "Dialogue Metadata",
+			"dialogueExport": "Export Dialogue",
+			"dialogueDanger": "Danger Zone",
+			"save": "Save",
+			"undo": "Undo",
+			"redo": "Redo",
+			"commandPalette": "Open Command Palette",
+			"showShortcuts": "Show Keyboard Shortcuts",
+			"deleteSelection": "Delete Selection",
+			"deselectAll": "Deselect All"
+		}
+	},
 	"sync": {
 		"title": "Cloud Sync",
 		"description": "Connect Google Drive to keep your projects in sync across devices.",

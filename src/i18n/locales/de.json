@@ -262,6 +262,36 @@
 		"darkMode": "Dunkel",
 		"systemMode": "System"
 	},
+	"settingsCommand": {
+		"title": "Einstellungs-Palette",
+		"description": "Kontextbezogene Einstellungen für diesen Bildschirm.",
+		"searchPlaceholder": "Einstellungen oder Shortcuts suchen...",
+		"noResults": "Keine Ergebnisse gefunden.",
+		"groups": {
+			"actions": "Aktionen",
+			"project": "Projekteinstellungen",
+			"dialogue": "Dialogeinstellungen",
+			"shortcuts": "Shortcuts"
+		},
+		"actions": {
+			"openProjectSettings": "Projekteinstellungen öffnen",
+			"openDialogueSettings": "Dialogeinstellungen öffnen",
+			"openSettings": "Einstellungen öffnen"
+		},
+		"items": {
+			"dialogueInfo": "Dialoginformationen",
+			"dialogueMetadata": "Dialog-Metadaten",
+			"dialogueExport": "Dialog exportieren",
+			"dialogueDanger": "Gefahrenzone",
+			"save": "Speichern",
+			"undo": "Rückgängig",
+			"redo": "Wiederholen",
+			"commandPalette": "Befehls-Palette öffnen",
+			"showShortcuts": "Tastenkürzel anzeigen",
+			"deleteSelection": "Auswahl löschen",
+			"deselectAll": "Alles abwählen"
+		}
+	},
 	"sync": {
 		"title": "Cloud-Sync",
 		"description": "Verbinde Google Drive, um Projekte geräteübergreifend zu synchronisieren.",

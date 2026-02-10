@@ -14,6 +14,7 @@ import {
 import { formatDate, formatDistanceToNow } from '@/lib/dateUtils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { toast } from '@/components/ui/toaster';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 /**
  * Overview Section Component
@@ -34,6 +35,7 @@ export function OverviewSection({
 }) {
 	const { t } = useTranslation();
 	const isMobile = isMobileDevice();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 
 	// Calculate metrics
 	const totalNodes = dialogues.reduce((sum, d) => sum + (d.nodeCount || 0), 0);
@@ -68,7 +70,15 @@ export function OverviewSection({
 							<Badge variant="success">v{project.version}</Badge>
 						)}
 						<button
-							onClick={() => onSectionChange?.('settings')}
+							onClick={() =>
+								openSettingsCommand({
+									context: { type: 'project', projectId: project?.id },
+									onOpenSettings: onSectionChange
+										? () => onSectionChange('settings')
+										: null,
+									mode: 'detail',
+								})
+							}
 							className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
 							title="Project Settings"
 						>

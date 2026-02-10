@@ -262,6 +262,36 @@
 		"darkMode": "Oscuro",
 		"systemMode": "Sistema"
 	},
+	"settingsCommand": {
+		"title": "Paleta de configuración",
+		"description": "Configuración contextual para esta pantalla.",
+		"searchPlaceholder": "Buscar configuración o atajos...",
+		"noResults": "No se encontraron resultados.",
+		"groups": {
+			"actions": "Acciones",
+			"project": "Configuración del proyecto",
+			"dialogue": "Configuración del diálogo",
+			"shortcuts": "Atajos"
+		},
+		"actions": {
+			"openProjectSettings": "Abrir configuración del proyecto",
+			"openDialogueSettings": "Abrir configuración del diálogo",
+			"openSettings": "Abrir configuración"
+		},
+		"items": {
+			"dialogueInfo": "Información del diálogo",
+			"dialogueMetadata": "Metadatos del diálogo",
+			"dialogueExport": "Exportar diálogo",
+			"dialogueDanger": "Zona de peligro",
+			"save": "Guardar",
+			"undo": "Deshacer",
+			"redo": "Rehacer",
+			"commandPalette": "Abrir paleta de comandos",
+			"showShortcuts": "Mostrar atajos de teclado",
+			"deleteSelection": "Eliminar selección",
+			"deselectAll": "Deseleccionar todo"
+		}
+	},
 	"sync": {
 		"title": "SincronizaciĂłn en la nube",
 		"description": "Conecta Google Drive para sincronizar tus proyectos entre dispositivos.",
