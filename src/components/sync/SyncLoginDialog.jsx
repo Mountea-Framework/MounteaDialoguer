@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useSyncStore } from '@/stores/syncStore';
 import { cn } from '@/lib/utils';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 export function SyncLoginDialog({
 	open,
@@ -43,6 +44,7 @@ export function SyncLoginDialog({
 			onOpenChange(false);
 		}
 	};
+	const isMobile = isMobileDevice();
 
 	const handleManualSync = async () => {
 		await syncAllProjects({ mode: 'full' });
@@ -81,7 +83,8 @@ export function SyncLoginDialog({
 
 				<div className="no-scrollbar -mx-4 flex-1 min-h-0 overflow-y-auto px-4 sm:-mx-6 sm:px-6">
 					<div className="space-y-4 pb-2">
-						<div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center">
+						<div
+							className={`flex md:flex-row gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center ${isMobile ? 'flex-row' : 'flex-col'}`}>
 							<div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-blue-500 text-white flex items-center justify-center">
 								<Cloud className="h-5 w-5" />
 							</div>
