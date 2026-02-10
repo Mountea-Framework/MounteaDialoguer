@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Download, Upload, Tag, MoreVertical } from 'lucide-react';
+import { Plus, Download, Upload, Tag, MoreVertical, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -25,6 +25,71 @@ export function CategoriesSection({ projectId, categories = [] }) {
 	const [isImporting, setIsImporting] = useState(false);
 	const fileInputRef = useRef(null);
 	const isMobile = isMobileDevice();
+	const [collapsedCategories, setCollapsedCategories] = useState(new Set());
+
+	const childrenByParent = new Map();
+	categories.forEach((category) => {
+		const parentId = category.parentCategoryId || null;
+		if (!childrenByParent.has(parentId)) {
+			childrenByParent.set(parentId, []);
+		}
+		childrenByParent.get(parentId).push(category);
+	});
+
+	const rootCategories = (childrenByParent.get(null) || []).slice().sort((a, b) =>
+		a.name.localeCompare(b.name)
+	);
+
+	const toggleCategory = (categoryId) => {
+		setCollapsedCategories((prev) => {
+			const next = new Set(prev);
+			if (next.has(categoryId)) {
+				next.delete(categoryId);
+			} else {
+				next.add(categoryId);
+			}
+			return next;
+		});
+	};
+
+	const renderCategoryNode = (node) => {
+		const nodeChildren = (childrenByParent.get(node.id) || [])
+			.slice()
+			.sort((a, b) => a.name.localeCompare(b.name));
+		const isCollapsed = collapsedCategories.has(node.id);
+
+		return (
+			<div key={node.id} className="border border-border rounded-lg overflow-hidden bg-card">
+				<div
+					className="flex items-center justify-between p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+					onClick={() => toggleCategory(node.id)}
+				>
+					<div className="flex items-center gap-2 min-w-0">
+						{isCollapsed ? (
+							<ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+						) : (
+							<ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+						)}
+						<span className="text-sm font-semibold truncate">{node.name}</span>
+					</div>
+				</div>
+
+				{!isCollapsed && (
+					<div className="p-4 pt-4 space-y-5 border-t border-border">
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+							<CategoryCard category={node} />
+						</div>
+
+						{nodeChildren.length > 0 && (
+							<div className="space-y-5 pl-4 -ml-4 border-l border-border/60">
+								{nodeChildren.map((child) => renderCategoryNode(child))}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		);
+	};
 
 	const handleExport = async () => {
 		try {
@@ -174,10 +239,8 @@ export function CategoriesSection({ projectId, categories = [] }) {
 					</CardContent>
 				</Card>
 			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{categories.map((category) => (
-						<CategoryCard key={category.id} category={category} />
-					))}
+				<div className="space-y-6">
+					{rootCategories.map((category) => renderCategoryNode(category))}
 				</div>
 			)}
 

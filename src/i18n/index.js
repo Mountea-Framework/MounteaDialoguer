@@ -5,6 +5,7 @@ import enTranslations from './locales/en.json';
 import deTranslations from './locales/de.json';
 import frTranslations from './locales/fr.json';
 import esTranslations from './locales/es.json';
+import plTranslations from './locales/pl.json';
 
 /**
  * i18next configuration for Mountea Dialoguer
@@ -19,7 +20,10 @@ i18n
 			de: { translation: deTranslations },
 			fr: { translation: frTranslations },
 			es: { translation: esTranslations },
+			pl: { translation: plTranslations },
 		},
+		supportedLngs: ['en', 'de', 'fr', 'es', 'pl'],
+		nonExplicitSupportedLngs: true,
 		fallbackLng: 'en',
 		interpolation: {
 			escapeValue: false,

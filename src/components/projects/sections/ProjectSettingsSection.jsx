@@ -7,16 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useProjectStore } from '@/stores/projectStore';
 import { formatDate } from '@/lib/dateUtils';
 
@@ -29,7 +19,6 @@ export function ProjectSettingsSection({ project, onExport, onDelete }) {
 	const { updateProject } = useProjectStore();
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [formData, setFormData] = useState({
 		name: project.name || '',
 		description: project.description || '',
@@ -64,7 +53,6 @@ export function ProjectSettingsSection({ project, onExport, onDelete }) {
 	};
 
 	const handleDelete = () => {
-		setShowDeleteDialog(false);
 		onDelete();
 	};
 
@@ -209,7 +197,7 @@ export function ProjectSettingsSection({ project, onExport, onDelete }) {
 				<CardContent>
 					<Button
 						variant="destructive"
-						onClick={() => setShowDeleteDialog(true)}
+						onClick={handleDelete}
 						className="w-full justify-start gap-2"
 					>
 						<Trash2 className="h-4 w-4" />
@@ -218,26 +206,6 @@ export function ProjectSettingsSection({ project, onExport, onDelete }) {
 				</CardContent>
 			</Card>
 
-			{/* Delete Confirmation Dialog */}
-			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>{t('projects.deleteProject')}</AlertDialogTitle>
-						<AlertDialogDescription>
-							{t('projects.deleteConfirm')}
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={handleDelete}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-						>
-							{t('common.delete')}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
 		</div>
 	);
 }

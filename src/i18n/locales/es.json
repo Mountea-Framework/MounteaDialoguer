@@ -20,7 +20,18 @@
 		"success": "Éxito",
 		"confirm": "Confirmar",
 		"back": "Atrás",
-		"new": "Nuevo"
+		"new": "Nuevo",
+		"add": "Añadir",
+		"manage": "Gestionar",
+		"true": "Verdadero",
+		"false": "Falso",
+		"time": {
+			"justNow": "justo ahora",
+			"minutesAgo": "hace {{count}} min",
+			"minutesAgo_plural": "hace {{count}} min",
+			"hoursAgo": "hace {{count}} h",
+			"hoursAgo_plural": "hace {{count}} h"
+		}
 	},
 	"navigation": {
 		"dashboard": "Panel",
@@ -33,6 +44,52 @@
 	},
 	"dashboard": {
 		"diskUsage": "Uso del Disco"
+	},
+	"decorators": {
+		"title": "Decoradores",
+		"addNew": "Añadir decorador",
+		"createDescription": "Añade un nuevo decorador para mejorar tus diálogos",
+		"updateDescription": "Actualiza la información del decorador",
+		"description": "Gestiona decoradores para añadir efectos especiales y comportamientos a los nodos de diálogo",
+		"name": "Nombre del decorador",
+		"namePlaceholder": "Introduce el nombre del decorador",
+		"type": "Tipo",
+		"typePlaceholder": "p. ej., Audio, Visual, Animación",
+		"panelTitle": "Decoradores",
+		"count": "{{count}} decorador",
+		"count_plural": "{{count}} decoradores",
+		"none": "Aún no hay decoradores",
+		"unnamed": "Decorador sin nombre",
+		"selectPlaceholder": "Selecciona un decorador para añadir...",
+		"enterProperty": "Introduce {{name}}...",
+		"validation": {
+			"noWhitespace": "El nombre no puede contener espacios"
+		},
+		"properties": {
+			"title": "Propiedades",
+			"add": "Añadir propiedad",
+			"empty": "No hay propiedades definidas. Añade propiedades para personalizar este decorador.",
+			"name": "Nombre de la propiedad",
+			"namePlaceholder": "p. ej., Velocidad",
+			"type": "Tipo",
+			"defaultValue": "Valor por defecto",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "valor"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
+		"noDecorators": "No hay decoradores",
+		"noDecoratorsDescription": "Añade decoradores para mejorar tus nodos de diálogo con efectos especiales",
+		"deleteTitle": "Eliminar decorador",
+		"deleteDescription": "¿Seguro que quieres eliminar {{name}}? Esta acción no se puede deshacer."
 	},
 	"projects": {
 		"title": "Proyectos",
@@ -68,12 +125,29 @@
 		"dialogueEditor": "Editor de diálogos",
 		"noDialogues": "No se encontraron diálogos",
 		"createFirst": "Crea tu primer diálogo",
-		"nodes": "Nodos",
-		"edges": "Aristas",
+		"nodes": "Nodes",
+		"nodeCount": "{{count}} nodes",
+		"nodeCount_plural": "{{count}} nodes",
+		"edges": "Edges",
 		"autoSaved": "Guardado automático",
 		"unsavedChanges": "Cambios sin guardar"
 	},
 	"editor": {
+		"menu": {
+			"file": "Archivo",
+			"edit": "Editar",
+			"view": "Ver",
+			"undo": "Deshacer",
+			"redo": "Rehacer",
+			"showTour": "Mostrar guía",
+			"support": "Apoyar Mountea"
+		},
+		"saveStatus": {
+			"saved": "Todos los cambios guardados",
+			"saving": "Guardando...",
+			"unsaved": "Cambios sin guardar",
+			"error": "Error al guardar"
+		},
 		"toolbar": {
 			"undo": "Deshacer",
 			"redo": "Rehacer",
@@ -82,6 +156,49 @@
 			"settings": "Configuración",
 			"darkMode": "Modo oscuro",
 			"lightMode": "Modo claro"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Auto diseño",
+			"autoLayoutTooltip": "Auto-diseñar nodos usando el algoritmo dagre",
+			"npc": "PNJ",
+			"addNpcTooltip": "Añadir nodo PNJ - arrastra al lienzo o haz clic",
+			"player": "Jugador",
+			"addPlayerTooltip": "Añadir nodo Jugador - arrastra al lienzo o haz clic",
+			"return": "Volver",
+			"addReturnTooltip": "Añadir nodo Volver - arrastra al lienzo o haz clic",
+			"complete": "Completar",
+			"addCompleteTooltip": "Añadir nodo Completar - arrastra al lienzo o haz clic",
+			"delay": "Retardo",
+			"addDelayTooltip": "Añadir nodo Retardo - arrastra al lienzo o haz clic",
+			"poweredBy": "Impulsado por"
+		},
+		"nodes": {
+			"start": "Inicio",
+			"startDescription": "Punto de entrada del diálogo",
+			"npc": "PNJ",
+			"npcPlaceholder": "Texto del diálogo PNJ...",
+			"player": "Jugador",
+			"playerPlaceholder": "Texto de respuesta del jugador...",
+			"complete": "Completar",
+			"completePlaceholder": "Texto de finalización del diálogo...",
+			"delay": "Retardo",
+			"delayDescription": "Esperar {{count}} segundo.",
+			"delayDescription_plural": "Esperar {{count}} segundos.",
+			"delaySeconds": "{{count}} s",
+			"delaySeconds_plural": "{{count}} s",
+			"return": "Volver a",
+			"returnTarget": "Objetivo:",
+			"returnSelectNode": "Selecciona un nodo...",
+			"rows": "{{count}} fila",
+			"rows_plural": "{{count}} filas",
+			"tooltip": {
+				"participant": "Participante",
+				"decorators": "Decoradores",
+				"dialogueRows": "Filas de diálogo"
+			}
+		},
+		"placeholder": {
+			"addNode": "Añadir nodo"
 		},
 		"nodeDetails": "Detalles del nodo",
 		"speaker": "Hablante",
@@ -121,7 +238,11 @@
 	"participants": {
 		"title": "Participantes",
 		"addNew": "Añadir participante",
+		"updateDescription": "Actualiza la información del participante",
 		"name": "Nombre",
+		"top": "Principales participantes",
+		"inProject": "{{count}} participante en este proyecto.",
+		"inProject_plural": "{{count}} participantes en este proyecto.",
 		"category": "Categoría",
 		"avatar": "Avatar",
 		"noParticipants": "No se encontraron participantes"
@@ -129,6 +250,7 @@
 	"categories": {
 		"title": "Categorías",
 		"addNew": "Añadir categoría",
+		"updateDescription": "Actualiza la información de la categoría",
 		"name": "Nombre de la categoría",
 		"noCategories": "No se encontraron categorías"
 	},
@@ -139,6 +261,120 @@
 		"lightMode": "Claro",
 		"darkMode": "Oscuro",
 		"systemMode": "Sistema"
+	},
+	"settingsCommand": {
+		"title": "Paleta de configuración",
+		"description": "Configuración contextual para esta pantalla.",
+		"searchPlaceholder": "Buscar configuración o atajos...",
+		"noResults": "No se encontraron resultados.",
+		"groups": {
+			"actions": "Acciones",
+			"project": "Configuración del proyecto",
+			"dialogue": "Configuración del diálogo",
+			"shortcuts": "Atajos"
+		},
+		"actions": {
+			"openProjectSettings": "Abrir configuración del proyecto",
+			"openDialogueSettings": "Abrir configuración del diálogo",
+			"openSettings": "Abrir configuración"
+		},
+		"items": {
+			"dialogueInfo": "Información del diálogo",
+			"dialogueMetadata": "Metadatos del diálogo",
+			"dialogueExport": "Exportar diálogo",
+			"dialogueDanger": "Zona de peligro",
+			"save": "Guardar",
+			"undo": "Deshacer",
+			"redo": "Rehacer",
+			"commandPalette": "Abrir paleta de comandos",
+			"showShortcuts": "Mostrar atajos de teclado",
+			"deleteSelection": "Eliminar selección",
+			"deselectAll": "Deseleccionar todo"
+		}
+	},
+	"sync": {
+		"title": "SincronizaciĂłn en la nube",
+		"description": "Conecta Google Drive para sincronizar tus proyectos entre dispositivos.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "No conectado"
+		},
+		"status": {
+			"connected": "Conectado",
+			"connecting": "Conectando...",
+			"syncing": "Sincronizando...",
+			"error": "Error",
+			"disconnected": "Desconectado"
+		},
+		"connectedAs": "Conectado como {{account}}",
+		"accountLabel": "Cuenta (mostrar)",
+		"accountPlaceholder": "tu@ejemplo.com",
+		"passphrase": "Frase de cifrado",
+		"passphrasePlaceholder": "Introduce una frase",
+		"passphraseHint": "Tu frase cifra los datos antes de salir de este dispositivo.",
+		"remember": "Recordar en este dispositivo",
+		"rememberHint": "Guarda la frase localmente en este dispositivo.",
+		"promptDontShow": "No mostrar al inicio",
+		"promptDontShowHint": "Oculta este aviso de inicio de sesión al abrir la aplicación.",
+		"connect": "Conectar Google Drive",
+		"connecting": "Conectando...",
+		"syncNow": "Sincronizar ahora",
+		"disconnect": "Desconectar",
+		"errors": {
+			"passphraseRequired": "Se requiere una frase para activar la sincronizaciĂłn.",
+			"missingClientId": "Falta el ID de cliente de Google. Agrégalo arriba para continuar.",
+			"oauthFailed": "Falló el inicio de sesión de Google. Inténtalo de nuevo.",
+			"popupBlocked": "Popup bloqueado. Permite los popups y vuelve a intentarlo.",
+			"syncFailed": "La sincronización falló. Comprueba la conexión e inténtalo de nuevo.",
+			"redirectUriMismatch": "URI de redirección incorrecta. Verifica oauth-callback.html.",
+			"invalidGrant": "Código de autorización inválido o caducado. Inténtalo de nuevo.",
+			"tokenExpired": "Sesión caducada. Vuelve a conectar Google Drive."
+		},
+		"pullTitle": "Sincronizando proyecto",
+		"pullDescription": "Comprobando Google Drive y aplicando los Ăšltimos cambios.",
+		"progress": {
+			"checking": "Comprobando cambios",
+			"downloading": "Descargando instantĂˇnea",
+			"decrypting": "Descifrando datos",
+			"applying": "Aplicando actualizaciones"
+		},
+		"clientId": "ID de cliente de Google",
+		"clientIdPlaceholder": "tu-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Necesario para iniciar sesión en Google. Solo se guarda en este dispositivo.",
+		"clientIdConfigured": "ID de cliente configurado",
+		"clientIdHiddenHint": "Oculto para simplificar.",
+		"clientIdChange": "Cambiar",
+		"bulkTitle": "Sincronizando proyectos en la nube",
+		"bulkDescription": "Descargando y aplicando los datos de la nube.",
+		"bulkProgress": "Sincronizados {{current}} de {{total}} proyectos."
+	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "¡Bienvenido a Mountea Dialoguer!",
+			"welcomeText": "Hagamos un breve recorrido para ayudarte a empezar. Despu\u00e9s del tour, ver\u00e1s la configuraci\u00f3n de sincronizaci\u00f3n en la nube.",
+			"createTitle": "Crea tu primer proyecto",
+			"createText": "Haz clic aquí para crear un nuevo proyecto. Los proyectos ayudan a organizar tus diálogos.",
+			"searchTitle": "Búsqueda rápida",
+			"searchText": "Usa la barra de búsqueda para encontrar rápidamente proyectos y diálogos."
+		},
+		"editor": {
+			"welcomeTitle": "Tour del editor de diálogos",
+			"welcomeText": "Aprende a crear diálogos interactivos.",
+			"nodeToolbarTitle": "Barra de nodos",
+			"nodeToolbarText": "Arrastra estos nodos al lienzo para construir el flujo de conversación.",
+			"canvasTitle": "Lienzo",
+			"canvasText": "Aquí construirás tu árbol de diálogo. Conecta nodos para crear rutas de conversación.",
+			"saveTitle": "Guarda tu trabajo",
+			"saveText": "¡No olvides guardar! Tus cambios se almacenan localmente."
+		},
+		"controls": {
+			"back": "Atrás",
+			"close": "Cerrar",
+			"last": "Finalizar",
+			"next": "Siguiente",
+			"nextWithProgress": "Siguiente (Paso {step} de {steps})",
+			"skip": "Omitir tour"
+		}
 	},
 	"validation": {
 		"required": "Este campo es obligatorio",

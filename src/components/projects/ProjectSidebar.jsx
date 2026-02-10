@@ -1,7 +1,9 @@
-import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X } from 'lucide-react';
+import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X, Cloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useSyncStore } from '@/stores/syncStore';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 /**
  * Project Sidebar Component
@@ -17,6 +19,15 @@ export function ProjectSidebar({
 	onMobileClose
 }) {
 	const { t } = useTranslation();
+	const { status, setLoginDialogOpen } = useSyncStore();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
+	const cloudStatusColor = {
+		connected: 'text-green-500',
+		connecting: 'text-blue-500',
+		syncing: 'text-blue-500',
+		error: 'text-red-500',
+		disconnected: 'text-muted-foreground',
+	}[status] || 'text-muted-foreground';
 
 	const sections = [
 		{
@@ -56,12 +67,12 @@ export function ProjectSidebar({
 	return (
 		<aside
 			className={cn(
-				"flex-shrink-0 bg-card border-r border-border flex flex-col transition-transform duration-300 ease-in-out",
+				"flex-shrink-0 bg-card border-border flex flex-col transition-transform duration-300 ease-in-out",
 				"fixed inset-y-0 left-0 z-50 h-full w-64",
 				"lg:static lg:z-0 lg:translate-x-0",
 				"lg:w-80",
-				"lg:h-screen",
-				isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+				"lg:rounded-none",
+				isMobileOpen ? "translate-x-0 rounded-none" : "-translate-x-full lg:translate-x-0 md:rounded-xl"
 			)}
 		>
 			{/* Mobile Close Button */}
@@ -78,8 +89,13 @@ export function ProjectSidebar({
 
 			{/* Project Info Card */}
 			<div className="p-4">
-				<div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center text-center">
-					<div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md mb-2">
+				<div className={cn(
+					`p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center text-center`,
+					isMobileOpen ? "flex-row justify-between" : ""
+				)}>
+					<div className={cn(`w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md mb-2`,
+						isMobileOpen ? "hidden" : ""
+					)}>
 						<Folder className="h-6 w-6" />
 					</div>
 					<h3 className="font-bold text-sm line-clamp-1">{project?.name}</h3>
@@ -118,10 +134,32 @@ export function ProjectSidebar({
 				})}
 			</nav>
 
+			{/* Sync Section */}
+			<div className="p-4 border-t border-border">
+				<button
+					onClick={() => setLoginDialogOpen(true)}
+					className={cn(
+						'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+						'text-muted-foreground hover:bg-accent hover:text-foreground'
+					)}
+				>
+					<Cloud className={cn('h-5 w-5', cloudStatusColor)} />
+					<span>{t('sync.title')}</span>
+				</button>
+			</div>
+
 			{/* Settings at Bottom */}
 			<div className="p-4 border-t border-border">
 				<button
-					onClick={() => onSectionChange('settings')}
+					onClick={() =>
+						openSettingsCommand({
+							context: { type: 'project', projectId: project?.id },
+							onOpenSettings: onSectionChange
+								? () => onSectionChange('settings')
+								: null,
+							mode: 'detail',
+						})
+					}
 					className={cn(
 						'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
 						activeSection === 'settings'

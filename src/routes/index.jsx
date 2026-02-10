@@ -8,6 +8,7 @@ import {
   MessageCircle,
   HardDrive,
   Calendar,
+  Cloud,
   HelpCircle,
 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
@@ -17,11 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { LanguageSelector } from "@/components/ui/LanguageSelector";
+import { AppHeader } from "@/components/ui/app-header";
 import { formatFileSize, formatDate } from "@/lib/dateUtils";
 import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
-import { isMobileDevice } from '@/lib/deviceDetection';
+import { isMobileDevice } from "@/lib/deviceDetection";
+import { useSyncStore } from "@/stores/syncStore";
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -30,29 +33,50 @@ export const Route = createFileRoute("/")({
 // Dashboard Header Component
 function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
+  const { status: syncStatus, setLoginDialogOpen } = useSyncStore();
+
+  const syncLabel =
+    syncStatus === "connected"
+      ? t("sync.status.connected")
+      : syncStatus === "syncing"
+      ? t("sync.status.syncing")
+      : t("sync.status.disconnected");
+
+  const syncIconClass =
+    syncStatus === "connected"
+      ? "text-emerald-500"
+      : syncStatus === "syncing"
+      ? "text-amber-500"
+      : syncStatus === "error"
+      ? "text-red-500"
+      : "text-muted-foreground";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex flex-col md:flex-row md:h-16 md:items-center px-4 py-3 md:px-12 max-w-7xl mx-auto w-full gap-3">
-        <div className="hidden md:flex items-center gap-3 justify-between md:justify-start">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-              <MessageCircle className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-bold tracking-tight">
-                {t("app.title")}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {t("app.subtitle")}
-              </p>
-            </div>
+    <AppHeader
+      containerClassName="max-w-7xl mx-auto"
+      leftClassName="hidden md:flex items-center gap-3 justify-between md:justify-start min-w-0"
+      rightClassName={`${isMobileDevice() ? "justify-between" : ""}`}
+      left={
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
+            <MessageCircle className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div className="hidden sm:block min-w-0">
+            <h1 className="text-base lg:text-lg font-bold tracking-tight truncate">
+              {t("app.title")}
+            </h1>
+            <p className="hidden xl:block text-xs text-muted-foreground">
+              {t("app.subtitle")}
+            </p>
           </div>
         </div>
-        <div className={`flex items-center gap-2 flex-1 md:justify-end ${isMobileDevice ? "justify-between" : ""}`}>
+      }
+      right={
+        <>
           <div
-            className="relative flex-1 md:w-64 md:flex-none hidden md:block"
+            className="relative flex-1 md:w-44 lg:w-64 md:flex-none hidden md:block"
             data-tour="search"
+            data-header-mobile-hidden
           >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -68,32 +92,50 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => setLoginDialogOpen(true)}
+            className="rounded-full"
+            aria-label={`${t("sync.title")} - ${syncLabel}`}
+            title={`${t("sync.title")} - ${syncLabel}`}
+          >
+            <Cloud className={`h-4 w-4 ${syncIconClass}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onShowTour}
-            className="rounded-full shrink-0 hidden md:inline-flex"
+            className="rounded-full shrink-0 hidden lg:inline-flex"
+            data-header-mobile-hidden
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
           <Button
             onClick={onNewProject}
             size="sm"
-            className="gap-1 hidden md:inline-flex"
+            className={`gap-1 md:inline-flex whitespace-nowrap ${isMobileDevice() ? "hidden" : ""}`}
+            data-tour={`${isMobileDevice() ? "create-project" : ""}`}
+            aria-label={t("projects.createNew")}
+            data-header-mobile-hidden
           >
             <Plus className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only">{t("projects.createNew")}</span>
+            <span className="hidden lg:inline">
+              {t("projects.createNew")}
+            </span>
           </Button>
           <Button
             onClick={onNewProject}
             size="sm"
-            className="shrink-0 md:hidden"
-            data-tour="create-project"
+            className={`shrink-0 md:hidden ${isMobileDevice() ? "" : "hidden"}`}
+            data-tour={`${isMobileDevice() ? "" : "create-project"}`}
             aria-label={t("projects.createNew")}
           >
             <Plus className="h-4 w-4" />
-			<span className="">{t("projects.createNew")}</span>
+            <span className="hidden [@media(min-width:400px)]:inline">
+              {t("projects.createNew")}
+            </span>
           </Button>
-        </div>
-      </div>
-    </header>
+        </>
+      }
+    />
   );
 }
 
@@ -179,7 +221,7 @@ function ProjectCard({ project }) {
 
   return (
     <Link to="/projects/$projectId" params={{ projectId: project.id }}>
-      <Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col overflow-hidden rounded-lg">
+      <Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full min-h-[280px] flex flex-col overflow-hidden rounded-lg">
         <div
           className={`h-32 bg-gradient-to-br ${gradients[colorIndex]} flex items-center justify-center relative overflow-hidden rounded-t-lg`}
         >
@@ -236,7 +278,8 @@ function ProjectCard({ project }) {
 function ProjectsDashboard() {
   const { t } = useTranslation();
   const { projects, loadProjects, isLoading } = useProjectStore();
-  const { dialogues } = useDialogueStore();
+  const { dialogues, loadDialogues } = useDialogueStore();
+  const { lastSyncedAt } = useSyncStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
@@ -245,6 +288,12 @@ function ProjectsDashboard() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    if (!lastSyncedAt) return;
+    loadProjects();
+    loadDialogues();
+  }, [lastSyncedAt, loadProjects, loadDialogues]);
 
   useEffect(() => {
     const loadDiskUsage = async () => {
@@ -266,7 +315,7 @@ function ProjectsDashboard() {
   const diskUsage = formatFileSize(diskUsageBytes);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 overflow-x-clip">
       <OnboardingTour
         run={runTour}
         onFinish={finishTour}
@@ -331,7 +380,7 @@ function ProjectsDashboard() {
 
               <button
                 onClick={handleNewProject}
-                className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[320px] hover:border-primary hover:bg-primary/5 transition-all group"
+                className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] hover:border-primary hover:bg-primary/5 transition-all group"
               >
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Plus className="h-8 w-8 text-primary" />

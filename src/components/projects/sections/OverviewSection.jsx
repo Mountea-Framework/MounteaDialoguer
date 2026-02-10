@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDate, formatDistanceToNow } from '@/lib/dateUtils';
 import { isMobileDevice } from '@/lib/deviceDetection';
+import { toast } from '@/components/ui/toaster';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 /**
  * Overview Section Component
@@ -33,6 +35,7 @@ export function OverviewSection({
 }) {
 	const { t } = useTranslation();
 	const isMobile = isMobileDevice();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 
 	// Calculate metrics
 	const totalNodes = dialogues.reduce((sum, d) => sum + (d.nodeCount || 0), 0);
@@ -67,7 +70,15 @@ export function OverviewSection({
 							<Badge variant="success">v{project.version}</Badge>
 						)}
 						<button
-							onClick={() => onSectionChange?.('settings')}
+							onClick={() =>
+								openSettingsCommand({
+									context: { type: 'project', projectId: project?.id },
+									onOpenSettings: onSectionChange
+										? () => onSectionChange('settings')
+										: null,
+									mode: 'detail',
+								})
+							}
 							className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
 							title="Project Settings"
 						>
@@ -271,7 +282,43 @@ export function OverviewSection({
 									<p className="text-xs text-muted-foreground mb-1">Project ID</p>
 									<div className="flex items-center justify-between bg-muted/50 p-2 rounded-lg border border-border">
 										<code className="text-xs font-mono">{project.id.substring(0, 12)}...</code>
-										<button className="text-muted-foreground hover:text-primary text-xs">📋</button>
+										<button
+											type="button"
+											onClick={() => {
+												navigator.clipboard
+													.writeText(project.id)
+													.then(() => {
+														toast({
+															variant: 'success',
+															title: 'Copied',
+															description: 'Project ID copied to clipboard.',
+														});
+													})
+													.catch(() => {
+														toast({
+															variant: 'error',
+															title: 'Copy failed',
+															description: 'Unable to copy Project ID.',
+														});
+													});
+											}}
+											className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors"
+											aria-label="Copy Project ID"
+										>
+											<span className="sr-only">Copy</span>
+											<svg
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="2"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												className="h-4 w-4"
+											>
+												<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+												<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+											</svg>
+										</button>
 									</div>
 								</div>
 								<div className="pt-2 border-t border-border">
@@ -301,12 +348,14 @@ export function OverviewSection({
 						<Card>
 							<CardContent className="p-6">
 								<div className="flex items-center justify-between mb-4">
-									<h3 className="text-sm font-bold uppercase tracking-wider">Top Participants</h3>
+									<h3 className="text-sm font-bold uppercase tracking-wider">
+										{t('participants.top')}
+									</h3>
 									<button
 										onClick={() => onSectionChange?.('participants')}
 										className="text-xs text-primary hover:underline"
 									>
-										Manage
+										{t('common.manage')}
 									</button>
 								</div>
 								<div className="flex -space-x-2 overflow-hidden mb-3">
@@ -325,7 +374,7 @@ export function OverviewSection({
 									)}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									{participants.length} {participants.length === 1 ? 'participant' : 'participants'} in this project.
+									{t('participants.inProject', { count: participants.length })}
 								</p>
 							</CardContent>
 						</Card>

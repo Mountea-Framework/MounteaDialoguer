@@ -114,40 +114,44 @@ export function CreateDialogueDialog({ open, onOpenChange, projectId }) {
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="space-y-4 py-4">
-					<div className="space-y-2">
-						<Label htmlFor="dialogue-name">
-							{t('dialogues.dialogueName')} <span className="text-destructive">*</span>
-						</Label>
-						<Input
-							id="dialogue-name"
-							placeholder="Welcome Conversation"
-							value={formData.name}
-							onChange={(e) => handleChange('name', e.target.value)}
-							className={errors.name ? 'border-destructive' : ''}
-							autoFocus
-						/>
-						{errors.name && (
-							<p className="text-xs text-destructive">{errors.name}</p>
-						)}
-					</div>
+				<form onSubmit={handleSubmit}>
+					<div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4 sm:-mx-6 sm:px-6">
+						<div className="space-y-4 py-4">
+							<div className="space-y-2">
+								<Label htmlFor="dialogue-name">
+									{t('dialogues.dialogueName')} <span className="text-destructive">*</span>
+								</Label>
+								<Input
+									id="dialogue-name"
+									placeholder="Welcome Conversation"
+									value={formData.name}
+									onChange={(e) => handleChange('name', e.target.value)}
+									className={errors.name ? 'border-destructive' : ''}
+									autoFocus
+								/>
+								{errors.name && (
+									<p className="text-xs text-destructive">{errors.name}</p>
+								)}
+							</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="dialogue-description">
-							{t('projects.projectDescription')}
-						</Label>
-						<Textarea
-							id="dialogue-description"
-							placeholder="A brief description of this dialogue..."
-							value={formData.description}
-							onChange={(e) => handleChange('description', e.target.value)}
-							rows={3}
-						/>
-					</div>
+							<div className="space-y-2">
+								<Label htmlFor="dialogue-description">
+									{t('projects.projectDescription')}
+								</Label>
+								<Textarea
+									id="dialogue-description"
+									placeholder="A brief description of this dialogue..."
+									value={formData.description}
+									onChange={(e) => handleChange('description', e.target.value)}
+									rows={3}
+								/>
+							</div>
 
-					{errors.submit && (
-						<p className="text-sm text-destructive">{errors.submit}</p>
-					)}
+							{errors.submit && (
+								<p className="text-sm text-destructive">{errors.submit}</p>
+							)}
+						</div>
+					</div>
 
 					<DialogFooter>
 						<Button

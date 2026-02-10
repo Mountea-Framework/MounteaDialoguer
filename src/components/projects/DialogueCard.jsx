@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from '@/lib/dateUtils';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 /**
  * Dialogue Card Component
@@ -13,6 +14,7 @@ import { formatDistanceToNow } from '@/lib/dateUtils';
 export function DialogueCard({ dialogue, projectId }) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 
 	const nodeCount = dialogue.nodeCount || 0;
 	const categoryColors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500'];
@@ -35,9 +37,19 @@ export function DialogueCard({ dialogue, projectId }) {
 							onClick={(e) => {
 								e.preventDefault();
 								e.stopPropagation();
-								navigate({
-									to: '/projects/$projectId/dialogue/$dialogueId/settings',
-									params: { projectId, dialogueId: dialogue.id }
+								openSettingsCommand({
+									context: {
+										type: 'dialogue',
+										name: dialogue.name,
+										projectId,
+										dialogueId: dialogue.id,
+									},
+									onOpenSettings: () =>
+										navigate({
+											to: '/projects/$projectId/dialogue/$dialogueId/settings',
+											params: { projectId, dialogueId: dialogue.id },
+										}),
+									mode: 'detail',
 								});
 							}}
 						>
@@ -62,7 +74,9 @@ export function DialogueCard({ dialogue, projectId }) {
 					<div className="mt-auto pt-3 border-t flex items-center justify-center text-xs text-muted-foreground">
 						<span className="flex items-center gap-1.5">
 							<MessageCircle className="h-3.5 w-3.5 group-hover:text-purple-500 transition-colors" />
-							<span className="font-medium">{nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}</span>
+							<span className="font-medium">
+								{t('dialogues.nodeCount', { count: nodeCount })}
+							</span>
 						</span>
 					</div>
 				</CardContent>

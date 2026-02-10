@@ -21,9 +21,27 @@ import {
 export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = [] }) {
 	const { toast } = useToast();
 	const [expandedRows, setExpandedRows] = useState(new Set([0])); // First row expanded by default
-	const [playingAudio, setPlayingAudio] = useState(null); // Track which row is playing audio
-	const audioRefs = useRef({}); // Store audio element references
+	const [playingAudio, setPlayingAudio] = useState(null); // Track which row ID is playing audio
+	const audioRefs = useRef({}); // Store audio element references by row ID
 	const audioUrlsRef = useRef({}); // Store blob URLs by row ID for cleanup
+	const audioUrlOwnedRef = useRef({}); // Track if URL was created by this component
+	const [audioUrls, setAudioUrls] = useState({});
+
+	// Ensure each row has a stable ID to prevent audio collisions and bad rebinding.
+	useEffect(() => {
+		const hasMissingIds = dialogueRows.some((row) => !row?.id);
+		if (!hasMissingIds) return;
+
+		const normalizedRows = dialogueRows.map((row) => ({
+			...row,
+			id: row?.id || uuidv4(),
+			text: row?.text || '',
+			duration: typeof row?.duration === 'number' ? row.duration : 3.0,
+			audioFile: row?.audioFile || null,
+		}));
+
+		onChange(normalizedRows);
+	}, [dialogueRows, onChange]);
 
 	// Create and manage audio URLs when dialogue rows change
 	useEffect(() => {
@@ -35,10 +53,12 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 			if (row.audioFile) {
 				currentRowIds.add(row.id);
 				let url = null;
+				let isOwned = false;
 
-				// Check if audio has a url property (from restoreAudioFromStorage)
-				if (row.audioFile.url) {
-					url = row.audioFile.url;
+				// Prefer a fresh blob URL when blob exists (prevents stale revoked URLs).
+				if (row.audioFile.blob) {
+					url = URL.createObjectURL(row.audioFile.blob);
+					isOwned = true;
 				}
 				// Check if audio has dataUrl property (from old audioStorage)
 				else if (row.audioFile.dataUrl) {
@@ -54,24 +74,27 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 						}
 						const blob = new Blob([u8arr], { type: mime });
 						url = URL.createObjectURL(blob);
+						isOwned = true;
 					} catch (error) {
 						console.error('Error creating audio URL:', error);
 					}
 				}
-				// Check if audio has blob property (fresh upload)
-				else if (row.audioFile.blob) {
-					url = URL.createObjectURL(row.audioFile.blob);
+				// Fallback URL (not owned here)
+				else if (row.audioFile.url) {
+					url = row.audioFile.url;
 				}
 
 				// Update the URL if it changed
 				if (url && audioUrlsRef.current[row.id] !== url) {
-					// Clean up old URL if it exists and is a blob URL we created
+					// Clean up old URL only if it was created by this component.
 					if (audioUrlsRef.current[row.id] &&
-					    audioUrlsRef.current[row.id].startsWith('blob:') &&
-					    audioUrlsRef.current[row.id] !== url) {
+						audioUrlOwnedRef.current[row.id] &&
+						audioUrlsRef.current[row.id].startsWith('blob:') &&
+						audioUrlsRef.current[row.id] !== url) {
 						URL.revokeObjectURL(audioUrlsRef.current[row.id]);
 					}
 					audioUrlsRef.current[row.id] = url;
+					audioUrlOwnedRef.current[row.id] = isOwned;
 				}
 			}
 		});
@@ -79,19 +102,36 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 		// Clean up URLs for rows that no longer exist
 		Object.keys(audioUrlsRef.current).forEach((rowId) => {
 			if (!currentRowIds.has(rowId)) {
-				if (audioUrlsRef.current[rowId] && audioUrlsRef.current[rowId].startsWith('blob:')) {
+				if (
+					audioUrlsRef.current[rowId] &&
+					audioUrlOwnedRef.current[rowId] &&
+					audioUrlsRef.current[rowId].startsWith('blob:')
+				) {
 					URL.revokeObjectURL(audioUrlsRef.current[rowId]);
 				}
 				delete audioUrlsRef.current[rowId];
+				delete audioUrlOwnedRef.current[rowId];
 			}
 		});
+
+		// Clean up stale audio element refs.
+		Object.keys(audioRefs.current).forEach((rowId) => {
+			if (!currentRowIds.has(rowId)) {
+				delete audioRefs.current[rowId];
+			}
+		});
+
+		setAudioUrls({ ...audioUrlsRef.current });
 	}, [dialogueRows]);
 
 	// Cleanup blob URLs only on unmount
 	useEffect(() => {
+		const urlsRef = audioUrlsRef.current;
+		const ownedRef = audioUrlOwnedRef.current;
 		return () => {
-			Object.values(audioUrlsRef.current).forEach((url) => {
-				if (url && url.startsWith('blob:')) {
+			Object.keys(urlsRef).forEach((rowId) => {
+				const url = urlsRef[rowId];
+				if (url && ownedRef[rowId] && url.startsWith('blob:')) {
 					URL.revokeObjectURL(url);
 				}
 			});
@@ -253,11 +293,25 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 	};
 
 	// Handle audio playback
-	const toggleAudioPlayback = (index) => {
-		const audioElement = audioRefs.current[index];
+	const toggleAudioPlayback = (rowId) => {
+		const audioElement = audioRefs.current[rowId];
 		if (!audioElement) return;
+		const source = audioUrlsRef.current[rowId] || audioUrls[rowId];
+		if (!source) {
+			toast({
+				variant: 'error',
+				title: 'Playback Failed',
+				description: 'No audio source found for this row.',
+			});
+			return;
+		}
 
-		if (playingAudio === index) {
+		if (audioElement.src !== source) {
+			audioElement.src = source;
+			audioElement.load();
+		}
+
+		if (playingAudio === rowId) {
 			audioElement.pause();
 			setPlayingAudio(null);
 		} else {
@@ -265,14 +319,26 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 			if (playingAudio !== null && audioRefs.current[playingAudio]) {
 				audioRefs.current[playingAudio].pause();
 			}
-			audioElement.play();
-			setPlayingAudio(index);
+			audioElement
+				.play()
+				.then(() => {
+					setPlayingAudio(rowId);
+				})
+				.catch((error) => {
+					console.error('Error playing audio:', error);
+					setPlayingAudio(null);
+					toast({
+						variant: 'error',
+						title: 'Playback Failed',
+						description: 'Failed to play audio clip.',
+					});
+				});
 		}
 	};
 
 	// Handle audio ended
-	const handleAudioEnded = (index) => {
-		if (playingAudio === index) {
+	const handleAudioEnded = (rowId) => {
+		if (playingAudio === rowId) {
 			setPlayingAudio(null);
 		}
 	};
@@ -282,14 +348,24 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 		const row = dialogueRows[index];
 		if (row) {
 			// Clean up blob URL
-			if (audioUrlsRef.current[row.id] && audioUrlsRef.current[row.id].startsWith('blob:')) {
+			if (
+				audioUrlsRef.current[row.id] &&
+				audioUrlOwnedRef.current[row.id] &&
+				audioUrlsRef.current[row.id].startsWith('blob:')
+			) {
 				URL.revokeObjectURL(audioUrlsRef.current[row.id]);
 			}
 			delete audioUrlsRef.current[row.id];
+			delete audioUrlOwnedRef.current[row.id];
+			setAudioUrls((prev) => {
+				const next = { ...prev };
+				delete next[row.id];
+				return next;
+			});
 		}
 
 		updateRow(index, { audioFile: null });
-		if (playingAudio === index) {
+		if (row && playingAudio === row.id) {
 			setPlayingAudio(null);
 		}
 	};
@@ -407,9 +483,9 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 														variant="ghost"
 														size="icon"
 														className="h-8 w-8 shrink-0"
-														onClick={() => toggleAudioPlayback(index)}
+														onClick={() => toggleAudioPlayback(row.id)}
 													>
-														{playingAudio === index ? (
+														{playingAudio === row.id ? (
 															<Pause className="h-4 w-4" />
 														) : (
 															<Play className="h-4 w-4" />
@@ -436,9 +512,9 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 													</Button>
 													{/* Hidden audio element for playback */}
 													<audio
-														ref={(el) => (audioRefs.current[index] = el)}
-														src={audioUrlsRef.current[row.id] || ''}
-														onEnded={() => handleAudioEnded(index)}
+														ref={(el) => (audioRefs.current[row.id] = el)}
+														src={audioUrls[row.id] || ''}
+														onEnded={() => handleAudioEnded(row.id)}
 														className="hidden"
 													/>
 												</div>

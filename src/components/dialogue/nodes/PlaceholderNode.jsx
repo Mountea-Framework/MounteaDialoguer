@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Handle, Position } from '@xyflow/react';
 import { Plus } from 'lucide-react';
 
@@ -7,6 +8,8 @@ import { Plus } from 'lucide-react';
  * Displays a clickable node that opens a modal to select node type
  */
 function PlaceholderNode({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) {
+	const { t } = useTranslation();
+
 	const handleClick = () => {
 		if (data.onClick) {
 			// Use absolute position from ReactFlow
@@ -36,7 +39,7 @@ function PlaceholderNode({ id, data, selected, positionAbsoluteX, positionAbsolu
 				<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
 					<Plus className="h-5 w-5" />
 				</div>
-				<span className="text-sm font-medium">Add Node</span>
+				<span className="text-sm font-medium">{t('editor.placeholder.addNode')}</span>
 			</div>
 
 			{/* Bottom Handle */}

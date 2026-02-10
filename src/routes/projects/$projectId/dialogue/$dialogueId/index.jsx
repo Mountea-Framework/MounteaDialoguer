@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
 import {
@@ -39,6 +39,7 @@ import {
 	Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -47,6 +48,7 @@ import {
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
+	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
@@ -57,23 +59,12 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useCategoryStore } from '@/stores/categoryStore';
 import { v4 as uuidv4 } from 'uuid';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-	DropdownMenuSeparator,
-	DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+import { NativeSelect } from '@/components/ui/native-select';
+import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -90,6 +81,8 @@ import { SaveIndicator } from '@/components/ui/save-indicator';
 import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 import { celebrateSuccess } from '@/lib/confetti';
 import { SimpleTooltip } from '@/components/ui/tooltip';
+import { AppHeader } from '@/components/ui/app-header';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
 import { getDeviceType } from '@/lib/deviceDetection';
 import {
@@ -107,7 +100,7 @@ const startNodeDefinition = getNodeDefinition('startNode');
 const startNodeDefaults = getNodeDefaultData('startNode');
 
 // Initial nodes and edges for new dialogues
-const initialNodes = [
+const getInitialNodes = (t) => [
 	{
 		id: '00000000-0000-0000-0000-000000000001',
 		type: 'startNode',
@@ -116,8 +109,11 @@ const initialNodes = [
 			label:
 				startNodeDefaults.label ||
 				startNodeDefinition?.description ||
-				'Dialogue entry point',
-			displayName: startNodeDefaults.displayName || startNodeDefinition?.label || 'Start',
+				t('editor.nodes.startDescription'),
+			displayName:
+				startNodeDefaults.displayName ||
+				startNodeDefinition?.label ||
+				t('editor.nodes.start'),
 		},
 		position: { x: 250, y: 100 },
 		deletable: false,
@@ -181,8 +177,9 @@ function DialogueEditorPage() {
 		useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
+	const { categories, loadCategories } = useCategoryStore();
 
-	const [nodes, setNodes, onNodesChangeBase] = useNodesState(initialNodes);
+	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
 	// Prevent deletion of Start Node
@@ -208,6 +205,8 @@ function DialogueEditorPage() {
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
 	const { dismiss } = useToast();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
+	const openCommandPalette = useCommandPaletteStore((state) => state.openWithActions);
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
@@ -215,6 +214,8 @@ function DialogueEditorPage() {
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
+	const headerRef = useRef(null);
+	const bodyOverflowRef = useRef(null);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -226,9 +227,51 @@ function DialogueEditorPage() {
 		return () => window.removeEventListener('resize', updateDeviceType);
 	}, []);
 
+	useLayoutEffect(() => {
+		if (!headerRef.current) return undefined;
+
+		const updateHeaderHeight = () => {
+			const height = headerRef.current.getBoundingClientRect().height;
+			document.documentElement.style.setProperty('--app-header-height', `${height}px`);
+		};
+
+		updateHeaderHeight();
+		const observer = new ResizeObserver(updateHeaderHeight);
+		observer.observe(headerRef.current);
+		window.addEventListener('resize', updateHeaderHeight);
+
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', updateHeaderHeight);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (deviceType !== 'mobile') {
+			if (bodyOverflowRef.current !== null) {
+				document.body.style.overflow = bodyOverflowRef.current;
+				bodyOverflowRef.current = null;
+			}
+			return undefined;
+		}
+
+		// On mobile, lock page scroll for the graph editor. Only the right panel should scroll.
+		if (bodyOverflowRef.current === null) {
+			bodyOverflowRef.current = document.body.style.overflow;
+		}
+		document.body.style.overflow = 'hidden';
+
+		return () => {
+			if (bodyOverflowRef.current !== null) {
+				document.body.style.overflow = bodyOverflowRef.current;
+				bodyOverflowRef.current = null;
+			}
+		};
+	}, [deviceType, isMobilePanelOpen]);
+
 	// History for undo/redo
 	const [history, setHistory] = useState([
-		{ nodes: initialNodes, edges: initialEdges },
+		{ nodes: getInitialNodes(t), edges: initialEdges },
 	]);
 	const [historyIndex, setHistoryIndex] = useState(0);
 
@@ -238,7 +281,15 @@ function DialogueEditorPage() {
 		loadDialogues(projectId);
 		loadParticipants(projectId);
 		loadDecorators(projectId);
-	}, [loadProjects, loadDialogues, loadParticipants, loadDecorators, projectId]);
+		loadCategories(projectId);
+	}, [
+		loadProjects,
+		loadDialogues,
+		loadParticipants,
+		loadDecorators,
+		loadCategories,
+		projectId,
+	]);
 
 	// Track if viewport was loaded from save
 	const [hasLoadedViewport, setHasLoadedViewport] = useState(false);
@@ -380,6 +431,7 @@ function DialogueEditorPage() {
 	const selectedNodeDefinition = selectedNode
 		? getNodeDefinition(selectedNode.type)
 		: null;
+	const projectCategories = categories.filter((c) => c.projectId === projectId);
 
 	const renderNodeField = (field) => {
 		if (!selectedNode) return null;
@@ -407,60 +459,111 @@ function DialogueEditorPage() {
 				);
 			case 'select':
 				if (field.options === 'participants') {
+					const groups = new Map();
+					const getCategoryPath = (categoryName) => {
+						const category = projectCategories.find((c) => c.name === categoryName);
+						if (!category) return categoryName;
+						const path = [];
+						let current = category;
+						while (current) {
+							path.unshift(current.name);
+							current = projectCategories.find(
+								(c) => c.id === current.parentCategoryId
+							);
+						}
+						return path.join(' > ');
+					};
+					participants.forEach((participant) => {
+						const categoryName = participant.category || t('categories.title');
+						const categoryPath = getCategoryPath(categoryName);
+						const root = categoryPath.split(' > ')[0] || categoryName;
+						if (!groups.has(root)) {
+							groups.set(root, []);
+						}
+						groups.get(root).push({
+							id: participant.id,
+							name: participant.name,
+							label: `${categoryPath} · ${participant.name}`,
+						});
+					});
+					const groupedParticipants = Array.from(groups.entries())
+						.map(([label, options]) => ({
+							label,
+							options: options.sort((a, b) => a.label.localeCompare(b.label)),
+						}))
+						.sort((a, b) => a.label.localeCompare(b.label));
+
 					return (
 						<div className="space-y-2" key={field.id}>
 							<Label htmlFor={field.id}>{requiredLabel}</Label>
-							<Select
+							<NativeSelect
+								id={field.id}
 								value={selectedNode.data[field.id] || ''}
-								onValueChange={(value) =>
-								updateNodeData(selectedNode.id, { [field.id]: value })
-							}
-						>
-								<SelectTrigger>
-									<SelectValue
-										placeholder={
-											field.placeholderKey ? t(field.placeholderKey) : undefined
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{participants.map((participant) => (
-										<SelectItem key={participant.id} value={participant.name}>
-											{participant.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								onChange={(e) =>
+									updateNodeData(selectedNode.id, { [field.id]: e.target.value })
+								}
+							>
+								<option value="" disabled>
+									{field.placeholderKey ? t(field.placeholderKey) : undefined}
+								</option>
+								{groupedParticipants.map((group) => (
+									<optgroup key={group.label} label={group.label}>
+										{group.options.map((option) => (
+											<option key={option.id} value={option.name}>
+												{option.label}
+											</option>
+										))}
+									</optgroup>
+								))}
+							</NativeSelect>
 						</div>
 					);
 				}
 				if (field.options === 'nodes') {
+					const groups = new Map();
+					nodes
+						.filter((n) => n.id !== selectedNode.id)
+						.forEach((node) => {
+							const nodeLabel =
+								getNodeDefinition(node.type)?.label || node.type || 'Node';
+							if (!groups.has(nodeLabel)) {
+								groups.set(nodeLabel, []);
+							}
+							groups.get(nodeLabel).push({
+								id: node.id,
+								label: node.data.displayName || node.data.label || node.id,
+							});
+						});
+					const groupedNodes = Array.from(groups.entries())
+						.map(([label, options]) => ({
+							label,
+							options: options.sort((a, b) => a.label.localeCompare(b.label)),
+						}))
+						.sort((a, b) => a.label.localeCompare(b.label));
+
 					return (
 						<div className="space-y-2" key={field.id}>
 							<Label htmlFor={field.id}>{requiredLabel}</Label>
-							<Select
+							<NativeSelect
+								id={field.id}
 								value={selectedNode.data[field.id] || ''}
-								onValueChange={(value) =>
-								updateNodeData(selectedNode.id, { [field.id]: value })
-							}
-						>
-								<SelectTrigger>
-									<SelectValue
-										placeholder={
-											field.placeholderKey ? t(field.placeholderKey) : undefined
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{nodes
-										.filter((n) => n.id !== selectedNode.id)
-										.map((node) => (
-											<SelectItem key={node.id} value={node.id}>
-												{node.data.displayName || node.data.label || node.id}
-											</SelectItem>
+								onChange={(e) =>
+									updateNodeData(selectedNode.id, { [field.id]: e.target.value })
+								}
+							>
+								<option value="" disabled>
+									{field.placeholderKey ? t(field.placeholderKey) : undefined}
+								</option>
+								{groupedNodes.map((group) => (
+									<optgroup key={group.label} label={group.label}>
+										{group.options.map((option) => (
+											<option key={option.id} value={option.id}>
+												{option.label}
+											</option>
 										))}
-								</SelectContent>
-							</Select>
+									</optgroup>
+								))}
+							</NativeSelect>
 						</div>
 					);
 				}
@@ -1329,6 +1432,28 @@ function DialogueEditorPage() {
 		}
 	};
 
+	useEffect(() => {
+		const handleCommandSave = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleSave();
+		};
+
+		const handleCommandExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleExport();
+		};
+
+		window.addEventListener('command:dialogue-save', handleCommandSave);
+		window.addEventListener('command:dialogue-export', handleCommandExport);
+
+		return () => {
+			window.removeEventListener('command:dialogue-save', handleCommandSave);
+			window.removeEventListener('command:dialogue-export', handleCommandExport);
+		};
+	}, [dialogueId, handleSave, handleExport]);
+
 	if (!dialogue || !project) {
 		return (
 			<div className="h-screen flex items-center justify-center">
@@ -1349,122 +1474,153 @@ function DialogueEditorPage() {
 			)}
 
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 md:px-12 py-3 md:py-4 flex items-center justify-between" data-tour="editor-header">
-				<div className="flex items-center gap-2 md:gap-4 min-w-0">
-					<Link to="/projects/$projectId" params={{ projectId }}>
-						<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
-					</Link>
-					<div className="min-w-0">
-						<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
-						<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-2">
-					<SaveIndicator
-						status={saveStatus}
-						lastSaved={lastSaved}
-						className="hidden md:flex"
-					/>
-
-					{/* Single Menu with all actions */}
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="outline"
-								size="icon"
-								className="rounded-full"
-								data-tour="save-button"
-							>
-								<Menu className="h-4 w-4" />
+			<AppHeader
+				ref={headerRef}
+				data-tour="editor-header"
+				left={
+					<>
+						<Link to="/projects/$projectId" params={{ projectId }}>
+							<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+								<ArrowLeft className="h-5 w-5" />
 							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-56">
-							{/* File Section */}
-							<DropdownMenuLabel>File</DropdownMenuLabel>
-							<DropdownMenuItem
-								onClick={handleSave}
-								disabled={isSaving}
-							>
-								<Save className="h-4 w-4 mr-2" />
-								{isSaving ? t('common.saving') : t('common.save')}
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+S</span>
-							</DropdownMenuItem>
-							<DropdownMenuItem onClick={handleExport}>
-								<Download className="h-4 w-4 mr-2" />
-								Export
-							</DropdownMenuItem>
+						</Link>
+						<div className="min-w-0">
+							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
+							<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
+						</div>
+					</>
+				}
+				right={
+					<>
+						<span className="hidden md:flex" data-header-mobile-hidden>
+							<SaveIndicator
+								status={saveStatus}
+								lastSaved={lastSaved}
+								className="hidden md:flex"
+							/>
+						</span>
 
-							<DropdownMenuSeparator />
-
-							{/* Edit Section */}
-							<DropdownMenuLabel>Edit</DropdownMenuLabel>
-							<DropdownMenuItem
-								onClick={handleUndo}
-								disabled={historyIndex === 0}
-							>
-								<Undo2 className="h-4 w-4 mr-2" />
-								Undo
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Z</span>
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={handleRedo}
-								disabled={historyIndex === history.length - 1}
-							>
-								<Redo2 className="h-4 w-4 mr-2" />
-								Redo
-								<span className="ml-auto text-xs text-muted-foreground">Ctrl+Y</span>
-							</DropdownMenuItem>
-
-							<DropdownMenuSeparator />
-
-							{/* View Section */}
-							<DropdownMenuLabel>View</DropdownMenuLabel>
-							<DropdownMenuItem
-								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							>
-								{resolvedTheme === 'dark' ? (
-									<Sun className="h-4 w-4 mr-2" />
-								) : (
-									<Moon className="h-4 w-4 mr-2" />
-								)}
-								{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-							</DropdownMenuItem>
-							{deviceType !== 'mobile' && (
-								<DropdownMenuItem onClick={resetTour}>
-									<HelpCircle className="h-4 w-4 mr-2" />
-									Show Tour
-								</DropdownMenuItem>
-							)}
-
-							<DropdownMenuSeparator />
-
-							{/* Settings & Support */}
-							<Link
-								to="/projects/$projectId/dialogue/$dialogueId/settings"
-								params={{ projectId, dialogueId }}
-							>
-								<DropdownMenuItem>
-									<Settings className="h-4 w-4 mr-2" />
-									Settings
-								</DropdownMenuItem>
-							</Link>
-							<DropdownMenuItem
-								onClick={() =>
-									window.open(
-										'https://github.com/sponsors/Mountea-Framework',
-										'_blank'
-									)
-								}
-							>
-								<Heart className="h-4 w-4 mr-2" />
-								Support Mountea
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</div>
-			</header>
+						{/* Command Palette Trigger */}
+						<Button
+							variant="outline"
+							size="icon"
+							className="rounded-full"
+							data-tour="save-button"
+							onClick={() =>
+								openCommandPalette({
+									placeholder: t('common.search'),
+									actions: [
+										{
+											group: t('editor.menu.file'),
+											items: [
+												{
+													icon: Save,
+													label: isSaving ? t('common.saving') : t('common.save'),
+													shortcut: 'Ctrl+S',
+													onSelect: handleSave,
+												},
+												{
+													icon: Download,
+													label: t('common.export'),
+													shortcut: 'Ctrl+E',
+													onSelect: handleExport,
+												},
+											],
+										},
+										{
+											group: t('editor.menu.edit'),
+											items: [
+												{
+													icon: Undo2,
+													label: t('editor.menu.undo'),
+													shortcut: 'Ctrl+Z',
+													onSelect: handleUndo,
+												},
+												{
+													icon: Redo2,
+													label: t('editor.menu.redo'),
+													shortcut: 'Ctrl+Y',
+													onSelect: handleRedo,
+												},
+											],
+										},
+										{
+											group: t('editor.menu.view'),
+											items: [
+												{
+													key: 'language-selector',
+													render: () => (
+														<div className="flex items-center gap-3">
+															<span className="text-xs font-medium text-muted-foreground">
+																{t('settings.language')}
+															</span>
+															<LanguageSelector />
+														</div>
+													),
+												},
+												{
+													icon: resolvedTheme === 'dark' ? Sun : Moon,
+													label:
+														resolvedTheme === 'dark'
+															? t('settings.lightMode')
+															: t('settings.darkMode'),
+													shortcut: '',
+													onSelect: () =>
+														setTheme(
+															resolvedTheme === 'dark' ? 'light' : 'dark'
+														),
+												},
+												...(deviceType !== 'mobile'
+													? [
+															{
+																icon: HelpCircle,
+																label: t('editor.menu.showTour'),
+																shortcut: '',
+																onSelect: resetTour,
+															},
+													  ]
+													: []),
+											],
+										},
+										{
+											group: t('settings.title'),
+											items: [
+												{
+													icon: Settings,
+													label: t('settings.title'),
+													shortcut: '',
+													onSelect: () =>
+														openSettingsCommand({
+															context: {
+																type: 'dialogue',
+																name: dialogue.name,
+																projectId,
+																dialogueId,
+															},
+															mode: 'detail',
+														}),
+												},
+												{
+													icon: Heart,
+													label: t('editor.menu.support'),
+													shortcut: '',
+													onSelect: () =>
+														window.open(
+															'https://github.com/sponsors/Mountea-Framework',
+															'_blank'
+														),
+												},
+											],
+										},
+									],
+								})
+							}
+						>
+							<Menu className="h-4 w-4" />
+						</Button>
+					</>
+				}
+			/>
 
 			{/* Main Content */}
 			<div className="flex-1 flex overflow-hidden">
@@ -1510,8 +1666,10 @@ function DialogueEditorPage() {
 				maxZoom={2}
 			>
 				<Background />
-				<Panel position="bottom-left">
-					<ZoomSlider className="!bg-card !border !border-border !rounded-lg !shadow-lg" />
+				<Panel position="bottom-left" className="mb-2">
+					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-3 absolute bottom-6">
+						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none" />
+					</div>
 				</Panel>
 				{deviceType !== 'mobile' && (
 					<MiniMap
@@ -1526,58 +1684,65 @@ function DialogueEditorPage() {
 
 			{/* Mobile Node Action Bar */}
 			{deviceType === 'mobile' && selectedNode && (
-				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
+				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
 					<span className="text-sm font-medium truncate max-w-32">
 						{selectedNode.data.displayName || selectedNode.type?.replace('Node', '')}
 					</span>
 					<div className="h-4 w-px bg-border" />
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						onClick={() => setIsMobilePanelOpen(true)}
-					>
-						<PanelRightOpen className="h-4 w-4" />
-					</Button>
-					{selectedNode.id !== '00000000-0000-0000-0000-000000000001' && (
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-							onClick={() => setIsCascadeDeleteOpen(true)}
-						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					)}
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						onClick={() => setSelectedNode(null)}
-					>
-						<X className="h-4 w-4" />
-					</Button>
+					<div className="flex items-center gap-1">
+						<ButtonGroup>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setIsMobilePanelOpen(true)}
+							>
+								<PanelRightOpen className="h-4 w-4" />
+							</Button>
+							{selectedNode.id !== '00000000-0000-0000-0000-000000000001' && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+									onClick={() => setIsCascadeDeleteOpen(true)}
+								>
+									<Trash2 className="h-4 w-4" />
+								</Button>
+							)}
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setSelectedNode(null)}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</ButtonGroup>
+					</div>					
 				</div>
 			)}
 
 			{/* Mobile Cascade Delete Confirmation */}
 			{deviceType === 'mobile' && (
 				<AlertDialog open={isCascadeDeleteOpen} onOpenChange={setIsCascadeDeleteOpen}>
-					<AlertDialogContent>
+					<AlertDialogContent variant="destructive" size="sm">
 						<AlertDialogHeader>
+							<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+								<Trash2 className="h-6 w-6" />
+							</AlertDialogMedia>
 							<AlertDialogTitle>{t('editor.deleteCascadeTitle')}</AlertDialogTitle>
 							<AlertDialogDescription>
 								{t('editor.deleteCascadeDescription')}
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>
-							<AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+							<AlertDialogCancel variant="outline">{t('common.cancel')}</AlertDialogCancel>
 							<AlertDialogAction
+								variant="destructive"
 								onClick={() => {
 									setIsCascadeDeleteOpen(false);
 									deleteSelectedNodeCascade();
 								}}
-								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 							>
 								{t('editor.deleteCascadeConfirm')}
 							</AlertDialogAction>
@@ -1596,7 +1761,17 @@ function DialogueEditorPage() {
 
 			{/* Right Sidebar - Node Properties */}
 			{selectedNode && (deviceType !== 'mobile' || isMobilePanelOpen) && (
-					<div className={`${deviceType === 'mobile' ? 'fixed inset-y-0 right-0 z-40 w-80' : 'w-96'} border-l bg-card overflow-y-auto`}>
+					<div
+						className={`${deviceType === 'mobile' ? 'fixed right-0 z-40 w-80 overscroll-contain touch-pan-y' : 'w-96'} border-l bg-card overflow-y-auto`}
+						style={
+							deviceType === 'mobile'
+								? {
+										top: 'var(--app-header-height)',
+										bottom: 0,
+									}
+								: undefined
+						}
+					>
 						<div className="p-6 space-y-6">
 							{/* Header */}
 							<div className="flex items-center justify-between">
@@ -1642,7 +1817,7 @@ function DialogueEditorPage() {
 			{deviceType !== 'mobile' && (
 			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
 				<div className="flex items-center gap-2">
-					<SimpleTooltip content="Auto-layout nodes using dagre algorithm" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.autoLayoutTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1650,11 +1825,11 @@ function DialogueEditorPage() {
 							onClick={onLayout}
 						>
 							<Network className="h-4 w-4" />
-							Auto Layout
+							{t('editor.nodeToolbar.autoLayout')}
 						</Button>
 					</SimpleTooltip>
 					<div className="h-6 w-px bg-border mx-1"></div>
-					<SimpleTooltip content="Add NPC node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addNpcTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1664,10 +1839,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('leadNode')}
 						>
 							<MessageCircle className="h-4 w-4" />
-							NPC
+							{t('editor.nodeToolbar.npc')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Player node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addPlayerTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1677,10 +1852,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('answerNode')}
 						>
 							<User className="h-4 w-4" />
-							Player
+							{t('editor.nodeToolbar.player')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Return node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addReturnTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1690,10 +1865,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('returnNode')}
 						>
 							<CornerUpLeft className="h-4 w-4" />
-							Return
+							{t('editor.nodeToolbar.return')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Complete node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addCompleteTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1703,10 +1878,10 @@ function DialogueEditorPage() {
 							onClick={() => addNode('completeNode')}
 						>
 							<CheckCircle2 className="h-4 w-4" />
-							Complete
+							{t('editor.nodeToolbar.complete')}
 						</Button>
 					</SimpleTooltip>
-					<SimpleTooltip content="Add Delay node - drag to canvas or click" side="top">
+					<SimpleTooltip content={t('editor.nodeToolbar.addDelayTooltip')} side="top">
 						<Button
 							variant="outline"
 							size="sm"
@@ -1716,7 +1891,7 @@ function DialogueEditorPage() {
 							onClick={() => addNode('delayNode')}
 						>
 							<Clock className="h-4 w-4" />
-							Delay
+							{t('editor.nodeToolbar.delay')}
 						</Button>
 					</SimpleTooltip>
 				</div>
@@ -1726,7 +1901,7 @@ function DialogueEditorPage() {
 						{t('dialogues.edges')}
 					</span>
 					<span className="text-xs hidden md:block">
-						Powered by{' '}
+						{t('editor.nodeToolbar.poweredBy')}{' '}
 						<a
 							href="https://reactflow.dev"
 							target="_blank"

@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { useSyncStore } from '@/stores/syncStore';
+
+const normalizeDialogueRow = (row = {}) => ({
+	...row,
+	id: row.id || uuidv4(),
+	text: row.text || '',
+	duration: typeof row.duration === 'number' ? row.duration : 3.0,
+	audioFile: row.audioFile || null,
+});
+
+const normalizeDialogueRows = (rows = []) => rows.map((row) => normalizeDialogueRow(row));
 
 /**
  * Dialogue Store
@@ -64,6 +75,7 @@ export const useDialogueStore = create((set, get) => ({
 			};
 			await db.dialogues.add(newDialogue);
 			await get().loadDialogues(dialogueData.projectId);
+			useSyncStore.getState().schedulePush(dialogueData.projectId);
 			toast({
 				variant: 'success',
 				title: 'Dialogue Created',
@@ -94,6 +106,7 @@ export const useDialogueStore = create((set, get) => ({
 			});
 			const dialogue = await db.dialogues.get(id);
 			await get().loadDialogues(dialogue.projectId);
+			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
 				variant: 'success',
 				title: 'Dialogue Updated',
@@ -124,6 +137,7 @@ export const useDialogueStore = create((set, get) => ({
 				await db.edges.where('dialogueId').equals(id).delete();
 			});
 			await get().loadDialogues(dialogue.projectId);
+			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
 				variant: 'success',
 				title: 'Dialogue Deleted',
@@ -231,7 +245,7 @@ export const useDialogueStore = create((set, get) => ({
 				nodes.map(async (node) => {
 					if (node.data?.dialogueRows) {
 						const processedRows = await Promise.all(
-							node.data.dialogueRows.map(async (row) => {
+							normalizeDialogueRows(node.data.dialogueRows).map(async (row) => {
 								if (row.audioFile?.blob) {
 									const storedAudio = await prepareAudioForStorage(row.audioFile);
 									return { ...row, audioFile: storedAudio };
@@ -269,6 +283,10 @@ export const useDialogueStore = create((set, get) => ({
 				});
 			});
 			set({ nodes, edges, isLoading: false });
+			const dialogue = await db.dialogues.get(dialogueId);
+			if (dialogue?.projectId) {
+				useSyncStore.getState().schedulePush(dialogue.projectId);
+			}
 		} catch (error) {
 			console.error('Error saving dialogue graph:', error);
 			toast({
@@ -297,7 +315,7 @@ export const useDialogueStore = create((set, get) => ({
 			// Convert base64 back to blobs for audio playback and export
 			const nodes = loadedNodes.map((node) => {
 				if (node.data?.dialogueRows) {
-					const restoredRows = node.data.dialogueRows.map((row) => {
+					const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
 						if (row.audioFile?.base64) {
 							const restoredAudio = restoreAudioFromStorage(row.audioFile);
 							return { ...row, audioFile: restoredAudio };
@@ -385,7 +403,7 @@ export const useDialogueStore = create((set, get) => ({
 			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
 			const nodes = loadedNodes.map((node) => {
 				if (node.data?.dialogueRows) {
-					const restoredRows = node.data.dialogueRows.map((row) => {
+					const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
 						if (row.audioFile?.base64) {
 							const restoredAudio = restoreAudioFromStorage(row.audioFile);
 							return { ...row, audioFile: restoredAudio };
@@ -406,7 +424,6 @@ export const useDialogueStore = create((set, get) => ({
 
 			// Collect unique participants and categories from nodes
 			const participantSet = new Set();
-			const categorySet = new Set();
 			const decoratorsExport = [];
 			const allDialogueRows = [];
 
@@ -418,11 +435,11 @@ export const useDialogueStore = create((set, get) => ({
 
 				// Extract dialogue rows
 				if (node.data?.dialogueRows) {
-					node.data.dialogueRows.forEach((row) => {
+					normalizeDialogueRows(node.data.dialogueRows).forEach((row) => {
 						allDialogueRows.push({
 							id: row.id,
 							text: row.text || '',
-							audioPath: row.audioFile ? `audio/${row.id}/` : null,
+							audioPath: row.audioFile?.blob ? `audio/${row.id}/` : null,
 							nodeId: node.id,
 							duration: row.duration || 0,
 						});
@@ -494,8 +511,9 @@ export const useDialogueStore = create((set, get) => ({
 			// (actual audio files go in the audio/ folder)
 			const nodesForExport = nodes.map((node) => {
 				if (node.data?.dialogueRows) {
-					const rowsWithoutAudio = node.data.dialogueRows.map((row) => {
-						const { audioFile, ...rowWithoutAudio } = row;
+					const rowsWithoutAudio = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
+						const rowWithoutAudio = { ...row };
+						delete rowWithoutAudio.audioFile;
 						return rowWithoutAudio;
 					});
 					return { ...node, data: { ...node.data, dialogueRows: rowsWithoutAudio } };
@@ -746,9 +764,7 @@ export const useDialogueStore = create((set, get) => ({
 				// Update participant reference
 				if (nodeData.participant) {
 					// participant might be a string or an object
-					if (typeof nodeData.participant === 'string') {
-						nodeData.participant = nodeData.participant;
-					} else if (nodeData.participant.name) {
+					if (typeof nodeData.participant === 'object' && nodeData.participant.name) {
 						nodeData.participant = nodeData.participant.name;
 					}
 				}
@@ -766,8 +782,10 @@ export const useDialogueStore = create((set, get) => ({
 					});
 				}
 
-				// Store dialogue rows temporarily (will process later)
-				const rowsData = nodeData.dialogueRows || [];
+				// Normalize rows so each row has a stable ID for audio rebinding.
+				if (nodeData.dialogueRows) {
+					nodeData.dialogueRows = normalizeDialogueRows(nodeData.dialogueRows);
+				}
 
 				const newNode = {
 					id: newNodeId,
@@ -822,9 +840,8 @@ export const useDialogueStore = create((set, get) => ({
 								if (nodeId) {
 									const node = await db.nodes.get(nodeId);
 									if (node && node.data.dialogueRows) {
-										const rowIndex = node.data.dialogueRows.findIndex(
-											(r) => r.text === row.text
-										);
+										const normalizedRows = normalizeDialogueRows(node.data.dialogueRows);
+										const rowIndex = normalizedRows.findIndex((r) => r.id === row.id);
 										if (rowIndex !== -1) {
 											// Create audio file data
 											const audioFileData = {
@@ -836,8 +853,9 @@ export const useDialogueStore = create((set, get) => ({
 												path: `audio/${row.id}/${audioFiles[0].split('/').pop()}`,
 											};
 
-											node.data.dialogueRows[rowIndex].audioFile = audioFileData;
-											node.data.dialogueRows[rowIndex].duration = row.duration;
+											normalizedRows[rowIndex].audioFile = audioFileData;
+											normalizedRows[rowIndex].duration = row.duration;
+											node.data.dialogueRows = normalizedRows;
 
 											await db.nodes.update(nodeId, { data: node.data });
 										}
@@ -851,6 +869,7 @@ export const useDialogueStore = create((set, get) => ({
 
 			// Reload dialogues
 			await get().loadDialogues(projectId);
+			useSyncStore.getState().schedulePush(projectId);
 
 			toast({
 				variant: 'success',

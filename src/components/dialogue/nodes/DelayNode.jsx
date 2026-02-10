@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Handle, Position } from '@xyflow/react';
 import { Clock } from 'lucide-react';
 
@@ -7,6 +8,8 @@ import { Clock } from 'lucide-react';
  * - Adds a timed pause to the dialogue flow
  */
 const DelayNode = memo(({ data, selected }) => {
+	const { t } = useTranslation();
+
 	const accentColor = '#7dd3fc';
 	const accentSoft = 'rgba(125, 211, 252, 0.18)';
 	const duration = typeof data.duration === 'number' ? data.duration : 1;
@@ -35,16 +38,18 @@ const DelayNode = memo(({ data, selected }) => {
 				<div className="flex items-center gap-2">
 					<Clock className="h-4 w-4" />
 					<span className="font-semibold text-sm">
-						{data.displayName || 'Delay'}
+						{data.displayName || t('editor.nodes.delay')}
 					</span>
 				</div>
-				<span className="text-xs font-medium">{duration}s</span>
+				<span className="text-xs font-medium">
+					{t('editor.nodes.delaySeconds', { count: duration })}
+				</span>
 			</div>
 
 			{/* Content */}
 			<div className="p-4">
 				<p className="text-sm text-foreground">
-					Wait for {duration} second{duration === 1 ? '' : 's'}.
+					{t('editor.nodes.delayDescription', { count: duration })}
 				</p>
 			</div>
 

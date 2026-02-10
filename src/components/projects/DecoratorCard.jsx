@@ -12,14 +12,17 @@ import {
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
+	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { EditDecoratorDialog } from '@/components/dialogs/EditDecoratorDialog';
 
 export function DecoratorCard({ decorator }) {
 	const { t } = useTranslation();
 	const { deleteDecorator } = useDecoratorStore();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleDelete = async () => {
@@ -57,6 +60,7 @@ export function DecoratorCard({ decorator }) {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-muted-foreground hover:text-primary"
+								onClick={() => setShowEditDialog(true)}
 							>
 								<Edit3 className="h-4 w-4" />
 							</Button>
@@ -73,22 +77,32 @@ export function DecoratorCard({ decorator }) {
 				</CardContent>
 			</Card>
 
+			<EditDecoratorDialog
+				open={showEditDialog}
+				onOpenChange={setShowEditDialog}
+				decorator={decorator}
+				projectId={decorator.projectId}
+			/>
+
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-				<AlertDialogContent>
+				<AlertDialogContent variant="destructive" size="sm">
 					<AlertDialogHeader>
+						<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+							<Trash2 className="h-6 w-6" />
+						</AlertDialogMedia>
 						<AlertDialogTitle>{t('decorators.deleteTitle')}</AlertDialogTitle>
 						<AlertDialogDescription>
 							{t('decorators.deleteDescription', { name: decorator.name })}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isDeleting}>
+						<AlertDialogCancel variant="outline" disabled={isDeleting}>
 							{t('common.cancel')}
 						</AlertDialogCancel>
 						<AlertDialogAction
+							variant="destructive"
 							onClick={handleDelete}
 							disabled={isDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							{isDeleting ? t('common.deleting') : t('common.delete')}
 						</AlertDialogAction>

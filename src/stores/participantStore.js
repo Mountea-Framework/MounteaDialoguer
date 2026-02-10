@@ -3,10 +3,12 @@ import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
 import { useCategoryStore } from './categoryStore';
+import { useSyncStore } from '@/stores/syncStore';
 
 export const useParticipantStore = create((set, get) => ({
 	participants: [],
 	isLoading: false,
+	maxParticipantNameLength: 16,
 
 	// Load participants for a specific project
 	loadParticipants: async (projectId) => {
@@ -31,6 +33,47 @@ export const useParticipantStore = create((set, get) => ({
 	// Create a new participant
 	createParticipant: async (participantData) => {
 		try {
+			const name = participantData.name?.trim() || '';
+			if (!name) {
+				throw new Error('Participant name is required');
+			}
+			if (!/^[A-Za-z0-9]+$/.test(name)) {
+				throw new Error('Participant name must contain only letters and numbers');
+			}
+			if (name.length > get().maxParticipantNameLength) {
+				throw new Error(`Participant name must be ${get().maxParticipantNameLength} characters or fewer`);
+			}
+			if (!participantData.category) {
+				throw new Error('Participant category is required');
+			}
+
+			const categories = await db.categories
+				.where('projectId')
+				.equals(participantData.projectId)
+				.toArray();
+			const participants = await db.participants
+				.where('projectId')
+				.equals(participantData.projectId)
+				.toArray();
+
+			const getRootIdByCategoryName = (categoryName) => {
+				const match = categories.find((c) => c.name === categoryName);
+				if (!match) return null;
+				return useCategoryStore.getState().getRootCategoryId(match.id, categories);
+			};
+
+			const rootId = getRootIdByCategoryName(participantData.category);
+			if (rootId) {
+				const isDuplicate = participants.some((p) => {
+					if (p.name !== name) return false;
+					const pRootId = getRootIdByCategoryName(p.category);
+					return pRootId === rootId;
+				});
+				if (isDuplicate) {
+					throw new Error('Participant name must be unique within its category tree');
+				}
+			}
+
 			const now = new Date().toISOString();
 			const id = uuidv4();
 			const newParticipant = {
@@ -42,6 +85,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.add(newParticipant);
 			await get().loadParticipants(participantData.projectId);
+			useSyncStore.getState().schedulePush(participantData.projectId);
 			toast({
 				variant: 'success',
 				title: 'Participant Created',
@@ -67,6 +111,49 @@ export const useParticipantStore = create((set, get) => ({
 				throw new Error('Participant not found');
 			}
 
+			const name = (updates.name ?? participant.name)?.trim() || '';
+			if (!name) {
+				throw new Error('Participant name is required');
+			}
+			if (!/^[A-Za-z0-9]+$/.test(name)) {
+				throw new Error('Participant name must contain only letters and numbers');
+			}
+			if (name.length > get().maxParticipantNameLength) {
+				throw new Error(`Participant name must be ${get().maxParticipantNameLength} characters or fewer`);
+			}
+			const categoryName = updates.category ?? participant.category;
+			if (!categoryName) {
+				throw new Error('Participant category is required');
+			}
+
+			const categories = await db.categories
+				.where('projectId')
+				.equals(participant.projectId)
+				.toArray();
+			const participants = await db.participants
+				.where('projectId')
+				.equals(participant.projectId)
+				.toArray();
+
+			const getRootIdByCategoryName = (catName) => {
+				const match = categories.find((c) => c.name === catName);
+				if (!match) return null;
+				return useCategoryStore.getState().getRootCategoryId(match.id, categories);
+			};
+
+			const rootId = getRootIdByCategoryName(categoryName);
+			if (rootId) {
+				const isDuplicate = participants.some((p) => {
+					if (p.id === participant.id) return false;
+					if (p.name !== name) return false;
+					const pRootId = getRootIdByCategoryName(p.category);
+					return pRootId === rootId;
+				});
+				if (isDuplicate) {
+					throw new Error('Participant name must be unique within its category tree');
+				}
+			}
+
 			const updatedParticipant = {
 				...participant,
 				...updates,
@@ -75,6 +162,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.update(id, updatedParticipant);
 			await get().loadParticipants(participant.projectId);
+			useSyncStore.getState().schedulePush(participant.projectId);
 			toast({
 				variant: 'success',
 				title: 'Participant Updated',
@@ -102,6 +190,7 @@ export const useParticipantStore = create((set, get) => ({
 
 			await db.participants.delete(id);
 			await get().loadParticipants(participant.projectId);
+			useSyncStore.getState().schedulePush(participant.projectId);
 			toast({
 				variant: 'success',
 				title: 'Participant Deleted',
@@ -165,8 +254,54 @@ export const useParticipantStore = create((set, get) => ({
 				};
 			});
 
+			const existingParticipants = await db.participants
+				.where('projectId')
+				.equals(projectId)
+				.toArray();
+
+			const getRootIdByCategoryName = (catName) => {
+				const match = categories.find((c) => c.name === catName);
+				if (!match) return null;
+				return useCategoryStore.getState().getRootCategoryId(match.id, categories);
+			};
+
+			const existingNamesByRoot = new Map();
+			existingParticipants.forEach((p) => {
+				const rootId = getRootIdByCategoryName(p.category);
+				if (!rootId) return;
+				if (!existingNamesByRoot.has(rootId)) {
+					existingNamesByRoot.set(rootId, new Set());
+				}
+				existingNamesByRoot.get(rootId).add(p.name);
+			});
+
+			participantsToImport.forEach((p) => {
+				const name = p.name?.trim() || '';
+				if (!name) {
+					throw new Error('Participant name is required');
+				}
+				if (!/^[A-Za-z0-9]+$/.test(name)) {
+					throw new Error('Participant name must contain only letters and numbers');
+				}
+				if (name.length > get().maxParticipantNameLength) {
+					throw new Error(`Participant name must be ${get().maxParticipantNameLength} characters or fewer`);
+				}
+				const rootId = getRootIdByCategoryName(p.category);
+				if (rootId) {
+					if (!existingNamesByRoot.has(rootId)) {
+						existingNamesByRoot.set(rootId, new Set());
+					}
+					const rootSet = existingNamesByRoot.get(rootId);
+					if (rootSet.has(name)) {
+						throw new Error('Participant name must be unique within its category tree');
+					}
+					rootSet.add(name);
+				}
+			});
+
 			await db.participants.bulkAdd(participantsToImport);
 			await get().loadParticipants(projectId);
+			useSyncStore.getState().schedulePush(projectId);
 			toast({
 				variant: 'success',
 				title: 'Participants Imported',

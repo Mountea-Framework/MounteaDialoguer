@@ -23,7 +23,18 @@
 		"success": "Success",
 		"confirm": "Confirm",
 		"back": "Back",
-		"new": "New"
+		"new": "New",
+		"add": "Add",
+		"manage": "Manage",
+		"true": "True",
+		"false": "False",
+		"time": {
+			"justNow": "just now",
+			"minutesAgo": "{{count}}m ago",
+			"minutesAgo_plural": "{{count}}m ago",
+			"hoursAgo": "{{count}}h ago",
+			"hoursAgo_plural": "{{count}}h ago"
+		}
 	},
 	"navigation": {
 		"dashboard": "Dashboard",
@@ -41,11 +52,43 @@
 		"title": "Decorators",
 		"addNew": "Add Decorator",
 		"createDescription": "Add a new decorator to enhance your dialogues",
+		"updateDescription": "Update the decorator's information",
 		"description": "Manage decorators to add special effects and behaviors to dialogue nodes",
 		"name": "Decorator Name",
 		"namePlaceholder": "Enter decorator name",
 		"type": "Type",
 		"typePlaceholder": "e.g., Audio, Visual, Animation",
+		"panelTitle": "Decorators",
+		"count": "{{count}} decorator",
+		"count_plural": "{{count}} decorators",
+		"none": "No decorators yet",
+		"unnamed": "Unnamed Decorator",
+		"selectPlaceholder": "Select decorator to add...",
+		"enterProperty": "Enter {{name}}...",
+		"validation": {
+			"noWhitespace": "Name cannot contain whitespace"
+		},
+		"properties": {
+			"title": "Properties",
+			"add": "Add Property",
+			"empty": "No properties defined. Add properties to customize this decorator.",
+			"name": "Property Name",
+			"namePlaceholder": "e.g., Speed",
+			"type": "Type",
+			"defaultValue": "Default Value",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "value"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
 		"noDecorators": "No decorators yet",
 		"noDecoratorsDescription": "Add decorators to enhance your dialogue nodes with special effects",
 		"deleteTitle": "Delete Decorator",
@@ -85,11 +128,28 @@
 		"noDialogues": "No dialogues found",
 		"createFirst": "Create your first dialogue",
 		"nodes": "Nodes",
+		"nodeCount": "{{count}} node",
+		"nodeCount_plural": "{{count}} nodes",
 		"edges": "Edges",
 		"autoSaved": "Auto-saved",
 		"unsavedChanges": "Unsaved Changes"
 	},
 	"editor": {
+		"menu": {
+			"file": "File",
+			"edit": "Edit",
+			"view": "View",
+			"undo": "Undo",
+			"redo": "Redo",
+			"showTour": "Show Tour",
+			"support": "Support Mountea"
+		},
+		"saveStatus": {
+			"saved": "All changes saved",
+			"saving": "Saving...",
+			"unsaved": "Unsaved changes",
+			"error": "Failed to save"
+		},
 		"toolbar": {
 			"undo": "Undo",
 			"redo": "Redo",
@@ -98,6 +158,49 @@
 			"settings": "Settings",
 			"darkMode": "Dark Mode",
 			"lightMode": "Light Mode"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Auto Layout",
+			"autoLayoutTooltip": "Auto-layout nodes using dagre algorithm",
+			"npc": "NPC",
+			"addNpcTooltip": "Add NPC node - drag to canvas or click",
+			"player": "Player",
+			"addPlayerTooltip": "Add Player node - drag to canvas or click",
+			"return": "Return",
+			"addReturnTooltip": "Add Return node - drag to canvas or click",
+			"complete": "Complete",
+			"addCompleteTooltip": "Add Complete node - drag to canvas or click",
+			"delay": "Delay",
+			"addDelayTooltip": "Add Delay node - drag to canvas or click",
+			"poweredBy": "Powered by"
+		},
+		"nodes": {
+			"start": "Start",
+			"startDescription": "Dialogue entry point",
+			"npc": "NPC",
+			"npcPlaceholder": "NPC dialogue text...",
+			"player": "Player",
+			"playerPlaceholder": "Player response text...",
+			"complete": "Complete",
+			"completePlaceholder": "Dialogue completion text...",
+			"delay": "Delay",
+			"delayDescription": "Wait for {{count}} second.",
+			"delayDescription_plural": "Wait for {{count}} seconds.",
+			"delaySeconds": "{{count}}s",
+			"delaySeconds_plural": "{{count}}s",
+			"return": "Return To",
+			"returnTarget": "Target:",
+			"returnSelectNode": "Select node...",
+			"rows": "{{count}} row",
+			"rows_plural": "{{count}} rows",
+			"tooltip": {
+				"participant": "Participant",
+				"decorators": "Decorators",
+				"dialogueRows": "Dialogue rows"
+			}
+		},
+		"placeholder": {
+			"addNode": "Add Node"
 		},
 		"nodeDetails": "Node Details",
 		"speaker": "Speaker",
@@ -139,6 +242,10 @@
 		"addNew": "Add Participant",
 		"createDescription": "Add a new participant to your project",
 		"description": "Manage characters and speakers in your dialogues",
+		"updateDescription": "Update the participant's information",
+		"top": "Top Participants",
+		"inProject": "{{count}} participant in this project.",
+		"inProject_plural": "{{count}} participants in this project.",
 		"name": "Name",
 		"namePlaceholder": "Enter participant name",
 		"category": "Category",
@@ -154,6 +261,7 @@
 		"addNew": "Add Category",
 		"createDescription": "Add a new category to organize your content",
 		"description": "Organize and classify your dialogue content",
+		"updateDescription": "Update the category's information",
 		"name": "Category Name",
 		"namePlaceholder": "Enter category name",
 		"parentCategory": "Parent Category",
@@ -185,6 +293,120 @@
 		"lightMode": "Light",
 		"darkMode": "Dark",
 		"systemMode": "System"
+	},
+	"settingsCommand": {
+		"title": "Settings Palette",
+		"description": "Contextual settings for this screen.",
+		"searchPlaceholder": "Search settings or shortcuts...",
+		"noResults": "No results found.",
+		"groups": {
+			"actions": "Actions",
+			"project": "Project Settings",
+			"dialogue": "Dialogue Settings",
+			"shortcuts": "Shortcuts"
+		},
+		"actions": {
+			"openProjectSettings": "Open Project Settings",
+			"openDialogueSettings": "Open Dialogue Settings",
+			"openSettings": "Open Settings"
+		},
+		"items": {
+			"dialogueInfo": "Dialogue Information",
+			"dialogueMetadata": "Dialogue Metadata",
+			"dialogueExport": "Export Dialogue",
+			"dialogueDanger": "Danger Zone",
+			"save": "Save",
+			"undo": "Undo",
+			"redo": "Redo",
+			"commandPalette": "Open Command Palette",
+			"showShortcuts": "Show Keyboard Shortcuts",
+			"deleteSelection": "Delete Selection",
+			"deselectAll": "Deselect All"
+		}
+	},
+	"sync": {
+		"title": "Cloud Sync",
+		"description": "Connect Google Drive to keep your projects in sync across devices.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "Not Connected"
+		},
+		"status": {
+			"connected": "Connected",
+			"connecting": "Connecting...",
+			"syncing": "Syncing...",
+			"error": "Error",
+			"disconnected": "Disconnected"
+		},
+		"connectedAs": "Connected as {{account}}",
+		"clientId": "Google Client ID",
+		"clientIdPlaceholder": "your-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Required for Google sign-in. Stored only on this device.",
+		"clientIdConfigured": "Client ID configured",
+		"clientIdHiddenHint": "We keep this hidden for simplicity.",
+		"clientIdChange": "Change",
+		"accountLabel": "Account (display)",
+		"accountPlaceholder": "you@example.com",
+		"passphrase": "Encryption Passphrase",
+		"passphrasePlaceholder": "Enter a passphrase",
+		"passphraseHint": "Your passphrase encrypts data before it leaves this device.",
+		"remember": "Remember on this device",
+		"rememberHint": "Stores the passphrase locally on this device.",
+		"promptDontShow": "Don't show on startup",
+		"promptDontShowHint": "Hide this login prompt when the app opens.",
+		"connect": "Connect Google Drive",
+		"connecting": "Connecting...",
+		"syncNow": "Sync Now",
+		"disconnect": "Disconnect",
+		"errors": {
+			"passphraseRequired": "Passphrase is required to enable sync.",
+			"missingClientId": "Google client ID is missing. Add it above to continue.",
+			"oauthFailed": "Google sign-in failed. Please try again.",
+			"popupBlocked": "Popup blocked. Please allow popups and try again.",
+			"syncFailed": "Sync failed. Check your connection and try again.",
+			"redirectUriMismatch": "Redirect URI mismatch. Make sure oauth-callback.html is allowed.",
+			"invalidGrant": "Authorization code expired or invalid. Try again.",
+			"tokenExpired": "Session expired. Please connect to Google Drive again."
+		},
+		"pullTitle": "Syncing Project",
+		"pullDescription": "Checking Google Drive and applying the latest changes.",
+		"bulkTitle": "Syncing Cloud Projects",
+		"bulkDescription": "Fetching and applying your cloud data.",
+		"bulkProgress": "Synced {{current}} of {{total}} projects.",
+		"progress": {
+			"checking": "Checking for changes",
+			"downloading": "Downloading snapshot",
+			"decrypting": "Decrypting data",
+			"applying": "Applying updates"
+		}
+	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "Welcome to Mountea Dialoguer!",
+			"welcomeText": "Let's take a quick tour to help you get started. After the tour, you'll see the Cloud Sync setup.",
+			"createTitle": "Create Your First Project",
+			"createText": "Click here to create a new project. Projects help organize your dialogues.",
+			"searchTitle": "Quick Search",
+			"searchText": "Use the search bar to quickly find projects and dialogues."
+		},
+		"editor": {
+			"welcomeTitle": "Dialogue Editor Tour",
+			"welcomeText": "Learn how to create interactive dialogues.",
+			"nodeToolbarTitle": "Node Toolbar",
+			"nodeToolbarText": "Drag these nodes onto the canvas to build your conversation flow.",
+			"canvasTitle": "Canvas",
+			"canvasText": "This is where you'll build your dialogue tree. Connect nodes to create conversation paths.",
+			"saveTitle": "Save Your Work",
+			"saveText": "Don't forget to save! Your changes are stored locally."
+		},
+		"controls": {
+			"back": "Back",
+			"close": "Close",
+			"last": "Finish",
+			"next": "Next",
+			"nextWithProgress": "Next (Step {step} of {steps})",
+			"skip": "Skip tour"
+		}
 	},
 	"validation": {
 		"required": "This field is required",

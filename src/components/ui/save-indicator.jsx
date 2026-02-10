@@ -1,4 +1,5 @@
 import { Check, Circle, Loader2, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 /**
@@ -6,29 +7,31 @@ import { cn } from '@/lib/utils';
  * Shows the current save state (saved, saving, unsaved, error)
  */
 export function SaveIndicator({ status = 'saved', lastSaved, className }) {
+	const { t } = useTranslation();
+
 	const statusConfig = {
 		saved: {
 			icon: Check,
 			iconClass: 'text-green-500',
-			text: 'All changes saved',
+			text: t('editor.saveStatus.saved'),
 			dotClass: 'bg-green-500',
 		},
 		saving: {
 			icon: Loader2,
 			iconClass: 'text-blue-500 animate-spin',
-			text: 'Saving...',
+			text: t('editor.saveStatus.saving'),
 			dotClass: 'bg-blue-500',
 		},
 		unsaved: {
 			icon: Circle,
 			iconClass: 'text-orange-500',
-			text: 'Unsaved changes',
+			text: t('editor.saveStatus.unsaved'),
 			dotClass: 'bg-orange-500 animate-pulse',
 		},
 		error: {
 			icon: AlertCircle,
 			iconClass: 'text-red-500',
-			text: 'Failed to save',
+			text: t('editor.saveStatus.error'),
 			dotClass: 'bg-red-500',
 		},
 	};
@@ -43,19 +46,19 @@ export function SaveIndicator({ status = 'saved', lastSaved, className }) {
 
 		// Less than a minute
 		if (diff < 60000) {
-			return 'just now';
+			return t('common.time.justNow');
 		}
 
 		// Less than an hour
 		if (diff < 3600000) {
 			const minutes = Math.floor(diff / 60000);
-			return `${minutes}m ago`;
+			return t('common.time.minutesAgo', { count: minutes });
 		}
 
 		// Less than a day
 		if (diff < 86400000) {
 			const hours = Math.floor(diff / 3600000);
-			return `${hours}h ago`;
+			return t('common.time.hoursAgo', { count: hours });
 		}
 
 		// Format as time

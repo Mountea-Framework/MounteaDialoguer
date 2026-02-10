@@ -48,6 +48,8 @@ export function useToast() {
 	const [toasts, setToasts] = useState([]);
 
 	useEffect(() => {
+		// Ensure any toasts queued before mount are shown immediately.
+		setToasts([...toastStore.toasts]);
 		return toastStore.subscribe(setToasts);
 	}, []);
 
