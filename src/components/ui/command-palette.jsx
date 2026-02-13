@@ -14,6 +14,7 @@ import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import { formatShortcut, getPrimaryModifierKey } from '@/lib/keyboardShortcuts';
 
 /**
  * Command Palette Component
@@ -22,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 export function CommandPalette({ open, onOpenChange, actions: actionsProp, placeholder }) {
 	const navigate = useNavigate();
 	const [search, setSearch] = useState('');
+	const primaryModifier = getPrimaryModifierKey();
 	const { actions: storeActions, placeholder: storePlaceholder } = useCommandPaletteStore();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const { resolvedTheme, setTheme } = useTheme();
@@ -287,7 +289,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 											<span className="flex-1">{item.label}</span>
 											{item.shortcut && (
 												<kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-													{item.shortcut}
+													{formatShortcut(item.shortcut)}
 												</kbd>
 											)}
 										</Command.Item>
@@ -300,7 +302,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 					<div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
 						<span>Press</span>
 						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono font-medium">
-							<span>⌘</span>
+							<span>{primaryModifier}</span>
 							<span>K</span>
 						</kbd>
 						<span>to toggle</span>

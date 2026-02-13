@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
+import { formatShortcutKeys } from '@/lib/keyboardShortcuts';
 import {
 	AlertTriangle,
 	Command as CommandIcon,
@@ -45,14 +46,15 @@ import {
 } from 'lucide-react';
 
 function ShortcutKeys({ keys }) {
-	if (!keys?.length) return null;
+	const resolvedKeys = formatShortcutKeys(keys);
+	if (!resolvedKeys?.length) return null;
 	return (
 		<CommandShortcut>
 			<span className="flex items-center gap-1">
-				{keys.map((key, index) => (
+				{resolvedKeys.map((key, index) => (
 					<span key={`${key}-${index}`} className="flex items-center gap-1">
 						<Kbd>{key}</Kbd>
-						{index < keys.length - 1 && (
+						{index < resolvedKeys.length - 1 && (
 							<span className="text-muted-foreground text-[10px]">+</span>
 						)}
 					</span>

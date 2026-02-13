@@ -52,3 +52,15 @@ export const isTouchDevice = () => {
 	if (typeof window === 'undefined') return false;
 	return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 };
+
+export const isAppleDevice = () => {
+	if (typeof window === 'undefined') return false;
+
+	const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+	const platform = navigator.platform || '';
+	const isIpad = /iPad/.test(userAgent) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+	const isIphoneOrIpod = /iPhone|iPod/.test(userAgent);
+	const isMac = /Mac/.test(platform) || /Mac/.test(userAgent);
+
+	return isMac || isIpad || isIphoneOrIpod;
+};
