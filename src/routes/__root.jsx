@@ -11,7 +11,7 @@ import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
-import { isMobileDevice } from '@/lib/deviceDetection';
+import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -21,6 +21,7 @@ function RootComponent() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [showContent, setShowContent] = useState(false);
 	const [promptedThisSession, setPromptedThisSession] = useState(false);
+	const [, setDeviceOverrideTick] = useState(0);
 	const [onboardingSignal, setOnboardingSignal] = useState(0);
 	const hasAutoSyncedRef = useRef(false);
 	const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } =
@@ -36,6 +37,29 @@ function RootComponent() {
 		loginDialogOpen,
 		setLoginDialogOpen,
 	} = useSyncStore();
+
+	useEffect(() => {
+		const allowedOrigins = (import.meta.env.VITE_EMBED_ALLOWED_ORIGINS || '')
+			.split(',')
+			.map((origin) => origin.trim())
+			.filter(Boolean);
+
+		if (import.meta.env.DEV) {
+			allowedOrigins.push('null');
+		}
+
+		const cleanupListener = startDeviceOverrideListener({ allowedOrigins });
+		const handleOverride = () => {
+			setDeviceOverrideTick((value) => value + 1);
+		};
+
+		window.addEventListener('device-override', handleOverride);
+
+		return () => {
+			cleanupListener();
+			window.removeEventListener('device-override', handleOverride);
+		};
+	}, []);
 
 	useEffect(() => {
 		const initializeApp = async () => {
