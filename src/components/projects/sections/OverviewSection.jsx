@@ -92,13 +92,6 @@ export function OverviewSection({
 					)}
 				</div>
 			<div className="flex gap-2">
-				<input
-					ref={fileInputRef}
-					type="file"
-					accept=".mnteadlgproj"
-					onChange={onImport}
-					className="hidden"
-				/>
 				{/* Mobile: Dropdown Menu */}
 				<div className="md:hidden">
 					<DropdownMenu className>
