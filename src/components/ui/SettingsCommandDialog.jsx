@@ -30,6 +30,7 @@ import {
 import { DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
 import { formatShortcutKeys } from '@/lib/keyboardShortcuts';
+import { isMobileDevice } from '@/lib/deviceDetection';
 import {
 	AlertTriangle,
 	Command as CommandIcon,
@@ -46,6 +47,7 @@ import {
 } from 'lucide-react';
 
 function ShortcutKeys({ keys }) {
+	if (isMobileDevice()) return null;
 	const resolvedKeys = formatShortcutKeys(keys);
 	if (!resolvedKeys?.length) return null;
 	return (

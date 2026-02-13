@@ -48,7 +48,7 @@ function ProjectDetailsPage() {
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
 	const isMobile = isMobileDevice();
-	const { projects, loadProjects, deleteProject, exportProject, importProject, updateProject } =
+	const { projects, loadProjects, deleteProject, exportProject, importProject } =
 		useProjectStore();
 	const { dialogues, loadDialogues } = useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
@@ -115,31 +115,60 @@ function ProjectDetailsPage() {
 	};
 
 	useEffect(() => {
-		const handleCommandSave = (event) => {
-			const detail = event?.detail;
-			if (!detail || detail.projectId !== projectId) return;
-			if (!project) return;
-			updateProject(projectId, {
-				name: project.name,
-				description: project.description,
-				version: project.version,
-			});
-		};
-
 		const handleCommandExport = (event) => {
 			const detail = event?.detail;
 			if (!detail || detail.projectId !== projectId) return;
 			handleExport();
 		};
 
-		window.addEventListener('command:project-save', handleCommandSave);
+		const handleCommandImport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			if (fileInputRef.current) {
+				fileInputRef.current.click();
+			}
+		};
+
 		window.addEventListener('command:project-export', handleCommandExport);
+		window.addEventListener('command:project-import', handleCommandImport);
 
 		return () => {
-			window.removeEventListener('command:project-save', handleCommandSave);
 			window.removeEventListener('command:project-export', handleCommandExport);
+			window.removeEventListener('command:project-import', handleCommandImport);
 		};
-	}, [projectId, project, updateProject, handleExport]);
+	}, [projectId, handleExport]);
+
+	useEffect(() => {
+		if (isMobile) return;
+
+		const handleKeyDown = (event) => {
+			const target = event.target;
+			const isTyping =
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable;
+
+			if (isTyping) return;
+
+			if (event.ctrlKey || event.metaKey) {
+				const key = event.key.toLowerCase();
+				if (key === 'e') {
+					event.preventDefault();
+					handleExport();
+					return;
+				}
+				if (key === 'i') {
+					event.preventDefault();
+					if (fileInputRef.current) {
+						fileInputRef.current.click();
+					}
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [handleExport, isMobile]);
 
 	const handleImport = async (event) => {
 		const file = event.target.files?.[0];
@@ -259,6 +288,14 @@ function ProjectDetailsPage() {
 					onClick={() => setIsMobileSidebarOpen(false)}
 				/>
 			)}
+
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept=".mnteadlgproj"
+				onChange={handleImport}
+				className="hidden"
+			/>
 
 			{/* Main Content */}
 			<div className={`flex-1 flex min-h-0 ${isMobile ? '' : 'overflow-hidden'}`}>

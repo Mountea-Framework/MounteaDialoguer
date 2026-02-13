@@ -8,6 +8,7 @@ import {
 	FolderOpen,
 	Settings,
 	Palette,
+	Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
@@ -15,6 +16,7 @@ import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { formatShortcut, getPrimaryModifierKey } from '@/lib/keyboardShortcuts';
+import { isMobileDevice } from '@/lib/deviceDetection';
 
 /**
  * Command Palette Component
@@ -24,6 +26,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 	const navigate = useNavigate();
 	const [search, setSearch] = useState('');
 	const primaryModifier = getPrimaryModifierKey();
+	const isMobile = isMobileDevice();
 	const { actions: storeActions, placeholder: storePlaceholder } = useCommandPaletteStore();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const { resolvedTheme, setTheme } = useTheme();
@@ -127,12 +130,12 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 		} else if (routeContext.type === 'project') {
 			actionItems.push(
 				{
-					icon: Save,
-					label: t('common.save'),
-					shortcut: 'Ctrl+S',
+					icon: Upload,
+					label: t('common.import'),
+					shortcut: 'Ctrl+I',
 					onSelect: () => {
 						window.dispatchEvent(
-							new CustomEvent('command:project-save', {
+							new CustomEvent('command:project-import', {
 								detail: { projectId: routeContext.projectId },
 							})
 						);
@@ -247,9 +250,11 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 						placeholder={resolvedPlaceholder}
 						className="flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
 					/>
-						<kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-							<span className="text-xs">ESC</span>
-						</kbd>
+						{!isMobile && (
+							<kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+								<span className="text-xs">ESC</span>
+							</kbd>
+						)}
 					</div>
 
 					<Command.List className="max-h-[400px] overflow-y-auto p-2">
@@ -287,7 +292,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 										>
 											<item.icon className="h-4 w-4" />
 											<span className="flex-1">{item.label}</span>
-											{item.shortcut && (
+											{item.shortcut && !isMobile && (
 												<kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
 													{formatShortcut(item.shortcut)}
 												</kbd>
@@ -299,14 +304,16 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 						))}
 					</Command.List>
 
-					<div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
-						<span>Press</span>
-						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono font-medium">
-							<span>{primaryModifier}</span>
-							<span>K</span>
-						</kbd>
-						<span>to toggle</span>
-					</div>
+					{!isMobile && (
+						<div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+							<span>Press</span>
+							<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono font-medium">
+								<span>{primaryModifier}</span>
+								<span>K</span>
+							</kbd>
+							<span>to toggle</span>
+						</div>
+					)}
 				</Command>
 			</div>
 		</>
