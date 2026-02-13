@@ -8,10 +8,29 @@ export const getDeviceType = () => {
 	// Check if window is available (SSR safety)
 	if (typeof window === 'undefined') return 'desktop';
 
+	const isInIframe = (() => {
+		try {
+			return window.self !== window.top;
+		} catch (error) {
+			return true;
+		}
+	})();
+
+	const viewportWidth =
+		window.visualViewport?.width ||
+		window.innerWidth ||
+		document.documentElement?.clientWidth ||
+		window.screen?.width ||
+		0;
+
 	const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 
 	// Check touch capability - most reliable for mobile/tablet detection
 	const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+	const hasCoarsePointer =
+		typeof window.matchMedia === 'function' &&
+		(window.matchMedia('(pointer: coarse)').matches ||
+			window.matchMedia('(hover: none)').matches);
 
 	// Check for tablet first
 	const isIpad = /iPad/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -29,15 +48,22 @@ export const getDeviceType = () => {
 		return 'mobile';
 	}
 
-	// For touch devices with small screens, treat as mobile
-	// Use screen.width which works in iframes
-	const screenWidth = window.screen?.width || window.innerWidth;
+	// In iframes, prefer the viewport width to match the embedded size
+	if (isInIframe && viewportWidth) {
+		if (viewportWidth < 768) {
+			return 'mobile';
+		}
+		if (viewportWidth < 1024) {
+			return 'tablet';
+		}
+	}
 
-	if (hasTouchScreen && screenWidth < 768) {
+	// For touch or coarse pointer devices with small viewports, treat as mobile/tablet
+	if ((hasTouchScreen || hasCoarsePointer) && viewportWidth < 768) {
 		return 'mobile';
 	}
 
-	if (hasTouchScreen && screenWidth < 1024) {
+	if ((hasTouchScreen || hasCoarsePointer) && viewportWidth < 1024) {
 		return 'tablet';
 	}
 
