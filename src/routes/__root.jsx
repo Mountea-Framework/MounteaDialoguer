@@ -1,6 +1,7 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Toaster } from '@/components/ui/toaster';
@@ -175,13 +176,62 @@ function RootComponent() {
 }
 
 function PolicyQuickLinks() {
+	const { t } = useTranslation();
 	const [openModal, setOpenModal] = useState(null);
+	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+	const mobileMenuRef = useRef(null);
+	const mobileAutoHideTimerRef = useRef(null);
+
+	useEffect(() => {
+		if (!isMobileMenuOpen) {
+			if (mobileAutoHideTimerRef.current) {
+				clearTimeout(mobileAutoHideTimerRef.current);
+				mobileAutoHideTimerRef.current = null;
+			}
+			return;
+		}
+
+		mobileAutoHideTimerRef.current = setTimeout(() => {
+			setIsMobileMenuOpen(false);
+		}, 3000);
+
+		return () => {
+			if (mobileAutoHideTimerRef.current) {
+				clearTimeout(mobileAutoHideTimerRef.current);
+				mobileAutoHideTimerRef.current = null;
+			}
+		};
+	}, [isMobileMenuOpen]);
+
+	useEffect(() => {
+		if (!isMobileMenuOpen) return;
+
+		const handlePointerDown = (event) => {
+			if (!mobileMenuRef.current?.contains(event.target)) {
+				setIsMobileMenuOpen(false);
+			}
+		};
+
+		const handleFocusIn = (event) => {
+			if (!mobileMenuRef.current?.contains(event.target)) {
+				setIsMobileMenuOpen(false);
+			}
+		};
+
+		document.addEventListener('pointerdown', handlePointerDown);
+		document.addEventListener('focusin', handleFocusIn);
+
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown);
+			document.removeEventListener('focusin', handleFocusIn);
+		};
+	}, [isMobileMenuOpen]);
 
 	return (
 		<>
 			<nav
-				className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full border bg-background/95 px-3 py-2 shadow-lg backdrop-blur"
-				aria-label="Policy links"
+				className="fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 rounded-full border bg-background/95 px-3 py-2 shadow-lg backdrop-blur md:block"
+				aria-label={t('legal.navAriaLabel')}
 			>
 				<div className="flex items-center gap-2 text-sm">
 					<button
@@ -189,26 +239,75 @@ function PolicyQuickLinks() {
 						onClick={() => setOpenModal('tos')}
 						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
 					>
-						Terms of Service
+						{t('legal.links.terms')}
 					</button>
 					<button
 						type="button"
 						onClick={() => setOpenModal('data')}
 						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
 					>
-						Data Policy
+						{t('legal.links.data')}
 					</button>
 					<a
 						href="https://discord.gg/hCjh8e3Y9r"
 						target="_blank"
 						rel="noreferrer"
 						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-						aria-label="Support on Discord"
+						aria-label={t('legal.links.supportAriaLabel')}
 					>
-						Support
+						{t('legal.links.support')}
 					</a>
 				</div>
 			</nav>
+
+			<div ref={mobileMenuRef} className="fixed bottom-4 right-4 z-50 md:hidden">
+				{isMobileMenuOpen && (
+					<div
+						className="mb-2 w-52 rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur"
+						role="menu"
+						aria-label={t('legal.navAriaLabel')}
+					>
+						<button
+							type="button"
+							onClick={() => {
+								setOpenModal('tos');
+								setIsMobileMenuOpen(false);
+							}}
+							className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
+						>
+							{t('legal.links.terms')}
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setOpenModal('data');
+								setIsMobileMenuOpen(false);
+							}}
+							className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
+						>
+							{t('legal.links.data')}
+						</button>
+						<a
+							href="https://discord.gg/hCjh8e3Y9r"
+							target="_blank"
+							rel="noreferrer"
+							className="block w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
+							aria-label={t('legal.links.supportAriaLabel')}
+						>
+							{t('legal.links.support')}
+						</a>
+					</div>
+				)}
+				<button
+					type="button"
+					onClick={() => setIsMobileMenuOpen((value) => !value)}
+					className="h-12 w-12 rounded-full border bg-primary text-primary-foreground shadow-lg"
+					aria-label={t('legal.mobileBubbleAriaLabel')}
+					aria-expanded={isMobileMenuOpen}
+				>
+					?
+				</button>
+			</div>
 
 			<Dialog
 				open={openModal === 'tos'}
@@ -216,26 +315,16 @@ function PolicyQuickLinks() {
 			>
 				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>Terms of Service</DialogTitle>
-						<DialogDescription>Effective date: February 14, 2026</DialogDescription>
+						<DialogTitle>{t('legal.terms.title')}</DialogTitle>
+						<DialogDescription>{t('legal.effectiveDate')}</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-3 text-sm leading-6 text-foreground/90">
+						<p>{t('legal.terms.paragraphs.1')}</p>
+						<p>{t('legal.terms.paragraphs.2')}</p>
+						<p>{t('legal.terms.paragraphs.3')}</p>
+						<p>{t('legal.terms.paragraphs.4')}</p>
 						<p>
-							By using this application, you agree to use it in compliance with applicable laws and these terms.
-						</p>
-						<p>
-							You are responsible for the accuracy and legality of the content you create, import, or export while
-							using this tool.
-						</p>
-						<p>
-							The software is provided "as is" without warranties of any kind. Use is at your own risk.
-						</p>
-						<p>
-							Support is provided on a best-effort basis only. There is no contractual right to claim support,
-							response times, or issue resolution.
-						</p>
-						<p>
-							For community support, use the Discord server:{' '}
+							{t('legal.terms.paragraphs.5')}{' '}
 							<a
 								href="https://discord.gg/hCjh8e3Y9r"
 								target="_blank"
@@ -246,10 +335,8 @@ function PolicyQuickLinks() {
 							</a>
 							.
 						</p>
-						<p>
-							We may update these terms over time. Continued use after updates means you accept the revised terms.
-						</p>
-						<p>If you do not agree with these terms, stop using the application.</p>
+						<p>{t('legal.terms.paragraphs.6')}</p>
+						<p>{t('legal.terms.paragraphs.7')}</p>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -260,23 +347,15 @@ function PolicyQuickLinks() {
 			>
 				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>Data Policy</DialogTitle>
-						<DialogDescription>Effective date: February 14, 2026</DialogDescription>
+						<DialogTitle>{t('legal.data.title')}</DialogTitle>
+						<DialogDescription>{t('legal.effectiveDate')}</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-3 text-sm leading-6 text-foreground/90">
-						<p>
-							This application primarily stores project data locally in your browser/device storage.
-						</p>
-						<p>
-							When optional sync features are enabled, data may be transferred to configured third-party storage
-							services.
-						</p>
-						<p>
-							You control what information is entered, exported, and synchronized. Avoid storing sensitive data
-							unless appropriate safeguards are used.
-						</p>
-						<p>We recommend using secure devices, account protection, and encryption where available.</p>
-						<p>By continuing to use this application, you acknowledge this data handling model.</p>
+						<p>{t('legal.data.paragraphs.1')}</p>
+						<p>{t('legal.data.paragraphs.2')}</p>
+						<p>{t('legal.data.paragraphs.3')}</p>
+						<p>{t('legal.data.paragraphs.4')}</p>
+						<p>{t('legal.data.paragraphs.5')}</p>
 					</div>
 				</DialogContent>
 			</Dialog>

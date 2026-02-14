@@ -376,6 +376,39 @@
 			"skip": "Omitir tour"
 		}
 	},
+	"legal": {
+		"navAriaLabel": "Enlaces legales y de soporte",
+		"mobileBubbleAriaLabel": "Abrir enlaces legales y de soporte",
+		"effectiveDate": "Fecha de entrada en vigor: 14 de febrero de 2026",
+		"links": {
+			"terms": "Terminos del Servicio",
+			"data": "Politica de Datos",
+			"support": "Soporte",
+			"supportAriaLabel": "Soporte en Discord"
+		},
+		"terms": {
+			"title": "Terminos del Servicio",
+			"paragraphs": {
+				"1": "Al usar esta aplicacion, aceptas usarla de acuerdo con las leyes aplicables y estos terminos.",
+				"2": "Eres responsable de la exactitud y legalidad del contenido que creas, importas o exportas con esta herramienta.",
+				"3": "El software se proporciona tal cual, sin garantias de ningun tipo. Lo usas bajo tu propio riesgo.",
+				"4": "El soporte se ofrece solo con mejor esfuerzo. No existe derecho contractual a reclamar soporte, tiempos de respuesta o resolucion.",
+				"5": "Para soporte de la comunidad, usa el servidor de Discord:",
+				"6": "Podemos actualizar estos terminos con el tiempo. Si sigues usando la aplicacion, aceptas los terminos actualizados.",
+				"7": "Si no estas de acuerdo con estos terminos, deja de usar la aplicacion."
+			}
+		},
+		"data": {
+			"title": "Politica de Datos",
+			"paragraphs": {
+				"1": "Esta aplicacion almacena los datos del proyecto principalmente en el almacenamiento local del navegador o dispositivo.",
+				"2": "Cuando se habilitan funciones opcionales de sincronizacion, los datos pueden transferirse a servicios de almacenamiento de terceros configurados.",
+				"3": "Tu controlas que informacion se introduce, exporta y sincroniza. Evita guardar datos sensibles sin medidas adecuadas de proteccion.",
+				"4": "Recomendamos usar dispositivos seguros, proteccion de cuenta y cifrado cuando este disponible.",
+				"5": "Al continuar usando esta aplicacion, reconoces este modelo de tratamiento de datos."
+			}
+		}
+	},
 	"validation": {
 		"required": "Este campo es obligatorio",
 		"invalidName": "Nombre inválido",
