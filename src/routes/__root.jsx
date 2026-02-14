@@ -257,7 +257,7 @@ function PolicyQuickLinks() {
 						aria-label={t('legal.navAriaLabel')}
 					>
 						<TooltipProvider>
-							<div className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-2 text-sm shadow-lg backdrop-blur">
+							<div className="flex items-center gap-2 rounded-full border border-border/80 bg-card px-3 py-2 text-sm shadow-md">
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<button
