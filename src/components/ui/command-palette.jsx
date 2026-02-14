@@ -270,7 +270,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 			/>
 
 			{/* Command Palette */}
-			<div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl animate-in fade-in zoom-in-95">
+			<div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2.5rem)] sm:w-full max-w-2xl animate-in fade-in zoom-in-95">
 				<Command
 					className="rounded-lg border bg-card shadow-2xl"
 					shouldFilter={true}
