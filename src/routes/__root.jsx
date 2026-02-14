@@ -62,6 +62,11 @@ function RootComponent() {
 		loginDialogOpen,
 		setLoginDialogOpen,
 	} = useSyncStore();
+	const currentPath = useRouterState({
+		select: (state) => state.location.pathname || '',
+	});
+	const isLegalPage =
+		currentPath === '/terms-of-service' || currentPath === '/data-policy';
 
 	useEffect(() => {
 		const allowedOrigins = (import.meta.env.VITE_EMBED_ALLOWED_ORIGINS || '')
@@ -139,13 +144,20 @@ function RootComponent() {
 	}, []);
 
 	useEffect(() => {
+		if (isLegalPage) {
+			setLoginDialogOpen(false);
+		}
+	}, [isLegalPage, setLoginDialogOpen]);
+
+	useEffect(() => {
 		if (!hasHydrated || isLoading) return;
+		if (isLegalPage) return;
 		if (promptedThisSession) return;
 		if (hideLoginPrompt) return;
 		if (status === 'connected' || status === 'connecting' || status === 'syncing') return;
 
 		// On first dashboard visit (desktop), wait for onboarding tour completion before showing sync login.
-		const isDashboardPath = window.location.pathname === '/';
+		const isDashboardPath = currentPath === '/';
 		const hasCompletedDashboardOnboarding = Boolean(localStorage.getItem('onboarding-dashboard'));
 		if (!isMobileDevice() && isDashboardPath && !hasCompletedDashboardOnboarding) return;
 
@@ -158,6 +170,8 @@ function RootComponent() {
 		promptedThisSession,
 		hideLoginPrompt,
 		status,
+		isLegalPage,
+		currentPath,
 		onboardingSignal,
 		setLoginDialogOpen,
 	]);
@@ -174,14 +188,18 @@ function RootComponent() {
 					<PolicyQuickLinks />
 				</div>
 			)}
-			<SyncLoginDialog
-				open={loginDialogOpen}
-				onOpenChange={setLoginDialogOpen}
-				showPromptControls
-				hideLoginPrompt={hideLoginPrompt}
-				onHideLoginPromptChange={setHideLoginPrompt}
-			/>
-			<SyncPullDialog />
+			{!isLegalPage && (
+				<>
+					<SyncLoginDialog
+						open={loginDialogOpen}
+						onOpenChange={setLoginDialogOpen}
+						showPromptControls
+						hideLoginPrompt={hideLoginPrompt}
+						onHideLoginPromptChange={setHideLoginPrompt}
+					/>
+					<SyncPullDialog />
+				</>
+			)}
 			<Toaster />
 			<CommandPalette
 				open={commandPaletteOpen}
