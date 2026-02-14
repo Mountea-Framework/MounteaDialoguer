@@ -9,6 +9,9 @@ import {
 	Settings,
 	Palette,
 	Upload,
+	FileText,
+	ShieldCheck,
+	LifeBuoy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
@@ -207,6 +210,36 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 		if (settingsItems.length) {
 			actions.push({ group: t('settings.title'), items: settingsItems });
 		}
+
+		actions.push({
+			group: t('legal.paletteGroup'),
+			items: [
+				{
+					icon: FileText,
+					label: t('legal.links.terms'),
+					shortcut: '',
+					onSelect: () => {
+						window.dispatchEvent(new CustomEvent('command:open-terms-of-service'));
+					},
+				},
+				{
+					icon: ShieldCheck,
+					label: t('legal.links.data'),
+					shortcut: '',
+					onSelect: () => {
+						window.dispatchEvent(new CustomEvent('command:open-data-policy'));
+					},
+				},
+				{
+					icon: LifeBuoy,
+					label: t('legal.links.support'),
+					shortcut: '',
+					onSelect: () => {
+						window.dispatchEvent(new CustomEvent('command:open-support'));
+					},
+				},
+			],
+		});
 
 		return actions;
 	}, [

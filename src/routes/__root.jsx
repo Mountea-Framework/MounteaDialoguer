@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router';
+import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -197,6 +197,26 @@ function PolicyQuickLinks() {
 	const [openModal, setOpenModal] = useState(null);
 	const [isSupportConfirmOpen, setIsSupportConfirmOpen] = useState(false);
 	const openWithActions = useCommandPaletteStore((state) => state.openWithActions);
+	const currentPath = useRouterState({
+		select: (state) => state.location.pathname || '',
+	});
+	const isDialogueEditorRoute = currentPath.includes('/dialogue/');
+
+	useEffect(() => {
+		const openTerms = () => setOpenModal('tos');
+		const openData = () => setOpenModal('data');
+		const openSupport = () => setIsSupportConfirmOpen(true);
+
+		window.addEventListener('command:open-terms-of-service', openTerms);
+		window.addEventListener('command:open-data-policy', openData);
+		window.addEventListener('command:open-support', openSupport);
+
+		return () => {
+			window.removeEventListener('command:open-terms-of-service', openTerms);
+			window.removeEventListener('command:open-data-policy', openData);
+			window.removeEventListener('command:open-support', openSupport);
+		};
+	}, []);
 
 	const openSupportConfirmation = useCallback(() => {
 		setIsSupportConfirmOpen(true);
@@ -230,68 +250,72 @@ function PolicyQuickLinks() {
 
 	return (
 		<>
-			<nav
-				className="fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 rounded-full border bg-background/95 px-3 py-2 shadow-lg backdrop-blur md:block"
-				aria-label={t('legal.navAriaLabel')}
-			>
-				<TooltipProvider>
-					<div className="flex items-center gap-2 text-sm">
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									onClick={() => setOpenModal('tos')}
-									className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-								>
-									{t('legal.links.terms')}
-								</button>
-							</TooltipTrigger>
-							<TooltipContent>{t('legal.tooltips.terms')}</TooltipContent>
-						</Tooltip>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									onClick={() => setOpenModal('data')}
-									className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-								>
-									{t('legal.links.data')}
-								</button>
-							</TooltipTrigger>
-							<TooltipContent>{t('legal.tooltips.data')}</TooltipContent>
-						</Tooltip>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									onClick={openSupportConfirmation}
-									className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-									aria-label={t('legal.links.supportAriaLabel')}
-								>
-									{t('legal.links.support')}
-								</button>
-							</TooltipTrigger>
-							<TooltipContent>{t('legal.tooltips.support')}</TooltipContent>
-						</Tooltip>
-					</div>
-				</TooltipProvider>
-			</nav>
+			{!isDialogueEditorRoute && (
+				<>
+					<nav
+						className="fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 md:block"
+						aria-label={t('legal.navAriaLabel')}
+					>
+						<TooltipProvider>
+							<div className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-2 text-sm shadow-lg backdrop-blur">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => setOpenModal('tos')}
+											className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+										>
+											{t('legal.links.terms')}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>{t('legal.tooltips.terms')}</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => setOpenModal('data')}
+											className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+										>
+											{t('legal.links.data')}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>{t('legal.tooltips.data')}</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={openSupportConfirmation}
+											className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+											aria-label={t('legal.links.supportAriaLabel')}
+										>
+											{t('legal.links.support')}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>{t('legal.tooltips.support')}</TooltipContent>
+								</Tooltip>
+							</div>
+						</TooltipProvider>
+					</nav>
 
-			<div className="fixed bottom-4 right-4 z-50 md:hidden">
-				<button
-					type="button"
-					onClick={() =>
-						openWithActions({
-							actions: mobileActions,
-							placeholder: t('legal.palettePlaceholder'),
-						})
-					}
-					className="h-12 w-12 rounded-full border bg-primary text-primary-foreground shadow-lg"
-					aria-label={t('legal.mobileBubbleAriaLabel')}
-				>
-					?
-				</button>
-			</div>
+					<div className="fixed bottom-6 right-4 z-50 md:hidden">
+						<button
+							type="button"
+							onClick={() =>
+								openWithActions({
+									actions: mobileActions,
+									placeholder: t('legal.palettePlaceholder'),
+								})
+							}
+							className="h-12 w-12 rounded-full border bg-primary text-primary-foreground shadow-lg"
+							aria-label={t('legal.mobileBubbleAriaLabel')}
+						>
+							?
+						</button>
+					</div>
+				</>
+			)}
 
 			<Dialog
 				open={openModal === 'tos'}
