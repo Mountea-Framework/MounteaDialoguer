@@ -12,6 +12,13 @@ import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -144,8 +151,9 @@ function RootComponent() {
 				onLoadingComplete={() => setShowContent(true)}
 			/>
 			{(showContent || !isLoading) && (
-				<div className="min-h-screen">
+				<div className="min-h-screen pb-20">
 					<Outlet />
+					<PolicyQuickLinks />
 				</div>
 			)}
 			<SyncLoginDialog
@@ -163,5 +171,115 @@ function RootComponent() {
 			/>
 			<SettingsCommandDialog />
 		</ThemeProvider>
+	);
+}
+
+function PolicyQuickLinks() {
+	const [openModal, setOpenModal] = useState(null);
+
+	return (
+		<>
+			<nav
+				className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full border bg-background/95 px-3 py-2 shadow-lg backdrop-blur"
+				aria-label="Policy links"
+			>
+				<div className="flex items-center gap-2 text-sm">
+					<button
+						type="button"
+						onClick={() => setOpenModal('tos')}
+						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+					>
+						Terms of Service
+					</button>
+					<button
+						type="button"
+						onClick={() => setOpenModal('data')}
+						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+					>
+						Data Policy
+					</button>
+					<a
+						href="https://discord.gg/hCjh8e3Y9r"
+						target="_blank"
+						rel="noreferrer"
+						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+						aria-label="Support on Discord"
+					>
+						Support
+					</a>
+				</div>
+			</nav>
+
+			<Dialog
+				open={openModal === 'tos'}
+				onOpenChange={(open) => setOpenModal(open ? 'tos' : null)}
+			>
+				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Terms of Service</DialogTitle>
+						<DialogDescription>Effective date: February 14, 2026</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3 text-sm leading-6 text-foreground/90">
+						<p>
+							By using this application, you agree to use it in compliance with applicable laws and these terms.
+						</p>
+						<p>
+							You are responsible for the accuracy and legality of the content you create, import, or export while
+							using this tool.
+						</p>
+						<p>
+							The software is provided "as is" without warranties of any kind. Use is at your own risk.
+						</p>
+						<p>
+							Support is provided on a best-effort basis only. There is no contractual right to claim support,
+							response times, or issue resolution.
+						</p>
+						<p>
+							For community support, use the Discord server:{' '}
+							<a
+								href="https://discord.gg/hCjh8e3Y9r"
+								target="_blank"
+								rel="noreferrer"
+								className="text-primary underline underline-offset-2"
+							>
+								https://discord.gg/hCjh8e3Y9r
+							</a>
+							.
+						</p>
+						<p>
+							We may update these terms over time. Continued use after updates means you accept the revised terms.
+						</p>
+						<p>If you do not agree with these terms, stop using the application.</p>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={openModal === 'data'}
+				onOpenChange={(open) => setOpenModal(open ? 'data' : null)}
+			>
+				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Data Policy</DialogTitle>
+						<DialogDescription>Effective date: February 14, 2026</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3 text-sm leading-6 text-foreground/90">
+						<p>
+							This application primarily stores project data locally in your browser/device storage.
+						</p>
+						<p>
+							When optional sync features are enabled, data may be transferred to configured third-party storage
+							services.
+						</p>
+						<p>
+							You control what information is entered, exported, and synchronized. Avoid storing sensitive data
+							unless appropriate safeguards are used.
+						</p>
+						<p>We recommend using secure devices, account protection, and encryption where available.</p>
+						<p>By continuing to use this application, you acknowledge this data handling model.</p>
+					</div>
+				</DialogContent>
+			</Dialog>
+		</>
 	);
 }
