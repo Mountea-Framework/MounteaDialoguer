@@ -387,7 +387,12 @@
 			"createTitle": "Create Your First Project",
 			"createText": "Click here to create a new project. Projects help organize your dialogues.",
 			"searchTitle": "Quick Search",
-			"searchText": "Use the search bar to quickly find projects and dialogues."
+			"searchText": "Use the search bar to quickly find projects and dialogues.",
+			"communityTitle": "Support, Community, and Unreal Engine",
+			"communityText": "You can support the project, join the Discord community, and get the Unreal Engine integration.",
+			"communitySupport": "Support on GitHub Sponsors",
+			"communityDiscord": "Join Discord",
+			"communityUnreal": "Unreal Engine (Fab)"
 		},
 		"editor": {
 			"welcomeTitle": "Dialogue Editor Tour",

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Joyride, { STATUS } from 'react-joyride';
+import Joyride, { STATUS, EVENTS } from 'react-joyride';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { db } from '@/lib/db';
@@ -21,6 +21,19 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 	// Determine if we're in dark mode
 	const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+	const getVisibleTarget = (selector) => {
+		if (typeof document === 'undefined') return null;
+		const candidates = Array.from(document.querySelectorAll(selector));
+		return (
+			candidates.find((element) => {
+				if (!element) return false;
+				const style = window.getComputedStyle(element);
+				if (style.display === 'none' || style.visibility === 'hidden') return false;
+				return element.getClientRects().length > 0;
+			}) || null
+		);
+	};
+
 	const dashboardSteps = [
 		{
 			target: 'body',
@@ -36,7 +49,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			disableBeacon: true,
 		},
 		{
-			target: '[data-tour="create-project"]',
+			target: getVisibleTarget('[data-tour="create-project"]') || 'body',
 			content: (
 				<div>
 					<h3 className="font-semibold mb-1">{t('tour.dashboard.createTitle')}</h3>
@@ -48,7 +61,7 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			disableBeacon: true,
 		},
 		{
-			target: '[data-tour="search"]',
+			target: getVisibleTarget('[data-tour="search"]') || 'body',
 			content: (
 				<div>
 					<h3 className="font-semibold mb-1">{t('tour.dashboard.searchTitle')}</h3>
@@ -57,6 +70,43 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 					</p>
 				</div>
 			),
+			disableBeacon: true,
+		},
+		{
+			target: 'body',
+			content: (
+				<div>
+					<h3 className="font-semibold mb-2">{t('tour.dashboard.communityTitle')}</h3>
+					<p className="text-sm mb-3">{t('tour.dashboard.communityText')}</p>
+					<div className="flex flex-wrap gap-2">
+						<a
+							href="https://github.com/sponsors/Mountea-Framework"
+							target="_blank"
+							rel="noreferrer"
+							className="inline-flex rounded-md border px-2.5 py-1.5 text-xs hover:bg-accent"
+						>
+							{t('tour.dashboard.communitySupport')}
+						</a>
+						<a
+							href="https://discord.gg/hCjh8e3Y9r"
+							target="_blank"
+							rel="noreferrer"
+							className="inline-flex rounded-md border px-2.5 py-1.5 text-xs hover:bg-accent"
+						>
+							{t('tour.dashboard.communityDiscord')}
+						</a>
+						<a
+							href="https://www.fab.com/listings/8bf33586-fba3-4906-bb89-3ca592a8d97c"
+							target="_blank"
+							rel="noreferrer"
+							className="inline-flex rounded-md border px-2.5 py-1.5 text-xs hover:bg-accent"
+						>
+							{t('tour.dashboard.communityUnreal')}
+						</a>
+					</div>
+				</div>
+			),
+			placement: 'center',
 			disableBeacon: true,
 		},
 	];
@@ -127,6 +177,11 @@ export function OnboardingTour({ run, onFinish, tourType = 'dashboard' }) {
 			if (onFinish) {
 				onFinish();
 			}
+			return;
+		}
+
+		if (type === EVENTS.TARGET_NOT_FOUND) {
+			setStepIndex((prevIndex) => Math.min(prevIndex + 1, steps.length - 1));
 			return;
 		}
 

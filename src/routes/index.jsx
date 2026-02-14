@@ -112,7 +112,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
             onClick={onNewProject}
             size="sm"
             className={`gap-1 md:inline-flex whitespace-nowrap ${isMobileDevice() ? "hidden" : ""}`}
-            data-tour={`${isMobileDevice() ? "create-project" : ""}`}
+            data-tour={`${isMobileDevice() ? "" : "create-project"}`}
             aria-label={t("projects.createNew")}
             data-header-mobile-hidden
           >
@@ -125,7 +125,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
             onClick={onNewProject}
             size="sm"
             className={`shrink-0 md:hidden ${isMobileDevice() ? "" : "hidden"}`}
-            data-tour={`${isMobileDevice() ? "" : "create-project"}`}
+            data-tour=""
             aria-label={t("projects.createNew")}
           >
             <Plus className="h-4 w-4" />
