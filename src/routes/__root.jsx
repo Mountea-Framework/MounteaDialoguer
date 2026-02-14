@@ -1,6 +1,8 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router';
+import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FileText, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,6 +14,29 @@ import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -146,6 +171,7 @@ function RootComponent() {
 			{(showContent || !isLoading) && (
 				<div className="min-h-screen">
 					<Outlet />
+					<PolicyQuickLinks />
 				</div>
 			)}
 			<SyncLoginDialog
@@ -163,5 +189,208 @@ function RootComponent() {
 			/>
 			<SettingsCommandDialog />
 		</ThemeProvider>
+	);
+}
+
+function PolicyQuickLinks() {
+	const { t } = useTranslation();
+	const [openModal, setOpenModal] = useState(null);
+	const [isSupportConfirmOpen, setIsSupportConfirmOpen] = useState(false);
+	const openWithActions = useCommandPaletteStore((state) => state.openWithActions);
+	const currentPath = useRouterState({
+		select: (state) => state.location.pathname || '',
+	});
+	const isDialogueEditorRoute = currentPath.includes('/dialogue/');
+
+	useEffect(() => {
+		const openTerms = () => setOpenModal('tos');
+		const openData = () => setOpenModal('data');
+		const openSupport = () => setIsSupportConfirmOpen(true);
+
+		window.addEventListener('command:open-terms-of-service', openTerms);
+		window.addEventListener('command:open-data-policy', openData);
+		window.addEventListener('command:open-support', openSupport);
+
+		return () => {
+			window.removeEventListener('command:open-terms-of-service', openTerms);
+			window.removeEventListener('command:open-data-policy', openData);
+			window.removeEventListener('command:open-support', openSupport);
+		};
+	}, []);
+
+	const openSupportConfirmation = useCallback(() => {
+		setIsSupportConfirmOpen(true);
+	}, []);
+
+	const mobileActions = useMemo(
+		() => [
+			{
+				group: t('legal.paletteGroup'),
+				items: [
+					{
+						icon: FileText,
+						label: t('legal.links.terms'),
+						onSelect: () => setOpenModal('tos'),
+					},
+					{
+						icon: ShieldCheck,
+						label: t('legal.links.data'),
+						onSelect: () => setOpenModal('data'),
+					},
+					{
+						icon: LifeBuoy,
+						label: t('legal.links.support'),
+						onSelect: openSupportConfirmation,
+					},
+				],
+			},
+		],
+		[openSupportConfirmation, t]
+	);
+
+	return (
+		<>
+			{!isDialogueEditorRoute && (
+				<>
+					<nav
+						className="fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 md:block"
+						aria-label={t('legal.navAriaLabel')}
+					>
+						<TooltipProvider>
+							<div className="flex items-center gap-2 rounded-full border border-border/80 bg-card px-3 py-2 text-sm shadow-md">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => setOpenModal('tos')}
+											className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+										>
+											{t('legal.links.terms')}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>{t('legal.tooltips.terms')}</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => setOpenModal('data')}
+											className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+										>
+											{t('legal.links.data')}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>{t('legal.tooltips.data')}</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={openSupportConfirmation}
+											className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+											aria-label={t('legal.links.supportAriaLabel')}
+										>
+											{t('legal.links.support')}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>{t('legal.tooltips.support')}</TooltipContent>
+								</Tooltip>
+							</div>
+						</TooltipProvider>
+					</nav>
+
+					<div className="fixed bottom-6 right-4 z-50 md:hidden">
+						<button
+							type="button"
+							onClick={() =>
+								openWithActions({
+									actions: mobileActions,
+									placeholder: t('legal.palettePlaceholder'),
+								})
+							}
+							className="h-12 w-12 rounded-full border bg-primary text-primary-foreground shadow-lg"
+							aria-label={t('legal.mobileBubbleAriaLabel')}
+						>
+							?
+						</button>
+					</div>
+				</>
+			)}
+
+			<Dialog
+				open={openModal === 'tos'}
+				onOpenChange={(open) => setOpenModal(open ? 'tos' : null)}
+			>
+				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>{t('legal.terms.title')}</DialogTitle>
+						<DialogDescription>{t('legal.effectiveDate')}</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3 text-sm leading-6 text-foreground/90">
+						<p>{t('legal.terms.paragraphs.1')}</p>
+						<p>{t('legal.terms.paragraphs.2')}</p>
+						<p>{t('legal.terms.paragraphs.3')}</p>
+						<p>{t('legal.terms.paragraphs.4')}</p>
+						<p>
+							{t('legal.terms.paragraphs.5')}{' '}
+							<a
+								href="https://discord.gg/hCjh8e3Y9r"
+								target="_blank"
+								rel="noreferrer"
+								className="text-primary underline underline-offset-2"
+							>
+								https://discord.gg/hCjh8e3Y9r
+							</a>
+							.
+						</p>
+						<p>{t('legal.terms.paragraphs.6')}</p>
+						<p>{t('legal.terms.paragraphs.7')}</p>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={openModal === 'data'}
+				onOpenChange={(open) => setOpenModal(open ? 'data' : null)}
+			>
+				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>{t('legal.data.title')}</DialogTitle>
+						<DialogDescription>{t('legal.effectiveDate')}</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3 text-sm leading-6 text-foreground/90">
+						<p>{t('legal.data.paragraphs.1')}</p>
+						<p>{t('legal.data.paragraphs.2')}</p>
+						<p>{t('legal.data.paragraphs.3')}</p>
+						<p>{t('legal.data.paragraphs.4')}</p>
+						<p>{t('legal.data.paragraphs.5')}</p>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<AlertDialog
+				open={isSupportConfirmOpen}
+				onOpenChange={setIsSupportConfirmOpen}
+			>
+				<AlertDialogContent size="sm">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t('legal.supportConfirm.title')}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t('legal.supportConfirm.description')}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>{t('legal.supportConfirm.no')}</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								window.open('https://discord.gg/hCjh8e3Y9r', '_blank', 'noopener,noreferrer');
+							}}
+						>
+							{t('legal.supportConfirm.yes')}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }

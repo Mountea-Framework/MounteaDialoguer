@@ -355,7 +355,12 @@
 			"createTitle": "Créez votre premier projet",
 			"createText": "Cliquez ici pour créer un nouveau projet. Les projets aident à organiser vos dialogues.",
 			"searchTitle": "Recherche rapide",
-			"searchText": "Utilisez la barre de recherche pour trouver rapidement des projets et des dialogues."
+			"searchText": "Utilisez la barre de recherche pour trouver rapidement des projets et des dialogues.",
+			"communityTitle": "Support, communauté et Unreal Engine",
+			"communityText": "Vous pouvez soutenir le projet, rejoindre la communauté Discord et utiliser l'intégration Unreal Engine.",
+			"communitySupport": "Soutenir via GitHub Sponsors",
+			"communityDiscord": "Rejoindre Discord",
+			"communityUnreal": "Unreal Engine (Fab)"
 		},
 		"editor": {
 			"welcomeTitle": "Visite de l'éditeur de dialogue",
@@ -374,6 +379,52 @@
 			"next": "Suivant",
 			"nextWithProgress": "Suivant (Etape {step} sur {steps})",
 			"skip": "Ignorer la visite"
+		}
+	},
+	"legal": {
+		"navAriaLabel": "Liens legaux et support",
+		"mobileBubbleAriaLabel": "Ouvrir les liens legaux et support",
+		"paletteGroup": "Legal",
+		"palettePlaceholder": "Rechercher des actions legales et support...",
+		"effectiveDate": "Date d'effet: 14 fevrier 2026",
+		"links": {
+			"terms": "Conditions d'utilisation",
+			"data": "Politique de Donnees",
+			"support": "Support",
+			"supportAriaLabel": "Support sur Discord"
+		},
+		"tooltips": {
+			"terms": "Ouvrir les conditions d'utilisation",
+			"data": "Ouvrir la politique de donnees",
+			"support": "Ouvrir les options de support"
+		},
+		"supportConfirm": {
+			"title": "Ouvrir le support Discord?",
+			"description": "Vous serez redirige vers le serveur Discord si vous cliquez sur Oui.",
+			"yes": "Oui",
+			"no": "Non"
+		},
+		"terms": {
+			"title": "Conditions d'utilisation",
+			"paragraphs": {
+				"1": "En utilisant cette application, vous acceptez de l'utiliser conformement aux lois applicables et a ces conditions.",
+				"2": "Vous etes responsable de l'exactitude et de la legalite du contenu que vous creez, importez ou exportez avec cet outil.",
+				"3": "Le logiciel est fourni en l'etat, sans garantie d'aucune sorte. Vous l'utilisez a vos risques.",
+				"4": "Le support est fourni uniquement au mieux de nos efforts. Aucun droit contractuel n'existe concernant le support, les delais de reponse ou la resolution.",
+				"5": "Pour le support communautaire, utilisez le serveur Discord:",
+				"6": "Nous pouvons mettre a jour ces conditions au fil du temps. En continuant a utiliser l'application, vous acceptez les conditions revisees.",
+				"7": "Si vous n'acceptez pas ces conditions, cessez d'utiliser l'application."
+			}
+		},
+		"data": {
+			"title": "Politique de Donnees",
+			"paragraphs": {
+				"1": "Cette application stocke principalement les donnees du projet localement dans le navigateur ou l'appareil.",
+				"2": "Lorsque les fonctions de synchronisation optionnelles sont activees, les donnees peuvent etre transferees vers des services de stockage tiers configures.",
+				"3": "Vous controlez les informations saisies, exportees et synchronisees. Evitez de stocker des donnees sensibles sans protections adaptees.",
+				"4": "Nous recommandons d'utiliser des appareils securises, la protection des comptes et le chiffrement lorsque disponible.",
+				"5": "En continuant a utiliser cette application, vous reconnaissez ce modele de gestion des donnees."
+			}
 		}
 	},
 	"validation": {

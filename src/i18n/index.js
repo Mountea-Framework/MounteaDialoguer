@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import enTranslations from './locales/en.json';
+import csTranslations from './locales/cs.json';
 import deTranslations from './locales/de.json';
 import frTranslations from './locales/fr.json';
 import esTranslations from './locales/es.json';
@@ -17,12 +18,13 @@ i18n
 	.init({
 		resources: {
 			en: { translation: enTranslations },
+			cs: { translation: csTranslations },
 			de: { translation: deTranslations },
 			fr: { translation: frTranslations },
 			es: { translation: esTranslations },
 			pl: { translation: plTranslations },
 		},
-		supportedLngs: ['en', 'de', 'fr', 'es', 'pl'],
+		supportedLngs: ['en', 'cs', 'de', 'fr', 'es', 'pl'],
 		nonExplicitSupportedLngs: true,
 		fallbackLng: 'en',
 		interpolation: {

@@ -387,7 +387,12 @@
 			"createTitle": "Create Your First Project",
 			"createText": "Click here to create a new project. Projects help organize your dialogues.",
 			"searchTitle": "Quick Search",
-			"searchText": "Use the search bar to quickly find projects and dialogues."
+			"searchText": "Use the search bar to quickly find projects and dialogues.",
+			"communityTitle": "Support, Community, and Unreal Engine",
+			"communityText": "You can support the project, join the Discord community, and get the Unreal Engine integration.",
+			"communitySupport": "Support on GitHub Sponsors",
+			"communityDiscord": "Join Discord",
+			"communityUnreal": "Unreal Engine (Fab)"
 		},
 		"editor": {
 			"welcomeTitle": "Dialogue Editor Tour",
@@ -406,6 +411,52 @@
 			"next": "Next",
 			"nextWithProgress": "Next (Step {step} of {steps})",
 			"skip": "Skip tour"
+		}
+	},
+	"legal": {
+		"navAriaLabel": "Legal and support links",
+		"mobileBubbleAriaLabel": "Open legal and support links",
+		"paletteGroup": "Legal",
+		"palettePlaceholder": "Search legal and support actions...",
+		"effectiveDate": "Effective date: February 14, 2026",
+		"links": {
+			"terms": "Terms of Service",
+			"data": "Data Policy",
+			"support": "Support",
+			"supportAriaLabel": "Support on Discord"
+		},
+		"tooltips": {
+			"terms": "Open Terms of Service",
+			"data": "Open Data Policy",
+			"support": "Open support options"
+		},
+		"supportConfirm": {
+			"title": "Open Discord Support?",
+			"description": "You will be redirected to the Discord server if you click Yes.",
+			"yes": "Yes",
+			"no": "No"
+		},
+		"terms": {
+			"title": "Terms of Service",
+			"paragraphs": {
+				"1": "By using this application, you agree to use it in compliance with applicable laws and these terms.",
+				"2": "You are responsible for the accuracy and legality of the content you create, import, or export while using this tool.",
+				"3": "The software is provided \"as is\" without warranties of any kind. Use is at your own risk.",
+				"4": "Support is provided on a best-effort basis only. There is no contractual right to claim support, response times, or issue resolution.",
+				"5": "For community support, use the Discord server:",
+				"6": "We may update these terms over time. Continued use after updates means you accept the revised terms.",
+				"7": "If you do not agree with these terms, stop using the application."
+			}
+		},
+		"data": {
+			"title": "Data Policy",
+			"paragraphs": {
+				"1": "This application primarily stores project data locally in your browser/device storage.",
+				"2": "When optional sync features are enabled, data may be transferred to configured third-party storage services.",
+				"3": "You control what information is entered, exported, and synchronized. Avoid storing sensitive data unless appropriate safeguards are used.",
+				"4": "We recommend using secure devices, account protection, and encryption where available.",
+				"5": "By continuing to use this application, you acknowledge this data handling model."
+			}
 		}
 	},
 	"validation": {

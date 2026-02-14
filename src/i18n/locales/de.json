@@ -355,7 +355,12 @@
 			"createTitle": "Erstelle dein erstes Projekt",
 			"createText": "Klicke hier, um ein neues Projekt zu erstellen. Projekte helfen, deine Dialoge zu organisieren.",
 			"searchTitle": "Schnellsuche",
-			"searchText": "Nutze die Suchleiste, um Projekte und Dialoge schnell zu finden."
+			"searchText": "Nutze die Suchleiste, um Projekte und Dialoge schnell zu finden.",
+			"communityTitle": "Support, Community und Unreal Engine",
+			"communityText": "Du kannst das Projekt unterstuetzen, der Discord Community beitreten und die Unreal Engine Integration nutzen.",
+			"communitySupport": "Auf GitHub Sponsors unterstuetzen",
+			"communityDiscord": "Discord beitreten",
+			"communityUnreal": "Unreal Engine (Fab)"
 		},
 		"editor": {
 			"welcomeTitle": "Dialog-Editor-Tour",
@@ -374,6 +379,52 @@
 			"next": "Weiter",
 			"nextWithProgress": "Weiter (Schritt {step} von {steps})",
 			"skip": "Tour ueberspringen"
+		}
+	},
+	"legal": {
+		"navAriaLabel": "Rechtliches und Support Links",
+		"mobileBubbleAriaLabel": "Rechtliches und Support Links oeffnen",
+		"paletteGroup": "Rechtliches",
+		"palettePlaceholder": "Rechtliches und Support suchen...",
+		"effectiveDate": "Gueltig ab: 14. Februar 2026",
+		"links": {
+			"terms": "Nutzungsbedingungen",
+			"data": "Datenrichtlinie",
+			"support": "Support",
+			"supportAriaLabel": "Support auf Discord"
+		},
+		"tooltips": {
+			"terms": "Nutzungsbedingungen oeffnen",
+			"data": "Datenrichtlinie oeffnen",
+			"support": "Support Optionen oeffnen"
+		},
+		"supportConfirm": {
+			"title": "Discord Support oeffnen?",
+			"description": "Wenn Sie auf Ja klicken, werden Sie zum Discord Server weitergeleitet.",
+			"yes": "Ja",
+			"no": "Nein"
+		},
+		"terms": {
+			"title": "Nutzungsbedingungen",
+			"paragraphs": {
+				"1": "Durch die Nutzung dieser Anwendung stimmen Sie zu, sie gemaess geltendem Recht und diesen Bedingungen zu verwenden.",
+				"2": "Sie sind fuer die Richtigkeit und Rechtmaessigkeit der Inhalte verantwortlich, die Sie in diesem Tool erstellen, importieren oder exportieren.",
+				"3": "Die Software wird ohne Gewaehrleistung bereitgestellt. Die Nutzung erfolgt auf eigenes Risiko.",
+				"4": "Support erfolgt nur nach bestem Bemuehen. Es besteht kein vertraglicher Anspruch auf Support, Antwortzeiten oder Problemloesung.",
+				"5": "Fuer Community Support nutzen Sie den Discord Server:",
+				"6": "Wir koennen diese Bedingungen aktualisieren. Wenn Sie die App weiter nutzen, akzeptieren Sie die geaenderten Bedingungen.",
+				"7": "Wenn Sie diesen Bedingungen nicht zustimmen, beenden Sie die Nutzung der Anwendung."
+			}
+		},
+		"data": {
+			"title": "Datenrichtlinie",
+			"paragraphs": {
+				"1": "Diese Anwendung speichert Projektdaten hauptsaechlich lokal im Browser oder Geraet.",
+				"2": "Wenn optionale Sync Funktionen aktiviert sind, koennen Daten an konfigurierte Drittanbieter Speicher uebertragen werden.",
+				"3": "Sie kontrollieren, welche Informationen eingegeben, exportiert und synchronisiert werden. Speichern Sie sensible Daten nur mit geeigneten Schutzmassnahmen.",
+				"4": "Wir empfehlen sichere Geraete, Kontoschutz und Verschluesselung, wo verfuegbar.",
+				"5": "Durch die weitere Nutzung dieser Anwendung bestaetigen Sie dieses Datenmodell."
+			}
 		}
 	},
 	"validation": {

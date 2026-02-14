@@ -387,7 +387,12 @@
 			"createTitle": "Utwórz pierwszy projekt",
 			"createText": "Kliknij tutaj, aby utworzyć nowy projekt. Projekty pomagają porządkować dialogi.",
 			"searchTitle": "Szybkie wyszukiwanie",
-			"searchText": "Użyj paska wyszukiwania, aby szybko znaleźć projekty i dialogi."
+			"searchText": "Użyj paska wyszukiwania, aby szybko znaleźć projekty i dialogi.",
+			"communityTitle": "Wsparcie, społeczność i Unreal Engine",
+			"communityText": "Możesz wesprzeć projekt, dołączyć do społeczności Discord i korzystać z integracji z Unreal Engine.",
+			"communitySupport": "Wesprzyj przez GitHub Sponsors",
+			"communityDiscord": "Dołącz do Discord",
+			"communityUnreal": "Unreal Engine (Fab)"
 		},
 		"editor": {
 			"welcomeTitle": "Przewodnik po edytorze dialogów",
@@ -406,6 +411,52 @@
 			"next": "Dalej",
 			"nextWithProgress": "Dalej (krok {step} z {steps})",
 			"skip": "Pomiń przewodnik"
+		}
+	},
+	"legal": {
+		"navAriaLabel": "Linki prawne i wsparcie",
+		"mobileBubbleAriaLabel": "Otworz linki prawne i wsparcie",
+		"paletteGroup": "Prawne",
+		"palettePlaceholder": "Szukaj akcji prawnych i wsparcia...",
+		"effectiveDate": "Data wejscia w zycie: 14 lutego 2026",
+		"links": {
+			"terms": "Warunki korzystania",
+			"data": "Polityka danych",
+			"support": "Wsparcie",
+			"supportAriaLabel": "Wsparcie na Discord"
+		},
+		"tooltips": {
+			"terms": "Otworz warunki korzystania",
+			"data": "Otworz polityke danych",
+			"support": "Otworz opcje wsparcia"
+		},
+		"supportConfirm": {
+			"title": "Otworzyc wsparcie Discord?",
+			"description": "Po kliknieciu Tak zostaniesz przekierowany na serwer Discord.",
+			"yes": "Tak",
+			"no": "Nie"
+		},
+		"terms": {
+			"title": "Warunki korzystania",
+			"paragraphs": {
+				"1": "Korzystajac z tej aplikacji, zgadzasz sie uzywac jej zgodnie z obowiazujacym prawem i tymi warunkami.",
+				"2": "Odpowiadasz za poprawnosc i legalnosc tresci tworzonych, importowanych i eksportowanych za pomoca tego narzedzia.",
+				"3": "Oprogramowanie jest dostarczane w stanie takim jak jest, bez gwarancji jakiegokolwiek rodzaju. Korzystasz na wlasne ryzyko.",
+				"4": "Wsparcie jest swiadczone w modelu best effort. Nie ma umownego prawa do zadania wsparcia, czasu odpowiedzi ani rozwiazania problemu.",
+				"5": "Aby uzyskac wsparcie spolecznosci, skorzystaj z serwera Discord:",
+				"6": "Mozemy aktualizowac te warunki. Dalsze korzystanie z aplikacji oznacza akceptacje zaktualizowanych warunkow.",
+				"7": "Jesli nie akceptujesz tych warunkow, przestan korzystac z aplikacji."
+			}
+		},
+		"data": {
+			"title": "Polityka danych",
+			"paragraphs": {
+				"1": "Ta aplikacja przechowuje dane projektu glownie lokalnie w przegladarce lub na urzadzeniu.",
+				"2": "Po wlaczeniu opcjonalnej synchronizacji dane moga byc przesylane do skonfigurowanych uslug zewnetrznych.",
+				"3": "Ty decydujesz jakie informacje sa wprowadzane, eksportowane i synchronizowane. Unikaj przechowywania danych wrazliwych bez odpowiednich zabezpieczen.",
+				"4": "Zalecamy korzystanie z bezpiecznych urzadzen, ochrony konta i szyfrowania, gdy jest dostepne.",
+				"5": "Kontynuujac korzystanie z tej aplikacji, potwierdzasz ten model przetwarzania danych."
+			}
 		}
 	},
 	"validation": {
