@@ -379,6 +379,8 @@
 	"legal": {
 		"navAriaLabel": "Enlaces legales y de soporte",
 		"mobileBubbleAriaLabel": "Abrir enlaces legales y de soporte",
+		"paletteGroup": "Legal",
+		"palettePlaceholder": "Buscar acciones legales y de soporte...",
 		"effectiveDate": "Fecha de entrada en vigor: 14 de febrero de 2026",
 		"links": {
 			"terms": "Terminos del Servicio",

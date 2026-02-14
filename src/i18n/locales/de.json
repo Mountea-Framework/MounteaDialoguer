@@ -379,6 +379,8 @@
 	"legal": {
 		"navAriaLabel": "Rechtliches und Support Links",
 		"mobileBubbleAriaLabel": "Rechtliches und Support Links oeffnen",
+		"paletteGroup": "Rechtliches",
+		"palettePlaceholder": "Rechtliches und Support suchen...",
 		"effectiveDate": "Gueltig ab: 14. Februar 2026",
 		"links": {
 			"terms": "Nutzungsbedingungen",

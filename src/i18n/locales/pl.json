@@ -411,6 +411,8 @@
 	"legal": {
 		"navAriaLabel": "Linki prawne i wsparcie",
 		"mobileBubbleAriaLabel": "Otworz linki prawne i wsparcie",
+		"paletteGroup": "Prawne",
+		"palettePlaceholder": "Szukaj akcji prawnych i wsparcia...",
 		"effectiveDate": "Data wejscia w zycie: 14 lutego 2026",
 		"links": {
 			"terms": "Warunki korzystania",

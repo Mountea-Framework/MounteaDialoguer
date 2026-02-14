@@ -1,7 +1,8 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FileText, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Toaster } from '@/components/ui/toaster';
@@ -178,54 +179,33 @@ function RootComponent() {
 function PolicyQuickLinks() {
 	const { t } = useTranslation();
 	const [openModal, setOpenModal] = useState(null);
-	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-	const mobileMenuRef = useRef(null);
-	const mobileAutoHideTimerRef = useRef(null);
+	const openWithActions = useCommandPaletteStore((state) => state.openWithActions);
 
-	useEffect(() => {
-		if (!isMobileMenuOpen) {
-			if (mobileAutoHideTimerRef.current) {
-				clearTimeout(mobileAutoHideTimerRef.current);
-				mobileAutoHideTimerRef.current = null;
-			}
-			return;
-		}
-
-		mobileAutoHideTimerRef.current = setTimeout(() => {
-			setIsMobileMenuOpen(false);
-		}, 3000);
-
-		return () => {
-			if (mobileAutoHideTimerRef.current) {
-				clearTimeout(mobileAutoHideTimerRef.current);
-				mobileAutoHideTimerRef.current = null;
-			}
-		};
-	}, [isMobileMenuOpen]);
-
-	useEffect(() => {
-		if (!isMobileMenuOpen) return;
-
-		const handlePointerDown = (event) => {
-			if (!mobileMenuRef.current?.contains(event.target)) {
-				setIsMobileMenuOpen(false);
-			}
-		};
-
-		const handleFocusIn = (event) => {
-			if (!mobileMenuRef.current?.contains(event.target)) {
-				setIsMobileMenuOpen(false);
-			}
-		};
-
-		document.addEventListener('pointerdown', handlePointerDown);
-		document.addEventListener('focusin', handleFocusIn);
-
-		return () => {
-			document.removeEventListener('pointerdown', handlePointerDown);
-			document.removeEventListener('focusin', handleFocusIn);
-		};
-	}, [isMobileMenuOpen]);
+	const mobileActions = useMemo(
+		() => [
+			{
+				group: t('legal.paletteGroup'),
+				items: [
+					{
+						icon: FileText,
+						label: t('legal.links.terms'),
+						onSelect: () => setOpenModal('tos'),
+					},
+					{
+						icon: ShieldCheck,
+						label: t('legal.links.data'),
+						onSelect: () => setOpenModal('data'),
+					},
+					{
+						icon: LifeBuoy,
+						label: t('legal.links.support'),
+						onSelect: () => window.open('https://discord.gg/hCjh8e3Y9r', '_blank', 'noopener,noreferrer'),
+					},
+				],
+			},
+		],
+		[t]
+	);
 
 	return (
 		<>
@@ -260,50 +240,17 @@ function PolicyQuickLinks() {
 				</div>
 			</nav>
 
-			<div ref={mobileMenuRef} className="fixed bottom-4 right-4 z-50 md:hidden">
-				{isMobileMenuOpen && (
-					<div
-						className="mb-2 w-52 rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur"
-						role="menu"
-						aria-label={t('legal.navAriaLabel')}
-					>
-						<button
-							type="button"
-							onClick={() => {
-								setOpenModal('tos');
-								setIsMobileMenuOpen(false);
-							}}
-							className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
-						>
-							{t('legal.links.terms')}
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setOpenModal('data');
-								setIsMobileMenuOpen(false);
-							}}
-							className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
-						>
-							{t('legal.links.data')}
-						</button>
-						<a
-							href="https://discord.gg/hCjh8e3Y9r"
-							target="_blank"
-							rel="noreferrer"
-							className="block w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
-							aria-label={t('legal.links.supportAriaLabel')}
-						>
-							{t('legal.links.support')}
-						</a>
-					</div>
-				)}
+			<div className="fixed bottom-4 right-4 z-50 md:hidden">
 				<button
 					type="button"
-					onClick={() => setIsMobileMenuOpen((value) => !value)}
+					onClick={() =>
+						openWithActions({
+							actions: mobileActions,
+							placeholder: t('legal.palettePlaceholder'),
+						})
+					}
 					className="h-12 w-12 rounded-full border bg-primary text-primary-foreground shadow-lg"
 					aria-label={t('legal.mobileBubbleAriaLabel')}
-					aria-expanded={isMobileMenuOpen}
 				>
 					?
 				</button>

@@ -411,6 +411,8 @@
 	"legal": {
 		"navAriaLabel": "Legal and support links",
 		"mobileBubbleAriaLabel": "Open legal and support links",
+		"paletteGroup": "Legal",
+		"palettePlaceholder": "Search legal and support actions...",
 		"effectiveDate": "Effective date: February 14, 2026",
 		"links": {
 			"terms": "Terms of Service",
