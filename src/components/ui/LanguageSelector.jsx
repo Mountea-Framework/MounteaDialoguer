@@ -3,11 +3,12 @@ import { Languages } from 'lucide-react';
 import { NativeSelect } from '@/components/ui/native-select';
 
 const LANGUAGES = [
-	{ code: 'en', name: 'English', flag: '🇬🇧' },
-	{ code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-	{ code: 'fr', name: 'Français', flag: '🇫🇷' },
-	{ code: 'es', name: 'Español', flag: '🇪🇸' },
-	{ code: 'pl', name: 'Polski', flag: '🇵🇱' },
+	{ code: 'en', name: 'English', flag: 'EN' },
+	{ code: 'cs', name: 'Čeština', flag: 'CZ' },
+	{ code: 'de', name: 'Deutsch', flag: 'DE' },
+	{ code: 'fr', name: 'Francais', flag: 'FR' },
+	{ code: 'es', name: 'Espanol', flag: 'ES' },
+	{ code: 'pl', name: 'Polski', flag: 'PL' },
 ];
 
 /**

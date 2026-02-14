@@ -1,0 +1,467 @@
+{
+	"app": {
+		"title": "Mountea Dialoguer",
+		"subtitle": "Správa dialogů jednoduše a rychle",
+		"version": "Verze {{version}}"
+	},
+	"common": {
+		"save": "Uložit",
+		"saving": "Ukládání...",
+		"cancel": "Zrušit",
+		"delete": "Smazat",
+		"deleting": "Mazání...",
+		"edit": "Upravit",
+		"create": "Vytvořit",
+		"creating": "Vytváření...",
+		"import": "Importovat",
+		"export": "Exportovat",
+		"search": "Hledat",
+		"close": "Zavířit",
+		"apply": "Použít změny",
+		"loading": "Načítání...",
+		"error": "Chyba",
+		"success": "Úspěch",
+		"confirm": "Potvrdit",
+		"back": "Zpět",
+		"new": "Nový",
+		"add": "Přidat",
+		"manage": "Spravovat",
+		"true": "True",
+		"false": "False",
+		"time": {
+			"justNow": "právě teď",
+			"minutesAgo": "před {{count}}m",
+			"minutesAgo_plural": "před {{count}}m",
+			"hoursAgo": "před {{count}}h",
+			"hoursAgo_plural": "před {{count}}h"
+		}
+	},
+	"navigation": {
+		"dashboard": "Přehled",
+		"projects": "Mountea Dialoguer",
+		"dialogues": "Dialogy",
+		"participants": "Účastníci",
+		"categories": "Kategorie",
+		"decorators": "Dekorátory",
+		"settings": "Nastavení"
+	},
+	"dashboard": {
+		"diskUsage": "Využití disku"
+	},
+	"decorators": {
+		"title": "Dekorátory",
+		"addNew": "Nový Dekorátor",
+		"createDescription": "Přidat nový dekorátor pro rozšíření funkčností dialogu",
+		"updateDescription": "Aktualizovat detaily dekorátoru",
+		"description": "Správa dekorátorů pro rozšíření základních fuknčností dialogu, jako je spuštění animace aj.",
+		"name": "Název dekorátoru",
+		"namePlaceholder": "Zde zadejte název dekorátoru",
+		"type": "Typ",
+		"typePlaceholder": "např. Audio, Visual, Animation",
+		"panelTitle": "Dekorátory",
+		"count": "{{count}} dekorátor",
+		"count_plural": "{{count}} dekorátorů",
+		"none": "Žádný dekorátor nenalezen",
+		"unnamed": "Dekorátor bez názvu",
+		"selectPlaceholder": "Vyberte dekorátor...",
+		"enterProperty": "Zadejte {{name}}...",
+		"validation": {
+			"noWhitespace": "Název nesmí obsahovat mezery!"
+		},
+		"properties": {
+			"title": "Proměnné",
+			"add": "Přidat proměnnou",
+			"empty": "Žádná proměnná není definována. Přidej nové proměnné pro rozšíření funkčnosti dekorátoru.",
+			"name": "Název proměnné",
+			"namePlaceholder": "např. Speed",
+			"type": "Typ",
+			"defaultValue": "Výchozí hodnota",
+			"placeholders": {
+				"bool": "true/false",
+				"int": "0",
+				"float": "0.0",
+				"value": "hodnota"
+			}
+		},
+		"types": {
+			"string": "String",
+			"integer": "Integer",
+			"float": "Float",
+			"boolean": "Boolean"
+		},
+		"noDecorators": "Žádný dekorátor nenalezen",
+		"noDecoratorsDescription": "Přidej nové dekorátory pro rozšíření vlastností dialogu, jako je třeba spuštění animace, změna kamera aj.",
+		"deleteTitle": "Smazat dekorátor",
+		"deleteDescription": "Opravdu chete smazat {{name}}? Tato akce nelze vzít zpět."
+	},
+	"projects": {
+		"title": "Projekty",
+		"createNew": "Nový projekt",
+		"createNewDescription": "Začít od nuly nebo naimportuj",
+		"importProject": "Importovat projekt",
+		"recentProjects": "Nedávné projekty",
+		"allProjects": "Všechny projekty",
+		"projectDetails": "Detaily projektu",
+		"totalProjects": "Místní projekty",
+		"totalDialogues": "Celkem dialogů",
+		"diskUsage": "Využití disku",
+		"noProjects": "Nebyly nalezeny Žádná projekty",
+		"createFirst": "Vytvoř první projekt",
+		"lastModified": "Naposledy upraveno",
+		"createdDate": "Datum vytvoření",
+		"created": "Vytvořil",
+		"modified": "Upravil",
+		"notFound": "Projekt nenalezen",
+		"notFoundDescription": "Projekt, který hledáš, neexistuje nebo byl smazán",
+		"projectName": "Název projektu",
+		"projectDescription": "Popis projektu",
+		"deleteProject": "Smazat projekt",
+		"deleteConfirm": "Opravdu chceš smazat tento projekt? Tato akce nelze vzít zpět!"
+	},
+	"dialogues": {
+		"title": "Dialogy",
+		"createNew": "Vytvořit nový dialog",
+		"createDescription": "Vytvoření nového dialogu",
+		"dialogueName": "Název dialogu",
+		"dialogueSettings": "Nastavení dialogu",
+		"dialogueEditor": "Editor dialogu",
+		"noDialogues": "Nebyly nalezeny žádné dialogy",
+		"createFirst": "Vytvoř první projekt",
+		"nodes": "Nodes",
+		"nodeCount": "{{count}} node",
+		"nodeCount_plural": "{{count}} nodes",
+		"edges": "Edges",
+		"autoSaved": "Automaticky uloženo",
+		"unsavedChanges": "Neuložené změny"
+	},
+	"editor": {
+		"menu": {
+			"file": "Soubor",
+			"edit": "Úprava",
+			"view": "Zobrazení",
+			"undo": "Zpět",
+			"redo": "Vpřed",
+			"showTour": "Zobrazit uvítací tour",
+			"support": "Podpora"
+		},
+		"saveStatus": {
+			"saved": "Všechny změny uloženy",
+			"saving": "Ukládání...",
+			"unsaved": "Neuložené změny",
+			"error": "Ukládání selhalo"
+		},
+		"toolbar": {
+			"undo": "Zpět",
+			"redo": "Vpřed",
+			"save": "Uložit",
+			"export": "Export",
+			"settings": "Nastavení",
+			"darkMode": "Tmavý režim",
+			"lightMode": "Světlý režim"
+		},
+		"nodeToolbar": {
+			"autoLayout": "Auto Rozložení",
+			"autoLayoutTooltip": "Automaticky rozloží nodes v grafu pomocí dagreho algoritmu",
+			"npc": "NPC",
+			"addNpcTooltip": "Přidat NPC node - přetáhni na plátno nebo jenom klikni",
+			"player": "Player",
+			"addPlayerTooltip": "Přidat Player node - přetáhni na plátno nebo jenom klikni",
+			"return": "Return",
+			"addReturnTooltip": "Přidat Return node - přetáhni na plátno nebo jenom klikni",
+			"complete": "Complete",
+			"addCompleteTooltip": "Přidat Complete node - přetáhni na plátno nebo jenom klikni",
+			"delay": "Delay",
+			"addDelayTooltip": "Přidat Delay node - přetáhni na plátno nebo jenom klikni",
+			"poweredBy": "Powered by"
+		},
+		"nodes": {
+			"start": "Start",
+			"startDescription": "Startovací čára celého dialogu",
+			"npc": "NPC",
+			"npcPlaceholder": "NPC text...",
+			"player": "Player",
+			"playerPlaceholder": "Text hráče ...",
+			"complete": "Complete",
+			"completePlaceholder": "Text na ukončení dialogu...",
+			"delay": "Delay",
+			"delayDescription": "Počkat {{count}} sekundu.",
+			"delayDescription_plural": "Počkat {{count}} sekund.",
+			"delaySeconds": "{{count}}",
+			"delaySeconds_plural": "{{count}}",
+			"return": "Return To",
+			"returnTarget": "Cílová node:",
+			"returnSelectNode": "Vyber node...",
+			"rows": "{{count}} řádek",
+			"rows_plural": "{{count}} řádků",
+			"tooltip": {
+				"participant": "Účastník",
+				"decorators": "Dekorátory",
+				"dialogueRows": "Dialogové řádky"
+			}
+		},
+		"placeholder": {
+			"addNode": "Přidat Node"
+		},
+		"nodeDetails": "Detaily Node",
+		"speaker": "Mluvčí",
+		"dialogueText": "Text dialogu",
+		"audioClip": "Audio soubor",
+		"decorators": "Dekorátory",
+		"addDecorator": "Přidat dekorátor",
+		"deleteCascadeTitle": "Smazat Node a všechny její dceřiné nodes?",
+		"deleteCascadeDescription": "Smazáním této Node smažete i všechny dceřiné nodes. Tato akce nelze vzít zpět. Jedná se o omezení mobilního editoru.",
+		"deleteCascadeConfirm": "Smazat vše",
+		"sections": {
+			"nodeData": "Node data",
+			"dialogueDetails": "Detaily dialogu",
+			"nodeDecorators": "Node dekorátory",
+			"displayName": "Název",
+			"displayNamePlaceholder": "Zadat název...",
+			"participant": "Mluvčí",
+			"participantPlaceholder": "Vybrat mluvčího...",
+			"nodeId": "Node ID",
+			"selectionTitle": "Zkrácený název",
+			"selectionTitlePlaceholder": "Zadat zkrácený název...",
+			"dialogueRows": "Řádky dialogu",
+			"targetNode": "Cílová node",
+			"targetNodePlaceholder": "Vybrat cílovou node..."
+		},
+		"validation": {
+			"saveWarningTitle": "Uloženo s varováním",
+			"saveWarningDescription": "{{count}} node nemá vyplněná povinná data. Prosím, zkontrolujte.",
+			"saveWarningDescription_plural": "{{count}} node nemají vyplněná povinná data. Prosím, zkontrolujte je.",
+			"nodeMissingTitle": "Node vyžaduje opravu",
+			"nodeMissingDescription": "\"{{name}}\" nemá vyplněná povinná data.",
+			"focusNode": "Zaměřit node",
+			"unsavedLeaveTitle": "Neuložené změny",
+			"unsavedLeaveDescription": "Máš neuložené změny. Opuštěním stránky budou ztraceny. Pokračovat?"
+		}
+	},
+	"participants": {
+		"title": "Účastník",
+		"addNew": "Přidat účastníka",
+		"createDescription": "Přidat účastníka do projektu",
+		"description": "Správa postav, které mohou vystupovat v dialozích v tomto projektu",
+		"updateDescription": "Aktualizovat informace o účastníkovi",
+		"top": "Nejpoužívanější účastnici",
+		"inProject": "{{count}} účastník v projektu.",
+		"inProject_plural": "{{count}} účastníků v projektu.",
+		"name": "Název",
+		"namePlaceholder": "Zadat název účastníka",
+		"category": "Kategorie",
+		"categoryPlaceholder": "např. NPC, Player, System",
+		"avatar": "Avatar",
+		"noParticipants": "Nebyli nalezení žádní účastníci",
+		"noParticipantsDescription": "Přidat účastníka do projektu, aby mohl být použit jako postava v dialozích",
+		"deleteTitle": "Smazat účastníka",
+		"deleteDescription": "Opravdu chceš smazat účastníka{{name}}? Tato akce nelze vzít zpět."
+	},
+	"categories": {
+		"title": "Kategorie",
+		"addNew": "Přidat kategorii",
+		"createDescription": "Add a new category to organize your content",
+		"description": "Organize and classify your dialogue content",
+		"updateDescription": "Update the category's information",
+		"name": "Category Name",
+		"namePlaceholder": "Enter category name",
+		"parentCategory": "Parent Category",
+		"parentCategoryPlaceholder": "Select parent category (optional)",
+		"noParent": "None (Root Category)",
+		"parentCategoryHelp": "Similar to Unreal Engine Gameplay Tags - create hierarchical categories",
+		"noCategories": "No categories yet",
+		"noCategoriesDescription": "Add categories to organize your dialogues and content",
+		"deleteTitle": "Delete Category",
+		"deleteDescription": "Are you sure you want to delete {{name}}? This action cannot be undone."
+	},
+	"settings": {
+		"title": "Nastaveni",
+		"projectDescription": "Configure your project settings and metadata",
+		"projectInfo": "Project Information",
+		"projectInfoDescription": "Edit your project name, description, and version",
+		"descriptionPlaceholder": "Enter project description",
+		"version": "Version",
+		"metadata": "Metadata",
+		"metadataDescription": "View project metadata and timestamps",
+		"projectId": "Project ID",
+		"dataManagement": "Data Management",
+		"dataManagementDescription": "Export or import project data",
+		"exportProject": "Export Project",
+		"dangerZone": "Danger Zone",
+		"dangerZoneDescription": "Irreversible actions that affect your project",
+		"language": "Jazyk",
+		"theme": "Motiv",
+		"lightMode": "Svetly",
+		"darkMode": "Tmavy",
+		"systemMode": "Systemovy"
+	},
+	"settingsCommand": {
+		"title": "Settings Palette",
+		"description": "Contextual settings for this screen.",
+		"searchPlaceholder": "Search settings or shortcuts...",
+		"noResults": "No results found.",
+		"groups": {
+			"actions": "Actions",
+			"project": "Project Settings",
+			"dialogue": "Dialogue Settings",
+			"shortcuts": "Shortcuts"
+		},
+		"actions": {
+			"openProjectSettings": "Open Project Settings",
+			"openDialogueSettings": "Open Dialogue Settings",
+			"openSettings": "Open Settings"
+		},
+		"items": {
+			"dialogueInfo": "Dialogue Information",
+			"dialogueMetadata": "Dialogue Metadata",
+			"dialogueExport": "Export Dialogue",
+			"dialogueDanger": "Danger Zone",
+			"save": "Save",
+			"undo": "Undo",
+			"redo": "Redo",
+			"commandPalette": "Open Command Palette",
+			"showShortcuts": "Show Keyboard Shortcuts",
+			"deleteSelection": "Delete Selection",
+			"deselectAll": "Deselect All"
+		}
+	},
+	"sync": {
+		"title": "Cloud Sync",
+		"description": "Connect Google Drive to keep your projects in sync across devices.",
+		"providers": {
+			"googleDrive": "Google Drive",
+			"none": "Not Connected"
+		},
+		"status": {
+			"connected": "Connected",
+			"connecting": "Connecting...",
+			"syncing": "Syncing...",
+			"error": "Error",
+			"disconnected": "Disconnected"
+		},
+		"connectedAs": "Connected as {{account}}",
+		"clientId": "Google Client ID",
+		"clientIdPlaceholder": "your-client-id.apps.googleusercontent.com",
+		"clientIdHint": "Required for Google sign-in. Stored only on this device.",
+		"clientIdConfigured": "Client ID configured",
+		"clientIdHiddenHint": "We keep this hidden for simplicity.",
+		"clientIdChange": "Change",
+		"accountLabel": "Account (display)",
+		"accountPlaceholder": "you@example.com",
+		"passphrase": "Encryption Passphrase",
+		"passphrasePlaceholder": "Enter a passphrase",
+		"passphraseHint": "Your passphrase encrypts data before it leaves this device.",
+		"remember": "Remember on this device",
+		"rememberHint": "Stores the passphrase locally on this device.",
+		"promptDontShow": "Don't show on startup",
+		"promptDontShowHint": "Hide this login prompt when the app opens.",
+		"connect": "Connect Google Drive",
+		"connecting": "Connecting...",
+		"syncNow": "Sync Now",
+		"disconnect": "Disconnect",
+		"errors": {
+			"passphraseRequired": "Passphrase is required to enable sync.",
+			"missingClientId": "Google client ID is missing. Add it above to continue.",
+			"oauthFailed": "Google sign-in failed. Please try again.",
+			"popupBlocked": "Popup blocked. Please allow popups and try again.",
+			"syncFailed": "Sync failed. Check your connection and try again.",
+			"redirectUriMismatch": "Redirect URI mismatch. Make sure oauth-callback.html is allowed.",
+			"invalidGrant": "Authorization code expired or invalid. Try again.",
+			"tokenExpired": "Session expired. Please connect to Google Drive again."
+		},
+		"pullTitle": "Syncing Project",
+		"pullDescription": "Checking Google Drive and applying the latest changes.",
+		"bulkTitle": "Syncing Cloud Projects",
+		"bulkDescription": "Fetching and applying your cloud data.",
+		"bulkProgress": "Synced {{current}} of {{total}} projects.",
+		"progress": {
+			"checking": "Checking for changes",
+			"downloading": "Downloading snapshot",
+			"decrypting": "Decrypting data",
+			"applying": "Applying updates"
+		}
+	},
+	"tour": {
+		"dashboard": {
+			"welcomeTitle": "Vitejte v Mountea Dialoguer!",
+			"welcomeText": "Pojdme si dat kratkou prohlidku pro rychly start. Po ni uvidite nastaveni cloud synchronizace.",
+			"createTitle": "Vytvorte prvni projekt",
+			"createText": "Kliknete sem pro vytvoreni noveho projektu. Projekty pomahaji organizovat vase dialogy.",
+			"searchTitle": "Rychle hledani",
+			"searchText": "Pouzijte vyhledavani pro rychle nalezeni projektu a dialogu.",
+			"communityTitle": "Podpora, komunita a Unreal Engine",
+			"communityText": "Projekt muzete podporit, pripojit se na Discord a pouzivat integraci pro Unreal Engine.",
+			"communitySupport": "Podporit na GitHub Sponsors",
+			"communityDiscord": "Pripojit se na Discord",
+			"communityUnreal": "Unreal Engine (Fab)"
+		},
+		"editor": {
+			"welcomeTitle": "Dialogue Editor Tour",
+			"welcomeText": "Learn how to create interactive dialogues.",
+			"nodeToolbarTitle": "Node Toolbar",
+			"nodeToolbarText": "Drag these nodes onto the canvas to build your conversation flow.",
+			"canvasTitle": "Canvas",
+			"canvasText": "This is where you'll build your dialogue tree. Connect nodes to create conversation paths.",
+			"saveTitle": "Save Your Work",
+			"saveText": "Don't forget to save! Your changes are stored locally."
+		},
+		"controls": {
+			"back": "Zpet",
+			"close": "Zavrit",
+			"last": "Dokoncit",
+			"next": "Dalsi",
+			"nextWithProgress": "Dalsi (Krok {step} z {steps})",
+			"skip": "Preskocit prohlidku"
+		}
+	},
+	"legal": {
+		"navAriaLabel": "Pravni a podporne odkazy",
+		"mobileBubbleAriaLabel": "Otevrit pravni a podporne odkazy",
+		"paletteGroup": "Pravni",
+		"palettePlaceholder": "Hledat pravni a podporne akce...",
+		"effectiveDate": "Datum ucinnosti: 14. unora 2026",
+		"links": {
+			"terms": "Podminky sluzby",
+			"data": "Zasady ochrany dat",
+			"support": "Podpora",
+			"supportAriaLabel": "Podpora na Discordu"
+		},
+		"tooltips": {
+			"terms": "Otevrit Podminky sluzby",
+			"data": "Otevrit Zasady ochrany dat",
+			"support": "Otevrit moznosti podpory"
+		},
+		"supportConfirm": {
+			"title": "Otevrit podporu na Discordu?",
+			"description": "Po kliknuti na Ano budete presmerovani na Discord server.",
+			"yes": "Ano",
+			"no": "Ne"
+		},
+		"terms": {
+			"title": "Podminky sluzby",
+			"paragraphs": {
+				"1": "Pouzivanim teto aplikace souhlasite s jeji pouzivanim v souladu s platnymi zakony a temito podminkami.",
+				"2": "Odpovidate za spravnost a zakonitost obsahu, ktery v tomto nastroji vytvarite, importujete nebo exportujete.",
+				"3": "Software je poskytovan tak jak je, bez zaruk jakehokoli druhu. Pouzivate jej na vlastni riziko.",
+				"4": "Podpora je poskytovana pouze na bazi best effort. Neexistuje smluvni narok na podporu, cas reakce ani vyreseni problemu.",
+				"5": "Pro komunitni podporu pouzijte Discord server:",
+				"6": "Tyto podminky muzeme casem aktualizovat. Pokracovanim v pouzivani aplikace souhlasite s aktualizovanymi podminkami.",
+				"7": "Pokud s temito podminkami nesouhlasite, prestante aplikaci pouzivat."
+			}
+		},
+		"data": {
+			"title": "Zasady ochrany dat",
+			"paragraphs": {
+				"1": "Tato aplikace uklada data projektu primarne lokalne v ulozisti prohlizece nebo zarizeni.",
+				"2": "Po zapnuti volitelne synchronizace mohou byt data prenesena do nakonfigurovanych ulozist tretich stran.",
+				"3": "Vy urcujete, jake informace jsou zadany, exportovany a synchronizovany. Citliva data ukladejte pouze s odpovidajicim zabezpecenim.",
+				"4": "Doporucujeme pouzivat bezpecna zarizeni, ochranu uctu a sifrovani, kde je dostupne.",
+				"5": "Pokracovanim v pouzivani teto aplikace berete tento model zpracovani dat na vedomi."
+			}
+		}
+	},
+	"validation": {
+		"required": "Toto pole je povinne",
+		"invalidName": "Neplatny nazev",
+		"nameTaken": "Tento nazev se jiz pouziva"
+	}
+}
