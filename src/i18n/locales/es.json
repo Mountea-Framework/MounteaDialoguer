@@ -388,6 +388,17 @@
 			"support": "Soporte",
 			"supportAriaLabel": "Soporte en Discord"
 		},
+		"tooltips": {
+			"terms": "Abrir Terminos del Servicio",
+			"data": "Abrir Politica de Datos",
+			"support": "Abrir opciones de soporte"
+		},
+		"supportConfirm": {
+			"title": "Abrir soporte de Discord?",
+			"description": "Seras redirigido al servidor de Discord si haces clic en Si.",
+			"yes": "Si",
+			"no": "No"
+		},
 		"terms": {
 			"title": "Terminos del Servicio",
 			"paragraphs": {

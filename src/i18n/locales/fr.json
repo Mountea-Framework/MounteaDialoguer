@@ -388,6 +388,17 @@
 			"support": "Support",
 			"supportAriaLabel": "Support sur Discord"
 		},
+		"tooltips": {
+			"terms": "Ouvrir les conditions d'utilisation",
+			"data": "Ouvrir la politique de donnees",
+			"support": "Ouvrir les options de support"
+		},
+		"supportConfirm": {
+			"title": "Ouvrir le support Discord?",
+			"description": "Vous serez redirige vers le serveur Discord si vous cliquez sur Oui.",
+			"yes": "Oui",
+			"no": "Non"
+		},
 		"terms": {
 			"title": "Conditions d'utilisation",
 			"paragraphs": {

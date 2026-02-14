@@ -420,6 +420,17 @@
 			"support": "Wsparcie",
 			"supportAriaLabel": "Wsparcie na Discord"
 		},
+		"tooltips": {
+			"terms": "Otworz warunki korzystania",
+			"data": "Otworz polityke danych",
+			"support": "Otworz opcje wsparcia"
+		},
+		"supportConfirm": {
+			"title": "Otworzyc wsparcie Discord?",
+			"description": "Po kliknieciu Tak zostaniesz przekierowany na serwer Discord.",
+			"yes": "Tak",
+			"no": "Nie"
+		},
 		"terms": {
 			"title": "Warunki korzystania",
 			"paragraphs": {

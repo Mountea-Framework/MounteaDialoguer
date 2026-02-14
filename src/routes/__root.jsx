@@ -1,6 +1,6 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { ThemeProvider } from '@/contexts/ThemeProvider';
@@ -21,6 +21,22 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -153,7 +169,7 @@ function RootComponent() {
 				onLoadingComplete={() => setShowContent(true)}
 			/>
 			{(showContent || !isLoading) && (
-				<div className="min-h-screen pb-20">
+				<div className="min-h-screen">
 					<Outlet />
 					<PolicyQuickLinks />
 				</div>
@@ -179,7 +195,12 @@ function RootComponent() {
 function PolicyQuickLinks() {
 	const { t } = useTranslation();
 	const [openModal, setOpenModal] = useState(null);
+	const [isSupportConfirmOpen, setIsSupportConfirmOpen] = useState(false);
 	const openWithActions = useCommandPaletteStore((state) => state.openWithActions);
+
+	const openSupportConfirmation = useCallback(() => {
+		setIsSupportConfirmOpen(true);
+	}, []);
 
 	const mobileActions = useMemo(
 		() => [
@@ -199,12 +220,12 @@ function PolicyQuickLinks() {
 					{
 						icon: LifeBuoy,
 						label: t('legal.links.support'),
-						onSelect: () => window.open('https://discord.gg/hCjh8e3Y9r', '_blank', 'noopener,noreferrer'),
+						onSelect: openSupportConfirmation,
 					},
 				],
 			},
 		],
-		[t]
+		[openSupportConfirmation, t]
 	);
 
 	return (
@@ -213,31 +234,47 @@ function PolicyQuickLinks() {
 				className="fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 rounded-full border bg-background/95 px-3 py-2 shadow-lg backdrop-blur md:block"
 				aria-label={t('legal.navAriaLabel')}
 			>
-				<div className="flex items-center gap-2 text-sm">
-					<button
-						type="button"
-						onClick={() => setOpenModal('tos')}
-						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-					>
-						{t('legal.links.terms')}
-					</button>
-					<button
-						type="button"
-						onClick={() => setOpenModal('data')}
-						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-					>
-						{t('legal.links.data')}
-					</button>
-					<a
-						href="https://discord.gg/hCjh8e3Y9r"
-						target="_blank"
-						rel="noreferrer"
-						className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-						aria-label={t('legal.links.supportAriaLabel')}
-					>
-						{t('legal.links.support')}
-					</a>
-				</div>
+				<TooltipProvider>
+					<div className="flex items-center gap-2 text-sm">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<button
+									type="button"
+									onClick={() => setOpenModal('tos')}
+									className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+								>
+									{t('legal.links.terms')}
+								</button>
+							</TooltipTrigger>
+							<TooltipContent>{t('legal.tooltips.terms')}</TooltipContent>
+						</Tooltip>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<button
+									type="button"
+									onClick={() => setOpenModal('data')}
+									className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+								>
+									{t('legal.links.data')}
+								</button>
+							</TooltipTrigger>
+							<TooltipContent>{t('legal.tooltips.data')}</TooltipContent>
+						</Tooltip>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<button
+									type="button"
+									onClick={openSupportConfirmation}
+									className="rounded-full px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+									aria-label={t('legal.links.supportAriaLabel')}
+								>
+									{t('legal.links.support')}
+								</button>
+							</TooltipTrigger>
+							<TooltipContent>{t('legal.tooltips.support')}</TooltipContent>
+						</Tooltip>
+					</div>
+				</TooltipProvider>
 			</nav>
 
 			<div className="fixed bottom-4 right-4 z-50 md:hidden">
@@ -306,6 +343,30 @@ function PolicyQuickLinks() {
 					</div>
 				</DialogContent>
 			</Dialog>
+
+			<AlertDialog
+				open={isSupportConfirmOpen}
+				onOpenChange={setIsSupportConfirmOpen}
+			>
+				<AlertDialogContent size="sm">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t('legal.supportConfirm.title')}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t('legal.supportConfirm.description')}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>{t('legal.supportConfirm.no')}</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								window.open('https://discord.gg/hCjh8e3Y9r', '_blank', 'noopener,noreferrer');
+							}}
+						>
+							{t('legal.supportConfirm.yes')}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</>
 	);
 }

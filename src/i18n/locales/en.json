@@ -420,6 +420,17 @@
 			"support": "Support",
 			"supportAriaLabel": "Support on Discord"
 		},
+		"tooltips": {
+			"terms": "Open Terms of Service",
+			"data": "Open Data Policy",
+			"support": "Open support options"
+		},
+		"supportConfirm": {
+			"title": "Open Discord Support?",
+			"description": "You will be redirected to the Discord server if you click Yes.",
+			"yes": "Yes",
+			"no": "No"
+		},
 		"terms": {
 			"title": "Terms of Service",
 			"paragraphs": {
