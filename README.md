@@ -13,14 +13,22 @@
 > Feel free to test out the released version of our Dialoguer Tool!
 > <p align="center" width="100%">
 >     <a href="https://mountea-framework.github.io/MounteaDialoguer/">
->         <img width="20%" src="https://github.com/Mountea-Framework/MounteaInteractionSystem/assets/37410226/da51eced-84e4-4c96-a9ff-cd5a03055d64">
+>         <img width="20%" src="https://github.com/user-attachments/assets/48f713d0-2ec1-4892-b56e-31770ab2c901">
 >     </a>
 > </p>
 
-## Contributing
+## The Dialoguer
+> The tool comes rich in features, free and available on desktop, tablet and mobile!
+> And it provides a nice dark/light modes to please as many users as we can.
+> <p align="center" width="100%">
+>     <img width="30%" src="https://github.com/user-attachments/assets/0b234734-c727-4df0-bd60-2bc898a26e12">
+>     <img width="30%" src="https://github.com/user-attachments/assets/648d45cd-85e4-428c-847e-c730c6af88d2">
+>     <img width="30%" src="https://github.com/user-attachments/assets/d87b475b-23a8-4a55-a028-2d6aa17f7d9d">
+> </p>
 
+
+## Contributing
 > We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
 
 ## License
-
 > This project is licensed under the MPL2.0 License - see the [LICENSE](LICENSE) file for details.
