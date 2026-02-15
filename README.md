@@ -7,7 +7,7 @@
 
 # Mountea Dialoguer
 
-> Welcome to the Dialogue Editor Tool, a comprehensive solution for creating and managing dialogue systems for various applications. This tool offers an intuitive interface for designing dialogue flows, managing participants, and customizing interactions.
+> Welcome to the Dialogue Editor Tool, a comprehensive solution for creating and managing dialogue systems for various applications. This tool offers an intuitive interface for designing dialogue flows, managing participants, and customising interactions.
 
 ## Try it out!
 > Feel free to test out the released version of our Dialoguer Tool!
@@ -16,6 +16,11 @@
 >         <img width="90%" src="https://github.com/user-attachments/assets/48f713d0-2ec1-4892-b56e-31770ab2c901">
 >     </a>
 > </p>
+
+## AI
+> We used AI for this tool. To be more precise, we used AI to help us bring the tool from desktop to mobile devices, as we lack the experience.
+> We are fully transparent and all AI code was pushed by AI agent.
+> We intend to use as little AI as we possibly can.
 
 ## The Dialoguer
 > The tool comes rich in features, free and available on desktop, tablet and mobile!
