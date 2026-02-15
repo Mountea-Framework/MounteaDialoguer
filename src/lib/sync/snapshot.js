@@ -59,17 +59,18 @@ export async function applyProjectSnapshot(snapshot) {
 			db.edges,
 		],
 		async () => {
+			const existingDialogues = await db.dialogues.where('projectId').equals(project.id).toArray();
+			const existingDialogueIds = existingDialogues.map((dialogue) => dialogue.id);
+			if (existingDialogueIds.length > 0) {
+				await db.nodes.where('dialogueId').anyOf(existingDialogueIds).delete();
+				await db.edges.where('dialogueId').anyOf(existingDialogueIds).delete();
+			}
+
 			await db.projects.delete(project.id);
 			await db.dialogues.where('projectId').equals(project.id).delete();
 			await db.participants.where('projectId').equals(project.id).delete();
 			await db.categories.where('projectId').equals(project.id).delete();
 			await db.decorators.where('projectId').equals(project.id).delete();
-
-			const dialogueIds = dialogues.map((dialogue) => dialogue.id);
-			if (dialogueIds.length > 0) {
-				await db.nodes.where('dialogueId').anyOf(dialogueIds).delete();
-				await db.edges.where('dialogueId').anyOf(dialogueIds).delete();
-			}
 
 			await db.projects.put(project);
 

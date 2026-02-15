@@ -352,6 +352,9 @@
 		"dashboard": {
 			"welcomeTitle": "Bienvenue dans Mountea Dialoguer !",
 			"welcomeText": "Faisons un bref tour pour vous aider à démarrer. Après la visite, la configuration de la synchronisation cloud s'affichera.",
+			"exampleTitle": "Commencer avec un projet d'exemple",
+			"exampleText": "Créez un projet de démonstration prêt à explorer avec un dialogue déjà inclus.",
+			"exampleAction": "Créer le projet d'exemple",
 			"createTitle": "Créez votre premier projet",
 			"createText": "Cliquez ici pour créer un nouveau projet. Les projets aident à organiser vos dialogues.",
 			"searchTitle": "Recherche rapide",
