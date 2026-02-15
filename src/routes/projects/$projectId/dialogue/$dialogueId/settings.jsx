@@ -1,7 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from '@tanstack/react-router';
 import {
 	ArrowLeft,
 	Save,
@@ -53,6 +52,7 @@ function DialogueSettingsPage() {
 	const { t } = useTranslation();
 	const { theme, resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
+	const navigate = useNavigate();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, updateDialogue, deleteDialogue, exportDialogue } =
 		useDialogueStore();
@@ -117,16 +117,15 @@ function DialogueSettingsPage() {
 		}
 	};
 
-	const handleDelete = async () => {
-		try {
-			await deleteDialogue(dialogueId);
-			setShowDeleteDialog(false);
-			// Navigate back to project
-			window.location.href = `#/projects/${projectId}`;
-		} catch (error) {
-			console.error('Failed to delete dialogue:', error);
-		}
-	};
+		const handleDelete = async () => {
+			try {
+				await deleteDialogue(dialogueId);
+				setShowDeleteDialog(false);
+				navigate({ to: '/projects/$projectId', params: { projectId } });
+			} catch (error) {
+				console.error('Failed to delete dialogue:', error);
+			}
+		};
 
 	if (!dialogue || !project) {
 		return (
