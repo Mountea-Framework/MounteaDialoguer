@@ -384,6 +384,9 @@
 		"dashboard": {
 			"welcomeTitle": "Welcome to Mountea Dialoguer!",
 			"welcomeText": "Let's take a quick tour to help you get started. After the tour, you'll see the Cloud Sync setup.",
+			"exampleTitle": "Start with an Example Project",
+			"exampleText": "Create a complete branching example with categories, participants, and all dialogue node types.",
+			"exampleAction": "Create Example Project",
 			"createTitle": "Create Your First Project",
 			"createText": "Click here to create a new project. Projects help organize your dialogues.",
 			"searchTitle": "Quick Search",

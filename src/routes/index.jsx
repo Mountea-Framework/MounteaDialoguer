@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -277,11 +277,14 @@ function ProjectCard({ project }) {
 
 function ProjectsDashboard() {
   const { t } = useTranslation();
-  const { projects, loadProjects, isLoading } = useProjectStore();
+  const navigate = useNavigate();
+  const { projects, loadProjects, isLoading, createOnboardingExampleProject } =
+    useProjectStore();
   const { dialogues, loadDialogues } = useDialogueStore();
   const { lastSyncedAt } = useSyncStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
   const { runTour, finishTour, resetTour } = useOnboarding("dashboard");
 
@@ -307,6 +310,25 @@ function ProjectsDashboard() {
     setIsCreateDialogOpen(true);
   };
 
+  const handleCreateExampleProject = async () => {
+    if (isCreatingExampleProject) return;
+
+    setIsCreatingExampleProject(true);
+
+    try {
+      const result = await createOnboardingExampleProject();
+
+      finishTour();
+      await loadProjects();
+      await loadDialogues();
+      navigate({ to: "/projects/$projectId", params: { projectId: result.projectId } });
+    } catch (error) {
+      console.error("Error creating example project:", error);
+    } finally {
+      setIsCreatingExampleProject(false);
+    }
+  };
+
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -320,6 +342,8 @@ function ProjectsDashboard() {
         run={runTour}
         onFinish={finishTour}
         tourType="dashboard"
+        onCreateExampleProject={handleCreateExampleProject}
+        isCreatingExampleProject={isCreatingExampleProject}
       />
 
       <CreateProjectDialog

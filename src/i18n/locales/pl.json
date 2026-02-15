@@ -384,6 +384,9 @@
 		"dashboard": {
 			"welcomeTitle": "Witamy w Mountea Dialoguer!",
 			"welcomeText": "Zróbmy krótki przewodnik, aby pomóc Ci zacząć. Po zakończeniu zobaczysz konfigurację synchronizacji w chmurze.",
+			"exampleTitle": "Zacznij od przykładowego projektu",
+			"exampleText": "Utwórz gotowy projekt demonstracyjny z już dodanym dialogiem.",
+			"exampleAction": "Utwórz przykładowy projekt",
 			"createTitle": "Utwórz pierwszy projekt",
 			"createText": "Kliknij tutaj, aby utworzyć nowy projekt. Projekty pomagają porządkować dialogi.",
 			"searchTitle": "Szybkie wyszukiwanie",

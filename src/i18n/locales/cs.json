@@ -384,6 +384,9 @@
     "dashboard": {
       "welcomeTitle": "Vítejte v Mountea Dialoguer!",
       "welcomeText": "Pojďme si dát krátkou prohlídku pro rychlý start. Po ní uvidíte nastavení cloudové synchronizace.",
+      "exampleTitle": "Začněte ukázkovým projektem",
+      "exampleText": "Vytvořte si připravený vzorový projekt s již importovaným dialogem.",
+      "exampleAction": "Vytvořit ukázkový projekt",
       "createTitle": "Vytvořte první projekt",
       "createText": "Klikněte sem pro vytvoření nového projektu. Projekty pomáhají organizovat vaše dialogy.",
       "searchTitle": "Rychlé hledání",
