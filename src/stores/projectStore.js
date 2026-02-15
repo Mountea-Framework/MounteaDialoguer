@@ -159,7 +159,7 @@ export const useProjectStore = create((set, get) => ({
 				description: 'Branching example that demonstrates all node types',
 				createdAt: now,
 				modifiedAt: now,
-				viewport: { x: 120, y: 0, zoom: 0.75 },
+				viewport: { x: 60, y: -20, zoom: 0.68 },
 			};
 
 			// Hardcoded graph IDs
@@ -180,14 +180,14 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_START,
 					dialogueId,
 					type: 'startNode',
-					position: { x: 600, y: 40 },
+					position: { x: 640, y: 40 },
 					data: { label: 'Dialogue entry point', displayName: 'Start Node' },
 				},
 				{
 					id: NODE_GREETING,
 					dialogueId,
 					type: 'leadNode',
-					position: { x: 600, y: 220 },
+					position: { x: 640, y: 250 },
 					data: {
 						label: 'Greeting',
 						displayName: 'Waldermar Greeting',
@@ -209,7 +209,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_CHOICE_BUY,
 					dialogueId,
 					type: 'answerNode',
-					position: { x: 240, y: 460 },
+					position: { x: 140, y: 540 },
 					data: {
 						label: 'Player Choice',
 						displayName: 'Player Buy Supplies',
@@ -231,7 +231,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_CHOICE_RUMORS,
 					dialogueId,
 					type: 'answerNode',
-					position: { x: 600, y: 460 },
+					position: { x: 640, y: 540 },
 					data: {
 						label: 'Player Choice',
 						displayName: 'Player Ask Rumors',
@@ -253,7 +253,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_CHOICE_GOODBYE,
 					dialogueId,
 					type: 'answerNode',
-					position: { x: 960, y: 460 },
+					position: { x: 1140, y: 540 },
 					data: {
 						label: 'Player Choice',
 						displayName: 'Player Goodbye',
@@ -275,7 +275,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_BUY_RESPONSE,
 					dialogueId,
 					type: 'leadNode',
-					position: { x: 240, y: 700 },
+					position: { x: 140, y: 850 },
 					data: {
 						label: 'Merchant Response',
 						displayName: 'Waldermar Trade Response',
@@ -297,7 +297,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_DELAY_CHECK_STOCK,
 					dialogueId,
 					type: 'delayNode',
-					position: { x: 240, y: 900 },
+					position: { x: 140, y: 1080 },
 					data: {
 						label: 'Check stock delay',
 						displayName: 'Check Stock Delay',
@@ -308,7 +308,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_BUY_COMPLETE,
 					dialogueId,
 					type: 'completeNode',
-					position: { x: 240, y: 1080 },
+					position: { x: 140, y: 1280 },
 					data: {
 						label: 'Transaction Complete',
 						displayName: 'Trade Complete',
@@ -330,7 +330,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_RUMOR_RESPONSE,
 					dialogueId,
 					type: 'leadNode',
-					position: { x: 600, y: 700 },
+					position: { x: 640, y: 850 },
 					data: {
 						label: 'Rumor Response',
 						displayName: 'Waldermar Rumors',
@@ -352,7 +352,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_RUMOR_RETURN,
 					dialogueId,
 					type: 'returnNode',
-					position: { x: 600, y: 900 },
+					position: { x: 640, y: 1080 },
 					data: {
 						label: 'Return to choices',
 						displayName: 'Return To Greeting',
@@ -363,7 +363,7 @@ export const useProjectStore = create((set, get) => ({
 					id: NODE_GOODBYE_COMPLETE,
 					dialogueId,
 					type: 'completeNode',
-					position: { x: 960, y: 700 },
+					position: { x: 1140, y: 850 },
 					data: {
 						label: 'Goodbye Complete',
 						displayName: 'Farewell Complete',
