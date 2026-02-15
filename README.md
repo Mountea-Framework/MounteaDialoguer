@@ -13,7 +13,7 @@
 > Feel free to test out the released version of our Dialoguer Tool!
 > <p align="center" width="100%">
 >     <a href="https://mountea-framework.github.io/MounteaDialoguer/">
->         <img width="20%" src="https://github.com/user-attachments/assets/48f713d0-2ec1-4892-b56e-31770ab2c901">
+>         <img width="90%" src="https://github.com/user-attachments/assets/48f713d0-2ec1-4892-b56e-31770ab2c901">
 >     </a>
 > </p>
 
