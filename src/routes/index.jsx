@@ -343,8 +343,6 @@ function ProjectsDashboard() {
         run={runTour}
         onFinish={finishTour}
         tourType="dashboard"
-        onCreateExampleProject={handleCreateExampleProject}
-        isCreatingExampleProject={isCreatingExampleProject}
       />
 
       <CreateProjectDialog
