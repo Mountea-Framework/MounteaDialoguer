@@ -13,7 +13,7 @@
 > Feel free to test out the released version of our Dialoguer Tool!
 > <p align="center" width="100%">
 >     <a href="https://mountea-framework.github.io/MounteaDialoguer/">
->         <img width="90%" src="https://github.com/user-attachments/assets/48f713d0-2ec1-4892-b56e-31770ab2c901">
+>         <img width="90%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/desktop_graph.webp">
 >     </a>
 > </p>
 
@@ -25,12 +25,26 @@
 ## The Dialoguer
 > The tool comes rich in features, free and available on desktop, tablet and mobile!
 > And it provides a nice dark/light modes to please as many users as we can.
+
+
+> **Desktop application preview**
 > <p align="center" width="100%">
->     <img width="30%" src="https://github.com/user-attachments/assets/0b234734-c727-4df0-bd60-2bc898a26e12">
->     <img width="30%" src="https://github.com/user-attachments/assets/648d45cd-85e4-428c-847e-c730c6af88d2">
->     <img width="30%" src="https://github.com/user-attachments/assets/d87b475b-23a8-4a55-a028-2d6aa17f7d9d">
+>     <img width="45%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/dektop_mainPage.webp">
+>     <img width="45%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/desktop_projectDetails.webp">
+> </p>
+> <p align="center" width="100%">
+>     <img width="45%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/desktop_Categories.webp">
+>     <img width="45%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/desktop_graph.webp">
 > </p>
 
+
+> **Mobile application preview**
+> <p align="center" width="100%">
+>     <img width="22.5%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/mobile_mainPage.webp">
+>     <img width="22.5%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/mobile_projectDetails.webp">
+>     <img width="22.5%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/mobile_categories.webp">
+>     <img width="22.5%" src="https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/refs/heads/master/DocumentationSource/mobile_graph.webp">
+> </p>
 
 ## Contributing
 > We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
