@@ -1,5 +1,6 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
 import {
@@ -254,6 +255,7 @@ function DialogueEditorPage() {
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const headerRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
+	const mobileLoaderStartedAtRef = useRef(null);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -386,11 +388,15 @@ function DialogueEditorPage() {
 		if (deviceType !== 'mobile') {
 			setShowMobileGraphLoader(false);
 			setMobileLoadProgress(100);
+			mobileLoaderStartedAtRef.current = null;
 			return;
 		}
 
 		if (isMobileGraphLoading) {
 			setShowMobileGraphLoader(true);
+			if (mobileLoaderStartedAtRef.current === null) {
+				mobileLoaderStartedAtRef.current = Date.now();
+			}
 		}
 	}, [deviceType, isMobileGraphLoading]);
 
@@ -410,9 +416,13 @@ function DialogueEditorPage() {
 
 		if (!isMobileGraphLoading) {
 			setMobileLoadProgress(100);
+			const startedAt = mobileLoaderStartedAtRef.current ?? Date.now();
+			const elapsed = Date.now() - startedAt;
+			const remaining = Math.max(2000 - elapsed, 0);
 			const timeout = setTimeout(() => {
 				setShowMobileGraphLoader(false);
-			}, 180);
+				mobileLoaderStartedAtRef.current = null;
+			}, remaining);
 			return () => clearTimeout(timeout);
 		}
 
@@ -1804,25 +1814,6 @@ function DialogueEditorPage() {
 				)}
 			</ReactFlow>
 
-			{showMobileGraphLoader && deviceType === 'mobile' && (
-				<div className="absolute inset-0 z-30 flex items-center justify-center bg-background/90 backdrop-blur-sm">
-					<div className="w-[82%] max-w-xs rounded-xl border border-border bg-card p-4 shadow-lg">
-						<div className="mb-2 flex items-center justify-between text-sm">
-							<span className="font-medium">{t('common.loading')}</span>
-							<span className="text-muted-foreground">{mobileLoadProgress}%</span>
-						</div>
-						<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-							<div
-								className="h-full bg-primary transition-all duration-300"
-								style={{ width: `${mobileLoadProgress}%` }}
-							/>
-						</div>
-						<p className="mt-2 text-xs text-muted-foreground">
-							Preparing dialogue graph...
-						</p>
-					</div>
-				</div>
-			)}
 			</div>
 
 			{/* Mobile Node Action Bar */}
@@ -2064,6 +2055,30 @@ function DialogueEditorPage() {
 				onOpenChange={setIsNodeTypeModalOpen}
 				onSelectType={handleNodeTypeSelect}
 			/>
+
+			{showMobileGraphLoader &&
+				deviceType === 'mobile' &&
+				typeof document !== 'undefined' &&
+				createPortal(
+					<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-2xl backdrop-saturate-150">
+						<div className="w-[82%] max-w-xs rounded-xl border border-border/70 bg-card/95 p-4 shadow-2xl">
+							<div className="mb-2 flex items-center justify-between text-sm">
+								<span className="font-medium">{t('common.loading')}</span>
+								<span className="text-muted-foreground">{mobileLoadProgress}%</span>
+							</div>
+							<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+								<div
+									className="h-full bg-primary transition-all duration-300"
+									style={{ width: `${mobileLoadProgress}%` }}
+								/>
+							</div>
+							<p className="mt-2 text-xs text-muted-foreground">
+								Preparing dialogue graph...
+							</p>
+						</div>
+					</div>,
+					document.body
+				)}
 		</div>
 	);
 }
