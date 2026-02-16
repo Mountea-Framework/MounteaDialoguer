@@ -2,14 +2,12 @@ import { useMemo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
 import {
-	CommandDialog,
 	Command,
 	CommandInput,
 	CommandList,
 	CommandEmpty,
 	CommandGroup,
 	CommandItem,
-	CommandSeparator,
 	CommandShortcut,
 } from '@/components/ui/command';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
@@ -28,16 +26,14 @@ import {
 	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Kbd } from '@/components/ui/kbd';
 import { formatShortcutKeys } from '@/lib/keyboardShortcuts';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import {
 	AlertTriangle,
 	Command as CommandIcon,
-	Database,
-	Download,
-	Info,
 	Keyboard,
 	Redo2,
 	Save,
@@ -70,7 +66,8 @@ function ShortcutKeys({ keys }) {
 export function SettingsCommandDialog() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { open, context, onOpenSettings, setOpen, close, mode, setMode } =
+	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
+	const { open, context, setOpen, close, mode, setMode } =
 		useSettingsCommandStore();
 	const { projects, loadProjects, exportProject, deleteProject } = useProjectStore();
 	const { dialogues, loadDialogues, exportDialogue, deleteDialogue } = useDialogueStore();
@@ -83,6 +80,19 @@ export function SettingsCommandDialog() {
 			loadDialogues(context.projectId);
 		}
 	}, [open, context?.type, context?.projectId, loadProjects, loadDialogues]);
+
+	useEffect(() => {
+		const updateViewportType = () => setIsDesktop(!isMobileDevice());
+		updateViewportType();
+		window.addEventListener('resize', updateViewportType);
+		window.addEventListener('orientationchange', updateViewportType);
+		window.addEventListener('device-override', updateViewportType);
+		return () => {
+			window.removeEventListener('resize', updateViewportType);
+			window.removeEventListener('orientationchange', updateViewportType);
+			window.removeEventListener('device-override', updateViewportType);
+		};
+	}, []);
 
 	const project =
 		context?.projectId && projects.length
@@ -173,74 +183,90 @@ export function SettingsCommandDialog() {
 		[actionLabel, context?.type, setMode, t]
 	);
 
+	const detailContent = (
+		<div className="max-h-[85vh] w-full max-w-4xl overflow-y-auto p-6">
+			{context?.type === 'dialogue' ? (
+				<DialogueSettingsPanel
+					dialogue={dialogue}
+					onExport={() => exportDialogue(context?.dialogueId)}
+					onDelete={() => setShowDeleteDialog(true)}
+				/>
+			) : (
+				<>
+					{project ? (
+						<ProjectSettingsSection
+							project={project}
+							onExport={() => exportProject(context?.projectId)}
+							onDelete={() => setShowDeleteDialog(true)}
+						/>
+					) : (
+						<div className="h-full flex items-center justify-center">
+							<p className="text-muted-foreground">{t('common.loading')}</p>
+						</div>
+					)}
+				</>
+			)}
+		</div>
+	);
+
+	const listContent = (
+		<Command className="max-h-[70vh]">
+			<div className="px-4 pt-4 pb-2">
+				<p className="text-sm font-semibold">{t('settingsCommand.title')}</p>
+				<p className="text-xs text-muted-foreground">
+					{t('settingsCommand.description')}
+				</p>
+			</div>
+			<CommandInput placeholder={t('settingsCommand.searchPlaceholder')} />
+			<CommandList>
+				<CommandEmpty>{t('settingsCommand.noResults')}</CommandEmpty>
+				{groups.map((group) => (
+					<CommandGroup key={group.id} heading={group.title}>
+						{group.items.map((item) => (
+							<CommandItem
+								key={item.id}
+								value={item.label}
+								onSelect={() => {
+									if (item.onSelect) {
+										item.onSelect();
+									}
+								}}
+							>
+								<item.icon className="mr-2 h-4 w-4" />
+								<span>{item.label}</span>
+								<ShortcutKeys keys={item.keys} />
+							</CommandItem>
+						))}
+					</CommandGroup>
+				))}
+			</CommandList>
+		</Command>
+	);
+
 	return (
 		<>
-			<CommandDialog
-				open={open}
-				onOpenChange={setOpen}
-				contentClassName={mode === 'detail' ? 'max-w-4xl w-[calc(100%-2rem)]' : 'max-w-2xl w-[calc(100%-2rem)]'}
-			>
-				<DialogTitle className="sr-only">{t('settingsCommand.title')}</DialogTitle>
-				{mode === 'detail' ? (
-					<div className="max-h-[85vh] w-full max-w-4xl overflow-y-auto p-6">
-						{context?.type === 'dialogue' ? (
-							<DialogueSettingsPanel
-								dialogue={dialogue}
-								onExport={() => exportDialogue(context?.dialogueId)}
-								onDelete={() => setShowDeleteDialog(true)}
-							/>
-						) : (
-							<>
-								{project ? (
-									<ProjectSettingsSection
-										project={project}
-										onExport={() => exportProject(context?.projectId)}
-										onDelete={() => setShowDeleteDialog(true)}
-									/>
-								) : (
-									<div className="h-full flex items-center justify-center">
-										<p className="text-muted-foreground">
-											{t('common.loading')}
-										</p>
-									</div>
-								)}
-							</>
-						)}
-					</div>
-				) : (
-					<Command className="max-h-[70vh]">
-						<div className="px-4 pt-4 pb-2">
-							<p className="text-sm font-semibold">{t('settingsCommand.title')}</p>
-							<p className="text-xs text-muted-foreground">
-								{t('settingsCommand.description')}
-							</p>
-						</div>
-						<CommandInput placeholder={t('settingsCommand.searchPlaceholder')} />
-						<CommandList>
-							<CommandEmpty>{t('settingsCommand.noResults')}</CommandEmpty>
-							{groups.map((group) => (
-								<CommandGroup key={group.id} heading={group.title}>
-									{group.items.map((item) => (
-										<CommandItem
-											key={item.id}
-											value={item.label}
-											onSelect={() => {
-												if (item.onSelect) {
-													item.onSelect();
-												}
-											}}
-										>
-											<item.icon className="mr-2 h-4 w-4" />
-											<span>{item.label}</span>
-											<ShortcutKeys keys={item.keys} />
-										</CommandItem>
-									))}
-								</CommandGroup>
-							))}
-						</CommandList>
-					</Command>
-				)}
-			</CommandDialog>
+			{isDesktop ? (
+				<Dialog open={open} onOpenChange={setOpen}>
+					<DialogContent
+						className={mode === 'detail'
+							? 'max-w-4xl w-[calc(100%-2rem)] overflow-hidden p-0 shadow-2xl'
+							: 'max-w-2xl w-[calc(100%-2rem)] overflow-hidden p-0 shadow-2xl'}
+					>
+						<DialogTitle className="sr-only">{t('settingsCommand.title')}</DialogTitle>
+						{mode === 'detail' ? detailContent : listContent}
+					</DialogContent>
+				</Dialog>
+			) : (
+				<Drawer open={open} onOpenChange={setOpen}>
+					<DrawerContent className="max-h-[92vh]">
+						<DrawerHeader className="sr-only">
+							<DrawerTitle>{t('settingsCommand.title')}</DrawerTitle>
+							<DrawerDescription>{t('settingsCommand.description')}</DrawerDescription>
+						</DrawerHeader>
+						<div className="overflow-y-auto">{mode === 'detail' ? detailContent : listContent}</div>
+					</DrawerContent>
+				</Drawer>
+			)}
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
 				<AlertDialogContent variant="destructive" size="sm">
 					<AlertDialogHeader>
