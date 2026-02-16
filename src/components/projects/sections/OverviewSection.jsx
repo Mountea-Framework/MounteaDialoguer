@@ -154,13 +154,13 @@ export function OverviewSection({
 			</div>
 
 			{/* Project Header */}
-			<div className="flex items-start justify-between mb-10">
-				<div className="group flex-1">
+			<div className="flex items-start justify-between gap-3 mb-10 min-w-0">
+				<div className="group flex-1 min-w-0">
 					<label className="hidden md:block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
 						{t('projects.projectName')}
 					</label>
-					<div className="flex items-center gap-3">
-						<h1 className="text-xl md:text-4xl font-bold tracking-tight">{project.name}</h1>
+					<div className="flex items-center gap-3 min-w-0">
+						<h1 className="text-xl md:text-4xl font-bold tracking-tight truncate">{project.name}</h1>
 						{project.version && (
 							<Badge variant="success">v{project.version}</Badge>
 						)}
@@ -181,17 +181,12 @@ export function OverviewSection({
 						</button>
 					</div>
 					{project.description && (
-						<p
-							className={`mt-3 leading-relaxed max-w-2xl text-muted-foreground ${
-								isMobileDevice ? 'text-base' : 'text-lg'
-							}`}
-						>
+						<p className="mt-3 leading-relaxed max-w-2xl text-muted-foreground text-sm md:text-lg">
 							{project.description}
 						</p>
-
 					)}
 				</div>
-			<div className="flex gap-2">
+			<div className="flex gap-2 shrink-0">
 				{/* Mobile: Dropdown Menu */}
 				<div className="md:hidden">
 					<DropdownMenu className>
@@ -253,16 +248,16 @@ export function OverviewSection({
 
 		{/* Metrics Cards */}
 		{isMobile ? (
-			<div className="mb-6">
+			<div className="relative mb-6">
 				<Carousel
-					opts={{ loop: true }}
+					opts={{ loop: true, align: 'start' }}
 					plugins={[autoplayPlugin.current]}
 					setApi={setCarouselApi}
 					className="w-full"
 				>
-					<CarouselContent className="-ml-1">
+					<CarouselContent>
 						{metricCards.map((metric) => (
-							<CarouselItem key={metric.id} className="basis-full pl-1">
+							<CarouselItem key={metric.id}>
 								{renderMetricCard(metric)}
 							</CarouselItem>
 						))}

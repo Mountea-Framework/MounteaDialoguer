@@ -70,7 +70,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
     <AppHeader
       containerClassName="max-w-7xl mx-auto"
       leftClassName="hidden md:flex items-center gap-3 justify-between md:justify-start min-w-0"
-      rightClassName={`${isMobileDevice() ? "justify-between" : ""}`}
+      rightClassName={`${isMobileDevice() ? "w-full justify-between" : ""}`}
       left={
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
@@ -133,18 +133,6 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
           >
             <Plus className="h-4 w-4" />
             <span className="hidden lg:inline">
-              {t("projects.createNew")}
-            </span>
-          </Button>
-          <Button
-            onClick={onNewProject}
-            size="sm"
-            className={`shrink-0 md:hidden ${isMobileDevice() ? "" : "hidden"}`}
-            data-tour=""
-            aria-label={t("projects.createNew")}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden [@media(min-width:400px)]:inline">
               {t("projects.createNew")}
             </span>
           </Button>
