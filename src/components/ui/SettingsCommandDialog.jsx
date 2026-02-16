@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from '@tanstack/react-router';
 import {
 	CommandDialog,
 	Command,
@@ -68,6 +69,7 @@ function ShortcutKeys({ keys }) {
 
 export function SettingsCommandDialog() {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const { open, context, onOpenSettings, setOpen, close, mode, setMode } =
 		useSettingsCommandStore();
 	const { projects, loadProjects, exportProject, deleteProject } = useProjectStore();
@@ -262,17 +264,22 @@ export function SettingsCommandDialog() {
 						</AlertDialogCancel>
 						<AlertDialogAction
 							variant="destructive"
-							onClick={async () => {
-								if (context?.type === 'dialogue') {
-									await deleteDialogue(context?.dialogueId);
-								} else {
-									await deleteProject(context?.projectId);
-									window.location.href = '#/';
-								}
-								setShowDeleteDialog(false);
-								close();
-							}}
-						>
+								onClick={async () => {
+									if (context?.type === 'dialogue') {
+										await deleteDialogue(context?.dialogueId);
+										if (context?.projectId) {
+											navigate({ to: '/projects/$projectId', params: { projectId: context.projectId } });
+										} else {
+											navigate({ to: '/' });
+										}
+									} else {
+										await deleteProject(context?.projectId);
+										navigate({ to: '/' });
+									}
+									setShowDeleteDialog(false);
+									close();
+								}}
+							>
 							{t('common.delete')}
 						</AlertDialogAction>
 					</AlertDialogFooter>

@@ -10,6 +10,7 @@ import {
   Calendar,
   Cloud,
   HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
 import { useDialogueStore } from "@/stores/dialogueStore";
@@ -342,8 +343,6 @@ function ProjectsDashboard() {
         run={runTour}
         onFinish={finishTour}
         tourType="dashboard"
-        onCreateExampleProject={handleCreateExampleProject}
-        isCreatingExampleProject={isCreatingExampleProject}
       />
 
       <CreateProjectDialog
@@ -382,10 +381,24 @@ function ProjectsDashboard() {
               title={t("projects.noProjects")}
               description={t("projects.createFirst")}
               action={
-                <Button onClick={handleNewProject}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("projects.createNew")}
-                </Button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <Button onClick={handleNewProject}>
+                    <Plus className="h-4 w-4" />
+                    {t("projects.createNew")}
+                  </Button>
+                  {projects.length === 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={handleCreateExampleProject}
+                      disabled={isCreatingExampleProject}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {isCreatingExampleProject
+                        ? t("common.loading")
+                        : t("tour.dashboard.exampleAction")}
+                    </Button>
+                  )}
+                </div>
               }
               tips={[
                 "Projects help organize your dialogues by game or story",

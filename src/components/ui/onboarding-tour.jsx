@@ -17,8 +17,6 @@ export function OnboardingTour({
 	run,
 	onFinish,
 	tourType = 'dashboard',
-	onCreateExampleProject,
-	isCreatingExampleProject = false,
 }) {
 	const [stepIndex, setStepIndex] = useState(0);
 	const { theme } = useTheme();
@@ -49,20 +47,6 @@ export function OnboardingTour({
 					<p className="text-sm text-muted-foreground">
 						{t('tour.dashboard.welcomeText')}
 					</p>
-					{onCreateExampleProject && (
-						<div className="mt-3 border-t pt-3">
-							<h3 className="font-semibold mb-1">{t('tour.dashboard.exampleTitle')}</h3>
-							<p className="text-sm mb-3">{t('tour.dashboard.exampleText')}</p>
-							<button
-								type="button"
-								onClick={onCreateExampleProject}
-								disabled={isCreatingExampleProject}
-								className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-							>
-								{isCreatingExampleProject ? t('common.loading') : t('tour.dashboard.exampleAction')}
-							</button>
-						</div>
-					)}
 				</div>
 			),
 			placement: 'center',
