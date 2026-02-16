@@ -136,18 +136,6 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
               {t("projects.createNew")}
             </span>
           </Button>
-          <Button
-            onClick={onNewProject}
-            size="sm"
-            className={`shrink-0 md:hidden ${isMobileDevice() ? "" : "hidden"}`}
-            data-tour=""
-            aria-label={t("projects.createNew")}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden [@media(min-width:400px)]:inline">
-              {t("projects.createNew")}
-            </span>
-          </Button>
         </>
       }
     />
