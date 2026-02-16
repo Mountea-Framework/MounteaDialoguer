@@ -156,7 +156,7 @@ export function OverviewSection({
 			{/* Project Header */}
 			<div className="flex items-start justify-between mb-10">
 				<div className="group flex-1">
-					<label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+					<label className="hidden md:block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
 						{t('projects.projectName')}
 					</label>
 					<div className="flex items-center gap-3">
@@ -174,16 +174,21 @@ export function OverviewSection({
 									mode: 'detail',
 								})
 							}
-							className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
+							className="hidden md:flex opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
 							title="Project Settings"
 						>
 							<Edit3 className="h-5 w-5" />
 						</button>
 					</div>
 					{project.description && (
-						<p className="mt-3 text-lg text-muted-foreground leading-relaxed max-w-2xl">
+						<p
+							className={`mt-3 leading-relaxed max-w-2xl text-muted-foreground ${
+								isMobileDevice ? 'text-base' : 'text-lg'
+							}`}
+						>
 							{project.description}
 						</p>
+
 					)}
 				</div>
 			<div className="flex gap-2">
