@@ -1294,13 +1294,15 @@ function DialogueEditorPage() {
 	}, [nodes, edges, setNodes, setEdges, saveToHistory]);
 
 	// Auto-apply layout on mobile when nodes change
-	const [lastLayoutNodeCount, setLastLayoutNodeCount] = useState(0);
+	const [lastLayoutRegularNodeCount, setLastLayoutRegularNodeCount] = useState(0);
+	const [lastLayoutPlaceholderCount, setLastLayoutPlaceholderCount] = useState(0);
 	const [hasInitialLayout, setHasInitialLayout] = useState(false);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') return;
 
 		const regularNodeCount = nodes.filter((n) => n.type !== 'placeholderNode').length;
+		const placeholderCount = nodes.length - regularNodeCount;
 
 		// Run initial layout after dialogue loads (including placeholders)
 		if (!hasInitialLayout && nodes.length > 0 && regularNodeCount > 0) {
@@ -1310,20 +1312,27 @@ function DialogueEditorPage() {
 			);
 			setNodes(layoutedNodes);
 			setEdges(layoutedEdges);
-			setLastLayoutNodeCount(regularNodeCount);
+			setLastLayoutRegularNodeCount(regularNodeCount);
+			setLastLayoutPlaceholderCount(placeholderCount);
 			setHasInitialLayout(true);
 			return;
 		}
 
-		// Only run layout if regular node count changed (user added a node)
-		if (hasInitialLayout && regularNodeCount > 0 && regularNodeCount !== lastLayoutNodeCount) {
+		// Run layout when mobile graph structure changes:
+		// regular nodes (user adds node) or placeholders (post-processing pass).
+		const graphShapeChanged =
+			regularNodeCount !== lastLayoutRegularNodeCount ||
+			placeholderCount !== lastLayoutPlaceholderCount;
+
+		if (hasInitialLayout && regularNodeCount > 0 && graphShapeChanged) {
 			const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
 				nodes,
 				edges
 			);
 			setNodes(layoutedNodes);
 			setEdges(layoutedEdges);
-			setLastLayoutNodeCount(regularNodeCount);
+			setLastLayoutRegularNodeCount(regularNodeCount);
+			setLastLayoutPlaceholderCount(placeholderCount);
 		}
 	}, [deviceType, nodes.length, edges.length]);
 
