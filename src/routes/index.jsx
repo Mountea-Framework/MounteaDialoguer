@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Autoplay from "embla-carousel-autoplay";
 import {
@@ -19,6 +19,14 @@ import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Carousel,
   CarouselContent,
@@ -368,6 +376,64 @@ function ProjectCard({ project }) {
   );
 }
 
+function MobileProjectsTable({
+  projects,
+  dialogueCountByProject,
+  onOpenProject,
+  onCreateProject,
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="md:hidden space-y-3" data-tour="projects-grid">
+      <Button onClick={onCreateProject} className="w-full gap-2" size="sm">
+        <Plus className="h-4 w-4" />
+        {t("projects.createNew")}
+      </Button>
+
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[8rem]">{t("projects.projectName")}</TableHead>
+              <TableHead className="min-w-[6.5rem]">{t("projects.created")}</TableHead>
+              <TableHead className="w-[4.5rem] text-center">
+                {t("dialogues.title")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {projects.map((project) => (
+              <TableRow
+                key={project.id}
+                tabIndex={0}
+                onClick={() => onOpenProject(project.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpenProject(project.id);
+                  }
+                }}
+                className="cursor-pointer select-none active:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              >
+                <TableCell className="py-4 font-semibold">
+                  <span className="block max-w-[8rem] truncate">{project.name}</span>
+                </TableCell>
+                <TableCell className="py-4 text-muted-foreground whitespace-nowrap">
+                  {formatDate(project.createdAt)}
+                </TableCell>
+                <TableCell className="py-4 text-center font-medium">
+                  {dialogueCountByProject[project.id] || 0}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+
 function ProjectsDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -403,6 +469,10 @@ function ProjectsDashboard() {
     setIsCreateDialogOpen(true);
   };
 
+  const handleOpenProject = (projectId) => {
+    navigate({ to: "/projects/$projectId", params: { projectId } });
+  };
+
   const handleCreateExampleProject = async () => {
     if (isCreatingExampleProject) return;
 
@@ -425,6 +495,12 @@ function ProjectsDashboard() {
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const dialogueCountByProject = useMemo(() => {
+    return dialogues.reduce((accumulator, dialogue) => {
+      accumulator[dialogue.projectId] = (accumulator[dialogue.projectId] || 0) + 1;
+      return accumulator;
+    }, {});
+  }, [dialogues]);
 
   const totalDialogues = dialogues.length;
   const diskUsage = formatFileSize(diskUsageBytes);
@@ -499,29 +575,38 @@ function ProjectsDashboard() {
               ]}
             />
           ) : (
-            <div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              data-tour="projects-grid"
-            >
-              {filteredProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
+            <>
+              <MobileProjectsTable
+                projects={filteredProjects}
+                dialogueCountByProject={dialogueCountByProject}
+                onOpenProject={handleOpenProject}
+                onCreateProject={handleNewProject}
+              />
 
-              <button
-                onClick={handleNewProject}
-                className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] hover:border-primary hover:bg-primary/5 transition-all group"
+              <div
+                className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                data-tour="projects-grid"
               >
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Plus className="h-8 w-8 text-primary" />
-                </div>
-                <span className="font-bold text-lg">
-                  {t("projects.createNew")}
-                </span>
-                <span className="text-sm text-muted-foreground mt-2">
-                  {t("projects.createNewDescription")}
-                </span>
-              </button>
-            </div>
+                {filteredProjects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+
+                <button
+                  onClick={handleNewProject}
+                  className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] hover:border-primary hover:bg-primary/5 transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Plus className="h-8 w-8 text-primary" />
+                  </div>
+                  <span className="font-bold text-lg">
+                    {t("projects.createNew")}
+                  </span>
+                  <span className="text-sm text-muted-foreground mt-2">
+                    {t("projects.createNewDescription")}
+                  </span>
+                </button>
+              </div>
+            </>
           )}
         </div>
       </main>
