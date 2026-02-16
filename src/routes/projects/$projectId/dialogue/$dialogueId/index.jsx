@@ -258,6 +258,10 @@ function DialogueEditorPage() {
 	const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
 	const [reactFlowInstance, setReactFlowInstance] = useState(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+	const markUnsaved = useCallback(() => {
+		setHasUnsavedChanges(true);
+		setSaveStatus((prev) => (prev === 'saving' ? prev : 'unsaved'));
+	}, []);
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
@@ -461,6 +465,13 @@ function DialogueEditorPage() {
 		}
 	}, [nodes]);
 
+	// Keep visual save status in sync with navigation guard state.
+	useEffect(() => {
+		if (hasUnsavedChanges && saveStatus === 'saved') {
+			setSaveStatus('unsaved');
+		}
+	}, [hasUnsavedChanges, saveStatus]);
+
 	// Auto-focus on start node when graph loads (both mobile and desktop)
 	// Only if no saved viewport was loaded
 	const focusStartNode = useCallback(() => {
@@ -556,11 +567,10 @@ function DialogueEditorPage() {
 		if (prevNode && prevNode !== selectedNode) {
 			// User switched to a different node or deselected, save current state
 			saveToHistory(nodes, edges);
-			setHasUnsavedChanges(true);
-			setSaveStatus('unsaved');
+			markUnsaved();
 		}
 		prevSelectedNodeRef.current = selectedNode;
-	}, [selectedNode, nodes, edges, saveToHistory]);
+	}, [selectedNode, nodes, edges, saveToHistory, markUnsaved]);
 
 	// Warn before leaving with unsaved changes
 	useEffect(() => {
@@ -835,10 +845,11 @@ function DialogueEditorPage() {
 			setEdges((eds) => {
 				const updatedEdges = addEdge(newEdge, eds);
 				saveToHistory(nodes, updatedEdges);
+				markUnsaved();
 				return updatedEdges;
 			});
 		},
-		[setEdges, nodes, saveToHistory]
+		[setEdges, nodes, saveToHistory, markUnsaved]
 	);
 
 	// Handle node click
@@ -888,13 +899,14 @@ function DialogueEditorPage() {
 							!placeholderIdsToRemove.includes(e.target)
 					);
 					saveToHistory(updatedNodes, updatedEdges);
+					markUnsaved();
 					return updatedEdges;
 				});
 				return updatedNodes;
 			});
 			setSelectedNode(null);
 		}
-	}, [selectedNode, setNodes, setEdges, saveToHistory]);
+	}, [selectedNode, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	const deleteSelectedNodeCascade = useCallback(() => {
 		if (!selectedNode || selectedNode.id === '00000000-0000-0000-0000-000000000001') {
@@ -933,6 +945,7 @@ function DialogueEditorPage() {
 						!nodeIdsToRemove.has(e.source) && !nodeIdsToRemove.has(e.target)
 				);
 				saveToHistory(updatedNodes, updatedEdges);
+				markUnsaved();
 				return updatedEdges;
 			});
 
@@ -940,7 +953,7 @@ function DialogueEditorPage() {
 		});
 
 		setSelectedNode(null);
-	}, [selectedNode, edges, setNodes, setEdges, saveToHistory]);
+	}, [selectedNode, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	const getMissingRequiredNodes = useCallback(() => {
 		const missingNodes = new Map();
@@ -1122,10 +1135,11 @@ function DialogueEditorPage() {
 					return node;
 				});
 				saveToHistory(updatedNodes, edges);
+				markUnsaved();
 				return updatedNodes;
 			});
 		},
-		[setNodes, edges, saveToHistory]
+		[setNodes, edges, saveToHistory, markUnsaved]
 	);
 
 	// Remove decorator from node
@@ -1146,10 +1160,11 @@ function DialogueEditorPage() {
 						: node
 				);
 				saveToHistory(updatedNodes, edges);
+				markUnsaved();
 				return updatedNodes;
 			});
 		},
-		[setNodes, edges, saveToHistory]
+		[setNodes, edges, saveToHistory, markUnsaved]
 	);
 
 	// Add new node based on type
@@ -1179,8 +1194,7 @@ function DialogueEditorPage() {
 				saveToHistory(updatedNodes, edges);
 				return updatedNodes;
 			});
-			setHasUnsavedChanges(true);
-			setSaveStatus('unsaved');
+			markUnsaved();
 			const missingRequiredNodes = getMissingRequiredNodes();
 			logMissingRequiredNodes();
 			showValidationToasts(missingRequiredNodes);
@@ -1189,8 +1203,7 @@ function DialogueEditorPage() {
 			setNodes,
 			edges,
 			saveToHistory,
-			setHasUnsavedChanges,
-			setSaveStatus,
+			markUnsaved,
 			logMissingRequiredNodes,
 			getMissingRequiredNodes,
 			showValidationToasts,
@@ -1265,8 +1278,7 @@ function DialogueEditorPage() {
 
 			return updatedNodes;
 		});
-		setHasUnsavedChanges(true);
-		setSaveStatus('unsaved');
+		markUnsaved();
 		const missingRequiredNodes = getMissingRequiredNodes();
 		logMissingRequiredNodes();
 		showValidationToasts(missingRequiredNodes);
@@ -1319,11 +1331,10 @@ function DialogueEditorPage() {
 		setNodes,
 		setEdges,
 		handlePlaceholderClick,
-		setHasUnsavedChanges,
-		setSaveStatus,
-		logMissingRequiredNodes,
-		getMissingRequiredNodes,
-		showValidationToasts,
+			markUnsaved,
+			logMissingRequiredNodes,
+			getMissingRequiredNodes,
+			showValidationToasts,
 	]);
 
 	// Add placeholders to nodes on mobile
@@ -1429,8 +1440,8 @@ function DialogueEditorPage() {
 		setNodes(layoutedNodes);
 		setEdges(layoutedEdges);
 		saveToHistory(layoutedNodes, layoutedEdges);
-		setHasUnsavedChanges(true);
-	}, [nodes, edges, setNodes, setEdges, saveToHistory]);
+		markUnsaved();
+	}, [nodes, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	// Auto-apply layout on mobile when nodes change
 	useEffect(() => {
@@ -1544,6 +1555,7 @@ function DialogueEditorPage() {
 					setEdges((eds) => {
 						const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
 						saveToHistory(nodes, updatedEdges);
+						markUnsaved();
 						return updatedEdges;
 					});
 					setSelectedEdge(null);
@@ -1560,6 +1572,7 @@ function DialogueEditorPage() {
 		setEdges,
 		nodes,
 		saveToHistory,
+		markUnsaved,
 		handleSave,
 		handleUndo,
 		handleRedo,

@@ -1,9 +1,12 @@
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import Autoplay from 'embla-carousel-autoplay';
 import { Link } from '@tanstack/react-router';
 import { Download, Upload, Trash2, Edit3, ArrowRight, MessageCircle, FolderOpen, Calendar, Clock, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -34,14 +37,106 @@ export function OverviewSection({
 	isImporting = false,
 }) {
 	const { t } = useTranslation();
-	const isMobile = isMobileDevice();
+	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
+	const [carouselApi, setCarouselApi] = useState();
+	const [activeMetricIndex, setActiveMetricIndex] = useState(0);
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
+	const autoplayPlugin = useRef(
+		Autoplay({
+			delay: 2500,
+			stopOnInteraction: false,
+		})
+	);
+
+	useEffect(() => {
+		const updateViewportType = () => setIsDesktop(!isMobileDevice());
+		updateViewportType();
+		window.addEventListener('resize', updateViewportType);
+		window.addEventListener('orientationchange', updateViewportType);
+		window.addEventListener('device-override', updateViewportType);
+		return () => {
+			window.removeEventListener('resize', updateViewportType);
+			window.removeEventListener('orientationchange', updateViewportType);
+			window.removeEventListener('device-override', updateViewportType);
+		};
+	}, []);
+
+	const isMobile = !isDesktop;
 
 	// Calculate metrics
 	const totalNodes = dialogues.reduce((sum, d) => sum + (d.nodeCount || 0), 0);
 	const recentDialogues = [...dialogues]
 		.sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt))
 		.slice(0, 5);
+
+	useEffect(() => {
+		if (!isMobile) {
+			setActiveMetricIndex(0);
+		}
+	}, [isMobile]);
+
+	useEffect(() => {
+		if (!carouselApi || !isMobile) return;
+
+		const handleSelect = () => {
+			setActiveMetricIndex(carouselApi.selectedScrollSnap());
+		};
+
+		handleSelect();
+		carouselApi.on('select', handleSelect);
+		carouselApi.on('reInit', handleSelect);
+
+		return () => {
+			carouselApi.off('select', handleSelect);
+			carouselApi.off('reInit', handleSelect);
+		};
+	}, [carouselApi, isMobile]);
+
+	const metricCards = [
+		{
+			id: 'file-size',
+			label: 'File Size',
+			value: '--',
+			meta: `${totalNodes} ${t('dialogues.nodes')}`,
+			icon: <FolderOpen className="h-4 w-4" />,
+			iconContainerClass: 'bg-blue-50 dark:bg-blue-900/20 text-primary',
+		},
+		{
+			id: 'modified',
+			label: t('projects.modified'),
+			value: formatDistanceToNow(project.modifiedAt),
+			meta: 'Current User',
+			icon: <Clock className="h-4 w-4" />,
+			iconContainerClass: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+		},
+		{
+			id: 'created',
+			label: t('projects.created'),
+			value: formatDate(project.createdAt),
+			meta: project.version ? `v${project.version}` : 'v1.0.0',
+			icon: <Calendar className="h-4 w-4" />,
+			iconContainerClass: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
+		},
+	];
+
+	const renderMetricCard = (metric) => (
+		<Card key={metric.id}>
+			<CardContent className="p-3 md:p-4">
+				<div className="flex items-center gap-3">
+					<div
+						className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${metric.iconContainerClass}`}
+					>
+						{metric.icon}
+					</div>
+					<div className="min-w-0 flex-1">
+						<p className="text-muted-foreground text-xs font-medium">{metric.label}</p>
+						<h3 className="text-lg font-bold truncate">{metric.value}</h3>
+						<p className="text-[10px] text-muted-foreground">{metric.meta}</p>
+					</div>
+				</div>
+			</CardContent>
+		</Card>
+	);
 
 	return (
 		<div>
@@ -61,7 +156,7 @@ export function OverviewSection({
 			{/* Project Header */}
 			<div className="flex items-start justify-between mb-10">
 				<div className="group flex-1">
-					<label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+					<label className="hidden md:block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
 						{t('projects.projectName')}
 					</label>
 					<div className="flex items-center gap-3">
@@ -79,16 +174,21 @@ export function OverviewSection({
 									mode: 'detail',
 								})
 							}
-							className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
+							className="hidden md:flex opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
 							title="Project Settings"
 						>
 							<Edit3 className="h-5 w-5" />
 						</button>
 					</div>
 					{project.description && (
-						<p className="mt-3 text-lg text-muted-foreground leading-relaxed max-w-2xl">
+						<p
+							className={`mt-3 leading-relaxed max-w-2xl text-muted-foreground ${
+								isMobileDevice ? 'text-base' : 'text-lg'
+							}`}
+						>
 							{project.description}
 						</p>
+
 					)}
 				</div>
 			<div className="flex gap-2">
@@ -152,54 +252,44 @@ export function OverviewSection({
 			</div>
 
 		{/* Metrics Cards */}
-		<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
-			<Card>
-				<CardContent className="p-3 md:p-4">
-					<div className="flex items-center gap-3">
-						<div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
-							<FolderOpen className="h-4 w-4" />
-						</div>
-						<div className="min-w-0 flex-1">
-							<p className="text-muted-foreground text-xs font-medium">File Size</p>
-							<h3 className="text-lg font-bold">--</h3>
-							<p className="text-[10px] text-muted-foreground">{totalNodes} {t('dialogues.nodes')}</p>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+		{isMobile ? (
+			<div className="mb-6">
+				<Carousel
+					opts={{ loop: true }}
+					plugins={[autoplayPlugin.current]}
+					setApi={setCarouselApi}
+					className="w-full"
+				>
+					<CarouselContent className="-ml-1">
+						{metricCards.map((metric) => (
+							<CarouselItem key={metric.id} className="basis-full pl-1">
+								{renderMetricCard(metric)}
+							</CarouselItem>
+						))}
+					</CarouselContent>
+				</Carousel>
 
-			<Card>
-				<CardContent className="p-3 md:p-4">
-					<div className="flex items-center gap-3">
-						<div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-							<Clock className="h-4 w-4" />
-						</div>
-						<div className="min-w-0 flex-1">
-							<p className="text-muted-foreground text-xs font-medium">{t('projects.modified')}</p>
-							<h3 className="text-lg font-bold truncate">{formatDistanceToNow(project.modifiedAt)}</h3>
-							<p className="text-[10px] text-muted-foreground">Current User</p>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardContent className="p-3 md:p-4">
-					<div className="flex items-center gap-3">
-						<div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
-							<Calendar className="h-4 w-4" />
-						</div>
-						<div className="min-w-0 flex-1">
-							<p className="text-muted-foreground text-xs font-medium">{t('projects.created')}</p>
-							<h3 className="text-lg font-bold">{formatDate(project.createdAt)}</h3>
-							<p className="text-[10px] text-muted-foreground">
-								{project.version ? `v${project.version}` : 'v1.0.0'}
-							</p>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
+				<div className="mt-3 flex items-center justify-center gap-2">
+					{metricCards.map((metric, metricIndex) => (
+						<button
+							key={metric.id}
+							type="button"
+							onClick={() => carouselApi?.scrollTo(metricIndex)}
+							className={`h-2 rounded-full transition-all ${
+								activeMetricIndex === metricIndex
+									? 'w-5 bg-primary'
+									: 'w-2 bg-muted-foreground/40'
+							}`}
+							aria-label={metric.label}
+						/>
+					))}
+				</div>
+			</div>
+		) : (
+			<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
+				{metricCards.map((metric) => renderMetricCard(metric))}
+			</div>
+		)}
 
 			{/* Two Column Layout */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
