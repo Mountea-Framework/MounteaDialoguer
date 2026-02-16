@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import Autoplay from "embla-carousel-autoplay";
 import {
   Plus,
   Search,
@@ -18,6 +19,11 @@ import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 import { LanguageSelector } from "@/components/ui/LanguageSelector";
 import { AppHeader } from "@/components/ui/app-header";
 import { formatFileSize, formatDate } from "@/lib/dateUtils";
@@ -143,54 +149,140 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
 // Metrics Cards Component
 function MetricsCards({ projectCount, dialogueCount, diskUsage }) {
   const { t } = useTranslation();
+  const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
+  const [carouselApi, setCarouselApi] = useState();
+  const [activeMetricIndex, setActiveMetricIndex] = useState(0);
+  const autoplayPlugin = useRef(
+    Autoplay({
+      delay: 2500,
+      stopOnInteraction: false,
+    }),
+  );
+
+  useEffect(() => {
+    const updateViewportType = () => setIsDesktop(!isMobileDevice());
+    updateViewportType();
+    window.addEventListener("resize", updateViewportType);
+    window.addEventListener("orientationchange", updateViewportType);
+    window.addEventListener("device-override", updateViewportType);
+    return () => {
+      window.removeEventListener("resize", updateViewportType);
+      window.removeEventListener("orientationchange", updateViewportType);
+      window.removeEventListener("device-override", updateViewportType);
+    };
+  }, []);
+
+  const isMobile = !isDesktop;
+
+  useEffect(() => {
+    if (!isMobile) {
+      setActiveMetricIndex(0);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!carouselApi || !isMobile) return;
+
+    const handleSelect = () => {
+      setActiveMetricIndex(carouselApi.selectedScrollSnap());
+    };
+
+    handleSelect();
+    carouselApi.on("select", handleSelect);
+    carouselApi.on("reInit", handleSelect);
+
+    return () => {
+      carouselApi.off("select", handleSelect);
+      carouselApi.off("reInit", handleSelect);
+    };
+  }, [carouselApi, isMobile]);
+
+  const metricCards = [
+    {
+      id: "projects",
+      label: t("projects.title"),
+      value: projectCount,
+      iconContainerClass: "bg-blue-50 dark:bg-blue-900/20",
+      icon: <FolderOpen className="h-6 w-6 text-primary" />,
+    },
+    {
+      id: "dialogues",
+      label: t("dialogues.title"),
+      value: dialogueCount,
+      iconContainerClass: "bg-purple-50 dark:bg-purple-900/20",
+      icon: (
+        <MessageCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+      ),
+    },
+    {
+      id: "disk",
+      label: t("dashboard.diskUsage"),
+      value: diskUsage,
+      iconContainerClass: "bg-orange-50 dark:bg-orange-900/20",
+      icon: <HardDrive className="h-6 w-6 text-orange-600 dark:text-orange-400" />,
+    },
+  ];
+
+  const renderMetricCard = (metric, compact = false) => (
+    <Card key={metric.id}>
+      <CardContent className={compact ? "p-5" : "p-6"}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{metric.label}</p>
+            <h3 className={`${compact ? "text-2xl" : "text-3xl"} font-bold mt-2`}>
+              {metric.value}
+            </h3>
+          </div>
+          <div
+            className={`w-12 h-12 rounded-full ${metric.iconContainerClass} flex items-center justify-center`}
+          >
+            {metric.icon}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="relative">
+        <Carousel
+          opts={{ loop: true }}
+          plugins={[autoplayPlugin.current]}
+          setApi={setCarouselApi}
+          className="w-full"
+        >
+          <CarouselContent className="-ml-1">
+            {metricCards.map((metric) => (
+              <CarouselItem key={metric.id} className="basis-full pl-1">
+                {renderMetricCard(metric, true)}
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+
+        <div className="mt-3 flex items-center justify-center gap-2">
+          {metricCards.map((metric, metricIndex) => (
+            <button
+              key={metric.id}
+              type="button"
+              onClick={() => carouselApi?.scrollTo(metricIndex)}
+              className={`h-2 rounded-full transition-all ${
+                activeMetricIndex === metricIndex
+                  ? "w-5 bg-primary"
+                  : "w-2 bg-muted-foreground/40"
+              }`}
+              aria-label={metric.label}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {t("projects.title")}
-              </p>
-              <h3 className="text-3xl font-bold mt-2">{projectCount}</h3>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-              <FolderOpen className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {t("dialogues.title")}
-              </p>
-              <h3 className="text-3xl font-bold mt-2">{dialogueCount}</h3>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
-              <MessageCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {t("dashboard.diskUsage")}
-              </p>
-              <h3 className="text-3xl font-bold mt-2">{diskUsage}</h3>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
-              <HardDrive className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {metricCards.map((metric) => renderMetricCard(metric))}
     </div>
   );
 }
