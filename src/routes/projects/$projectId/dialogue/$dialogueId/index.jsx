@@ -143,6 +143,8 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 	delayNode: { width: 250, height: 100 },
 	placeholderNode: { width: 160, height: 72 },
 };
+const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
+const START_NODE_ANCHOR_POSITION = { x: 250, y: 100 };
 
 const parseSize = (value) => {
 	if (typeof value === 'number') return value;
@@ -187,7 +189,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 	dagre.layout(dagreGraph);
 
-	const layoutedNodes = nodes.map((node) => {
+	const rawLayoutedNodes = nodes.map((node) => {
 		const nodeWithPosition = dagreGraph.node(node.id);
 		const { width, height } = getNodeSize(node);
 
@@ -203,6 +205,22 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 			},
 		};
 	});
+
+	const layoutedStartNode = rawLayoutedNodes.find((node) => node.id === START_NODE_ID);
+	const anchorDelta = layoutedStartNode
+		? {
+				x: START_NODE_ANCHOR_POSITION.x - layoutedStartNode.position.x,
+				y: START_NODE_ANCHOR_POSITION.y - layoutedStartNode.position.y,
+		  }
+		: { x: 0, y: 0 };
+
+	const layoutedNodes = rawLayoutedNodes.map((node) => ({
+		...node,
+		position: {
+			x: node.position.x + anchorDelta.x,
+			y: node.position.y + anchorDelta.y,
+		},
+	}));
 
 	return { nodes: layoutedNodes, edges };
 };
@@ -366,7 +384,8 @@ function DialogueEditorPage() {
 					}
 
 					// Restore viewport if saved and ReactFlow instance is available
-					if (loadedViewport && reactFlowInstance) {
+					const shouldRestoreViewport = getDeviceType() !== 'mobile';
+					if (loadedViewport && reactFlowInstance && shouldRestoreViewport) {
 						reactFlowInstance.setViewport(loadedViewport, { duration: 0 });
 						setHasLoadedViewport(true);
 					}
@@ -459,9 +478,40 @@ function DialogueEditorPage() {
 		setHasInitialFocus(true);
 	}, [reactFlowInstance, nodes]);
 
+	const queueMobileStartFocus = useCallback((layoutedNodes) => {
+		if (!reactFlowInstance) return;
+
+		const startNode = layoutedNodes.find(
+			(n) => n.id === '00000000-0000-0000-0000-000000000001'
+		);
+		if (!startNode) return;
+
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				try {
+					reactFlowInstance.fitView({
+						nodes: [{ id: startNode.id }],
+						padding: 0.45,
+						duration: 320,
+						minZoom: 0.7,
+						maxZoom: 1.15,
+					});
+				} catch (error) {
+					const { width, height } = getNodeSize(startNode);
+					reactFlowInstance.setCenter(
+						startNode.position.x + width / 2,
+						startNode.position.y + height / 2,
+						{ zoom: 1, duration: 320 }
+					);
+				}
+				setHasInitialFocus(true);
+			});
+		});
+	}, [reactFlowInstance]);
+
 	useEffect(() => {
+		if (deviceType === 'mobile') return;
 		if (!hasGraphInitialized) return;
-		if (deviceType === 'mobile' && !hasInitialLayout) return;
 
 		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus && !hasLoadedViewport) {
 			const timer = setTimeout(() => {
@@ -470,9 +520,8 @@ function DialogueEditorPage() {
 			return () => clearTimeout(timer);
 		}
 	}, [
-		deviceType,
 		hasGraphInitialized,
-		hasInitialLayout,
+		deviceType,
 		reactFlowInstance,
 		nodes.length,
 		hasInitialFocus,
@@ -1401,6 +1450,10 @@ function DialogueEditorPage() {
 			setLastLayoutRegularNodeCount(regularNodeCount);
 			setLastLayoutPlaceholderCount(placeholderCount);
 			setHasInitialLayout(true);
+
+			if (!hasInitialFocus) {
+				queueMobileStartFocus(layoutedNodes);
+			}
 			return;
 		}
 
@@ -1419,8 +1472,12 @@ function DialogueEditorPage() {
 			setEdges(layoutedEdges);
 			setLastLayoutRegularNodeCount(regularNodeCount);
 			setLastLayoutPlaceholderCount(placeholderCount);
+
+			if (!hasInitialFocus) {
+				queueMobileStartFocus(layoutedNodes);
+			}
 		}
-	}, [deviceType, hasGraphInitialized, nodes.length, edges.length, hasInitialLayout]);
+	}, [deviceType, hasGraphInitialized, nodes.length, edges.length, hasInitialLayout, hasInitialFocus, queueMobileStartFocus]);
 
 	// Undo
 	const handleUndo = useCallback(() => {
