@@ -1,5 +1,6 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
 import {
@@ -142,6 +143,8 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 	delayNode: { width: 250, height: 100 },
 	placeholderNode: { width: 160, height: 72 },
 };
+const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
+const START_NODE_ANCHOR_POSITION = { x: 250, y: 100 };
 
 const parseSize = (value) => {
 	if (typeof value === 'number') return value;
@@ -186,7 +189,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 	dagre.layout(dagreGraph);
 
-	const layoutedNodes = nodes.map((node) => {
+	const rawLayoutedNodes = nodes.map((node) => {
 		const nodeWithPosition = dagreGraph.node(node.id);
 		const { width, height } = getNodeSize(node);
 
@@ -202,6 +205,22 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 			},
 		};
 	});
+
+	const layoutedStartNode = rawLayoutedNodes.find((node) => node.id === START_NODE_ID);
+	const anchorDelta = layoutedStartNode
+		? {
+				x: START_NODE_ANCHOR_POSITION.x - layoutedStartNode.position.x,
+				y: START_NODE_ANCHOR_POSITION.y - layoutedStartNode.position.y,
+		  }
+		: { x: 0, y: 0 };
+
+	const layoutedNodes = rawLayoutedNodes.map((node) => ({
+		...node,
+		position: {
+			x: node.position.x + anchorDelta.x,
+			y: node.position.y + anchorDelta.y,
+		},
+	}));
 
 	return { nodes: layoutedNodes, edges };
 };
@@ -254,6 +273,7 @@ function DialogueEditorPage() {
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const headerRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
+	const mobileLoaderStartedAtRef = useRef(null);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -331,11 +351,27 @@ function DialogueEditorPage() {
 
 	// Track if viewport was loaded from save
 	const [hasLoadedViewport, setHasLoadedViewport] = useState(false);
+	const [hasGraphInitialized, setHasGraphInitialized] = useState(false);
+	const [lastLayoutRegularNodeCount, setLastLayoutRegularNodeCount] = useState(0);
+	const [lastLayoutPlaceholderCount, setLastLayoutPlaceholderCount] = useState(0);
+	const [hasInitialLayout, setHasInitialLayout] = useState(false);
+	const [hasInitialFocus, setHasInitialFocus] = useState(false);
+	const [mobileLoadProgress, setMobileLoadProgress] = useState(0);
+	const [showMobileGraphLoader, setShowMobileGraphLoader] = useState(false);
 
 	// Load dialogue graph when dialogue changes
 	useEffect(() => {
 		const loadGraph = async () => {
 			if (dialogueId) {
+				setHasGraphInitialized(false);
+				setHasLoadedViewport(false);
+				setHasInitialLayout(false);
+				setHasInitialFocus(false);
+				setLastLayoutRegularNodeCount(0);
+				setLastLayoutPlaceholderCount(0);
+				setMobileLoadProgress(0);
+				setShowMobileGraphLoader(true);
+
 				try {
 					const result = await loadDialogueGraph(dialogueId);
 					const { nodes: loadedNodes, edges: loadedEdges, viewport: loadedViewport } = result;
@@ -348,17 +384,72 @@ function DialogueEditorPage() {
 					}
 
 					// Restore viewport if saved and ReactFlow instance is available
-					if (loadedViewport && reactFlowInstance) {
+					const shouldRestoreViewport = getDeviceType() !== 'mobile';
+					if (loadedViewport && reactFlowInstance && shouldRestoreViewport) {
 						reactFlowInstance.setViewport(loadedViewport, { duration: 0 });
 						setHasLoadedViewport(true);
 					}
 				} catch (error) {
 					console.error('Failed to load dialogue graph:', error);
+				} finally {
+					setHasGraphInitialized(true);
 				}
 			}
 		};
 		loadGraph();
 	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance]);
+
+	const isMobileGraphLoading =
+		deviceType === 'mobile' &&
+		(!hasGraphInitialized || (!hasLoadedViewport && (!hasInitialLayout || !hasInitialFocus)));
+
+	useEffect(() => {
+		if (deviceType !== 'mobile') {
+			setShowMobileGraphLoader(false);
+			setMobileLoadProgress(100);
+			mobileLoaderStartedAtRef.current = null;
+			return;
+		}
+
+		if (isMobileGraphLoading) {
+			setShowMobileGraphLoader(true);
+			if (mobileLoaderStartedAtRef.current === null) {
+				mobileLoaderStartedAtRef.current = Date.now();
+			}
+		}
+	}, [deviceType, isMobileGraphLoading]);
+
+	useEffect(() => {
+		if (deviceType !== 'mobile') return;
+
+		let target = 15;
+		if (hasGraphInitialized) target = 55;
+		if (hasGraphInitialized && hasInitialLayout) target = 85;
+		if (hasLoadedViewport || hasInitialFocus) target = 100;
+
+		setMobileLoadProgress((prev) => (target > prev ? target : prev));
+	}, [deviceType, hasGraphInitialized, hasInitialLayout, hasLoadedViewport, hasInitialFocus]);
+
+	useEffect(() => {
+		if (deviceType !== 'mobile') return;
+
+		if (!isMobileGraphLoading) {
+			setMobileLoadProgress(100);
+			const startedAt = mobileLoaderStartedAtRef.current ?? Date.now();
+			const elapsed = Date.now() - startedAt;
+			const remaining = Math.max(2000 - elapsed, 0);
+			const timeout = setTimeout(() => {
+				setShowMobileGraphLoader(false);
+				mobileLoaderStartedAtRef.current = null;
+			}, remaining);
+			return () => clearTimeout(timeout);
+		}
+
+		const interval = setInterval(() => {
+			setMobileLoadProgress((prev) => Math.min(prev + 1, 96));
+		}, 70);
+		return () => clearInterval(interval);
+	}, [deviceType, isMobileGraphLoading]);
 
 	// Sync selected node with nodes state to reflect updates
 	useEffect(() => {
@@ -372,23 +463,71 @@ function DialogueEditorPage() {
 
 	// Auto-focus on start node when graph loads (both mobile and desktop)
 	// Only if no saved viewport was loaded
-	const [hasInitialFocus, setHasInitialFocus] = useState(false);
-	useEffect(() => {
-		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus && !hasLoadedViewport) {
-			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
-			if (startNode) {
-				// Center on the start node
-				setTimeout(() => {
+	const focusStartNode = useCallback(() => {
+		if (!reactFlowInstance) return;
+
+		const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
+		if (!startNode) return;
+
+		const { width, height } = getNodeSize(startNode);
+		reactFlowInstance.setCenter(
+			startNode.position.x + width / 2,
+			startNode.position.y + height / 2,
+			{ zoom: 1, duration: 300 }
+		);
+		setHasInitialFocus(true);
+	}, [reactFlowInstance, nodes]);
+
+	const queueMobileStartFocus = useCallback((layoutedNodes) => {
+		if (!reactFlowInstance) return;
+
+		const startNode = layoutedNodes.find(
+			(n) => n.id === '00000000-0000-0000-0000-000000000001'
+		);
+		if (!startNode) return;
+
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				try {
+					reactFlowInstance.fitView({
+						nodes: [{ id: startNode.id }],
+						padding: 0.45,
+						duration: 320,
+						minZoom: 0.7,
+						maxZoom: 1.15,
+					});
+				} catch (error) {
+					const { width, height } = getNodeSize(startNode);
 					reactFlowInstance.setCenter(
-						startNode.position.x + 100, // Offset to center of node
-						startNode.position.y + 50,
-						{ zoom: 1, duration: 300 }
+						startNode.position.x + width / 2,
+						startNode.position.y + height / 2,
+						{ zoom: 1, duration: 320 }
 					);
-					setHasInitialFocus(true);
-				}, 100);
-			}
+				}
+				setHasInitialFocus(true);
+			});
+		});
+	}, [reactFlowInstance]);
+
+	useEffect(() => {
+		if (deviceType === 'mobile') return;
+		if (!hasGraphInitialized) return;
+
+		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus && !hasLoadedViewport) {
+			const timer = setTimeout(() => {
+				focusStartNode();
+			}, 120);
+			return () => clearTimeout(timer);
 		}
-	}, [reactFlowInstance, nodes.length, hasInitialFocus, hasLoadedViewport]);
+	}, [
+		hasGraphInitialized,
+		deviceType,
+		reactFlowInstance,
+		nodes.length,
+		hasInitialFocus,
+		hasLoadedViewport,
+		focusStartNode,
+	]);
 
 
 	// Save to history for undo/redo
@@ -1294,13 +1433,11 @@ function DialogueEditorPage() {
 	}, [nodes, edges, setNodes, setEdges, saveToHistory]);
 
 	// Auto-apply layout on mobile when nodes change
-	const [lastLayoutNodeCount, setLastLayoutNodeCount] = useState(0);
-	const [hasInitialLayout, setHasInitialLayout] = useState(false);
-
 	useEffect(() => {
-		if (deviceType !== 'mobile') return;
+		if (deviceType !== 'mobile' || !hasGraphInitialized) return;
 
 		const regularNodeCount = nodes.filter((n) => n.type !== 'placeholderNode').length;
+		const placeholderCount = nodes.length - regularNodeCount;
 
 		// Run initial layout after dialogue loads (including placeholders)
 		if (!hasInitialLayout && nodes.length > 0 && regularNodeCount > 0) {
@@ -1310,22 +1447,37 @@ function DialogueEditorPage() {
 			);
 			setNodes(layoutedNodes);
 			setEdges(layoutedEdges);
-			setLastLayoutNodeCount(regularNodeCount);
+			setLastLayoutRegularNodeCount(regularNodeCount);
+			setLastLayoutPlaceholderCount(placeholderCount);
 			setHasInitialLayout(true);
+
+			if (!hasInitialFocus) {
+				queueMobileStartFocus(layoutedNodes);
+			}
 			return;
 		}
 
-		// Only run layout if regular node count changed (user added a node)
-		if (hasInitialLayout && regularNodeCount > 0 && regularNodeCount !== lastLayoutNodeCount) {
+		// Run layout when mobile graph structure changes:
+		// regular nodes (user adds node) or placeholders (post-processing pass).
+		const graphShapeChanged =
+			regularNodeCount !== lastLayoutRegularNodeCount ||
+			placeholderCount !== lastLayoutPlaceholderCount;
+
+		if (hasInitialLayout && regularNodeCount > 0 && graphShapeChanged) {
 			const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
 				nodes,
 				edges
 			);
 			setNodes(layoutedNodes);
 			setEdges(layoutedEdges);
-			setLastLayoutNodeCount(regularNodeCount);
+			setLastLayoutRegularNodeCount(regularNodeCount);
+			setLastLayoutPlaceholderCount(placeholderCount);
+
+			if (!hasInitialFocus) {
+				queueMobileStartFocus(layoutedNodes);
+			}
 		}
-	}, [deviceType, nodes.length, edges.length]);
+	}, [deviceType, hasGraphInitialized, nodes.length, edges.length, hasInitialLayout, hasInitialFocus, queueMobileStartFocus]);
 
 	// Undo
 	const handleUndo = useCallback(() => {
@@ -1718,6 +1870,7 @@ function DialogueEditorPage() {
 					/>
 				)}
 			</ReactFlow>
+
 			</div>
 
 			{/* Mobile Node Action Bar */}
@@ -1959,6 +2112,30 @@ function DialogueEditorPage() {
 				onOpenChange={setIsNodeTypeModalOpen}
 				onSelectType={handleNodeTypeSelect}
 			/>
+
+			{showMobileGraphLoader &&
+				deviceType === 'mobile' &&
+				typeof document !== 'undefined' &&
+				createPortal(
+					<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-2xl backdrop-saturate-150">
+						<div className="w-[82%] max-w-xs rounded-xl border border-border/70 bg-card/95 p-4 shadow-2xl">
+							<div className="mb-2 flex items-center justify-between text-sm">
+								<span className="font-medium">{t('common.loading')}</span>
+								<span className="text-muted-foreground">{mobileLoadProgress}%</span>
+							</div>
+							<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+								<div
+									className="h-full bg-primary transition-all duration-300"
+									style={{ width: `${mobileLoadProgress}%` }}
+								/>
+							</div>
+							<p className="mt-2 text-xs text-muted-foreground">
+								Preparing dialogue graph...
+							</p>
+						</div>
+					</div>,
+					document.body
+				)}
 		</div>
 	);
 }
