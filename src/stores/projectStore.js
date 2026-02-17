@@ -161,248 +161,665 @@ export const useProjectStore = create((set, get) => ({
 				modifiedAt: now,
 				viewport: { x: 60, y: -20, zoom: 0.68 },
 			};
+			const DECORATOR_PLAY_ANIM_ID = 'd1000000-0000-4000-8000-000000000001';
+			const DECORATOR_OPEN_STORE_ID = 'd2000000-0000-4000-8000-000000000002';
+			const decorators = [
+				{
+					id: DECORATOR_PLAY_ANIM_ID,
+					name: 'playAnim',
+					type: 'Animation',
+					properties: [
+						{
+							name: 'animName',
+							type: 'string',
+							defaultValue: 'Idle',
+						},
+					],
+					projectId,
+					createdAt: now,
+					modifiedAt: now,
+				},
+				{
+					id: DECORATOR_OPEN_STORE_ID,
+					name: 'openStore',
+					type: 'Gameplay',
+					properties: [
+						{
+							name: 'bCloseDialogue',
+							type: 'bool',
+							defaultValue: 'false',
+						},
+					],
+					projectId,
+					createdAt: now,
+					modifiedAt: now,
+				},
+			];
 
-			// Hardcoded graph IDs
+			const makeRows = (base, texts) =>
+				texts.map((entry, index) => ({
+					id: `${base.toString(16).padStart(4, '0')}${(index + 1)
+						.toString(16)
+						.padStart(4, '0')}-0000-4000-8000-000000000000`,
+					text: entry.text,
+					duration: entry.duration,
+					audioFile: null,
+				}));
+
+			const makeDecorator = (id, name, values) => ({ id, name, values });
+
 			const NODE_START = '00000000-0000-0000-0000-000000000001';
-			const NODE_GREETING = '11111111-1111-1111-1111-111111111111';
-			const NODE_CHOICE_BUY = '22222222-2222-2222-2222-222222222222';
-			const NODE_CHOICE_RUMORS = '33333333-3333-3333-3333-333333333333';
-			const NODE_CHOICE_GOODBYE = '44444444-4444-4444-4444-444444444444';
-			const NODE_BUY_RESPONSE = '55555555-5555-5555-5555-555555555555';
-			const NODE_DELAY_CHECK_STOCK = '66666666-6666-6666-6666-666666666666';
-			const NODE_BUY_COMPLETE = '77777777-7777-7777-7777-777777777777';
-			const NODE_RUMOR_RESPONSE = '88888888-8888-8888-8888-888888888888';
-			const NODE_RUMOR_RETURN = '99999999-9999-9999-9999-999999999999';
-			const NODE_GOODBYE_COMPLETE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+			const NODE_GREETING = '10000000-0000-4000-8000-000000000001';
+			const NODE_CHOICE_BUY = '10000000-0000-4000-8000-000000000002';
+			const NODE_CHOICE_RUMORS = '10000000-0000-4000-8000-000000000003';
+			const NODE_CHOICE_QUESTS = '10000000-0000-4000-8000-000000000004';
+			const NODE_CHOICE_SELL = '10000000-0000-4000-8000-000000000005';
+			const NODE_CHOICE_GOODBYE = '10000000-0000-4000-8000-000000000006';
+
+			const NODE_BUY_INTRO = '20000000-0000-4000-8000-000000000001';
+			const NODE_BUY_DELAY = '20000000-0000-4000-8000-000000000002';
+			const NODE_BUY_OFFER = '20000000-0000-4000-8000-000000000003';
+			const NODE_BUY_STANDARD = '20000000-0000-4000-8000-000000000004';
+			const NODE_BUY_PREMIUM = '20000000-0000-4000-8000-000000000005';
+			const NODE_BUY_BACK = '20000000-0000-4000-8000-000000000006';
+			const NODE_BUY_STANDARD_COMPLETE = '20000000-0000-4000-8000-000000000007';
+			const NODE_BUY_PREMIUM_COMPLETE = '20000000-0000-4000-8000-000000000008';
+			const NODE_BUY_BACK_RETURN = '20000000-0000-4000-8000-000000000009';
+
+			const NODE_RUMOR_INTRO = '30000000-0000-4000-8000-000000000001';
+			const NODE_RUMOR_ROAD_CHOICE = '30000000-0000-4000-8000-000000000002';
+			const NODE_RUMOR_RUINS_CHOICE = '30000000-0000-4000-8000-000000000003';
+			const NODE_RUMOR_BACK_CHOICE = '30000000-0000-4000-8000-000000000004';
+			const NODE_RUMOR_ROAD = '30000000-0000-4000-8000-000000000005';
+			const NODE_RUMOR_RUINS = '30000000-0000-4000-8000-000000000006';
+			const NODE_RUMOR_BACK_RETURN = '30000000-0000-4000-8000-000000000007';
+			const NODE_RUMOR_ROAD_RETURN = '30000000-0000-4000-8000-000000000008';
+			const NODE_RUMOR_RUINS_RETURN = '30000000-0000-4000-8000-000000000009';
+
+			const NODE_QUEST_INTRO = '40000000-0000-4000-8000-000000000001';
+			const NODE_QUEST_DELAY = '40000000-0000-4000-8000-000000000002';
+			const NODE_QUEST_ACCEPT = '40000000-0000-4000-8000-000000000003';
+			const NODE_QUEST_DECLINE = '40000000-0000-4000-8000-000000000004';
+			const NODE_QUEST_ACCEPT_COMPLETE = '40000000-0000-4000-8000-000000000005';
+			const NODE_QUEST_DECLINE_RETURN = '40000000-0000-4000-8000-000000000006';
+
+			const NODE_SELL_INTRO = '50000000-0000-4000-8000-000000000001';
+			const NODE_SELL_APPLES = '50000000-0000-4000-8000-000000000002';
+			const NODE_SELL_RELIC = '50000000-0000-4000-8000-000000000003';
+			const NODE_SELL_APPLES_COMPLETE = '50000000-0000-4000-8000-000000000004';
+			const NODE_SELL_RELIC_DELAY = '50000000-0000-4000-8000-000000000005';
+			const NODE_SELL_RELIC_COMPLETE = '50000000-0000-4000-8000-000000000006';
+
+			const NODE_GOODBYE_COMPLETE = '60000000-0000-4000-8000-000000000001';
 
 			const nodes = [
 				{
 					id: NODE_START,
 					dialogueId,
 					type: 'startNode',
-					position: { x: 640, y: 40 },
+					position: { x: 760, y: 40 },
 					data: { label: 'Dialogue entry point', displayName: 'Start Node' },
 				},
 				{
 					id: NODE_GREETING,
 					dialogueId,
 					type: 'leadNode',
-					position: { x: 640, y: 250 },
+					position: { x: 760, y: 220 },
 					data: {
 						label: 'Greeting',
 						displayName: 'Waldermar Greeting',
 						participant: 'Waldermar',
-						decorators: [],
+						decorators: [makeDecorator(DECORATOR_PLAY_ANIM_ID, 'playAnim', { animName: 'Wave' })],
 						selectionTitle: '',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c1c1c1c1-1111-4111-8111-c1c1c1c1c1c1',
-								text: 'Welcome, traveler. Looking to trade, hear rumors, or move on?',
-								duration: 3.0,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(1, [
+							{ text: 'Welcome, traveler. How can I help today?', duration: 2.8 },
+							{ text: 'I can trade, buy your wares, or share local news.', duration: 2.8 },
+						]),
 					},
 				},
 				{
 					id: NODE_CHOICE_BUY,
 					dialogueId,
 					type: 'answerNode',
-					position: { x: 140, y: 540 },
+					position: { x: 120, y: 470 },
 					data: {
 						label: 'Player Choice',
-						displayName: 'Player Buy Supplies',
+						displayName: 'Buy Supplies',
 						participant: 'Player',
 						decorators: [],
-						selectionTitle: 'I want to buy supplies.',
+						selectionTitle: 'Show me your supplies.',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c2c2c2c2-2222-4222-8222-c2c2c2c2c2c2',
-								text: 'I need provisions for the road.',
-								duration: 2.4,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(2, [{ text: 'Show me what you have in stock.', duration: 2.2 }]),
 					},
 				},
 				{
 					id: NODE_CHOICE_RUMORS,
 					dialogueId,
 					type: 'answerNode',
-					position: { x: 640, y: 540 },
+					position: { x: 430, y: 470 },
 					data: {
 						label: 'Player Choice',
-						displayName: 'Player Ask Rumors',
+						displayName: 'Ask Rumors',
 						participant: 'Player',
 						decorators: [],
-						selectionTitle: 'Any rumors lately?',
+						selectionTitle: 'Any rumors worth hearing?',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c3c3c3c3-3333-4333-8333-c3c3c3c3c3c3',
-								text: 'What news is spreading through the market?',
-								duration: 2.4,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(3, [{ text: 'What have you heard lately?', duration: 2.0 }]),
+					},
+				},
+				{
+					id: NODE_CHOICE_QUESTS,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 760, y: 470 },
+					data: {
+						label: 'Player Choice',
+						displayName: 'Ask for Work',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'Need help with anything?',
+						hasAudio: false,
+						dialogueRows: makeRows(4, [{ text: 'Got any tasks that pay?', duration: 2.0 }]),
+					},
+				},
+				{
+					id: NODE_CHOICE_SELL,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 1080, y: 470 },
+					data: {
+						label: 'Player Choice',
+						displayName: 'Sell Goods',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'I want to sell items.',
+						hasAudio: false,
+						dialogueRows: makeRows(5, [{ text: 'I have a few things to sell.', duration: 1.9 }]),
 					},
 				},
 				{
 					id: NODE_CHOICE_GOODBYE,
 					dialogueId,
 					type: 'answerNode',
-					position: { x: 1140, y: 540 },
+					position: { x: 1380, y: 470 },
 					data: {
 						label: 'Player Choice',
-						displayName: 'Player Goodbye',
+						displayName: 'Leave',
 						participant: 'Player',
 						decorators: [],
 						selectionTitle: 'Not today. Goodbye.',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c4c4c4c4-4444-4444-8444-c4c4c4c4c4c4',
-								text: 'Maybe another time.',
-								duration: 1.8,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(6, [{ text: 'I should get moving.', duration: 1.6 }]),
 					},
 				},
+
 				{
-					id: NODE_BUY_RESPONSE,
+					id: NODE_BUY_INTRO,
 					dialogueId,
 					type: 'leadNode',
-					position: { x: 140, y: 850 },
+					position: { x: 120, y: 730 },
 					data: {
-						label: 'Merchant Response',
-						displayName: 'Waldermar Trade Response',
+						label: 'Buy Intro',
+						displayName: 'Waldermar Stock Check',
 						participant: 'Waldermar',
-						decorators: [],
+						decorators: [makeDecorator(DECORATOR_PLAY_ANIM_ID, 'playAnim', { animName: 'OpenLedger' })],
 						selectionTitle: '',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c5c5c5c5-5555-4555-8555-c5c5c5c5c5c5',
-								text: 'Good choice. Let me check what is still in stock.',
-								duration: 2.8,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(7, [{ text: 'Right, one moment while I check the crate list.', duration: 2.5 }]),
 					},
 				},
 				{
-					id: NODE_DELAY_CHECK_STOCK,
+					id: NODE_BUY_DELAY,
 					dialogueId,
 					type: 'delayNode',
-					position: { x: 140, y: 1080 },
+					position: { x: 120, y: 900 },
+					data: { label: 'Stock Delay', displayName: 'Check Inventory', duration: 1.7 },
+				},
+				{
+					id: NODE_BUY_OFFER,
+					dialogueId,
+					type: 'leadNode',
+					position: { x: 120, y: 1080 },
 					data: {
-						label: 'Check stock delay',
-						displayName: 'Check Stock Delay',
-						duration: 1.5,
+						label: 'Buy Offer',
+						displayName: 'Waldermar Offer',
+						participant: 'Waldermar',
+						decorators: [makeDecorator(DECORATOR_OPEN_STORE_ID, 'openStore', { bCloseDialogue: 'false' })],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(8, [
+							{ text: 'I can offer a basic travel bundle or the premium pack.', duration: 2.8 },
+						]),
 					},
 				},
 				{
-					id: NODE_BUY_COMPLETE,
+					id: NODE_BUY_STANDARD,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: -80, y: 1280 },
+					data: {
+						label: 'Buy Standard',
+						displayName: 'Take Standard Bundle',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'I will take the standard bundle.',
+						hasAudio: false,
+						dialogueRows: makeRows(9, [{ text: 'The standard bundle is enough.', duration: 1.8 }]),
+					},
+				},
+				{
+					id: NODE_BUY_PREMIUM,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 120, y: 1280 },
+					data: {
+						label: 'Buy Premium',
+						displayName: 'Take Premium Bundle',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'I will take the premium pack.',
+						hasAudio: false,
+						dialogueRows: makeRows(10, [{ text: 'I want the premium pack.', duration: 1.8 }]),
+					},
+				},
+				{
+					id: NODE_BUY_BACK,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 320, y: 1280 },
+					data: {
+						label: 'Buy Back',
+						displayName: 'Maybe Later',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'Actually, maybe later.',
+						hasAudio: false,
+						dialogueRows: makeRows(11, [{ text: 'Let us pause the trade for now.', duration: 1.8 }]),
+					},
+				},
+				{
+					id: NODE_BUY_STANDARD_COMPLETE,
 					dialogueId,
 					type: 'completeNode',
-					position: { x: 140, y: 1280 },
+					position: { x: -80, y: 1480 },
 					data: {
-						label: 'Transaction Complete',
+						label: 'Standard Trade Complete',
 						displayName: 'Trade Complete',
 						participant: 'Waldermar',
 						decorators: [],
 						selectionTitle: '',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c6c6c6c6-6666-4666-8666-c6c6c6c6c6c6',
-								text: 'Here you go. Safe travels.',
-								duration: 2.0,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(12, [{ text: 'Done. Safe roads and fair weather.', duration: 2.0 }]),
 					},
 				},
 				{
-					id: NODE_RUMOR_RESPONSE,
+					id: NODE_BUY_PREMIUM_COMPLETE,
 					dialogueId,
-					type: 'leadNode',
-					position: { x: 640, y: 850 },
+					type: 'completeNode',
+					position: { x: 120, y: 1480 },
 					data: {
-						label: 'Rumor Response',
-						displayName: 'Waldermar Rumors',
+						label: 'Premium Trade Complete',
+						displayName: 'Premium Trade Complete',
 						participant: 'Waldermar',
-						decorators: [],
+						decorators: [makeDecorator(DECORATOR_PLAY_ANIM_ID, 'playAnim', { animName: 'Nod' })],
 						selectionTitle: '',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c7c7c7c7-7777-4777-8777-c7c7c7c7c7c7',
-								text: 'Bandits were seen near the northern pass. Keep your torch close.',
-								duration: 3.2,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(13, [{ text: 'A wise choice. You are fully provisioned now.', duration: 2.2 }]),
 					},
 				},
 				{
-					id: NODE_RUMOR_RETURN,
+					id: NODE_BUY_BACK_RETURN,
 					dialogueId,
 					type: 'returnNode',
-					position: { x: 640, y: 1080 },
+					position: { x: 320, y: 1480 },
 					data: {
-						label: 'Return to choices',
+						label: 'Return to Greeting',
 						displayName: 'Return To Greeting',
 						targetNode: NODE_GREETING,
 					},
 				},
+
 				{
-					id: NODE_GOODBYE_COMPLETE,
+					id: NODE_RUMOR_INTRO,
 					dialogueId,
-					type: 'completeNode',
-					position: { x: 1140, y: 850 },
+					type: 'leadNode',
+					position: { x: 430, y: 730 },
 					data: {
-						label: 'Goodbye Complete',
-						displayName: 'Farewell Complete',
+						label: 'Rumor Intro',
+						displayName: 'Waldermar Lowers Voice',
+						participant: 'Waldermar',
+						decorators: [makeDecorator(DECORATOR_PLAY_ANIM_ID, 'playAnim', { animName: 'LeanIn' })],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(14, [{ text: 'Keep this between us. Which story do you want first?', duration: 2.7 }]),
+					},
+				},
+				{
+					id: NODE_RUMOR_ROAD_CHOICE,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 250, y: 930 },
+					data: {
+						label: 'Road Rumor',
+						displayName: 'Ask About Roads',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'Tell me about the roads.',
+						hasAudio: false,
+						dialogueRows: makeRows(15, [{ text: 'What is happening on the roads?', duration: 1.7 }]),
+					},
+				},
+				{
+					id: NODE_RUMOR_RUINS_CHOICE,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 430, y: 930 },
+					data: {
+						label: 'Ruins Rumor',
+						displayName: 'Ask About Ruins',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'What about the old ruins?',
+						hasAudio: false,
+						dialogueRows: makeRows(16, [{ text: 'Anything about the old ruins?', duration: 1.8 }]),
+					},
+				},
+				{
+					id: NODE_RUMOR_BACK_CHOICE,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 610, y: 930 },
+					data: {
+						label: 'Back Choice',
+						displayName: 'Return to Main Topics',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'Let us talk about something else.',
+						hasAudio: false,
+						dialogueRows: makeRows(17, [{ text: 'That is enough gossip for now.', duration: 1.7 }]),
+					},
+				},
+				{
+					id: NODE_RUMOR_ROAD,
+					dialogueId,
+					type: 'leadNode',
+					position: { x: 250, y: 1130 },
+					data: {
+						label: 'Road Rumor Response',
+						displayName: 'Road Warning',
 						participant: 'Waldermar',
 						decorators: [],
 						selectionTitle: '',
 						hasAudio: false,
-						dialogueRows: [
-							{
-								id: 'c8c8c8c8-8888-4888-8888-c8c8c8c8c8c8',
-								text: 'Until next time.',
-								duration: 1.8,
-								audioFile: null,
-							},
-						],
+						dialogueRows: makeRows(18, [{ text: 'Scouts saw raiders near the northern toll bridge.', duration: 2.7 }]),
+					},
+				},
+				{
+					id: NODE_RUMOR_RUINS,
+					dialogueId,
+					type: 'leadNode',
+					position: { x: 430, y: 1130 },
+					data: {
+						label: 'Ruins Rumor Response',
+						displayName: 'Ruins Warning',
+						participant: 'Waldermar',
+						decorators: [],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(19, [{ text: 'Strange lights were seen there after dusk. Best avoid it.', duration: 2.9 }]),
+					},
+				},
+				{
+					id: NODE_RUMOR_BACK_RETURN,
+					dialogueId,
+					type: 'returnNode',
+					position: { x: 610, y: 1130 },
+					data: { label: 'Return', displayName: 'Return To Greeting', targetNode: NODE_GREETING },
+				},
+				{
+					id: NODE_RUMOR_ROAD_RETURN,
+					dialogueId,
+					type: 'returnNode',
+					position: { x: 250, y: 1320 },
+					data: { label: 'Return', displayName: 'Return To Greeting', targetNode: NODE_GREETING },
+				},
+				{
+					id: NODE_RUMOR_RUINS_RETURN,
+					dialogueId,
+					type: 'returnNode',
+					position: { x: 430, y: 1320 },
+					data: { label: 'Return', displayName: 'Return To Greeting', targetNode: NODE_GREETING },
+				},
+
+				{
+					id: NODE_QUEST_INTRO,
+					dialogueId,
+					type: 'leadNode',
+					position: { x: 760, y: 730 },
+					data: {
+						label: 'Quest Intro',
+						displayName: 'Waldermar Needs Help',
+						participant: 'Waldermar',
+						decorators: [],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(20, [{ text: 'Actually yes. A crate is overdue at the mill road checkpoint.', duration: 2.8 }]),
+					},
+				},
+				{
+					id: NODE_QUEST_DELAY,
+					dialogueId,
+					type: 'delayNode',
+					position: { x: 760, y: 900 },
+					data: { label: 'Quest Pause', displayName: 'Think About Offer', duration: 1.4 },
+				},
+				{
+					id: NODE_QUEST_ACCEPT,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 660, y: 1080 },
+					data: {
+						label: 'Quest Accept',
+						displayName: 'Accept Delivery Job',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'I can deliver it.',
+						hasAudio: false,
+						dialogueRows: makeRows(21, [{ text: 'I can handle that delivery.', duration: 1.8 }]),
+					},
+				},
+				{
+					id: NODE_QUEST_DECLINE,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 860, y: 1080 },
+					data: {
+						label: 'Quest Decline',
+						displayName: 'Decline Delivery Job',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'I cannot right now.',
+						hasAudio: false,
+						dialogueRows: makeRows(22, [{ text: 'Not right now, sorry.', duration: 1.7 }]),
+					},
+				},
+				{
+					id: NODE_QUEST_ACCEPT_COMPLETE,
+					dialogueId,
+					type: 'completeNode',
+					position: { x: 660, y: 1280 },
+					data: {
+						label: 'Quest Accepted',
+						displayName: 'Quest Accepted',
+						participant: 'Waldermar',
+						decorators: [makeDecorator(DECORATOR_OPEN_STORE_ID, 'openStore', { bCloseDialogue: 'true' })],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(23, [{ text: 'Excellent. Take this token and report back before dusk.', duration: 2.5 }]),
+					},
+				},
+				{
+					id: NODE_QUEST_DECLINE_RETURN,
+					dialogueId,
+					type: 'returnNode',
+					position: { x: 860, y: 1280 },
+					data: { label: 'Return', displayName: 'Return To Greeting', targetNode: NODE_GREETING },
+				},
+
+				{
+					id: NODE_SELL_INTRO,
+					dialogueId,
+					type: 'leadNode',
+					position: { x: 1080, y: 730 },
+					data: {
+						label: 'Sell Intro',
+						displayName: 'Waldermar Appraises Goods',
+						participant: 'Waldermar',
+						decorators: [makeDecorator(DECORATOR_PLAY_ANIM_ID, 'playAnim', { animName: 'InspectItem' })],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(24, [{ text: 'Set it on the counter. What are you offering?', duration: 2.2 }]),
+					},
+				},
+				{
+					id: NODE_SELL_APPLES,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 980, y: 930 },
+					data: {
+						label: 'Sell Apples',
+						displayName: 'Sell Apples',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'Fresh apples.',
+						hasAudio: false,
+						dialogueRows: makeRows(25, [{ text: 'A sack of orchard apples.', duration: 1.5 }]),
+					},
+				},
+				{
+					id: NODE_SELL_RELIC,
+					dialogueId,
+					type: 'answerNode',
+					position: { x: 1180, y: 930 },
+					data: {
+						label: 'Sell Relic',
+						displayName: 'Sell Old Relic',
+						participant: 'Player',
+						decorators: [],
+						selectionTitle: 'An old relic.',
+						hasAudio: false,
+						dialogueRows: makeRows(26, [{ text: 'I found this old relic in a ruined watchtower.', duration: 2.0 }]),
+					},
+				},
+				{
+					id: NODE_SELL_APPLES_COMPLETE,
+					dialogueId,
+					type: 'completeNode',
+					position: { x: 980, y: 1130 },
+					data: {
+						label: 'Sell Apples Complete',
+						displayName: 'Sale Complete',
+						participant: 'Waldermar',
+						decorators: [],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(27, [{ text: 'Fair produce. I can pay ten silver.', duration: 2.0 }]),
+					},
+				},
+				{
+					id: NODE_SELL_RELIC_DELAY,
+					dialogueId,
+					type: 'delayNode',
+					position: { x: 1180, y: 1130 },
+					data: { label: 'Relic Appraisal Delay', displayName: 'Inspect Relic', duration: 1.6 },
+				},
+				{
+					id: NODE_SELL_RELIC_COMPLETE,
+					dialogueId,
+					type: 'completeNode',
+					position: { x: 1180, y: 1310 },
+					data: {
+						label: 'Sell Relic Complete',
+						displayName: 'Relic Sale Complete',
+						participant: 'Waldermar',
+						decorators: [],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(28, [{ text: 'Interesting craftsmanship. I will pay fifty silver.', duration: 2.3 }]),
+					},
+				},
+
+				{
+					id: NODE_GOODBYE_COMPLETE,
+					dialogueId,
+					type: 'completeNode',
+					position: { x: 1380, y: 730 },
+					data: {
+						label: 'Farewell',
+						displayName: 'Farewell Complete',
+						participant: 'Waldermar',
+						decorators: [makeDecorator(DECORATOR_PLAY_ANIM_ID, 'playAnim', { animName: 'Farewell' })],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(29, [{ text: 'Safe travels. My stall stays open till moonrise.', duration: 2.1 }]),
 					},
 				},
 			];
 
 			const edges = [
-				{ id: 'e0000000-0000-4000-8000-000000000001', dialogueId, source: NODE_START, target: NODE_GREETING },
-				{ id: 'e1111111-1111-4111-8111-111111111111', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_BUY },
-				{ id: 'e2222222-2222-4222-8222-222222222222', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_RUMORS },
-				{ id: 'e3333333-3333-4333-8333-333333333333', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_GOODBYE },
-				{ id: 'e4444444-4444-4444-8444-444444444444', dialogueId, source: NODE_CHOICE_BUY, target: NODE_BUY_RESPONSE },
-				{ id: 'e5555555-5555-4555-8555-555555555555', dialogueId, source: NODE_BUY_RESPONSE, target: NODE_DELAY_CHECK_STOCK },
-				{ id: 'e6666666-6666-4666-8666-666666666666', dialogueId, source: NODE_DELAY_CHECK_STOCK, target: NODE_BUY_COMPLETE },
-				{ id: 'e7777777-7777-4777-8777-777777777777', dialogueId, source: NODE_CHOICE_RUMORS, target: NODE_RUMOR_RESPONSE },
-				{ id: 'e8888888-8888-4888-8888-888888888888', dialogueId, source: NODE_RUMOR_RESPONSE, target: NODE_RUMOR_RETURN },
-				{ id: 'e9999999-9999-4999-8999-999999999999', dialogueId, source: NODE_CHOICE_GOODBYE, target: NODE_GOODBYE_COMPLETE },
+				{ id: 'e1000000-0000-4000-8000-000000000001', dialogueId, source: NODE_START, target: NODE_GREETING },
+				{ id: 'e1000000-0000-4000-8000-000000000002', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_BUY },
+				{ id: 'e1000000-0000-4000-8000-000000000003', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_RUMORS },
+				{ id: 'e1000000-0000-4000-8000-000000000004', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_QUESTS },
+				{ id: 'e1000000-0000-4000-8000-000000000005', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_SELL },
+				{ id: 'e1000000-0000-4000-8000-000000000006', dialogueId, source: NODE_GREETING, target: NODE_CHOICE_GOODBYE },
+
+				{ id: 'e2000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_BUY, target: NODE_BUY_INTRO },
+				{ id: 'e2000000-0000-4000-8000-000000000002', dialogueId, source: NODE_BUY_INTRO, target: NODE_BUY_DELAY },
+				{ id: 'e2000000-0000-4000-8000-000000000003', dialogueId, source: NODE_BUY_DELAY, target: NODE_BUY_OFFER },
+				{ id: 'e2000000-0000-4000-8000-000000000004', dialogueId, source: NODE_BUY_OFFER, target: NODE_BUY_STANDARD },
+				{ id: 'e2000000-0000-4000-8000-000000000005', dialogueId, source: NODE_BUY_OFFER, target: NODE_BUY_PREMIUM },
+				{ id: 'e2000000-0000-4000-8000-000000000006', dialogueId, source: NODE_BUY_OFFER, target: NODE_BUY_BACK },
+				{ id: 'e2000000-0000-4000-8000-000000000007', dialogueId, source: NODE_BUY_STANDARD, target: NODE_BUY_STANDARD_COMPLETE },
+				{ id: 'e2000000-0000-4000-8000-000000000008', dialogueId, source: NODE_BUY_PREMIUM, target: NODE_BUY_PREMIUM_COMPLETE },
+				{ id: 'e2000000-0000-4000-8000-000000000009', dialogueId, source: NODE_BUY_BACK, target: NODE_BUY_BACK_RETURN },
+
+				{ id: 'e3000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_RUMORS, target: NODE_RUMOR_INTRO },
+				{ id: 'e3000000-0000-4000-8000-000000000002', dialogueId, source: NODE_RUMOR_INTRO, target: NODE_RUMOR_ROAD_CHOICE },
+				{ id: 'e3000000-0000-4000-8000-000000000003', dialogueId, source: NODE_RUMOR_INTRO, target: NODE_RUMOR_RUINS_CHOICE },
+				{ id: 'e3000000-0000-4000-8000-000000000004', dialogueId, source: NODE_RUMOR_INTRO, target: NODE_RUMOR_BACK_CHOICE },
+				{ id: 'e3000000-0000-4000-8000-000000000005', dialogueId, source: NODE_RUMOR_ROAD_CHOICE, target: NODE_RUMOR_ROAD },
+				{ id: 'e3000000-0000-4000-8000-000000000006', dialogueId, source: NODE_RUMOR_RUINS_CHOICE, target: NODE_RUMOR_RUINS },
+				{ id: 'e3000000-0000-4000-8000-000000000007', dialogueId, source: NODE_RUMOR_BACK_CHOICE, target: NODE_RUMOR_BACK_RETURN },
+				{ id: 'e3000000-0000-4000-8000-000000000008', dialogueId, source: NODE_RUMOR_ROAD, target: NODE_RUMOR_ROAD_RETURN },
+				{ id: 'e3000000-0000-4000-8000-000000000009', dialogueId, source: NODE_RUMOR_RUINS, target: NODE_RUMOR_RUINS_RETURN },
+
+				{ id: 'e4000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_QUESTS, target: NODE_QUEST_INTRO },
+				{ id: 'e4000000-0000-4000-8000-000000000002', dialogueId, source: NODE_QUEST_INTRO, target: NODE_QUEST_DELAY },
+				{ id: 'e4000000-0000-4000-8000-000000000003', dialogueId, source: NODE_QUEST_DELAY, target: NODE_QUEST_ACCEPT },
+				{ id: 'e4000000-0000-4000-8000-000000000004', dialogueId, source: NODE_QUEST_DELAY, target: NODE_QUEST_DECLINE },
+				{ id: 'e4000000-0000-4000-8000-000000000005', dialogueId, source: NODE_QUEST_ACCEPT, target: NODE_QUEST_ACCEPT_COMPLETE },
+				{ id: 'e4000000-0000-4000-8000-000000000006', dialogueId, source: NODE_QUEST_DECLINE, target: NODE_QUEST_DECLINE_RETURN },
+
+				{ id: 'e5000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_SELL, target: NODE_SELL_INTRO },
+				{ id: 'e5000000-0000-4000-8000-000000000002', dialogueId, source: NODE_SELL_INTRO, target: NODE_SELL_APPLES },
+				{ id: 'e5000000-0000-4000-8000-000000000003', dialogueId, source: NODE_SELL_INTRO, target: NODE_SELL_RELIC },
+				{ id: 'e5000000-0000-4000-8000-000000000004', dialogueId, source: NODE_SELL_APPLES, target: NODE_SELL_APPLES_COMPLETE },
+				{ id: 'e5000000-0000-4000-8000-000000000005', dialogueId, source: NODE_SELL_RELIC, target: NODE_SELL_RELIC_DELAY },
+				{ id: 'e5000000-0000-4000-8000-000000000006', dialogueId, source: NODE_SELL_RELIC_DELAY, target: NODE_SELL_RELIC_COMPLETE },
+
+				{ id: 'e6000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_GOODBYE, target: NODE_GOODBYE_COMPLETE },
 			];
 
 			await db.transaction(
 				'rw',
-				[db.projects, db.dialogues, db.categories, db.participants, db.nodes, db.edges],
+				[db.projects, db.dialogues, db.categories, db.participants, db.decorators, db.nodes, db.edges],
 				async () => {
 					await db.projects.add(newProject);
 					await db.categories.bulkAdd(categories);
 					await db.participants.bulkAdd(participants);
+					await db.decorators.bulkAdd(decorators);
 					await db.dialogues.add(dialogue);
 					await db.nodes.bulkAdd(nodes);
 					await db.edges.bulkAdd(edges);
