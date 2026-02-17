@@ -284,6 +284,11 @@ export function DialoguePreviewOverlay({
 						closePreview({ withAnimation: true });
 						return;
 					}
+					if (nextNodes.length > 1) {
+						setActiveBranchNodeId(node.id);
+						setChoiceOptions(nextNodes.map((choiceNode) => buildChoiceOption(choiceNode)));
+						return;
+					}
 					window.setTimeout(() => {
 						goToNode(nextNodes[0].id);
 					}, NODE_TRANSITION_DELAY_MS);
