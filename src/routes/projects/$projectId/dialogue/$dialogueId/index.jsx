@@ -121,7 +121,7 @@ const getInitialNodes = (t) => [
 				startNodeDefinition?.label ||
 				t('editor.nodes.start'),
 		},
-		position: { x: 250, y: 100 },
+		position: { x: 0, y: 0 },
 		deletable: false,
 	},
 ];
@@ -149,7 +149,8 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 	placeholderNode: { width: 160, height: 72 },
 };
 const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
-const START_NODE_ANCHOR_POSITION = { x: 250, y: 100 };
+const START_NODE_ANCHOR_POSITION = { x: 0, y: 0 };
+const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 };
 
 const parseSize = (value) => {
 	if (typeof value === 'number') return value;
@@ -173,6 +174,21 @@ const getNodeSize = (node) => {
 		width: measuredWidth || nodeWidth || styleWidth || fallback.width,
 		height: measuredHeight || nodeHeight || styleHeight || fallback.height,
 	};
+};
+
+const hasMeaningfulSavedViewport = (viewport) => {
+	if (!viewport || typeof viewport !== 'object') return false;
+
+	const x = Number(viewport.x);
+	const y = Number(viewport.y);
+	const zoom = Number(viewport.zoom);
+	if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(zoom)) return false;
+
+	return (
+		Math.abs(x - DEFAULT_VIEWPORT.x) > 0.01 ||
+		Math.abs(y - DEFAULT_VIEWPORT.y) > 0.01 ||
+		Math.abs(zoom - DEFAULT_VIEWPORT.zoom) > 0.01
+	);
 };
 
 // Auto-layout function using dagre
@@ -369,6 +385,7 @@ function DialogueEditorPage() {
 	const [hasInitialFocus, setHasInitialFocus] = useState(false);
 	const [mobileLoadProgress, setMobileLoadProgress] = useState(0);
 	const [showMobileGraphLoader, setShowMobileGraphLoader] = useState(false);
+	const [showDesktopGraphLoader, setShowDesktopGraphLoader] = useState(false);
 
 	// Load dialogue graph when dialogue changes
 	useEffect(() => {
@@ -381,7 +398,8 @@ function DialogueEditorPage() {
 				setLastLayoutRegularNodeCount(0);
 				setLastLayoutPlaceholderCount(0);
 				setMobileLoadProgress(0);
-				setShowMobileGraphLoader(true);
+				setShowMobileGraphLoader(getDeviceType() === 'mobile');
+				setShowDesktopGraphLoader(getDeviceType() !== 'mobile');
 
 				try {
 					const result = await loadDialogueGraph(dialogueId);
@@ -396,7 +414,8 @@ function DialogueEditorPage() {
 
 					// Restore viewport if saved and ReactFlow instance is available
 					const shouldRestoreViewport = getDeviceType() !== 'mobile';
-					if (loadedViewport && reactFlowInstance && shouldRestoreViewport) {
+					const hasSavedViewport = hasMeaningfulSavedViewport(loadedViewport);
+					if (hasSavedViewport && reactFlowInstance && shouldRestoreViewport) {
 						reactFlowInstance.setViewport(loadedViewport, { duration: 0 });
 						setHasLoadedViewport(true);
 					}
@@ -461,6 +480,26 @@ function DialogueEditorPage() {
 		}, 70);
 		return () => clearInterval(interval);
 	}, [deviceType, isMobileGraphLoading]);
+
+	useEffect(() => {
+		if (deviceType === 'mobile') {
+			setShowDesktopGraphLoader(false);
+			return;
+		}
+
+		if (!hasGraphInitialized) {
+			setShowDesktopGraphLoader(true);
+			return;
+		}
+
+		const ready = hasLoadedViewport || hasInitialFocus;
+		if (ready) {
+			const timeout = setTimeout(() => setShowDesktopGraphLoader(false), 220);
+			return () => clearTimeout(timeout);
+		}
+
+		setShowDesktopGraphLoader(true);
+	}, [deviceType, hasGraphInitialized, hasLoadedViewport, hasInitialFocus]);
 
 	// Sync selected node with nodes state to reflect updates
 	useEffect(() => {
@@ -2342,6 +2381,32 @@ function DialogueEditorPage() {
 								<div
 									className="h-full bg-primary transition-all duration-300"
 									style={{ width: `${mobileLoadProgress}%` }}
+								/>
+							</div>
+							<p className="mt-2 text-xs text-muted-foreground">
+								Preparing dialogue graph...
+							</p>
+						</div>
+					</div>,
+					document.body
+				)}
+
+			{showDesktopGraphLoader &&
+				deviceType !== 'mobile' &&
+				typeof document !== 'undefined' &&
+				createPortal(
+					<div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/35 backdrop-blur-xl backdrop-saturate-125">
+						<div className="w-[420px] max-w-[82%] rounded-xl border border-border/70 bg-card/95 p-4 shadow-2xl">
+							<div className="mb-2 flex items-center justify-between text-sm">
+								<span className="font-medium">{t('common.loading')}</span>
+								<span className="text-muted-foreground">
+									{hasLoadedViewport || hasInitialFocus ? '100%' : '65%'}
+								</span>
+							</div>
+							<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+								<div
+									className="h-full bg-primary transition-all duration-300"
+									style={{ width: hasLoadedViewport || hasInitialFocus ? '100%' : '65%' }}
 								/>
 							</div>
 							<p className="mt-2 text-xs text-muted-foreground">
