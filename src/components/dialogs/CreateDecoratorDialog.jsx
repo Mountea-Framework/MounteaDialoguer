@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import { Switch } from '@/components/ui/switch';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 
 export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
@@ -50,6 +51,12 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 			...formData,
 			properties: formData.properties.filter((_, i) => i !== index),
 		});
+	};
+
+	const asBoolean = (value) => {
+		if (typeof value === 'boolean') return value;
+		if (typeof value === 'string') return value.toLowerCase() === 'true';
+		return Boolean(value);
 	};
 
 	const validate = () => {
@@ -197,22 +204,36 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 											<Label className="text-xs">
 												{t('decorators.properties.defaultValue')}
 											</Label>
-											<Input
-												value={property.defaultValue}
-												onChange={(e) =>
-													updateProperty(index, 'defaultValue', e.target.value)
-												}
-												placeholder={
-													property.type === 'bool'
-														? t('decorators.properties.placeholders.bool')
-														: property.type === 'int'
-														? t('decorators.properties.placeholders.int')
-														: property.type === 'float'
-														? t('decorators.properties.placeholders.float')
-														: t('decorators.properties.placeholders.value')
-												}
-												size="sm"
-											/>
+											{property.type === 'bool' ? (
+												<div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
+													<Label className="text-xs font-medium">
+														{asBoolean(property.defaultValue)
+															? t('common.true')
+															: t('common.false')}
+													</Label>
+													<Switch
+														checked={asBoolean(property.defaultValue)}
+														onCheckedChange={(checked) =>
+															updateProperty(index, 'defaultValue', checked)
+														}
+													/>
+												</div>
+											) : (
+												<Input
+													value={property.defaultValue}
+													onChange={(e) =>
+														updateProperty(index, 'defaultValue', e.target.value)
+													}
+													placeholder={
+														property.type === 'int'
+															? t('decorators.properties.placeholders.int')
+															: property.type === 'float'
+															? t('decorators.properties.placeholders.float')
+															: t('decorators.properties.placeholders.value')
+													}
+													size="sm"
+												/>
+											)}
 										</div>
 
 										<Button
