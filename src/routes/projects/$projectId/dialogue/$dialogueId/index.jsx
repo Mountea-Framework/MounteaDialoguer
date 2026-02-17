@@ -39,6 +39,8 @@ import {
 	PanelRightOpen,
 	Clock,
 	PlayCircle,
+	Crosshair,
+	LocateFixed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -1530,6 +1532,26 @@ function DialogueEditorPage() {
 		markUnsaved();
 	}, [nodes, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
+	const handleRecenterGraph = useCallback(() => {
+		if (!reactFlowInstance) return;
+		const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
+		if (regularNodes.length === 0) return;
+
+		try {
+			reactFlowInstance.fitView({
+				nodes: regularNodes.map((node) => ({ id: node.id })),
+				padding: 0.18,
+				duration: 300,
+			});
+		} catch (error) {
+			reactFlowInstance.fitView({ padding: 0.18, duration: 300 });
+		}
+	}, [reactFlowInstance, nodes]);
+
+	const handleFocusStartNode = useCallback(() => {
+		focusStartNode();
+	}, [focusStartNode]);
+
 	// Auto-apply layout on mobile when nodes change
 	useEffect(() => {
 		if (deviceType !== 'mobile' || !hasGraphInitialized) return;
@@ -1901,6 +1923,18 @@ function DialogueEditorPage() {
 															resolvedTheme === 'dark' ? 'light' : 'dark'
 														),
 												},
+												{
+													icon: Crosshair,
+													label: t('editor.nodeToolbar.recenter'),
+													shortcut: '',
+													onSelect: handleRecenterGraph,
+												},
+												{
+													icon: LocateFixed,
+													label: t('editor.nodeToolbar.backToStart'),
+													shortcut: '',
+													onSelect: handleFocusStartNode,
+												},
 												...(deviceType !== 'mobile'
 													? [
 															{
@@ -1990,8 +2024,28 @@ function DialogueEditorPage() {
 			>
 				<Background />
 				<Panel position="bottom-left" className="mb-2">
-					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-3 absolute bottom-6">
-						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none" />
+					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-2 absolute bottom-6 flex flex-col items-center gap-1">
+						<SimpleTooltip content={t('editor.nodeToolbar.recenterTooltip')} side="top">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={handleRecenterGraph}
+							>
+								<Crosshair className="h-4 w-4" />
+							</Button>
+						</SimpleTooltip>
+						<SimpleTooltip content={t('editor.nodeToolbar.startFocusTooltip')} side="top">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={handleFocusStartNode}
+							>
+								<LocateFixed className="h-4 w-4" />
+							</Button>
+						</SimpleTooltip>
+						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none " />
 					</div>
 				</Panel>
 				{deviceType !== 'mobile' && (

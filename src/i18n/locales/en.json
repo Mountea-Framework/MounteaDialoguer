@@ -162,6 +162,10 @@
 		"nodeToolbar": {
 			"autoLayout": "Auto Layout",
 			"autoLayoutTooltip": "Auto-layout nodes using dagre algorithm",
+			"recenter": "Recenter",
+			"recenterTooltip": "Fit the whole graph into view",
+			"backToStart": "Back to Start",
+			"startFocusTooltip": "Focus the Start node",
 			"npc": "NPC",
 			"addNpcTooltip": "Add NPC node - drag to canvas or click",
 			"player": "Player",
