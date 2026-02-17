@@ -174,6 +174,26 @@
 			"addDelayTooltip": "Add Delay node - drag to canvas or click",
 			"poweredBy": "Powered by"
 		},
+		"preview": {
+			"title": "Dialogue Preview",
+			"start": "Preview",
+			"startTooltip": "Start dialogue preview",
+			"stop": "Stop",
+			"waiting": "Waiting for next dialogue line...",
+			"chooseAnswer": "Choose a player answer",
+			"choiceFallback": "Untitled answer",
+			"activeNode": "Node",
+			"currentRowProgress": "Current row",
+			"invalidGraphTitle": "Cannot start preview",
+			"invalidRequiredFieldsDescription": "{{count}} node has missing required fields.",
+			"invalidRequiredFieldsDescription_plural": "{{count}} nodes have missing required fields.",
+			"invalidMissingStart": "Start node is missing.",
+			"invalidEmptyGraph": "Dialogue graph is empty.",
+			"invalidTooManyNodes": "Preview supports up to {{max}} nodes (found {{count}}).",
+			"invalidBrokenEdges": "Some node connections are invalid.",
+			"invalidNoPlayablePath": "No playable path from the start node was found.",
+			"invalidGeneric": "Dialogue graph is not valid for preview."
+		},
 		"nodes": {
 			"start": "Start",
 			"startDescription": "Dialogue entry point",

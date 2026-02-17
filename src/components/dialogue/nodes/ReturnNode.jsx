@@ -12,6 +12,7 @@ import { useReactFlow } from '@xyflow/react';
  */
 const ReturnNode = memo(({ data, selected }) => {
 	const { t } = useTranslation();
+	const isPreviewActive = data?.previewActive;
 	const { getNodes } = useReactFlow();
 	const nodes = getNodes();
 
@@ -27,7 +28,7 @@ const ReturnNode = memo(({ data, selected }) => {
 		<div
 			className={`
 				min-w-[220px] rounded-lg border-2 bg-card shadow-lg
-				${selected ? 'border-primary ring-2 ring-primary/20' : 'border-orange-500'}
+				${selected || isPreviewActive ? 'border-primary ring-2 ring-primary/20' : 'border-orange-500'}
 			`}
 		>
 			{/* Input Handle */}

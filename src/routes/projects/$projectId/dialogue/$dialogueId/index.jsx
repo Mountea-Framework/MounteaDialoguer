@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -38,6 +38,7 @@ import {
 	Trash2,
 	PanelRightOpen,
 	Clock,
+	PlayCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -85,7 +86,9 @@ import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
+import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
 import { getDeviceType } from '@/lib/deviceDetection';
+import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
 import {
 	getNodeDefinition,
 	getNodeDefaultData,
@@ -275,6 +278,8 @@ function DialogueEditorPage() {
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
+	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
 	const headerRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
 	const mobileLoaderStartedAtRef = useRef(null);
@@ -1042,6 +1047,88 @@ function DialogueEditorPage() {
 		}
 	}, [t, deviceType]);
 
+	const handlePreviewStop = useCallback(() => {
+		setIsPreviewOpen(false);
+		setPreviewActiveNodeId(null);
+	}, []);
+
+	const handlePreviewNodeFocus = useCallback((nodeId) => {
+		if (!reactFlowInstance || !nodeId) return;
+
+		try {
+			reactFlowInstance.fitView({
+				nodes: [{ id: nodeId }],
+				padding: 0.45,
+				duration: 280,
+				minZoom: 0.7,
+				maxZoom: 1.3,
+			});
+		} catch (error) {
+			const node = nodes.find((candidate) => candidate.id === nodeId);
+			if (!node) return;
+			const { width, height } = getNodeSize(node);
+			reactFlowInstance.setCenter(
+				node.position.x + width / 2,
+				node.position.y + height / 2,
+				{ zoom: 1, duration: 280 }
+			);
+		}
+	}, [reactFlowInstance, nodes]);
+
+	const handleStartPreview = useCallback(() => {
+		if (deviceType === 'mobile') return;
+
+		const missingRequiredNodes = getMissingRequiredNodes();
+		if (missingRequiredNodes.size > 0) {
+			const firstMissingNode = missingRequiredNodes.values().next().value?.node;
+			if (firstMissingNode) {
+				setSelectedNode(firstMissingNode);
+				setSelectedEdge(null);
+				setIsMobilePanelOpen(false);
+			}
+
+			toastStandalone({
+				variant: 'error',
+				title: t('editor.preview.invalidGraphTitle'),
+				description: t('editor.preview.invalidRequiredFieldsDescription', {
+					count: missingRequiredNodes.size,
+				}),
+			});
+			return;
+		}
+
+		const validationResult = validatePreviewGraph(nodes, edges, { maxNodes: 100 });
+		if (!validationResult.valid) {
+			const reasonKeyMap = {
+				missing_start: 'editor.preview.invalidMissingStart',
+				empty_graph: 'editor.preview.invalidEmptyGraph',
+				too_many_nodes: 'editor.preview.invalidTooManyNodes',
+				broken_edges: 'editor.preview.invalidBrokenEdges',
+				no_playable_path: 'editor.preview.invalidNoPlayablePath',
+			};
+			const reasonKey = reasonKeyMap[validationResult.reason] || 'editor.preview.invalidGeneric';
+
+			toastStandalone({
+				variant: 'error',
+				title: t('editor.preview.invalidGraphTitle'),
+				description:
+					validationResult.reason === 'too_many_nodes'
+						? t(reasonKey, {
+								count: validationResult.details?.count || 0,
+								max: validationResult.details?.maxNodes || 100,
+						  })
+						: t(reasonKey),
+			});
+			return;
+		}
+
+		setSelectedNode(null);
+		setSelectedEdge(null);
+		setIsMobilePanelOpen(false);
+		setPreviewActiveNodeId(null);
+		setIsPreviewOpen(true);
+	}, [deviceType, getMissingRequiredNodes, nodes, edges, t]);
+
 	// Handle save
 	const handleSave = useCallback(async () => {
 		setIsSaving(true);
@@ -1515,6 +1602,10 @@ function DialogueEditorPage() {
 	// Handle keyboard events
 	useEffect(() => {
 		const handleKeyDown = (event) => {
+			if (isPreviewOpen) {
+				return;
+			}
+
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
 				event.preventDefault();
 				handleSave();
@@ -1576,6 +1667,7 @@ function DialogueEditorPage() {
 		handleSave,
 		handleUndo,
 		handleRedo,
+		isPreviewOpen,
 	]);
 
 	// Handle viewport change
@@ -1586,6 +1678,32 @@ function DialogueEditorPage() {
 	const getMinimapColor = useCallback((node) => {
 		return getNodeDefinition(node.type)?.minimapColor || '#6b7280';
 	}, []);
+
+	const previewDisplayNodes = useMemo(
+		() =>
+			nodes.map((node) => ({
+				...node,
+				data: {
+					...node.data,
+					previewActive: node.id === previewActiveNodeId,
+				},
+			})),
+		[nodes, previewActiveNodeId]
+	);
+
+	const previewDisplayEdges = useMemo(
+		() =>
+			edges.map((edge) => ({
+				...edge,
+				animated: selectedEdge?.id === edge.id,
+				style: {
+					...edge.style,
+					stroke: selectedEdge?.id === edge.id ? '#3b82f6' : undefined,
+					strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
+				},
+			})),
+		[edges, selectedEdge]
+	);
 
 	// Handle drag start for node spawning
 	const onDragStart = useCallback((event, nodeType) => {
@@ -1728,6 +1846,16 @@ function DialogueEditorPage() {
 													shortcut: 'Ctrl+E',
 													onSelect: handleExport,
 												},
+												...(deviceType !== 'mobile'
+													? [
+															{
+																icon: PlayCircle,
+																label: t('editor.preview.start'),
+																shortcut: '',
+																onSelect: handleStartPreview,
+															},
+													  ]
+													: []),
 											],
 										},
 										{
@@ -1835,16 +1963,8 @@ function DialogueEditorPage() {
 					data-tour="canvas"
 				>
 					<ReactFlow
-						nodes={nodes}
-						edges={edges.map((edge) => ({
-							...edge,
-							animated: selectedEdge?.id === edge.id,
-							style: {
-								...edge.style,
-								stroke: selectedEdge?.id === edge.id ? '#3b82f6' : undefined,
-								strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
-							},
-						}))}
+						nodes={previewDisplayNodes}
+						edges={previewDisplayEdges}
 						onNodesChange={onNodesChange}
 						onEdgesChange={onEdgesChange}
 						onConnect={onConnect}
@@ -1883,6 +2003,17 @@ function DialogueEditorPage() {
 					/>
 				)}
 			</ReactFlow>
+
+					{deviceType !== 'mobile' && (
+						<DialoguePreviewOverlay
+							open={isPreviewOpen}
+							nodes={nodes}
+							edges={edges}
+							onStop={handlePreviewStop}
+							onNodeFocus={handlePreviewNodeFocus}
+							onNodeChange={setPreviewActiveNodeId}
+						/>
+					)}
 
 			</div>
 
@@ -2019,7 +2150,12 @@ function DialogueEditorPage() {
 
 			{/* Bottom Toolbar - Hidden on mobile */}
 			{deviceType !== 'mobile' && (
-			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
+			<div
+				className={`border-t bg-card px-6 py-3 flex items-center justify-between transition-opacity ${
+					isPreviewOpen ? 'pointer-events-none opacity-40 select-none' : ''
+				}`}
+				data-tour="node-toolbar"
+			>
 				<div className="flex items-center gap-2">
 					<SimpleTooltip content={t('editor.nodeToolbar.autoLayoutTooltip')} side="top">
 						<Button
@@ -2030,6 +2166,17 @@ function DialogueEditorPage() {
 						>
 							<Network className="h-4 w-4" />
 							{t('editor.nodeToolbar.autoLayout')}
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content={t('editor.preview.startTooltip')} side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							onClick={handleStartPreview}
+						>
+							<PlayCircle className="h-4 w-4" />
+							{t('editor.preview.start')}
 						</Button>
 					</SimpleTooltip>
 					<div className="h-6 w-px bg-border mx-1"></div>
