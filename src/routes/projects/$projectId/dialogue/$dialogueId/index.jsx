@@ -2045,6 +2045,7 @@ function DialogueEditorPage() {
 								<LocateFixed className="h-4 w-4" />
 							</Button>
 						</SimpleTooltip>
+						<div className="w-6 h-px bg-border my-1" />
 						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none " />
 					</div>
 				</Panel>
