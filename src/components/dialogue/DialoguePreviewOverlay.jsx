@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Square, Volume2, Play } from 'lucide-react';
+import { Square, Volume2, Play, CheckCircle2, CornerUpLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
@@ -96,10 +96,7 @@ export function DialoguePreviewOverlay({
 			const nextIds = outgoingMap.get(cursorId) || [];
 			if (nextIds.length === 0) break;
 
-			const answerChoices = nextIds
-				.map((id) => nodeMap.get(id))
-				.filter((candidate) => candidate?.type === 'answerNode');
-			if (answerChoices.length > 0 && node.type !== 'answerNode') {
+			if (nextIds.length > 1 && node.type !== 'answerNode') {
 				const selectedChoiceId = selectedBranches[cursorId];
 				if (!selectedChoiceId || !nodeMap.has(selectedChoiceId)) break;
 				cursorId = selectedChoiceId;
@@ -178,6 +175,42 @@ export function DialoguePreviewOverlay({
 			}, CLOSE_ANIMATION_MS);
 		},
 		[clearTimer, stopAudio, onStop, onNodeChange]
+	);
+
+	const buildChoiceOption = useCallback(
+		(choiceNode) => {
+			const nextAfterChoice = (outgoingMap.get(choiceNode.id) || [])
+				.map((id) => nodeMap.get(id))
+				.filter(Boolean);
+			const decoratorsCount = Array.isArray(choiceNode.data?.decorators)
+				? choiceNode.data.decorators.length
+				: 0;
+
+			let outcome = 'continue';
+			if (choiceNode.type === 'completeNode') {
+				outcome = 'complete';
+			} else if (choiceNode.type === 'returnNode') {
+				outcome = 'return';
+			} else if (nextAfterChoice.length === 0) {
+				outcome = 'end';
+			} else if (nextAfterChoice.length === 1 && nextAfterChoice[0].type === 'completeNode') {
+				outcome = 'complete';
+			} else if (nextAfterChoice.length === 1 && nextAfterChoice[0].type === 'returnNode') {
+				outcome = 'return';
+			}
+
+			return {
+				id: choiceNode.id,
+				label:
+					choiceNode.data?.selectionTitle ||
+					choiceNode.data?.displayName ||
+					choiceNode.data?.label ||
+					t('editor.preview.choiceFallback'),
+				outcome,
+				decoratorsCount,
+			};
+		},
+		[nodeMap, outgoingMap, t]
 	);
 
 	const goToNode = useCallback(
@@ -269,18 +302,11 @@ export function DialoguePreviewOverlay({
 					return;
 				}
 
-				const answerChoices = nextNodes.filter((candidate) => candidate.type === 'answerNode');
-				if (node.type !== 'answerNode' && answerChoices.length > 0) {
+				const selectableChoices = node.type !== 'answerNode' ? nextNodes : [];
+				if (selectableChoices.length > 1) {
 					setActiveBranchNodeId(node.id);
 					setChoiceOptions(
-						answerChoices.map((choiceNode) => ({
-							id: choiceNode.id,
-							label:
-								choiceNode.data?.selectionTitle ||
-								choiceNode.data?.displayName ||
-								choiceNode.data?.label ||
-								t('editor.preview.choiceFallback'),
-						}))
+						selectableChoices.map((choiceNode) => buildChoiceOption(choiceNode))
 					);
 					return;
 				}
@@ -367,6 +393,7 @@ export function DialoguePreviewOverlay({
 			volume,
 			closePreview,
 			stopAudio,
+			buildChoiceOption,
 		]
 	);
 
@@ -496,7 +523,13 @@ export function DialoguePreviewOverlay({
 										key={choice.id}
 										type="button"
 										variant="outline"
-										className="justify-start text-left h-auto py-2.5"
+										className={`justify-start text-left h-auto py-2.5 ${
+											choice.outcome === 'complete'
+												? 'border-destructive/40 bg-destructive/5'
+												: choice.outcome === 'end'
+													? 'border-amber-500/35 bg-amber-500/5'
+													: ''
+										}`}
 										onClick={() => {
 											setChoiceOptions([]);
 											if (activeBranchNodeId) {
@@ -511,7 +544,36 @@ export function DialoguePreviewOverlay({
 											}, NODE_TRANSITION_DELAY_MS);
 										}}
 									>
-										{choice.label}
+										<div className="w-full">
+											<div className="font-medium">{choice.label}</div>
+											<div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+												{choice.outcome === 'end' && (
+													<span className="inline-flex items-center rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5">
+														{t('editor.preview.choiceEnds')}
+													</span>
+												)}
+												{choice.outcome === 'complete' && (
+													<span className="inline-flex items-center gap-1 rounded-full border border-destructive/35 bg-destructive/10 px-2 py-0.5 text-destructive">
+														<CheckCircle2 className="h-3 w-3" />
+														{t('editor.preview.choiceComplete')}
+													</span>
+												)}
+												{choice.outcome === 'return' && (
+													<span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
+														<CornerUpLeft className="h-3 w-3" />
+														{t('editor.preview.choiceReturn')}
+													</span>
+												)}
+												{choice.decoratorsCount > 0 && (
+													<span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5">
+														<Sparkles className="h-3 w-3" />
+														{t('editor.preview.choiceDecorators', {
+															count: choice.decoratorsCount,
+														})}
+													</span>
+												)}
+											</div>
+										</div>
 									</Button>
 								))}
 							</div>
