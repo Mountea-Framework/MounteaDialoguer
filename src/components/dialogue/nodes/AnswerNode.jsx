@@ -10,6 +10,7 @@ import { User, Volume2, Tag } from 'lucide-react';
  */
 const AnswerNode = memo(({ data, selected }) => {
 	const { t } = useTranslation();
+	const isPreviewActive = data?.previewActive;
 
 	// Get dialogue rows or fallback to legacy text
 	const dialogueRows = data.dialogueRows || (data.text ? [{ text: data.text }] : []);
@@ -39,7 +40,7 @@ const AnswerNode = memo(({ data, selected }) => {
 		<div
 			className={`
 				min-w-[250px] rounded-lg border-2 bg-card shadow-lg
-				${selected ? 'border-primary ring-2 ring-primary/20' : 'border-purple-500'}
+				${selected || isPreviewActive ? 'border-primary ring-2 ring-primary/20' : 'border-purple-500'}
 			`}
 			title={tooltip}
 		>

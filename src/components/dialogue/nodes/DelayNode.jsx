@@ -9,6 +9,7 @@ import { Clock } from 'lucide-react';
  */
 const DelayNode = memo(({ data, selected }) => {
 	const { t } = useTranslation();
+	const isPreviewActive = data?.previewActive;
 
 	const accentColor = '#7dd3fc';
 	const accentSoft = 'rgba(125, 211, 252, 0.18)';
@@ -18,8 +19,8 @@ const DelayNode = memo(({ data, selected }) => {
 		<div
 			className="min-w-[230px] rounded-lg border-2 bg-card shadow-lg"
 			style={{
-				borderColor: selected ? accentColor : accentColor,
-				boxShadow: selected ? `0 0 0 4px ${accentSoft}` : undefined,
+				borderColor: accentColor,
+				boxShadow: selected || isPreviewActive ? `0 0 0 4px ${accentSoft}` : undefined,
 			}}
 		>
 			{/* Input Handle */}

@@ -11,6 +11,7 @@ import { CheckCircle2, Volume2, Tag, User } from 'lucide-react';
  */
 const CompleteNode = memo(({ data, selected }) => {
 	const { t } = useTranslation();
+	const isPreviewActive = data?.previewActive;
 
 	const accentColor = '#CC2100';
 	const accentSoft = 'rgba(204, 33, 0, 0.12)';
@@ -42,8 +43,8 @@ const CompleteNode = memo(({ data, selected }) => {
 		<div
 			className="min-w-[250px] rounded-lg border-2 bg-card shadow-lg"
 			style={{
-				borderColor: selected ? accentColor : accentColor,
-				boxShadow: selected ? `0 0 0 4px ${accentSoft}` : undefined,
+				borderColor: accentColor,
+				boxShadow: selected || isPreviewActive ? `0 0 0 4px ${accentSoft}` : undefined,
 			}}
 			title={tooltip}
 		>

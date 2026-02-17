@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import { Switch } from '@/components/ui/switch';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 
 export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
@@ -50,6 +51,12 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 			...formData,
 			properties: formData.properties.filter((_, i) => i !== index),
 		});
+	};
+
+	const asBoolean = (value) => {
+		if (typeof value === 'boolean') return value;
+		if (typeof value === 'string') return value.toLowerCase() === 'true';
+		return Boolean(value);
 	};
 
 	const validate = () => {
@@ -153,8 +160,18 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 								{formData.properties.map((property, index) => (
 									<div
 										key={index}
-										className="grid grid-cols-[1fr,120px,1fr,auto] gap-2 items-end bg-muted p-3 rounded-md"
+										className="flex flex-col gap-2 bg-muted p-3 rounded-md md:grid md:grid-cols-[1fr,120px,1fr,auto] md:items-end"
 									>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="flex md:hidden h-8 w-8"
+											onClick={() => removeProperty(index)}
+										>
+											<X className="h-4 w-4 text-muted-foreground" />
+										</Button>
+										
 										<div className="grid gap-1.5">
 											<Label className="text-xs">
 												{t('decorators.properties.name')}
@@ -197,33 +214,47 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 											<Label className="text-xs">
 												{t('decorators.properties.defaultValue')}
 											</Label>
-											<Input
-												value={property.defaultValue}
-												onChange={(e) =>
-													updateProperty(index, 'defaultValue', e.target.value)
-												}
-												placeholder={
-													property.type === 'bool'
-														? t('decorators.properties.placeholders.bool')
-														: property.type === 'int'
-														? t('decorators.properties.placeholders.int')
-														: property.type === 'float'
-														? t('decorators.properties.placeholders.float')
-														: t('decorators.properties.placeholders.value')
-												}
-												size="sm"
-											/>
+											{property.type === 'bool' ? (
+												<div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
+													<Label className="text-xs font-medium">
+														{asBoolean(property.defaultValue)
+															? t('common.true')
+															: t('common.false')}
+													</Label>
+													<Switch
+														checked={asBoolean(property.defaultValue)}
+														onCheckedChange={(checked) =>
+															updateProperty(index, 'defaultValue', checked)
+														}
+													/>
+												</div>
+											) : (
+												<Input
+													value={property.defaultValue}
+													onChange={(e) =>
+														updateProperty(index, 'defaultValue', e.target.value)
+													}
+													placeholder={
+														property.type === 'int'
+															? t('decorators.properties.placeholders.int')
+															: property.type === 'float'
+															? t('decorators.properties.placeholders.float')
+															: t('decorators.properties.placeholders.value')
+													}
+													size="sm"
+												/>
+											)}
 										</div>
 
 										<Button
 											type="button"
 											variant="ghost"
 											size="icon"
+											className="hidden md:flex h-8 w-8"
 											onClick={() => removeProperty(index)}
-											className="h-9 w-9"
 										>
-											<X className="h-4 w-4" />
-										</Button>
+											<X className="h-4 w-4 text-muted-foreground" />
+										</Button>	
 									</div>
 								))}
 							</div>

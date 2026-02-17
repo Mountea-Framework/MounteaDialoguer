@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -38,6 +38,9 @@ import {
 	Trash2,
 	PanelRightOpen,
 	Clock,
+	PlayCircle,
+	Crosshair,
+	LocateFixed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -85,7 +88,9 @@ import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
+import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
 import { getDeviceType } from '@/lib/deviceDetection';
+import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
 import {
 	getNodeDefinition,
 	getNodeDefaultData,
@@ -116,7 +121,7 @@ const getInitialNodes = (t) => [
 				startNodeDefinition?.label ||
 				t('editor.nodes.start'),
 		},
-		position: { x: 250, y: 100 },
+		position: { x: 0, y: 0 },
 		deletable: false,
 	},
 ];
@@ -144,7 +149,8 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 	placeholderNode: { width: 160, height: 72 },
 };
 const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
-const START_NODE_ANCHOR_POSITION = { x: 250, y: 100 };
+const START_NODE_ANCHOR_POSITION = { x: 0, y: 0 };
+const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 };
 
 const parseSize = (value) => {
 	if (typeof value === 'number') return value;
@@ -168,6 +174,21 @@ const getNodeSize = (node) => {
 		width: measuredWidth || nodeWidth || styleWidth || fallback.width,
 		height: measuredHeight || nodeHeight || styleHeight || fallback.height,
 	};
+};
+
+const hasMeaningfulSavedViewport = (viewport) => {
+	if (!viewport || typeof viewport !== 'object') return false;
+
+	const x = Number(viewport.x);
+	const y = Number(viewport.y);
+	const zoom = Number(viewport.zoom);
+	if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(zoom)) return false;
+
+	return (
+		Math.abs(x - DEFAULT_VIEWPORT.x) > 0.01 ||
+		Math.abs(y - DEFAULT_VIEWPORT.y) > 0.01 ||
+		Math.abs(zoom - DEFAULT_VIEWPORT.zoom) > 0.01
+	);
 };
 
 // Auto-layout function using dagre
@@ -275,6 +296,8 @@ function DialogueEditorPage() {
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
+	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
 	const headerRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
 	const mobileLoaderStartedAtRef = useRef(null);
@@ -362,6 +385,7 @@ function DialogueEditorPage() {
 	const [hasInitialFocus, setHasInitialFocus] = useState(false);
 	const [mobileLoadProgress, setMobileLoadProgress] = useState(0);
 	const [showMobileGraphLoader, setShowMobileGraphLoader] = useState(false);
+	const [showDesktopGraphLoader, setShowDesktopGraphLoader] = useState(false);
 
 	// Load dialogue graph when dialogue changes
 	useEffect(() => {
@@ -374,7 +398,8 @@ function DialogueEditorPage() {
 				setLastLayoutRegularNodeCount(0);
 				setLastLayoutPlaceholderCount(0);
 				setMobileLoadProgress(0);
-				setShowMobileGraphLoader(true);
+				setShowMobileGraphLoader(getDeviceType() === 'mobile');
+				setShowDesktopGraphLoader(getDeviceType() !== 'mobile');
 
 				try {
 					const result = await loadDialogueGraph(dialogueId);
@@ -389,7 +414,8 @@ function DialogueEditorPage() {
 
 					// Restore viewport if saved and ReactFlow instance is available
 					const shouldRestoreViewport = getDeviceType() !== 'mobile';
-					if (loadedViewport && reactFlowInstance && shouldRestoreViewport) {
+					const hasSavedViewport = hasMeaningfulSavedViewport(loadedViewport);
+					if (hasSavedViewport && reactFlowInstance && shouldRestoreViewport) {
 						reactFlowInstance.setViewport(loadedViewport, { duration: 0 });
 						setHasLoadedViewport(true);
 					}
@@ -454,6 +480,26 @@ function DialogueEditorPage() {
 		}, 70);
 		return () => clearInterval(interval);
 	}, [deviceType, isMobileGraphLoading]);
+
+	useEffect(() => {
+		if (deviceType === 'mobile') {
+			setShowDesktopGraphLoader(false);
+			return;
+		}
+
+		if (!hasGraphInitialized) {
+			setShowDesktopGraphLoader(true);
+			return;
+		}
+
+		const ready = hasLoadedViewport || hasInitialFocus;
+		if (ready) {
+			const timeout = setTimeout(() => setShowDesktopGraphLoader(false), 220);
+			return () => clearTimeout(timeout);
+		}
+
+		setShowDesktopGraphLoader(true);
+	}, [deviceType, hasGraphInitialized, hasLoadedViewport, hasInitialFocus]);
 
 	// Sync selected node with nodes state to reflect updates
 	useEffect(() => {
@@ -1042,6 +1088,88 @@ function DialogueEditorPage() {
 		}
 	}, [t, deviceType]);
 
+	const handlePreviewStop = useCallback(() => {
+		setIsPreviewOpen(false);
+		setPreviewActiveNodeId(null);
+	}, []);
+
+	const handlePreviewNodeFocus = useCallback((nodeId) => {
+		if (!reactFlowInstance || !nodeId) return;
+
+		try {
+			reactFlowInstance.fitView({
+				nodes: [{ id: nodeId }],
+				padding: 0.45,
+				duration: 280,
+				minZoom: 0.7,
+				maxZoom: 1.3,
+			});
+		} catch (error) {
+			const node = nodes.find((candidate) => candidate.id === nodeId);
+			if (!node) return;
+			const { width, height } = getNodeSize(node);
+			reactFlowInstance.setCenter(
+				node.position.x + width / 2,
+				node.position.y + height / 2,
+				{ zoom: 1, duration: 280 }
+			);
+		}
+	}, [reactFlowInstance, nodes]);
+
+	const handleStartPreview = useCallback(() => {
+		if (deviceType === 'mobile') return;
+
+		const missingRequiredNodes = getMissingRequiredNodes();
+		if (missingRequiredNodes.size > 0) {
+			const firstMissingNode = missingRequiredNodes.values().next().value?.node;
+			if (firstMissingNode) {
+				setSelectedNode(firstMissingNode);
+				setSelectedEdge(null);
+				setIsMobilePanelOpen(false);
+			}
+
+			toastStandalone({
+				variant: 'error',
+				title: t('editor.preview.invalidGraphTitle'),
+				description: t('editor.preview.invalidRequiredFieldsDescription', {
+					count: missingRequiredNodes.size,
+				}),
+			});
+			return;
+		}
+
+		const validationResult = validatePreviewGraph(nodes, edges, { maxNodes: 100 });
+		if (!validationResult.valid) {
+			const reasonKeyMap = {
+				missing_start: 'editor.preview.invalidMissingStart',
+				empty_graph: 'editor.preview.invalidEmptyGraph',
+				too_many_nodes: 'editor.preview.invalidTooManyNodes',
+				broken_edges: 'editor.preview.invalidBrokenEdges',
+				no_playable_path: 'editor.preview.invalidNoPlayablePath',
+			};
+			const reasonKey = reasonKeyMap[validationResult.reason] || 'editor.preview.invalidGeneric';
+
+			toastStandalone({
+				variant: 'error',
+				title: t('editor.preview.invalidGraphTitle'),
+				description:
+					validationResult.reason === 'too_many_nodes'
+						? t(reasonKey, {
+								count: validationResult.details?.count || 0,
+								max: validationResult.details?.maxNodes || 100,
+						  })
+						: t(reasonKey),
+			});
+			return;
+		}
+
+		setSelectedNode(null);
+		setSelectedEdge(null);
+		setIsMobilePanelOpen(false);
+		setPreviewActiveNodeId(null);
+		setIsPreviewOpen(true);
+	}, [deviceType, getMissingRequiredNodes, nodes, edges, t]);
+
 	// Handle save
 	const handleSave = useCallback(async () => {
 		setIsSaving(true);
@@ -1443,6 +1571,26 @@ function DialogueEditorPage() {
 		markUnsaved();
 	}, [nodes, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
+	const handleRecenterGraph = useCallback(() => {
+		if (!reactFlowInstance) return;
+		const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
+		if (regularNodes.length === 0) return;
+
+		try {
+			reactFlowInstance.fitView({
+				nodes: regularNodes.map((node) => ({ id: node.id })),
+				padding: 0.18,
+				duration: 300,
+			});
+		} catch (error) {
+			reactFlowInstance.fitView({ padding: 0.18, duration: 300 });
+		}
+	}, [reactFlowInstance, nodes]);
+
+	const handleFocusStartNode = useCallback(() => {
+		focusStartNode();
+	}, [focusStartNode]);
+
 	// Auto-apply layout on mobile when nodes change
 	useEffect(() => {
 		if (deviceType !== 'mobile' || !hasGraphInitialized) return;
@@ -1515,6 +1663,10 @@ function DialogueEditorPage() {
 	// Handle keyboard events
 	useEffect(() => {
 		const handleKeyDown = (event) => {
+			if (isPreviewOpen) {
+				return;
+			}
+
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
 				event.preventDefault();
 				handleSave();
@@ -1576,6 +1728,7 @@ function DialogueEditorPage() {
 		handleSave,
 		handleUndo,
 		handleRedo,
+		isPreviewOpen,
 	]);
 
 	// Handle viewport change
@@ -1586,6 +1739,32 @@ function DialogueEditorPage() {
 	const getMinimapColor = useCallback((node) => {
 		return getNodeDefinition(node.type)?.minimapColor || '#6b7280';
 	}, []);
+
+	const previewDisplayNodes = useMemo(
+		() =>
+			nodes.map((node) => ({
+				...node,
+				data: {
+					...node.data,
+					previewActive: node.id === previewActiveNodeId,
+				},
+			})),
+		[nodes, previewActiveNodeId]
+	);
+
+	const previewDisplayEdges = useMemo(
+		() =>
+			edges.map((edge) => ({
+				...edge,
+				animated: selectedEdge?.id === edge.id,
+				style: {
+					...edge.style,
+					stroke: selectedEdge?.id === edge.id ? '#3b82f6' : undefined,
+					strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
+				},
+			})),
+		[edges, selectedEdge]
+	);
 
 	// Handle drag start for node spawning
 	const onDragStart = useCallback((event, nodeType) => {
@@ -1728,6 +1907,16 @@ function DialogueEditorPage() {
 													shortcut: 'Ctrl+E',
 													onSelect: handleExport,
 												},
+												...(deviceType !== 'mobile'
+													? [
+															{
+																icon: PlayCircle,
+																label: t('editor.preview.start'),
+																shortcut: '',
+																onSelect: handleStartPreview,
+															},
+													  ]
+													: []),
 											],
 										},
 										{
@@ -1772,6 +1961,18 @@ function DialogueEditorPage() {
 														setTheme(
 															resolvedTheme === 'dark' ? 'light' : 'dark'
 														),
+												},
+												{
+													icon: Crosshair,
+													label: t('editor.nodeToolbar.recenter'),
+													shortcut: '',
+													onSelect: handleRecenterGraph,
+												},
+												{
+													icon: LocateFixed,
+													label: t('editor.nodeToolbar.backToStart'),
+													shortcut: '',
+													onSelect: handleFocusStartNode,
 												},
 												...(deviceType !== 'mobile'
 													? [
@@ -1835,16 +2036,8 @@ function DialogueEditorPage() {
 					data-tour="canvas"
 				>
 					<ReactFlow
-						nodes={nodes}
-						edges={edges.map((edge) => ({
-							...edge,
-							animated: selectedEdge?.id === edge.id,
-							style: {
-								...edge.style,
-								stroke: selectedEdge?.id === edge.id ? '#3b82f6' : undefined,
-								strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
-							},
-						}))}
+						nodes={previewDisplayNodes}
+						edges={previewDisplayEdges}
 						onNodesChange={onNodesChange}
 						onEdgesChange={onEdgesChange}
 						onConnect={onConnect}
@@ -1870,8 +2063,29 @@ function DialogueEditorPage() {
 			>
 				<Background />
 				<Panel position="bottom-left" className="mb-2">
-					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-3 absolute bottom-6">
-						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none" />
+					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-2 absolute bottom-6 flex flex-col items-center gap-1">
+						<SimpleTooltip content={t('editor.nodeToolbar.recenterTooltip')} side="top">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={handleRecenterGraph}
+							>
+								<Crosshair className="h-4 w-4" />
+							</Button>
+						</SimpleTooltip>
+						<SimpleTooltip content={t('editor.nodeToolbar.startFocusTooltip')} side="top">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={handleFocusStartNode}
+							>
+								<LocateFixed className="h-4 w-4" />
+							</Button>
+						</SimpleTooltip>
+						<div className="w-6 h-px bg-border my-1" />
+						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none " />
 					</div>
 				</Panel>
 				{deviceType !== 'mobile' && (
@@ -1883,6 +2097,17 @@ function DialogueEditorPage() {
 					/>
 				)}
 			</ReactFlow>
+
+					{deviceType !== 'mobile' && (
+						<DialoguePreviewOverlay
+							open={isPreviewOpen}
+							nodes={nodes}
+							edges={edges}
+							onStop={handlePreviewStop}
+							onNodeFocus={handlePreviewNodeFocus}
+							onNodeChange={setPreviewActiveNodeId}
+						/>
+					)}
 
 			</div>
 
@@ -2019,7 +2244,12 @@ function DialogueEditorPage() {
 
 			{/* Bottom Toolbar - Hidden on mobile */}
 			{deviceType !== 'mobile' && (
-			<div className="border-t bg-card px-6 py-3 flex items-center justify-between" data-tour="node-toolbar">
+			<div
+				className={`border-t bg-card px-6 py-3 flex items-center justify-between transition-opacity ${
+					isPreviewOpen ? 'pointer-events-none opacity-40 select-none' : ''
+				}`}
+				data-tour="node-toolbar"
+			>
 				<div className="flex items-center gap-2">
 					<SimpleTooltip content={t('editor.nodeToolbar.autoLayoutTooltip')} side="top">
 						<Button
@@ -2030,6 +2260,17 @@ function DialogueEditorPage() {
 						>
 							<Network className="h-4 w-4" />
 							{t('editor.nodeToolbar.autoLayout')}
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip content={t('editor.preview.startTooltip')} side="top">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							onClick={handleStartPreview}
+						>
+							<PlayCircle className="h-4 w-4" />
+							{t('editor.preview.start')}
 						</Button>
 					</SimpleTooltip>
 					<div className="h-6 w-px bg-border mx-1"></div>
@@ -2140,6 +2381,32 @@ function DialogueEditorPage() {
 								<div
 									className="h-full bg-primary transition-all duration-300"
 									style={{ width: `${mobileLoadProgress}%` }}
+								/>
+							</div>
+							<p className="mt-2 text-xs text-muted-foreground">
+								Preparing dialogue graph...
+							</p>
+						</div>
+					</div>,
+					document.body
+				)}
+
+			{showDesktopGraphLoader &&
+				deviceType !== 'mobile' &&
+				typeof document !== 'undefined' &&
+				createPortal(
+					<div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/35 backdrop-blur-xl backdrop-saturate-125">
+						<div className="w-[420px] max-w-[82%] rounded-xl border border-border/70 bg-card/95 p-4 shadow-2xl">
+							<div className="mb-2 flex items-center justify-between text-sm">
+								<span className="font-medium">{t('common.loading')}</span>
+								<span className="text-muted-foreground">
+									{hasLoadedViewport || hasInitialFocus ? '100%' : '65%'}
+								</span>
+							</div>
+							<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+								<div
+									className="h-full bg-primary transition-all duration-300"
+									style={{ width: hasLoadedViewport || hasInitialFocus ? '100%' : '65%' }}
 								/>
 							</div>
 							<p className="mt-2 text-xs text-muted-foreground">
