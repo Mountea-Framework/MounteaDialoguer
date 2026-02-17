@@ -175,8 +175,17 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 								{formData.properties.map((property, index) => (
 									<div
 										key={index}
-										className="grid grid-cols-[1fr,120px,1fr,auto] gap-2 items-end bg-muted p-3 rounded-md"
+										className="flex flex-col gap-2 bg-muted p-3 rounded-md md:grid md:grid-cols-[1fr,120px,1fr,auto] md:items-end"
 									>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="flex md:hidden h-8 w-8"
+											onClick={() => removeProperty(index)}
+										>
+											<X className="h-4 w-4 text-muted-foreground" />
+										</Button>
 										<div className="grid gap-1.5">
 											<Label className="text-xs">
 												{t('decorators.properties.name')}
@@ -244,16 +253,15 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 												/>
 											)}
 										</div>
-
 										<Button
 											type="button"
 											variant="ghost"
 											size="icon"
-											className="h-8 w-8"
+											className="hidden md:flex h-8 w-8"
 											onClick={() => removeProperty(index)}
 										>
 											<X className="h-4 w-4 text-muted-foreground" />
-										</Button>
+										</Button>										
 									</div>
 								))}
 							</div>
