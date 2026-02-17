@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Square, Volume2, Play, CheckCircle2, CornerUpLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import {
 	getDialogueRowsForPreview,
@@ -588,12 +588,13 @@ export function DialoguePreviewOverlay({
 					<div className="rounded-xl border border-border bg-background/60 p-4">
 						<div className="flex items-center gap-3">
 							<Volume2 className="h-4 w-4 text-muted-foreground" />
-							<Slider
+							<Input
+								type="range"
 								min={0}
 								max={100}
 								step={1}
-								value={[volume]}
-								onValueChange={([next]) => setVolume(next)}
+								value={volume}
+								onChange={(event) => setVolume(Number(event.target.value))}
 								disabled={!hasCurrentAudio}
 								className={!hasCurrentAudio ? 'opacity-40 cursor-not-allowed' : undefined}
 							/>
