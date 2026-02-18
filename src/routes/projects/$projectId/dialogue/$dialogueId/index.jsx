@@ -67,6 +67,7 @@ import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
@@ -80,6 +81,8 @@ import OpenChildGraphNode from '@/components/dialogue/nodes/OpenChildGraphNode';
 import CompleteNode from '@/components/dialogue/nodes/CompleteNode';
 import PlaceholderNode from '@/components/dialogue/nodes/PlaceholderNode';
 import DelayNode from '@/components/dialogue/nodes/DelayNode';
+import ConditionEdge from '@/components/dialogue/edges/ConditionEdge';
+import { EdgeConditionsPanel } from '@/components/dialogue/EdgeConditionsPanel';
 import { DialogueRowsPanel } from '@/components/dialogue/DialogueRowsPanel';
 import { DecoratorsPanel } from '@/components/dialogue/DecoratorsPanel';
 import { CollapsibleSection } from '@/components/dialogue/CollapsibleSection';
@@ -97,6 +100,7 @@ import {
 	getNodeDefinition,
 	getNodeDefaultData,
 } from '@/config/dialogueNodes';
+import { EDGE_CONDITION_DEFINITIONS } from '@/config/edgeConditions';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -140,6 +144,9 @@ const nodeTypes = {
 	completeNode: CompleteNode,
 	delayNode: DelayNode,
 	placeholderNode: PlaceholderNode,
+};
+const edgeTypes = {
+	conditionEdge: ConditionEdge,
 };
 
 const DEFAULT_NODE_SIZE_BY_TYPE = {
@@ -515,6 +522,16 @@ function DialogueEditorPage() {
 		}
 	}, [nodes]);
 
+	// Sync selected edge with edges state to reflect updates
+	useEffect(() => {
+		if (selectedEdge) {
+			const updatedEdge = edges.find((e) => e.id === selectedEdge.id);
+			if (updatedEdge) {
+				setSelectedEdge(updatedEdge);
+			}
+		}
+	}, [edges]);
+
 	// Keep visual save status in sync with navigation guard state.
 	useEffect(() => {
 		if (hasUnsavedChanges && saveStatus === 'saved') {
@@ -665,6 +682,7 @@ function DialogueEditorPage() {
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
+	const availableConditionDefinitions = EDGE_CONDITION_DEFINITIONS;
 	const selectedNodeDefinition = selectedNode
 		? getNodeDefinition(selectedNode.type)
 		: null;
@@ -909,6 +927,41 @@ function DialogueEditorPage() {
 		}
 	};
 
+	const openEdgeDetails = useCallback(
+		(edgeId) => {
+			const edge = edges.find((candidate) => candidate.id === edgeId);
+			if (!edge) return;
+			setSelectedNode(null);
+			setSelectedEdge(edge);
+			if (deviceType === 'mobile') {
+				setIsMobilePanelOpen(true);
+			}
+		},
+		[edges, deviceType]
+	);
+
+	const updateEdgeData = useCallback(
+		(edgeId, newData) => {
+			setEdges((eds) => {
+				const updatedEdges = eds.map((edge) =>
+					edge.id === edgeId
+						? {
+								...edge,
+								data: {
+									...(edge.data || {}),
+									...newData,
+								},
+						  }
+						: edge
+				);
+				saveToHistory(nodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+		},
+		[setEdges, saveToHistory, nodes, markUnsaved]
+	);
+
 	const isConnectionAllowed = useCallback(
 		(connection, existingEdges = edges) => {
 			const sourceId = connection?.source;
@@ -938,6 +991,13 @@ function DialogueEditorPage() {
 
 			const newEdge = {
 				...params,
+				type: 'conditionEdge',
+				data: {
+					conditions: {
+						mode: 'all',
+						rules: [],
+					},
+				},
 				markerEnd: {
 					type: MarkerType.ArrowClosed,
 				},
@@ -966,7 +1026,10 @@ function DialogueEditorPage() {
 	const onEdgeClick = useCallback((event, edge) => {
 		setSelectedEdge(edge);
 		setSelectedNode(null); // Deselect node when edge is selected
-	}, []);
+		if (deviceType === 'mobile') {
+			setIsMobilePanelOpen(true);
+		}
+	}, [deviceType]);
 
 	// Handle pane click (deselect all)
 	const onPaneClick = useCallback(() => {
@@ -1758,7 +1821,7 @@ function DialogueEditorPage() {
 					deleteSelectedNode();
 				}
 				// Delete selected edge
-				else if (selectedEdge) {
+				else if (selectedEdge && deviceType !== 'mobile') {
 					setEdges((eds) => {
 						const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
 						saveToHistory(nodes, updatedEdges);
@@ -1775,6 +1838,7 @@ function DialogueEditorPage() {
 	}, [
 		selectedNode,
 		selectedEdge,
+		deviceType,
 		deleteSelectedNode,
 		setEdges,
 		nodes,
@@ -1811,6 +1875,11 @@ function DialogueEditorPage() {
 		() =>
 			edges.map((edge) => ({
 				...edge,
+				type: edge?.data?.isPlaceholder ? edge.type || 'default' : 'conditionEdge',
+				data: {
+					...edge.data,
+					onOpenDetails: openEdgeDetails,
+				},
 				animated: selectedEdge?.id === edge.id,
 				style: {
 					...edge.style,
@@ -1818,7 +1887,7 @@ function DialogueEditorPage() {
 					strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
 				},
 			})),
-		[edges, selectedEdge]
+		[edges, selectedEdge, openEdgeDetails]
 	);
 
 	// Handle drag start for node spawning
@@ -2103,6 +2172,7 @@ function DialogueEditorPage() {
 						onInit={setReactFlowInstance}
 				isValidConnection={isConnectionAllowed}
 				nodeTypes={nodeTypes}
+				edgeTypes={edgeTypes}
 				className="bg-grid"
 				proOptions={{ hideAttribution: true }}
 				// Mobile: Disable node dragging but allow manual panning via drag
@@ -2236,52 +2306,59 @@ function DialogueEditorPage() {
 				</AlertDialog>
 			)}
 
-			{/* Mobile Panel Overlay */}
-			{deviceType === 'mobile' && isMobilePanelOpen && (
-				<div
-					className="fixed inset-0 bg-black/50 z-30"
-					onClick={() => setIsMobilePanelOpen(false)}
-				/>
-			)}
+			{/* Node Properties Drawer */}
+			<Drawer
+				open={
+					deviceType === 'mobile'
+						? Boolean((selectedNode || selectedEdge) && isMobilePanelOpen)
+						: Boolean(selectedNode || selectedEdge)
+				}
+				onOpenChange={(open) => {
+					if (open) return;
+					if (deviceType === 'mobile') {
+						setIsMobilePanelOpen(false);
+					} else {
+						setSelectedNode(null);
+						setSelectedEdge(null);
+					}
+				}}
+				direction={deviceType === 'mobile' ? 'bottom' : 'right'}
+			>
+				<DrawerContent
+					side={deviceType === 'mobile' ? 'bottom' : 'right'}
+					size={deviceType === 'mobile' ? 'md' : '2xl'}
+					className={
+						deviceType === 'mobile'
+							? 'max-h-[82vh] overscroll-contain touch-pan-y'
+							: null
+					}
+				>
+					{selectedNode && (
+						<div className="p-6 space-y-6 overflow-y-auto">
+							<DrawerHeader className="p-0">
+								<div className="flex items-center justify-between">
+									<DrawerTitle className="text-lg font-bold">
+										{(selectedNodeDefinition?.label || 'Node') +
+											' ' +
+											t('editor.nodeDetails')}
+									</DrawerTitle>
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={() => {
+											if (deviceType === 'mobile') {
+												setIsMobilePanelOpen(false);
+											} else {
+												setSelectedNode(null);
+											}
+										}}
+										className="h-8 w-8"
+									>
+										<X className="h-4 w-4" />
+									</Button>
+								</div>
+							</DrawerHeader>
 
-			{/* Right Sidebar - Node Properties */}
-			{selectedNode && (deviceType !== 'mobile' || isMobilePanelOpen) && (
-					<div
-						className={`${deviceType === 'mobile' ? 'fixed right-0 z-40 w-80 overscroll-contain touch-pan-y' : 'w-96'} border-l bg-card overflow-y-auto`}
-						style={
-							deviceType === 'mobile'
-								? {
-										top: 'var(--app-header-height)',
-										bottom: 0,
-									}
-								: undefined
-						}
-					>
-						<div className="p-6 space-y-6">
-							{/* Header */}
-							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-bold">
-									{(selectedNodeDefinition?.label || 'Node') +
-										' ' +
-										t('editor.nodeDetails')}
-								</h3>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={() => {
-										if (deviceType === 'mobile') {
-											setIsMobilePanelOpen(false);
-										} else {
-											setSelectedNode(null);
-										}
-									}}
-									className="h-8 w-8"
-								>
-									<X className="h-4 w-4" />
-								</Button>
-							</div>
-
-							{/* Node Sections (Driven by Config) */}
 							{selectedNodeDefinition?.sections?.map((section) => (
 								<CollapsibleSection
 									key={section.id}
@@ -2294,8 +2371,59 @@ function DialogueEditorPage() {
 								</CollapsibleSection>
 							))}
 						</div>
-					</div>
-				)}
+					)}
+					{!selectedNode && selectedEdge && (
+						<div className="p-6 space-y-6 overflow-y-auto">
+							<DrawerHeader className="p-0">
+								<div className="flex items-center justify-between">
+									<DrawerTitle className="text-lg font-bold">
+										{t('editor.edgeDetails')}
+									</DrawerTitle>
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={() => {
+											if (deviceType === 'mobile') {
+												setIsMobilePanelOpen(false);
+											} else {
+												setSelectedEdge(null);
+											}
+										}}
+										className="h-8 w-8"
+									>
+										<X className="h-4 w-4" />
+									</Button>
+								</div>
+							</DrawerHeader>
+
+							<CollapsibleSection
+								title={t('editor.sections.conditions')}
+								defaultOpen={true}
+							>
+								<div className="space-y-4">
+									<EdgeConditionsPanel
+										conditionGroup={selectedEdge.data?.conditions}
+										availableConditions={availableConditionDefinitions}
+										onChange={(nextConditions) =>
+											updateEdgeData(selectedEdge.id, {
+												conditions: nextConditions,
+											})
+										}
+									/>
+									<div>
+										<Label className="text-xs text-muted-foreground">
+											{t('editor.sections.edgeId')}
+										</Label>
+										<code className="text-xs font-mono bg-muted px-2 py-1 rounded block mt-1">
+											{selectedEdge.id}
+										</code>
+									</div>
+								</div>
+							</CollapsibleSection>
+						</div>
+					)}
+				</DrawerContent>
+			</Drawer>
 			</div>
 
 			{/* Bottom Toolbar - Hidden on mobile */}

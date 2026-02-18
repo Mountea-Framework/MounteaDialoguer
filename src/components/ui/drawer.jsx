@@ -23,18 +23,32 @@ const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ));
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
-const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) => (
+const RIGHT_DRAWER_SIZE_CLASS = {
+	sm: 'max-w-sm',
+	md: 'max-w-md',
+	lg: 'max-w-lg',
+	xl: 'max-w-xl',
+	'2xl': 'max-w-2xl',
+	'3xl': 'max-w-3xl',
+	'4xl': 'max-w-4xl',
+	full: 'max-w-full',
+};
+
+const DrawerContent = React.forwardRef(({ className, children, side = 'bottom', size = 'md', ...props }, ref) => (
 	<DrawerPortal>
 		<DrawerOverlay />
 		<DrawerPrimitive.Content
 			ref={ref}
 			className={cn(
-				'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background',
+				side === 'right'
+					? 'fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l bg-background'
+					: 'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background',
+				side === 'right' ? RIGHT_DRAWER_SIZE_CLASS[size] || RIGHT_DRAWER_SIZE_CLASS.md : null,
 				className
 			)}
 			{...props}
 		>
-			<div className="mx-auto mt-2 h-1.5 w-[100px] rounded-full bg-muted" />
+			{side !== 'right' && <div className="mx-auto mt-2 h-1.5 w-[100px] rounded-full bg-muted" />}
 			{children}
 		</DrawerPrimitive.Content>
 	</DrawerPortal>

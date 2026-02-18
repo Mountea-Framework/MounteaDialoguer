@@ -238,6 +238,7 @@
 			"addNode": "Add Node"
 		},
 		"nodeDetails": "Node Details",
+		"edgeDetails": "Edge Details",
 		"speaker": "Speaker",
 		"dialogueText": "Dialogue Text",
 		"audioClip": "Audio Clip",
@@ -250,6 +251,7 @@
 			"nodeData": "Node Data",
 			"dialogueDetails": "Dialogue Details",
 			"nodeDecorators": "Node Decorators",
+			"conditions": "Conditions",
 			"displayName": "Display Name",
 			"displayNamePlaceholder": "Enter display name...",
 			"participant": "Participant",
@@ -261,7 +263,16 @@
 			"targetNode": "Return to Node",
 			"targetNodePlaceholder": "Select target node...",
 			"targetDialogue": "Open Dialogue",
-			"targetDialoguePlaceholder": "Select target dialogue..."
+			"targetDialoguePlaceholder": "Select target dialogue...",
+			"edgeId": "Edge ID"
+		},
+		"conditions": {
+			"empty": "No conditions configured yet.",
+			"passWhen": "Pass When",
+			"modeAll": "All conditions are true (AND)",
+			"modeAny": "Any condition is true (OR)",
+			"selectPlaceholder": "Select condition to add...",
+			"negate": "Negate (NOT)"
 		},
 		"validation": {
 			"saveWarningTitle": "Saved with warnings",
