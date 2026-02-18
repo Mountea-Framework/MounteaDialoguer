@@ -909,10 +909,33 @@ function DialogueEditorPage() {
 		}
 	};
 
+	const isConnectionAllowed = useCallback(
+		(connection, existingEdges = edges) => {
+			const sourceId = connection?.source;
+			const targetId = connection?.target;
+			if (!sourceId || !targetId) return false;
+
+			// Limit Start node to exactly one non-placeholder outgoing child.
+			if (sourceId !== START_NODE_ID) return true;
+
+			const existingStartOutgoing = existingEdges.filter(
+				(edge) => edge.source === START_NODE_ID && !edge?.data?.isPlaceholder
+			);
+
+			if (existingStartOutgoing.length === 0) return true;
+
+			// Keep same-target reconnects permissive; duplicate prevention is handled by addEdge.
+			return existingStartOutgoing.some((edge) => edge.target === targetId);
+		},
+		[edges]
+	);
+
 
 	// Handle edge connection
 	const onConnect = useCallback(
 		(params) => {
+			if (!isConnectionAllowed(params)) return;
+
 			const newEdge = {
 				...params,
 				markerEnd: {
@@ -920,13 +943,14 @@ function DialogueEditorPage() {
 				},
 			};
 			setEdges((eds) => {
+				if (!isConnectionAllowed(params, eds)) return eds;
 				const updatedEdges = addEdge(newEdge, eds);
 				saveToHistory(nodes, updatedEdges);
 				markUnsaved();
 				return updatedEdges;
 			});
 		},
-		[setEdges, nodes, saveToHistory, markUnsaved]
+		[setEdges, nodes, saveToHistory, markUnsaved, isConnectionAllowed]
 	);
 
 	// Handle node click
@@ -2077,6 +2101,7 @@ function DialogueEditorPage() {
 						onPaneClick={onPaneClick}
 						onMove={onMove}
 						onInit={setReactFlowInstance}
+				isValidConnection={isConnectionAllowed}
 				nodeTypes={nodeTypes}
 				className="bg-grid"
 				proOptions={{ hideAttribution: true }}
