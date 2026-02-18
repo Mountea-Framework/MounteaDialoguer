@@ -11,6 +11,7 @@ export async function buildProjectSnapshot(projectId) {
 	const participants = await db.participants.where('projectId').equals(projectId).toArray();
 	const categories = await db.categories.where('projectId').equals(projectId).toArray();
 	const decorators = await db.decorators.where('projectId').equals(projectId).toArray();
+	const conditions = await db.conditions.where('projectId').equals(projectId).toArray();
 
 	const dialogueIds = dialogues.map((dialogue) => dialogue.id);
 	const nodes = dialogueIds.length
@@ -27,6 +28,7 @@ export async function buildProjectSnapshot(projectId) {
 		participants,
 		categories,
 		decorators,
+		conditions,
 		nodes,
 		edges,
 	};
@@ -39,6 +41,7 @@ export async function applyProjectSnapshot(snapshot) {
 		participants = [],
 		categories = [],
 		decorators = [],
+		conditions = [],
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
@@ -55,6 +58,7 @@ export async function applyProjectSnapshot(snapshot) {
 			db.participants,
 			db.categories,
 			db.decorators,
+			db.conditions,
 			db.nodes,
 			db.edges,
 		],
@@ -71,6 +75,7 @@ export async function applyProjectSnapshot(snapshot) {
 			await db.participants.where('projectId').equals(project.id).delete();
 			await db.categories.where('projectId').equals(project.id).delete();
 			await db.decorators.where('projectId').equals(project.id).delete();
+			await db.conditions.where('projectId').equals(project.id).delete();
 
 			await db.projects.put(project);
 
@@ -78,6 +83,7 @@ export async function applyProjectSnapshot(snapshot) {
 			if (participants.length > 0) await db.participants.bulkAdd(participants);
 			if (categories.length > 0) await db.categories.bulkAdd(categories);
 			if (decorators.length > 0) await db.decorators.bulkAdd(decorators);
+			if (conditions.length > 0) await db.conditions.bulkAdd(conditions);
 			if (nodes.length > 0) await db.nodes.bulkAdd(nodes);
 			if (edges.length > 0) await db.edges.bulkAdd(edges);
 		}
@@ -91,6 +97,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 		participants = [],
 		categories = [],
 		decorators = [],
+		conditions = [],
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
@@ -157,6 +164,13 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 		createdAt: now,
 		modifiedAt: now,
 	}));
+	const newConditions = conditions.map((condition) => ({
+		...condition,
+		id: uuidv4(),
+		projectId: newProjectId,
+		createdAt: now,
+		modifiedAt: now,
+	}));
 
 	const newNodes = nodes.map((node) => ({
 		...node,
@@ -176,6 +190,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 			db.participants,
 			db.categories,
 			db.decorators,
+			db.conditions,
 			db.nodes,
 			db.edges,
 		],
@@ -185,6 +200,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 			if (newParticipants.length > 0) await db.participants.bulkAdd(newParticipants);
 			if (normalizedCategories.length > 0) await db.categories.bulkAdd(normalizedCategories);
 			if (newDecorators.length > 0) await db.decorators.bulkAdd(newDecorators);
+			if (newConditions.length > 0) await db.conditions.bulkAdd(newConditions);
 			if (newNodes.length > 0) await db.nodes.bulkAdd(newNodes);
 			if (newEdges.length > 0) await db.edges.bulkAdd(newEdges);
 		}

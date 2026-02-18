@@ -64,6 +64,7 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useConditionStore } from '@/stores/conditionStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -100,7 +101,6 @@ import {
 	getNodeDefinition,
 	getNodeDefaultData,
 } from '@/config/dialogueNodes';
-import { EDGE_CONDITION_DEFINITIONS } from '@/config/edgeConditions';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -266,6 +266,7 @@ function DialogueEditorPage() {
 		useDialogueStore();
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
+	const { conditions, loadConditions } = useConditionStore();
 	const { categories, loadCategories } = useCategoryStore();
 
 	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
@@ -377,12 +378,14 @@ function DialogueEditorPage() {
 		loadDialogues(projectId);
 		loadParticipants(projectId);
 		loadDecorators(projectId);
+		loadConditions(projectId);
 		loadCategories(projectId);
 	}, [
 		loadProjects,
 		loadDialogues,
 		loadParticipants,
 		loadDecorators,
+		loadConditions,
 		loadCategories,
 		projectId,
 	]);
@@ -530,7 +533,7 @@ function DialogueEditorPage() {
 				setSelectedEdge(updatedEdge);
 			}
 		}
-	}, [edges]);
+	}, [edges, selectedEdge]);
 
 	// Keep visual save status in sync with navigation guard state.
 	useEffect(() => {
@@ -682,7 +685,7 @@ function DialogueEditorPage() {
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
-	const availableConditionDefinitions = EDGE_CONDITION_DEFINITIONS;
+	const availableConditionDefinitions = conditions.filter((condition) => condition.projectId === projectId);
 	const selectedNodeDefinition = selectedNode
 		? getNodeDefinition(selectedNode.type)
 		: null;

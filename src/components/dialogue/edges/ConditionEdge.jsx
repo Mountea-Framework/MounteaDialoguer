@@ -27,6 +27,8 @@ const ConditionEdge = memo((props) => {
 	});
 
 	const isPlaceholder = Boolean(data?.isPlaceholder);
+	const conditionCount = Array.isArray(data?.conditions?.rules) ? data.conditions.rules.length : 0;
+	const hasConditions = conditionCount > 0;
 
 	return (
 		<>
@@ -42,10 +44,12 @@ const ConditionEdge = memo((props) => {
 					>
 						<button
 							type="button"
-							className={`h-7 w-7 rounded-full border bg-card shadow-sm inline-flex items-center justify-center transition-colors ${
+							className={`relative h-7 w-7 rounded-full border bg-background shadow-sm inline-flex items-center justify-center transition-colors ${
 								selected
-									? 'border-primary text-primary'
-									: 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+									? 'border-primary text-primary bg-background'
+									: hasConditions
+										? 'border-primary/50 text-primary bg-background hover:border-primary/70'
+									: 'border-border text-muted-foreground bg-background hover:text-foreground hover:border-primary/40'
 							}`}
 							onClick={(event) => {
 								event.preventDefault();
@@ -55,6 +59,9 @@ const ConditionEdge = memo((props) => {
 							aria-label="Open edge conditions"
 						>
 							<SlidersHorizontal className="h-3.5 w-3.5" />
+							{hasConditions && (
+								<span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary/80 ring-2 ring-background" />
+							)}
 						</button>
 					</div>
 				</EdgeLabelRenderer>

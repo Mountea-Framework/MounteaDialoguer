@@ -860,7 +860,7 @@ export const useProjectStore = create((set, get) => ({
 
 			await db.transaction(
 				'rw',
-				[db.projects, db.dialogues, db.categories, db.participants, db.decorators, db.nodes, db.edges],
+				[db.projects, db.dialogues, db.categories, db.participants, db.decorators, db.conditions, db.nodes, db.edges],
 				async () => {
 					await db.projects.add(newProject);
 					await db.categories.bulkAdd(categories);
@@ -928,7 +928,7 @@ export const useProjectStore = create((set, get) => ({
 	deleteProject: async (id) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.nodes, db.edges], async () => {
+			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.nodes, db.edges], async () => {
 				const projectDialogues = await db.dialogues.where('projectId').equals(id).toArray();
 				const dialogueIds = projectDialogues.map((dialogue) => dialogue.id);
 
@@ -942,6 +942,7 @@ export const useProjectStore = create((set, get) => ({
 				await db.participants.where('projectId').equals(id).delete();
 				await db.categories.where('projectId').equals(id).delete();
 				await db.decorators.where('projectId').equals(id).delete();
+				await db.conditions.where('projectId').equals(id).delete();
 			});
 			await get().loadProjects();
 			useSyncStore.getState().schedulePush(id);
@@ -1010,7 +1011,7 @@ export const useProjectStore = create((set, get) => ({
 				.equals(projectId)
 				.toArray();
 
-			// Get categories, participants, and decorators
+			// Get categories, participants, decorators, and conditions
 			const categories = await db.categories
 				.where('projectId')
 				.equals(projectId)
@@ -1022,6 +1023,10 @@ export const useProjectStore = create((set, get) => ({
 				.toArray();
 
 			const decorators = await db.decorators
+				.where('projectId')
+				.equals(projectId)
+				.toArray();
+			const conditions = await db.conditions
 				.where('projectId')
 				.equals(projectId)
 				.toArray();
@@ -1057,7 +1062,16 @@ export const useProjectStore = create((set, get) => ({
 			}));
 
 			// Export decorators (definitions only)
-			const decoratorsExport = decorators.map(({ id, projectId, createdAt, modifiedAt, ...rest }) => rest);
+			const exportWithoutMeta = (entry) => {
+				const exported = { ...entry };
+				delete exported.id;
+				delete exported.projectId;
+				delete exported.createdAt;
+				delete exported.modifiedAt;
+				return exported;
+			};
+			const decoratorsExport = decorators.map(exportWithoutMeta);
+			const conditionsExport = conditions.map(exportWithoutMeta);
 
 			// Create main project ZIP
 			const projectZip = new JSZip();
@@ -1067,6 +1081,7 @@ export const useProjectStore = create((set, get) => ({
 			projectZip.file('categories.json', JSON.stringify(categoriesExport, null, 2));
 			projectZip.file('participants.json', JSON.stringify(participantsExport, null, 2));
 			projectZip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
+			projectZip.file('conditions.json', JSON.stringify(conditionsExport, null, 2));
 
 			// Create dialogues folder
 			const dialoguesFolder = projectZip.folder('dialogues');
@@ -1135,6 +1150,7 @@ export const useProjectStore = create((set, get) => ({
 			const participantsStr = await zip.file('participants.json')?.async('text');
 			const categoriesStr = await zip.file('categories.json')?.async('text');
 			const decoratorsStr = await zip.file('decorators.json')?.async('text');
+			const conditionsStr = await zip.file('conditions.json')?.async('text');
 
 			if (!projectDataStr) {
 				throw new Error('Invalid project file: missing projectData.json');
@@ -1144,6 +1160,7 @@ export const useProjectStore = create((set, get) => ({
 			const participants = participantsStr ? JSON.parse(participantsStr) : [];
 			const categories = categoriesStr ? JSON.parse(categoriesStr) : [];
 			const decorators = decoratorsStr ? JSON.parse(decoratorsStr) : [];
+			const conditions = conditionsStr ? JSON.parse(conditionsStr) : [];
 
 			const { v4: uuidv4 } = await import('uuid');
 			const newProjectId = uuidv4();
@@ -1205,6 +1222,19 @@ export const useProjectStore = create((set, get) => ({
 					name: dec.name,
 					type: dec.type,
 					values: dec.values || {},
+					projectId: newProjectId,
+					createdAt: now,
+					modifiedAt: now,
+				});
+			}
+
+			for (const cond of conditions) {
+				const newConditionId = uuidv4();
+				await db.conditions.add({
+					id: newConditionId,
+					name: cond.name,
+					type: cond.type,
+					properties: cond.properties || [],
 					projectId: newProjectId,
 					createdAt: now,
 					modifiedAt: now,

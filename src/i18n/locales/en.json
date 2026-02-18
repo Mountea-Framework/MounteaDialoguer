@@ -94,6 +94,33 @@
 		"deleteTitle": "Delete Decorator",
 		"deleteDescription": "Are you sure you want to delete {{name}}? This action cannot be undone."
 	},
+	"conditions": {
+		"title": "Conditions",
+		"addNew": "Add Condition",
+		"createDescription": "Add a new condition definition for dialogue edge checks",
+		"updateDescription": "Update the condition's information",
+		"description": "Manage reusable condition definitions for dialogue edges",
+		"name": "Condition Name",
+		"namePlaceholder": "Enter condition name",
+		"type": "Type",
+		"typePlaceholder": "e.g., Quest, Inventory, Flags",
+		"noConditions": "No conditions yet",
+		"noConditionsDescription": "Add conditions to control whether dialogue edges can be traversed",
+		"deleteTitle": "Delete Condition",
+		"deleteDescription": "Are you sure you want to delete {{name}}? This action cannot be undone.",
+		"validation": {
+			"noWhitespace": "Name cannot contain whitespace"
+		},
+		"properties": {
+			"title": "Properties",
+			"add": "Add Property",
+			"empty": "No properties defined. Add properties to configure this condition.",
+			"name": "Property Name",
+			"namePlaceholder": "e.g., questId",
+			"type": "Type",
+			"defaultValue": "Default Value"
+		}
+	},
 	"projects": {
 		"title": "Projects",
 		"createNew": "New Project",

@@ -1,4 +1,4 @@
-import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X, Cloud } from 'lucide-react';
+import { MessageCircle, Users, Folder, Paintbrush, Settings, LayoutDashboard, X, Cloud, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -61,6 +61,12 @@ export function ProjectSidebar({
 			label: t('decorators.title'),
 			icon: Paintbrush,
 			color: 'text-green-500',
+		},
+		{
+			id: 'conditions',
+			label: t('conditions.title'),
+			icon: SlidersHorizontal,
+			color: 'text-cyan-500',
 		},
 	];
 
