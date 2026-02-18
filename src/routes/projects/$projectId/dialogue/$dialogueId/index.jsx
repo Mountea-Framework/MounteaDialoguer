@@ -30,6 +30,7 @@ import {
 	User,
 	CheckCircle2,
 	CornerUpLeft,
+	ExternalLink,
 	Heart,
 	X,
 	HelpCircle,
@@ -75,6 +76,7 @@ import StartNode from '@/components/dialogue/nodes/StartNode';
 import LeadNode from '@/components/dialogue/nodes/LeadNode';
 import AnswerNode from '@/components/dialogue/nodes/AnswerNode';
 import ReturnNode from '@/components/dialogue/nodes/ReturnNode';
+import OpenChildGraphNode from '@/components/dialogue/nodes/OpenChildGraphNode';
 import CompleteNode from '@/components/dialogue/nodes/CompleteNode';
 import PlaceholderNode from '@/components/dialogue/nodes/PlaceholderNode';
 import DelayNode from '@/components/dialogue/nodes/DelayNode';
@@ -134,6 +136,7 @@ const nodeTypes = {
 	leadNode: LeadNode,
 	answerNode: AnswerNode,
 	returnNode: ReturnNode,
+	openChildGraphNode: OpenChildGraphNode,
 	completeNode: CompleteNode,
 	delayNode: DelayNode,
 	placeholderNode: PlaceholderNode,
@@ -144,6 +147,7 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 	leadNode: { width: 250, height: 124 },
 	answerNode: { width: 250, height: 124 },
 	returnNode: { width: 250, height: 110 },
+	openChildGraphNode: { width: 250, height: 110 },
 	completeNode: { width: 250, height: 124 },
 	delayNode: { width: 250, height: 100 },
 	placeholderNode: { width: 160, height: 72 },
@@ -795,6 +799,33 @@ function DialogueEditorPage() {
 											</option>
 										))}
 									</optgroup>
+								))}
+							</NativeSelect>
+						</div>
+					);
+				}
+				if (field.options === 'dialogues') {
+					const availableDialogues = dialogues
+						.filter((item) => item.projectId === projectId && item.id !== dialogueId)
+						.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+					return (
+						<div className="space-y-2" key={field.id}>
+							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<NativeSelect
+								id={field.id}
+								value={selectedNode.data[field.id] || ''}
+								onChange={(e) =>
+									updateNodeData(selectedNode.id, { [field.id]: e.target.value })
+								}
+							>
+								<option value="" disabled>
+									{field.placeholderKey ? t(field.placeholderKey) : undefined}
+								</option>
+								{availableDialogues.map((item) => (
+									<option key={item.id} value={item.id}>
+										{item.name || item.id}
+									</option>
 								))}
 							</NativeSelect>
 						</div>
@@ -2311,6 +2342,22 @@ function DialogueEditorPage() {
 						>
 							<CornerUpLeft className="h-4 w-4" />
 							{t('editor.nodeToolbar.return')}
+						</Button>
+					</SimpleTooltip>
+					<SimpleTooltip
+						content={t('editor.nodeToolbar.addOpenChildGraphTooltip')}
+						side="top"
+					>
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 cursor-move"
+							draggable
+							onDragStart={(e) => onDragStart(e, 'openChildGraphNode')}
+							onClick={() => addNode('openChildGraphNode')}
+						>
+							<ExternalLink className="h-4 w-4" />
+							{t('editor.nodeToolbar.openChildGraph')}
 						</Button>
 					</SimpleTooltip>
 					<SimpleTooltip content={t('editor.nodeToolbar.addCompleteTooltip')} side="top">

@@ -1,6 +1,6 @@
 export const PREVIEW_START_NODE_ID = '00000000-0000-0000-0000-000000000001';
 
-const PREVIEW_TERMINAL_TYPES = new Set(['completeNode']);
+const PREVIEW_TERMINAL_TYPES = new Set(['completeNode', 'openChildGraphNode']);
 
 export const getPreviewNodesAndEdges = (nodes = [], edges = []) => {
 	const regularNodes = Array.isArray(nodes)
@@ -132,6 +132,8 @@ export const getSpeakerForPreview = (node, t) => {
 			return t('editor.nodes.delay');
 		case 'returnNode':
 			return t('editor.nodes.return');
+		case 'openChildGraphNode':
+			return t('editor.nodes.openChildGraph');
 		default:
 			return t('editor.nodes.start');
 	}

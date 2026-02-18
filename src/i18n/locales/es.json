@@ -166,6 +166,8 @@
 			"addPlayerTooltip": "Añadir nodo Jugador - arrastra al lienzo o haz clic",
 			"return": "Volver",
 			"addReturnTooltip": "Añadir nodo Volver - arrastra al lienzo o haz clic",
+			"openChildGraph": "Open Child Graph",
+			"addOpenChildGraphTooltip": "Añadir nodo Open Child Graph - arrastra al lienzo o haz clic",
 			"complete": "Completar",
 			"addCompleteTooltip": "Añadir nodo Completar - arrastra al lienzo o haz clic",
 			"delay": "Retardo",
@@ -189,6 +191,9 @@
 			"return": "Volver a",
 			"returnTarget": "Objetivo:",
 			"returnSelectNode": "Selecciona un nodo...",
+			"openChildGraph": "Open Child Graph",
+			"openChildGraphTarget": "Diálogo:",
+			"openChildGraphSelectDialogue": "Selecciona diálogo...",
 			"rows": "{{count}} fila",
 			"rows_plural": "{{count}} filas",
 			"tooltip": {
@@ -222,7 +227,9 @@
 			"selectionTitlePlaceholder": "Ingrese título de selección...",
 			"dialogueRows": "Filas de Diálogo",
 			"targetNode": "Volver al Nodo",
-			"targetNodePlaceholder": "Seleccione nodo objetivo..."
+			"targetNodePlaceholder": "Seleccione nodo objetivo...",
+			"targetDialogue": "Abrir diálogo",
+			"targetDialoguePlaceholder": "Seleccione diálogo objetivo..."
 		},
 		"validation": {
 			"saveWarningTitle": "Guardado con advertencias",

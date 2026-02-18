@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Square, Volume2, Play, CheckCircle2, CornerUpLeft, Sparkles } from 'lucide-react';
+import { Square, Volume2, Play, CheckCircle2, CornerUpLeft, Sparkles, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -191,12 +191,19 @@ export function DialoguePreviewOverlay({
 				outcome = 'complete';
 			} else if (choiceNode.type === 'returnNode') {
 				outcome = 'return';
+			} else if (choiceNode.type === 'openChildGraphNode') {
+				outcome = 'openChildGraph';
 			} else if (nextAfterChoice.length === 0) {
 				outcome = 'end';
 			} else if (nextAfterChoice.length === 1 && nextAfterChoice[0].type === 'completeNode') {
 				outcome = 'complete';
 			} else if (nextAfterChoice.length === 1 && nextAfterChoice[0].type === 'returnNode') {
 				outcome = 'return';
+			} else if (
+				nextAfterChoice.length === 1 &&
+				nextAfterChoice[0].type === 'openChildGraphNode'
+			) {
+				outcome = 'openChildGraph';
 			}
 
 			return {
@@ -243,6 +250,11 @@ export function DialoguePreviewOverlay({
 				runtimeRef.current.timer = window.setTimeout(() => {
 					goToNode(targetNodeId);
 				}, NODE_TRANSITION_DELAY_MS);
+				return;
+			}
+
+			if (node.type === 'openChildGraphNode') {
+				closePreview({ withAnimation: true });
 				return;
 			}
 
@@ -533,6 +545,8 @@ export function DialoguePreviewOverlay({
 												? 'border-destructive/40 bg-destructive/5'
 												: choice.outcome === 'end'
 													? 'border-amber-500/35 bg-amber-500/5'
+													: choice.outcome === 'openChildGraph'
+														? 'border-cyan-500/35 bg-cyan-500/5'
 													: ''
 										}`}
 										onClick={() => {
@@ -567,6 +581,12 @@ export function DialoguePreviewOverlay({
 													<span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
 														<CornerUpLeft className="h-3 w-3" />
 														{t('editor.preview.choiceReturn')}
+													</span>
+												)}
+												{choice.outcome === 'openChildGraph' && (
+													<span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2 py-0.5">
+														<ExternalLink className="h-3 w-3" />
+														{t('editor.preview.choiceOpenChildGraph')}
 													</span>
 												)}
 												{choice.decoratorsCount > 0 && (

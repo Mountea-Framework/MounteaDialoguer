@@ -172,6 +172,8 @@
 			"addPlayerTooltip": "Add Player node - drag to canvas or click",
 			"return": "Return",
 			"addReturnTooltip": "Add Return node - drag to canvas or click",
+			"openChildGraph": "Open Child Graph",
+			"addOpenChildGraphTooltip": "Add Open Child Graph node - drag to canvas or click",
 			"complete": "Complete",
 			"addCompleteTooltip": "Add Complete node - drag to canvas or click",
 			"delay": "Delay",
@@ -189,6 +191,7 @@
 			"choiceEnds": "Ends dialogue",
 			"choiceComplete": "Completes dialogue",
 			"choiceReturn": "Returns to node",
+			"choiceOpenChildGraph": "Opens child graph",
 			"choiceDecorators": "{{count}} decorator",
 			"choiceDecorators_plural": "{{count}} decorators",
 			"activeNode": "Node",
@@ -220,6 +223,9 @@
 			"return": "Return To",
 			"returnTarget": "Target:",
 			"returnSelectNode": "Select node...",
+			"openChildGraph": "Open Child Graph",
+			"openChildGraphTarget": "Dialogue:",
+			"openChildGraphSelectDialogue": "Select dialogue...",
 			"rows": "{{count}} row",
 			"rows_plural": "{{count}} rows",
 			"tooltip": {
@@ -253,7 +259,9 @@
 			"selectionTitlePlaceholder": "Enter selection title...",
 			"dialogueRows": "Dialogue Rows",
 			"targetNode": "Return to Node",
-			"targetNodePlaceholder": "Select target node..."
+			"targetNodePlaceholder": "Select target node...",
+			"targetDialogue": "Open Dialogue",
+			"targetDialoguePlaceholder": "Select target dialogue..."
 		},
 		"validation": {
 			"saveWarningTitle": "Saved with warnings",

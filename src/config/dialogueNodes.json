@@ -252,6 +252,59 @@
 			}
 		]
 	},
+	"openChildGraphNode": {
+		"type": "openChildGraphNode",
+		"label": "Open Child Graph",
+		"description": "Open another dialogue in this project",
+		"section": "flow",
+		"creatable": true,
+		"canHaveOutputs": false,
+		"icon": "externalLink",
+		"colorClass": "text-cyan-500",
+		"minimapColor": "#06b6d4",
+		"defaultData": {
+			"label": "Open Child Graph",
+			"displayName": "Open Child Graph",
+			"targetDialogue": ""
+		},
+		"sections": [
+			{
+				"id": "nodeData",
+				"titleKey": "editor.sections.nodeData",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "displayName",
+						"type": "text",
+						"labelKey": "editor.sections.displayName",
+						"placeholderKey": "editor.sections.displayNamePlaceholder",
+						"required": true,
+						"maxLength": 64
+					},
+					{
+						"id": "nodeId",
+						"type": "nodeId",
+						"labelKey": "editor.sections.nodeId"
+					}
+				]
+			},
+			{
+				"id": "childGraphTarget",
+				"titleKey": "editor.sections.dialogueDetails",
+				"defaultOpen": true,
+				"fields": [
+					{
+						"id": "targetDialogue",
+						"type": "select",
+						"labelKey": "editor.sections.targetDialogue",
+						"placeholderKey": "editor.sections.targetDialoguePlaceholder",
+						"options": "dialogues",
+						"required": true
+					}
+				]
+			}
+		]
+	},
 	"completeNode": {
 		"type": "completeNode",
 		"label": "Complete",
