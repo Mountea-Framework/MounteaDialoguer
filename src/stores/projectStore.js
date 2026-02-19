@@ -90,9 +90,13 @@ export const useProjectStore = create((set, get) => ({
 			const now = new Date().toISOString();
 			const projectId = uuidv4();
 			const dialogueId = '68cfbce9-4117-4996-bc8b-fd963efc4454';
+			const childDialogueId = '7bc3efb2-4d63-467c-8d31-6d5ca6f5af09';
 
-			const existingDialogue = await db.dialogues.get(dialogueId);
-			if (existingDialogue) {
+			const [existingDialogue, existingChildDialogue] = await Promise.all([
+				db.dialogues.get(dialogueId),
+				db.dialogues.get(childDialogueId),
+			]);
+			if (existingDialogue || existingChildDialogue) {
 				throw new Error('Example graph already exists. Delete the previous example project first.');
 			}
 
@@ -161,8 +165,20 @@ export const useProjectStore = create((set, get) => ({
 				modifiedAt: now,
 				viewport: { x: 0, y: 0, zoom: 1 },
 			};
+			const childDialogue = {
+				id: childDialogueId,
+				projectId,
+				name: 'RuinsFollowupExample',
+				description: 'Small child dialogue opened from the rumors branch',
+				createdAt: now,
+				modifiedAt: now,
+				viewport: { x: 0, y: 0, zoom: 1 },
+			};
+			const dialogues = [dialogue, childDialogue];
 			const DECORATOR_PLAY_ANIM_ID = 'd1000000-0000-4000-8000-000000000001';
 			const DECORATOR_OPEN_STORE_ID = 'd2000000-0000-4000-8000-000000000002';
+			const CONDITION_PLAYER_LEVEL_ID = 'c1000000-0000-4000-8000-000000000001';
+			const CONDITION_HAS_GUILD_BADGE_ID = 'c2000000-0000-4000-8000-000000000002';
 			const decorators = [
 				{
 					id: DECORATOR_PLAY_ANIM_ID,
@@ -188,6 +204,38 @@ export const useProjectStore = create((set, get) => ({
 							name: 'bCloseDialogue',
 							type: 'bool',
 							defaultValue: 'false',
+						},
+					],
+					projectId,
+					createdAt: now,
+					modifiedAt: now,
+				},
+			];
+			const conditions = [
+				{
+					id: CONDITION_PLAYER_LEVEL_ID,
+					name: 'playerLevelAtLeast',
+					type: 'Progression',
+					properties: [
+						{
+							name: 'minimumLevel',
+							type: 'int',
+							defaultValue: 5,
+						},
+					],
+					projectId,
+					createdAt: now,
+					modifiedAt: now,
+				},
+				{
+					id: CONDITION_HAS_GUILD_BADGE_ID,
+					name: 'hasGuildBadge',
+					type: 'Quest',
+					properties: [
+						{
+							name: 'required',
+							type: 'bool',
+							defaultValue: true,
 						},
 					],
 					projectId,
@@ -587,9 +635,13 @@ export const useProjectStore = create((set, get) => ({
 				{
 					id: NODE_RUMOR_RUINS_RETURN,
 					dialogueId,
-					type: 'returnNode',
+					type: 'openChildGraphNode',
 					position: { x: 430, y: 1320 },
-					data: { label: 'Return', displayName: 'Return To Greeting', targetNode: NODE_GREETING },
+					data: {
+						label: 'Open Ruins Follow-up',
+						displayName: 'Open Ruins Follow-up',
+						targetDialogue: childDialogueId,
+					},
 				},
 
 				{
@@ -779,7 +831,31 @@ export const useProjectStore = create((set, get) => ({
 				{ id: 'e2000000-0000-4000-8000-000000000002', dialogueId, source: NODE_BUY_INTRO, target: NODE_BUY_DELAY },
 				{ id: 'e2000000-0000-4000-8000-000000000003', dialogueId, source: NODE_BUY_DELAY, target: NODE_BUY_OFFER },
 				{ id: 'e2000000-0000-4000-8000-000000000004', dialogueId, source: NODE_BUY_OFFER, target: NODE_BUY_STANDARD },
-				{ id: 'e2000000-0000-4000-8000-000000000005', dialogueId, source: NODE_BUY_OFFER, target: NODE_BUY_PREMIUM },
+				{
+					id: 'e2000000-0000-4000-8000-000000000005',
+					dialogueId,
+					source: NODE_BUY_OFFER,
+					target: NODE_BUY_PREMIUM,
+					data: {
+						conditions: {
+							mode: 'all',
+							rules: [
+								{
+									id: CONDITION_PLAYER_LEVEL_ID,
+									name: 'playerLevelAtLeast',
+									values: { minimumLevel: 5 },
+									negate: false,
+								},
+								{
+									id: CONDITION_HAS_GUILD_BADGE_ID,
+									name: 'hasGuildBadge',
+									values: { required: true },
+									negate: false,
+								},
+							],
+						},
+					},
+				},
 				{ id: 'e2000000-0000-4000-8000-000000000006', dialogueId, source: NODE_BUY_OFFER, target: NODE_BUY_BACK },
 				{ id: 'e2000000-0000-4000-8000-000000000007', dialogueId, source: NODE_BUY_STANDARD, target: NODE_BUY_STANDARD_COMPLETE },
 				{ id: 'e2000000-0000-4000-8000-000000000008', dialogueId, source: NODE_BUY_PREMIUM, target: NODE_BUY_PREMIUM_COMPLETE },
@@ -798,7 +874,25 @@ export const useProjectStore = create((set, get) => ({
 				{ id: 'e4000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_QUESTS, target: NODE_QUEST_INTRO },
 				{ id: 'e4000000-0000-4000-8000-000000000002', dialogueId, source: NODE_QUEST_INTRO, target: NODE_QUEST_DELAY },
 				{ id: 'e4000000-0000-4000-8000-000000000003', dialogueId, source: NODE_QUEST_DELAY, target: NODE_QUEST_ACCEPT },
-				{ id: 'e4000000-0000-4000-8000-000000000004', dialogueId, source: NODE_QUEST_DELAY, target: NODE_QUEST_DECLINE },
+				{
+					id: 'e4000000-0000-4000-8000-000000000004',
+					dialogueId,
+					source: NODE_QUEST_DELAY,
+					target: NODE_QUEST_DECLINE,
+					data: {
+						conditions: {
+							mode: 'any',
+							rules: [
+								{
+									id: CONDITION_PLAYER_LEVEL_ID,
+									name: 'playerLevelAtLeast',
+									values: { minimumLevel: 3 },
+									negate: true,
+								},
+							],
+						},
+					},
+				},
 				{ id: 'e4000000-0000-4000-8000-000000000005', dialogueId, source: NODE_QUEST_ACCEPT, target: NODE_QUEST_ACCEPT_COMPLETE },
 				{ id: 'e4000000-0000-4000-8000-000000000006', dialogueId, source: NODE_QUEST_DECLINE, target: NODE_QUEST_DECLINE_RETURN },
 
@@ -811,6 +905,71 @@ export const useProjectStore = create((set, get) => ({
 
 				{ id: 'e6000000-0000-4000-8000-000000000001', dialogueId, source: NODE_CHOICE_GOODBYE, target: NODE_GOODBYE_COMPLETE },
 			];
+			const childNodes = [
+				{
+					id: NODE_START,
+					dialogueId: childDialogueId,
+					type: 'startNode',
+					position: { x: 40, y: 40 },
+					data: { label: 'Dialogue entry point', displayName: 'Start Node' },
+				},
+				{
+					id: '70000000-0000-4000-8000-000000000001',
+					dialogueId: childDialogueId,
+					type: 'leadNode',
+					position: { x: 60, y: 240 },
+					data: {
+						label: 'Ruins Follow-up',
+						displayName: 'Waldermar Ruins Follow-up',
+						participant: 'Waldermar',
+						decorators: [],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(30, [
+							{
+								text: 'If you visit the ruins, light a lantern first and avoid the lower vault.',
+								duration: 3.0,
+							},
+						]),
+					},
+				},
+				{
+					id: '70000000-0000-4000-8000-000000000002',
+					dialogueId: childDialogueId,
+					type: 'completeNode',
+					position: { x: 60, y: 460 },
+					data: {
+						label: 'Ruins Follow-up Complete',
+						displayName: 'Ruins Follow-up Complete',
+						participant: 'Waldermar',
+						decorators: [],
+						selectionTitle: '',
+						hasAudio: false,
+						dialogueRows: makeRows(31, [
+							{
+								text: 'That is all I know. Return safely.',
+								duration: 2.1,
+							},
+						]),
+					},
+				},
+			];
+			const childEdges = [
+				{
+					id: 'e7000000-0000-4000-8000-000000000001',
+					dialogueId: childDialogueId,
+					source: NODE_START,
+					target: '70000000-0000-4000-8000-000000000001',
+				},
+				{
+					id: 'e7000000-0000-4000-8000-000000000002',
+					dialogueId: childDialogueId,
+					source: '70000000-0000-4000-8000-000000000001',
+					target: '70000000-0000-4000-8000-000000000002',
+				},
+			];
+			const allNodes = [...nodes, ...childNodes];
+			const allEdges = [...edges, ...childEdges];
 			const hardcodedNodePositions = {
 				'00000000-0000-0000-0000-000000000001': { x: 0, y: 0 },
 				'10000000-0000-4000-8000-000000000001': { x: -54.5, y: 188 },
@@ -851,7 +1010,7 @@ export const useProjectStore = create((set, get) => ({
 				'50000000-0000-4000-8000-000000000006': { x: 737.75, y: 1437.5 },
 				'60000000-0000-4000-8000-000000000001': { x: 958, y: 673 },
 			};
-			const positionedNodes = nodes.map((node) => ({
+			const positionedNodes = allNodes.map((node) => ({
 				...node,
 				position: hardcodedNodePositions[node.id]
 					? hardcodedNodePositions[node.id]
@@ -866,9 +1025,10 @@ export const useProjectStore = create((set, get) => ({
 					await db.categories.bulkAdd(categories);
 					await db.participants.bulkAdd(participants);
 					await db.decorators.bulkAdd(decorators);
-					await db.dialogues.add(dialogue);
+					await db.conditions.bulkAdd(conditions);
+					await db.dialogues.bulkAdd(dialogues);
 					await db.nodes.bulkAdd(positionedNodes);
-					await db.edges.bulkAdd(edges);
+					await db.edges.bulkAdd(allEdges);
 				}
 			);
 
