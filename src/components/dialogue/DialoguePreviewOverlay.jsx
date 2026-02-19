@@ -4,11 +4,14 @@ import { Square, Volume2, Play, CheckCircle2, CornerUpLeft, Sparkles, ExternalLi
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import {
 	getDialogueRowsForPreview,
 	getSpeakerForPreview,
 	isTerminalPreviewNode,
 	PREVIEW_START_NODE_ID,
+	collectPreviewScenarioRules,
+	evaluatePreviewEdgeConditions,
 	resolvePreviewAudioSource,
 } from '@/lib/dialoguePreviewEngine';
 
@@ -39,6 +42,10 @@ export function DialoguePreviewOverlay({
 	const [currentRowIndex, setCurrentRowIndex] = useState(0);
 	const [currentRowCount, setCurrentRowCount] = useState(0);
 	const [currentRowProgressPercent, setCurrentRowProgressPercent] = useState(0);
+	const [scenarioRules, setScenarioRules] = useState([]);
+	const [scenarioContext, setScenarioContext] = useState({});
+	const [scenarioReady, setScenarioReady] = useState(false);
+	const [scenarioError, setScenarioError] = useState('');
 
 	const runtimeRef = useRef({
 		timer: null,
@@ -46,7 +53,10 @@ export function DialoguePreviewOverlay({
 		stepCount: 0,
 		audio: null,
 		audioObjectUrl: null,
+		closeTimeout: null,
+		isClosingLocked: false,
 	});
+	const wasOpenRef = useRef(false);
 
 	const regularNodes = useMemo(
 		() => nodes.filter((node) => node?.type !== 'placeholderNode'),
@@ -60,22 +70,45 @@ export function DialoguePreviewOverlay({
 		() => new Map(regularNodes.map((node) => [node.id, node])),
 		[regularNodes]
 	);
-	const outgoingMap = useMemo(() => {
+	const outgoingEdgeMap = useMemo(() => {
 		const map = new Map();
 		regularEdges.forEach((edge) => {
 			if (!map.has(edge.source)) map.set(edge.source, []);
-			map.get(edge.source).push(edge.target);
+			map.get(edge.source).push(edge);
 		});
 		return map;
 	}, [regularEdges]);
-	const startPreviewNodeId = useMemo(() => {
-		const startChildren = outgoingMap.get(PREVIEW_START_NODE_ID) || [];
-		return startChildren.find((id) => nodeMap.has(id)) || null;
-	}, [outgoingMap, nodeMap]);
+	const getTraversableNextNodes = useCallback(
+		(sourceNodeId) => {
+			const edgesFromNode = outgoingEdgeMap.get(sourceNodeId) || [];
+			return edgesFromNode
+				.filter((edge) => evaluatePreviewEdgeConditions(edge, scenarioContext))
+				.map((edge) => nodeMap.get(edge.target))
+				.filter(Boolean);
+		},
+		[outgoingEdgeMap, scenarioContext, nodeMap]
+	);
+	const scenarioRuleDefinitions = useMemo(
+		() => collectPreviewScenarioRules(regularEdges),
+		[regularEdges]
+	);
+	const getStartPreviewNodeId = useCallback(
+		(context) => {
+			const startEdges = outgoingEdgeMap.get(PREVIEW_START_NODE_ID) || [];
+			const validStartEdge = startEdges.find(
+				(edge) =>
+					nodeMap.has(edge.target) &&
+					evaluatePreviewEdgeConditions(edge, context)
+			);
+			return validStartEdge?.target || null;
+		},
+		[outgoingEdgeMap, nodeMap]
+	);
 	const selectedRouteNodeIds = useMemo(() => {
+		const startNodeId = getStartPreviewNodeId(scenarioContext);
 		const route = [];
 		const seen = new Set();
-		let cursorId = startPreviewNodeId;
+		let cursorId = startNodeId;
 		let steps = 0;
 
 		while (cursorId && nodeMap.has(cursorId) && steps < MAX_PREVIEW_STEPS && !seen.has(cursorId)) {
@@ -93,23 +126,21 @@ export function DialoguePreviewOverlay({
 				continue;
 			}
 
-			const nextIds = outgoingMap.get(cursorId) || [];
-			if (nextIds.length === 0) break;
+			const nextNodes = getTraversableNextNodes(cursorId);
+			if (nextNodes.length === 0) break;
 
-			if (nextIds.length > 1 && node.type !== 'answerNode') {
+			if (nextNodes.length > 1 && node.type !== 'answerNode') {
 				const selectedChoiceId = selectedBranches[cursorId];
 				if (!selectedChoiceId || !nodeMap.has(selectedChoiceId)) break;
 				cursorId = selectedChoiceId;
 				continue;
 			}
 
-			const nextId = nextIds.find((id) => nodeMap.has(id));
-			if (!nextId) break;
-			cursorId = nextId;
+			cursorId = nextNodes[0].id;
 		}
 
 		return route;
-	}, [nodeMap, outgoingMap, selectedBranches, startPreviewNodeId]);
+	}, [nodeMap, getTraversableNextNodes, selectedBranches, scenarioContext, getStartPreviewNodeId]);
 
 	const visitedPlayableCount = useMemo(() => {
 		const reachableSet = new Set(selectedRouteNodeIds);
@@ -146,8 +177,14 @@ export function DialoguePreviewOverlay({
 
 	const closePreview = useCallback(
 		({ withAnimation = true } = {}) => {
+			if (runtimeRef.current.isClosingLocked) return;
+			runtimeRef.current.isClosingLocked = true;
 			clearTimer();
 			stopAudio();
+			if (runtimeRef.current.closeTimeout) {
+				window.clearTimeout(runtimeRef.current.closeTimeout);
+				runtimeRef.current.closeTimeout = null;
+			}
 			setChoiceOptions([]);
 			setCurrentNodeId(null);
 			setLineText('');
@@ -163,14 +200,17 @@ export function DialoguePreviewOverlay({
 			if (!withAnimation) {
 				setIsClosing(false);
 				setIsVisible(false);
+				runtimeRef.current.isClosingLocked = false;
 				onStop?.({ reason: 'manual', withAnimation: false });
 				return;
 			}
 
 			setIsClosing(true);
-			window.setTimeout(() => {
+			runtimeRef.current.closeTimeout = window.setTimeout(() => {
 				setIsClosing(false);
 				setIsVisible(false);
+				runtimeRef.current.closeTimeout = null;
+				runtimeRef.current.isClosingLocked = false;
 				onStop?.({ reason: 'manual', withAnimation: true });
 			}, CLOSE_ANIMATION_MS);
 		},
@@ -178,10 +218,8 @@ export function DialoguePreviewOverlay({
 	);
 
 	const buildChoiceOption = useCallback(
-		(choiceNode) => {
-			const nextAfterChoice = (outgoingMap.get(choiceNode.id) || [])
-				.map((id) => nodeMap.get(id))
-				.filter(Boolean);
+		(choiceNode, { available = true, isConditional = false } = {}) => {
+			const nextAfterChoice = getTraversableNextNodes(choiceNode.id);
 			const decoratorsCount = Array.isArray(choiceNode.data?.decorators)
 				? choiceNode.data.decorators.length
 				: 0;
@@ -215,9 +253,34 @@ export function DialoguePreviewOverlay({
 					t('editor.preview.choiceFallback'),
 				outcome,
 				decoratorsCount,
+				available,
+				isConditional,
 			};
 		},
-		[nodeMap, outgoingMap, t]
+		[getTraversableNextNodes, t]
+	);
+
+	const getBranchChoiceOptions = useCallback(
+		(sourceNodeId) => {
+			const outgoingEdges = outgoingEdgeMap.get(sourceNodeId) || [];
+			const uniqueByTarget = new Set();
+			const options = [];
+
+			outgoingEdges.forEach((edge) => {
+				const targetNode = nodeMap.get(edge.target);
+				if (!targetNode) return;
+				if (uniqueByTarget.has(targetNode.id)) return;
+				uniqueByTarget.add(targetNode.id);
+
+				const rules = edge?.data?.conditions?.rules;
+				const isConditional = Array.isArray(rules) && rules.length > 0;
+				const available = evaluatePreviewEdgeConditions(edge, scenarioContext);
+				options.push(buildChoiceOption(targetNode, { available, isConditional }));
+			});
+
+			return options;
+		},
+		[outgoingEdgeMap, nodeMap, scenarioContext, buildChoiceOption]
 	);
 
 	const goToNode = useCallback(
@@ -260,9 +323,8 @@ export function DialoguePreviewOverlay({
 
 			if (node.type === 'delayNode') {
 				const durationMs = Math.max(200, (Number(node.data?.duration) || 0.1) * 1000);
-				const nextNodes = (outgoingMap.get(node.id) || [])
-					.map((nextId) => nodeMap.get(nextId))
-					.filter(Boolean);
+				const nextNodes = getTraversableNextNodes(node.id);
+				const branchOptions = getBranchChoiceOptions(node.id);
 
 				setSpeaker(getSpeakerForPreview(node, t));
 				setLineText(
@@ -296,9 +358,9 @@ export function DialoguePreviewOverlay({
 						closePreview({ withAnimation: true });
 						return;
 					}
-					if (nextNodes.length > 1) {
+					if (branchOptions.length > 1) {
 						setActiveBranchNodeId(node.id);
-						setChoiceOptions(nextNodes.map((choiceNode) => buildChoiceOption(choiceNode)));
+						setChoiceOptions(branchOptions);
 						return;
 					}
 					window.setTimeout(() => {
@@ -309,9 +371,7 @@ export function DialoguePreviewOverlay({
 			}
 
 			const rows = getDialogueRowsForPreview(node);
-			const nextNodes = (outgoingMap.get(node.id) || [])
-				.map((nextId) => nodeMap.get(nextId))
-				.filter(Boolean);
+			const nextNodes = getTraversableNextNodes(node.id);
 
 			const finalizeNode = () => {
 				if (isTerminalPreviewNode(node)) {
@@ -319,12 +379,10 @@ export function DialoguePreviewOverlay({
 					return;
 				}
 
-				const selectableChoices = node.type !== 'answerNode' ? nextNodes : [];
-				if (selectableChoices.length > 1) {
+				const branchOptions = node.type !== 'answerNode' ? getBranchChoiceOptions(node.id) : [];
+				if (branchOptions.length > 1) {
 					setActiveBranchNodeId(node.id);
-					setChoiceOptions(
-						selectableChoices.map((choiceNode) => buildChoiceOption(choiceNode))
-					);
+					setChoiceOptions(branchOptions);
 					return;
 				}
 
@@ -405,20 +463,40 @@ export function DialoguePreviewOverlay({
 			nodeMap,
 			onNodeChange,
 			onNodeFocus,
-			outgoingMap,
+			getTraversableNextNodes,
 			t,
 			volume,
 			closePreview,
 			stopAudio,
-			buildChoiceOption,
+			getBranchChoiceOptions,
 		]
 	);
 
+	const startScenarioPreview = useCallback(() => {
+		const startNodeId = getStartPreviewNodeId(scenarioContext);
+		if (!startNodeId) {
+			setScenarioError(t('editor.preview.invalidNoPlayablePath'));
+			return;
+		}
+		setScenarioError('');
+		setScenarioReady(true);
+		runtimeRef.current.stepCount = 0;
+		goToNode(startNodeId);
+	}, [goToNode, getStartPreviewNodeId, scenarioContext, t]);
+
 	useEffect(() => {
 		if (!open) {
+			wasOpenRef.current = false;
+			if (runtimeRef.current.closeTimeout) {
+				window.clearTimeout(runtimeRef.current.closeTimeout);
+				runtimeRef.current.closeTimeout = null;
+			}
+			runtimeRef.current.isClosingLocked = false;
 			setIsVisible(false);
 			return;
 		}
+		if (wasOpenRef.current) return;
+		wasOpenRef.current = true;
 
 		setIsVisible(true);
 		setIsClosing(false);
@@ -430,19 +508,39 @@ export function DialoguePreviewOverlay({
 		setCurrentRowIndex(0);
 		setCurrentRowCount(0);
 		setCurrentRowProgressPercent(0);
-		setCurrentNodeId(startPreviewNodeId);
-		runtimeRef.current.stepCount = 0;
-		if (!startPreviewNodeId) {
+		setScenarioError('');
+		const initialScenarioContext = scenarioRuleDefinitions.reduce((acc, rule) => {
+			acc[rule.key] = true;
+			return acc;
+		}, {});
+		const initialStartNodeId = getStartPreviewNodeId(initialScenarioContext);
+		setScenarioRules(scenarioRuleDefinitions);
+		setScenarioContext(initialScenarioContext);
+		const hasScenarioSetup = scenarioRuleDefinitions.length > 0;
+		setScenarioReady(!hasScenarioSetup);
+		setCurrentNodeId(!hasScenarioSetup ? initialStartNodeId : null);
+		if (!hasScenarioSetup && !initialStartNodeId) {
 			closePreview({ withAnimation: true });
 			return;
 		}
-		goToNode(startPreviewNodeId);
+		if (!hasScenarioSetup) {
+			runtimeRef.current.stepCount = 0;
+			goToNode(initialStartNodeId);
+		}
 
 		return () => {
 			clearTimer();
 			stopAudio();
 		};
-	}, [open, goToNode, clearTimer, stopAudio, closePreview, startPreviewNodeId]);
+	}, [
+		open,
+		goToNode,
+		clearTimer,
+		stopAudio,
+		closePreview,
+		getStartPreviewNodeId,
+		scenarioRuleDefinitions,
+	]);
 
 	useEffect(() => {
 		if (!isVisible) return undefined;
@@ -474,6 +572,13 @@ export function DialoguePreviewOverlay({
 			runtimeRef.current.audio.volume = Math.max(0, Math.min(1, volume / 100));
 		}
 	}, [volume]);
+
+	const scenarioSetupRequired = !scenarioReady && scenarioRules.length > 0;
+	const formatScenarioValues = useCallback((values) => {
+		const entries = Object.entries(values || {});
+		if (entries.length === 0) return '';
+		return entries.map(([key, value]) => `${key}: ${String(value)}`).join(', ');
+	}, []);
 
 	if (!isVisible) return null;
 
@@ -512,6 +617,66 @@ export function DialoguePreviewOverlay({
 				</div>
 
 				<div className="px-6 py-5 space-y-5">
+					{scenarioSetupRequired && (
+						<div className="rounded-xl border border-border bg-background/70 p-4 space-y-4">
+							<div>
+								<p className="text-sm font-semibold">Scenario Conditions</p>
+								<p className="text-xs text-muted-foreground mt-1">
+									Set condition results before starting preview.
+								</p>
+							</div>
+							<div className="space-y-2 max-h-[260px] overflow-auto pr-1">
+								{scenarioRules.map((rule) => {
+									const valuesSummary = formatScenarioValues(rule.values);
+									const enabled = Boolean(scenarioContext[rule.key]);
+									return (
+										<div
+											key={rule.key}
+											className="rounded-lg border border-border bg-card/70 p-3 flex items-center justify-between gap-3"
+										>
+											<div className="min-w-0">
+												<p className="text-sm font-medium truncate">
+													{rule.name || rule.id}
+												</p>
+												{valuesSummary && (
+													<p className="text-xs text-muted-foreground truncate">
+														{valuesSummary}
+													</p>
+												)}
+											</div>
+											<div className="flex items-center gap-2 shrink-0">
+												<span className="text-xs text-muted-foreground">
+													{enabled ? t('common.true') : t('common.false')}
+												</span>
+												<Switch
+													checked={enabled}
+													onCheckedChange={(checked) => {
+														setScenarioError('');
+														setScenarioContext((prev) => ({
+															...prev,
+															[rule.key]: checked,
+														}));
+													}}
+												/>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+							{scenarioError && (
+								<p className="text-xs text-destructive">{scenarioError}</p>
+							)}
+							<div className="flex justify-end">
+								<Button type="button" onClick={startScenarioPreview} className="gap-2">
+									<Play className="h-4 w-4" />
+									Start Preview
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{!scenarioSetupRequired && (
+						<>
 					<div className="min-h-[130px] rounded-xl border border-border bg-background/70 p-4">
 						<p className="text-base leading-relaxed whitespace-pre-wrap">
 							{lineText || t('editor.preview.waiting')}
@@ -540,7 +705,12 @@ export function DialoguePreviewOverlay({
 										key={choice.id}
 										type="button"
 										variant="outline"
+										disabled={!choice.available}
 										className={`justify-start text-left h-auto py-2.5 ${
+											!choice.available
+												? 'opacity-60 cursor-not-allowed'
+												: ''
+										} ${
 											choice.outcome === 'complete'
 												? 'border-destructive/40 bg-destructive/5'
 												: choice.outcome === 'end'
@@ -550,6 +720,7 @@ export function DialoguePreviewOverlay({
 													: ''
 										}`}
 										onClick={() => {
+											if (!choice.available) return;
 											setChoiceOptions([]);
 											if (activeBranchNodeId) {
 												setSelectedBranches((prev) => ({
@@ -587,6 +758,16 @@ export function DialoguePreviewOverlay({
 													<span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2 py-0.5">
 														<ExternalLink className="h-3 w-3" />
 														{t('editor.preview.choiceOpenChildGraph')}
+													</span>
+												)}
+												{choice.isConditional && (
+													<span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
+														Conditional
+													</span>
+												)}
+												{!choice.available && (
+													<span className="inline-flex items-center rounded-full border border-muted-foreground/35 bg-muted px-2 py-0.5 text-muted-foreground">
+														Unavailable
 													</span>
 												)}
 												{choice.decoratorsCount > 0 && (
@@ -627,6 +808,8 @@ export function DialoguePreviewOverlay({
 							</div>
 						)}
 					</div>
+						</>
+					)}
 				</div>
 			</div>
 		</div>

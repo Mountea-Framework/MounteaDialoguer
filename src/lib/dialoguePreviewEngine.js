@@ -141,6 +141,66 @@ export const getSpeakerForPreview = (node, t) => {
 
 export const isTerminalPreviewNode = (node) => PREVIEW_TERMINAL_TYPES.has(node?.type);
 
+const stableStringifyObject = (value) => {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return '{}';
+	const sorted = Object.keys(value)
+		.sort()
+		.reduce((acc, key) => {
+			acc[key] = value[key];
+			return acc;
+		}, {});
+	return JSON.stringify(sorted);
+};
+
+export const getPreviewConditionRuleKey = (rule) => {
+	if (!rule || !rule.id) return '';
+	const valuesKey = stableStringifyObject(rule.values);
+	return `${rule.id}:${valuesKey}`;
+};
+
+export const collectPreviewScenarioRules = (edges = []) => {
+	const seen = new Set();
+	const collected = [];
+
+	edges.forEach((edge) => {
+		const rules = edge?.data?.conditions?.rules;
+		if (!Array.isArray(rules)) return;
+
+		rules.forEach((rule) => {
+			const key = getPreviewConditionRuleKey(rule);
+			if (!key || seen.has(key)) return;
+			seen.add(key);
+			collected.push({
+				key,
+				id: rule.id,
+				name: rule.name || rule.id,
+				values: rule.values || {},
+			});
+		});
+	});
+
+	return collected;
+};
+
+export const evaluatePreviewEdgeConditions = (edge, scenarioContext = {}) => {
+	const conditionGroup = edge?.data?.conditions;
+	const rules = Array.isArray(conditionGroup?.rules) ? conditionGroup.rules : [];
+	if (rules.length === 0) return true;
+
+	const mode = conditionGroup?.mode === 'any' ? 'any' : 'all';
+	const evaluations = rules.map((rule) => {
+		const key = getPreviewConditionRuleKey(rule);
+		const rawResult = key && Object.prototype.hasOwnProperty.call(scenarioContext, key)
+			? Boolean(scenarioContext[key])
+			: true;
+		return rule?.negate ? !rawResult : rawResult;
+	});
+
+	return mode === 'any'
+		? evaluations.some(Boolean)
+		: evaluations.every(Boolean);
+};
+
 export const resolvePreviewAudioSource = (row) => {
 	const audio = row?.audioFile;
 	if (!audio) return null;
