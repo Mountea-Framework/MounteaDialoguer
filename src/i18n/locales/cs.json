@@ -168,6 +168,8 @@
       "addPlayerTooltip": "Přidat Player node - přetáhni na plátno nebo jenom klikni",
       "return": "Return",
       "addReturnTooltip": "Přidat Return node - přetáhni na plátno nebo jenom klikni",
+      "openChildGraph": "Open Child Graph",
+      "addOpenChildGraphTooltip": "Přidat Open Child Graph node - přetáhni na plátno nebo jenom klikni",
       "complete": "Complete",
       "addCompleteTooltip": "Přidat Complete node - přetáhni na plátno nebo jenom klikni",
       "delay": "Delay",
@@ -191,6 +193,9 @@
       "return": "Return To",
       "returnTarget": "Cílová node:",
       "returnSelectNode": "Vyber node...",
+      "openChildGraph": "Open Child Graph",
+      "openChildGraphTarget": "Dialog:",
+      "openChildGraphSelectDialogue": "Vyber dialog...",
       "rows": "{{count}} řádek",
       "rows_plural": "{{count}} řádků",
       "tooltip": {
@@ -224,7 +229,9 @@
       "selectionTitlePlaceholder": "Zadat zkrácený název...",
       "dialogueRows": "Řádky dialogu",
       "targetNode": "Cílová node",
-      "targetNodePlaceholder": "Vybrat cílovou node..."
+      "targetNodePlaceholder": "Vybrat cílovou node...",
+      "targetDialogue": "Otevřít dialog",
+      "targetDialoguePlaceholder": "Vybrat cílový dialog..."
     },
     "validation": {
       "saveWarningTitle": "Uloženo s varováním",

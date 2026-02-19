@@ -94,6 +94,33 @@
 		"deleteTitle": "Delete Decorator",
 		"deleteDescription": "Are you sure you want to delete {{name}}? This action cannot be undone."
 	},
+	"conditions": {
+		"title": "Conditions",
+		"addNew": "Add Condition",
+		"createDescription": "Add a new condition definition for dialogue edge checks",
+		"updateDescription": "Update the condition's information",
+		"description": "Manage reusable condition definitions for dialogue edges",
+		"name": "Condition Name",
+		"namePlaceholder": "Enter condition name",
+		"type": "Type",
+		"typePlaceholder": "e.g., Quest, Inventory, Flags",
+		"noConditions": "No conditions yet",
+		"noConditionsDescription": "Add conditions to control whether dialogue edges can be traversed",
+		"deleteTitle": "Delete Condition",
+		"deleteDescription": "Are you sure you want to delete {{name}}? This action cannot be undone.",
+		"validation": {
+			"noWhitespace": "Name cannot contain whitespace"
+		},
+		"properties": {
+			"title": "Properties",
+			"add": "Add Property",
+			"empty": "No properties defined. Add properties to configure this condition.",
+			"name": "Property Name",
+			"namePlaceholder": "e.g., questId",
+			"type": "Type",
+			"defaultValue": "Default Value"
+		}
+	},
 	"projects": {
 		"title": "Projects",
 		"createNew": "New Project",
@@ -162,17 +189,49 @@
 		"nodeToolbar": {
 			"autoLayout": "Auto Layout",
 			"autoLayoutTooltip": "Auto-layout nodes using dagre algorithm",
+			"recenter": "Recenter",
+			"recenterTooltip": "Fit the whole graph into view",
+			"backToStart": "Back to Start",
+			"startFocusTooltip": "Focus the Start node",
 			"npc": "NPC",
 			"addNpcTooltip": "Add NPC node - drag to canvas or click",
 			"player": "Player",
 			"addPlayerTooltip": "Add Player node - drag to canvas or click",
 			"return": "Return",
 			"addReturnTooltip": "Add Return node - drag to canvas or click",
+			"openChildGraph": "Open Child Graph",
+			"addOpenChildGraphTooltip": "Add Open Child Graph node - drag to canvas or click",
 			"complete": "Complete",
 			"addCompleteTooltip": "Add Complete node - drag to canvas or click",
 			"delay": "Delay",
 			"addDelayTooltip": "Add Delay node - drag to canvas or click",
 			"poweredBy": "Powered by"
+		},
+		"preview": {
+			"title": "Dialogue Preview",
+			"start": "Preview",
+			"startTooltip": "Start dialogue preview",
+			"stop": "Stop",
+			"waiting": "Waiting for next dialogue line...",
+			"chooseAnswer": "Choose a player answer",
+			"choiceFallback": "Untitled answer",
+			"choiceEnds": "Ends dialogue",
+			"choiceComplete": "Completes dialogue",
+			"choiceReturn": "Returns to node",
+			"choiceOpenChildGraph": "Opens child graph",
+			"choiceDecorators": "{{count}} decorator",
+			"choiceDecorators_plural": "{{count}} decorators",
+			"activeNode": "Node",
+			"currentRowProgress": "Current row",
+			"invalidGraphTitle": "Cannot start preview",
+			"invalidRequiredFieldsDescription": "{{count}} node has missing required fields.",
+			"invalidRequiredFieldsDescription_plural": "{{count}} nodes have missing required fields.",
+			"invalidMissingStart": "Start node is missing.",
+			"invalidEmptyGraph": "Dialogue graph is empty.",
+			"invalidTooManyNodes": "Preview supports up to {{max}} nodes (found {{count}}).",
+			"invalidBrokenEdges": "Some node connections are invalid.",
+			"invalidNoPlayablePath": "No playable path from the start node was found.",
+			"invalidGeneric": "Dialogue graph is not valid for preview."
 		},
 		"nodes": {
 			"start": "Start",
@@ -191,6 +250,9 @@
 			"return": "Return To",
 			"returnTarget": "Target:",
 			"returnSelectNode": "Select node...",
+			"openChildGraph": "Open Child Graph",
+			"openChildGraphTarget": "Dialogue:",
+			"openChildGraphSelectDialogue": "Select dialogue...",
 			"rows": "{{count}} row",
 			"rows_plural": "{{count}} rows",
 			"tooltip": {
@@ -203,6 +265,7 @@
 			"addNode": "Add Node"
 		},
 		"nodeDetails": "Node Details",
+		"edgeDetails": "Edge Details",
 		"speaker": "Speaker",
 		"dialogueText": "Dialogue Text",
 		"audioClip": "Audio Clip",
@@ -215,6 +278,7 @@
 			"nodeData": "Node Data",
 			"dialogueDetails": "Dialogue Details",
 			"nodeDecorators": "Node Decorators",
+			"conditions": "Conditions",
 			"displayName": "Display Name",
 			"displayNamePlaceholder": "Enter display name...",
 			"participant": "Participant",
@@ -224,7 +288,18 @@
 			"selectionTitlePlaceholder": "Enter selection title...",
 			"dialogueRows": "Dialogue Rows",
 			"targetNode": "Return to Node",
-			"targetNodePlaceholder": "Select target node..."
+			"targetNodePlaceholder": "Select target node...",
+			"targetDialogue": "Open Dialogue",
+			"targetDialoguePlaceholder": "Select target dialogue...",
+			"edgeId": "Edge ID"
+		},
+		"conditions": {
+			"empty": "No conditions configured yet.",
+			"passWhen": "Pass When",
+			"modeAll": "All conditions are true (AND)",
+			"modeAny": "Any condition is true (OR)",
+			"selectPlaceholder": "Select condition to add...",
+			"negate": "Negate (NOT)"
 		},
 		"validation": {
 			"saveWarningTitle": "Saved with warnings",

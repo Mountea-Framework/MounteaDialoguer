@@ -4,13 +4,8 @@ import { ChevronDown, ChevronRight, Trash2, Plus, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Switch } from '@/components/ui/switch';
 
 /**
  * DecoratorsPanel Component
@@ -53,6 +48,12 @@ export function DecoratorsPanel({
 		const decorator = decorators[index];
 		const updatedValues = { ...decorator.values, [propName]: value };
 		onUpdateDecorator(index, updatedValues);
+	};
+
+	const asBoolean = (value) => {
+		if (typeof value === 'boolean') return value;
+		if (typeof value === 'string') return value.toLowerCase() === 'true';
+		return Boolean(value);
 	};
 
 	return (
@@ -165,30 +166,23 @@ export function DecoratorsPanel({
 												)}
 
 												{prop.type === 'boolean' && (
-													<Select
-														value={
-															decorator.values[prop.name]?.toString() || 'false'
-														}
-														onValueChange={(value) =>
-															updateDecoratorValue(
-																index,
-																prop.name,
-																value === 'true'
-															)
-														}
-													>
-														<SelectTrigger>
-															<SelectValue />
-														</SelectTrigger>
-														<SelectContent>
-															<SelectItem value="true">
-																{t('common.true')}
-															</SelectItem>
-															<SelectItem value="false">
-																{t('common.false')}
-															</SelectItem>
-														</SelectContent>
-													</Select>
+													<div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
+														<Label
+															htmlFor={`${decorator.id}-${index}-${prop.name}`}
+															className="text-sm font-medium"
+														>
+															{asBoolean(decorator.values[prop.name])
+																? t('common.true')
+																: t('common.false')}
+														</Label>
+														<Switch
+															id={`${decorator.id}-${index}-${prop.name}`}
+															checked={asBoolean(decorator.values[prop.name])}
+															onCheckedChange={(checked) =>
+																updateDecoratorValue(index, prop.name, checked)
+															}
+														/>
+													</div>
 												)}
 											</div>
 										))}
@@ -202,18 +196,18 @@ export function DecoratorsPanel({
 
 			{/* Add Decorator */}
 			<div className="flex gap-2">
-				<Select value={selectedDecoratorId} onValueChange={setSelectedDecoratorId}>
-					<SelectTrigger className="flex-1">
-						<SelectValue placeholder={t('decorators.selectPlaceholder')} />
-					</SelectTrigger>
-					<SelectContent>
-						{availableDecorators.map((decorator) => (
-							<SelectItem key={decorator.id} value={decorator.id}>
-								{decorator.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+				<NativeSelect
+					value={selectedDecoratorId}
+					onChange={(e) => setSelectedDecoratorId(e.target.value)}
+					className="flex-1"
+				>
+					<option value="">{t('decorators.selectPlaceholder')}</option>
+					{availableDecorators.map((decorator) => (
+						<option key={decorator.id} value={decorator.id}>
+							{decorator.name}
+						</option>
+					))}
+				</NativeSelect>
 				<Button
 					variant="outline"
 					size="sm"

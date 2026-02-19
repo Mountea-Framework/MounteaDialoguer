@@ -29,6 +29,7 @@ export function OverviewSection({
 	participants = [],
 	categories = [],
 	decorators = [],
+	conditions = [],
 	onExport,
 	onImport,
 	onDelete,
@@ -415,6 +416,10 @@ export function OverviewSection({
 									<div className="flex justify-between items-center text-xs">
 										<span className="text-muted-foreground">{t('decorators.title')}</span>
 										<span className="font-medium">{decorators.length}</span>
+									</div>
+									<div className="flex justify-between items-center text-xs mt-2">
+										<span className="text-muted-foreground">{t('conditions.title')}</span>
+										<span className="font-medium">{conditions.length}</span>
 									</div>
 								</div>
 							</div>

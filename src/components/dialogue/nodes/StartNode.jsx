@@ -11,12 +11,13 @@ import { Play } from 'lucide-react';
  */
 const StartNode = memo(({ data, selected }) => {
 	const { t } = useTranslation();
+	const isPreviewActive = data?.previewActive;
 
 	return (
 		<div
 			className={`
 				min-w-[200px] rounded-lg border-2 bg-card shadow-lg
-				${selected ? 'border-primary ring-2 ring-primary/20' : 'border-green-500'}
+				${selected || isPreviewActive ? 'border-primary ring-2 ring-primary/20' : 'border-green-500'}
 			`}
 		>
 			{/* Header */}

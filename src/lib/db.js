@@ -85,11 +85,26 @@ export class MounteaDialoguerDB extends Dexie {
 			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
 		});
 
+		// Version 6 - Add condition definitions table
+		this.version(6).stores({
+			projects: 'id, name, createdAt, modifiedAt',
+			dialogues: 'id, projectId, name, createdAt, modifiedAt',
+			participants: 'id, projectId, name, category',
+			categories: 'id, projectId, name, parentCategoryId',
+			decorators: 'id, projectId, name, type',
+			conditions: 'id, projectId, name, type',
+			nodes: '[dialogueId+id], dialogueId, type',
+			edges: '[dialogueId+id], dialogueId, source, target',
+			syncAccounts: 'provider, accountId, email, expiresAt',
+			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
+		});
+
 		this.projects = this.table('projects');
 		this.dialogues = this.table('dialogues');
 		this.participants = this.table('participants');
 		this.categories = this.table('categories');
 		this.decorators = this.table('decorators');
+		this.conditions = this.table('conditions');
 		this.nodes = this.table('nodes');
 		this.edges = this.table('edges');
 		this.syncAccounts = this.table('syncAccounts');

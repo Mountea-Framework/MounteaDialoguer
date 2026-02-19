@@ -10,6 +10,7 @@ import { MessageCircle, Volume2, Tag, User } from 'lucide-react';
  */
 const LeadNode = memo(({ data, selected }) => {
 	const { t } = useTranslation();
+	const isPreviewActive = data?.previewActive;
 
 	// Get dialogue rows or fallback to legacy text
 	const dialogueRows = data.dialogueRows || (data.text ? [{ text: data.text }] : []);
@@ -39,7 +40,7 @@ const LeadNode = memo(({ data, selected }) => {
 		<div
 			className={`
 				min-w-[250px] rounded-lg border-2 bg-card shadow-lg
-				${selected ? 'border-primary ring-2 ring-primary/20' : 'border-blue-500'}
+				${selected || isPreviewActive ? 'border-primary ring-2 ring-primary/20' : 'border-blue-500'}
 			`}
 			title={tooltip}
 		>

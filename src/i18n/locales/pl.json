@@ -168,6 +168,8 @@
 			"addPlayerTooltip": "Dodaj węzeł Gracz — przeciągnij na płótno lub kliknij",
 			"return": "Powrót",
 			"addReturnTooltip": "Dodaj węzeł Powrót — przeciągnij na płótno lub kliknij",
+			"openChildGraph": "Open Child Graph",
+			"addOpenChildGraphTooltip": "Dodaj węzeł Open Child Graph — przeciągnij na płótno lub kliknij",
 			"complete": "Zakończ",
 			"addCompleteTooltip": "Dodaj węzeł Zakończ — przeciągnij na płótno lub kliknij",
 			"delay": "Opóźnienie",
@@ -191,6 +193,9 @@
 			"return": "Powrót do",
 			"returnTarget": "Cel:",
 			"returnSelectNode": "Wybierz węzeł...",
+			"openChildGraph": "Open Child Graph",
+			"openChildGraphTarget": "Dialog:",
+			"openChildGraphSelectDialogue": "Wybierz dialog...",
 			"rows": "{{count}} wiersz",
 			"rows_plural": "{{count}} wiersze",
 			"tooltip": {
@@ -224,7 +229,9 @@
 			"selectionTitlePlaceholder": "Wpisz tytuł wyboru...",
 			"dialogueRows": "Wiersze dialogu",
 			"targetNode": "Wróć do węzła",
-			"targetNodePlaceholder": "Wybierz węzeł docelowy..."
+			"targetNodePlaceholder": "Wybierz węzeł docelowy...",
+			"targetDialogue": "Otwórz dialog",
+			"targetDialoguePlaceholder": "Wybierz dialog docelowy..."
 		},
 		"validation": {
 			"saveWarningTitle": "Zapisano z ostrzeżeniami",

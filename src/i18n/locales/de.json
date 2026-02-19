@@ -166,6 +166,8 @@
 			"addPlayerTooltip": "Spieler-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
 			"return": "Zurück",
 			"addReturnTooltip": "Zurück-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
+			"openChildGraph": "Open Child Graph",
+			"addOpenChildGraphTooltip": "Open Child Graph-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
 			"complete": "Abschluss",
 			"addCompleteTooltip": "Abschluss-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
 			"delay": "Verzögerung",
@@ -189,6 +191,9 @@
 			"return": "Zurück zu",
 			"returnTarget": "Ziel:",
 			"returnSelectNode": "Knoten auswählen...",
+			"openChildGraph": "Open Child Graph",
+			"openChildGraphTarget": "Dialog:",
+			"openChildGraphSelectDialogue": "Dialog auswählen...",
 			"rows": "{{count}} Zeile",
 			"rows_plural": "{{count}} Zeilen",
 			"tooltip": {
@@ -222,7 +227,9 @@
 			"selectionTitlePlaceholder": "Auswahltitel eingeben...",
 			"dialogueRows": "Dialogzeilen",
 			"targetNode": "Zurück zu Knoten",
-			"targetNodePlaceholder": "Zielknoten auswählen..."
+			"targetNodePlaceholder": "Zielknoten auswählen...",
+			"targetDialogue": "Dialog öffnen",
+			"targetDialoguePlaceholder": "Zieldialog auswählen..."
 		},
 		"validation": {
 			"saveWarningTitle": "Mit Warnungen gespeichert",

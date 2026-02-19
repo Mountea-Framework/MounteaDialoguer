@@ -8,6 +8,7 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useConditionStore } from '@/stores/conditionStore';
 import { useSyncStore } from '@/stores/syncStore';
 import { ProjectSidebar } from '@/components/projects/ProjectSidebar';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import { DialoguesSection } from '@/components/projects/sections/DialoguesSectio
 import { ParticipantsSection } from '@/components/projects/sections/ParticipantsSection';
 import { CategoriesSection } from '@/components/projects/sections/CategoriesSection';
 import { DecoratorsSection } from '@/components/projects/sections/DecoratorsSection';
+import { ConditionsSection } from '@/components/projects/sections/ConditionsSection';
 import { ProjectSettingsSection } from '@/components/projects/sections/ProjectSettingsSection';
 import {
 	AlertDialog,
@@ -54,6 +56,7 @@ function ProjectDetailsPage() {
 	const { participants, loadParticipants } = useParticipantStore();
 	const { categories, loadCategories } = useCategoryStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
+	const { conditions, loadConditions } = useConditionStore();
 	const { status: syncStatus, checkRemoteDiff, startPull, lastSyncedAt } = useSyncStore();
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -72,9 +75,10 @@ function ProjectDetailsPage() {
 			loadParticipants(projectId),
 			loadCategories(projectId),
 			loadDecorators(projectId),
+			loadConditions(projectId),
 		]);
 		setIsLoading(false);
-	}, [loadProjects, loadDialogues, loadParticipants, loadCategories, loadDecorators, projectId]);
+	}, [loadProjects, loadDialogues, loadParticipants, loadCategories, loadDecorators, loadConditions, projectId]);
 
 	useEffect(() => {
 		loadData();
@@ -105,6 +109,7 @@ function ProjectDetailsPage() {
 	const projectParticipants = participants.filter((p) => p.projectId === projectId);
 	const projectCategories = categories.filter((c) => c.projectId === projectId);
 	const projectDecorators = decorators.filter((d) => d.projectId === projectId);
+	const projectConditions = conditions.filter((c) => c.projectId === projectId);
 
 	const handleExport = async () => {
 		try {
@@ -321,6 +326,7 @@ function ProjectDetailsPage() {
 								participants={projectParticipants}
 								categories={projectCategories}
 								decorators={projectDecorators}
+								conditions={projectConditions}
 								onExport={handleExport}
 								onImport={handleImport}
 								onDelete={handleDeleteRequest}
@@ -351,6 +357,12 @@ function ProjectDetailsPage() {
 							<DecoratorsSection
 								projectId={projectId}
 								decorators={projectDecorators}
+							/>
+						)}
+						{activeSection === 'conditions' && (
+							<ConditionsSection
+								projectId={projectId}
+								conditions={projectConditions}
 							/>
 						)}
 						{activeSection === 'settings' && (

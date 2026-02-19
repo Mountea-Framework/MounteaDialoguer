@@ -14,11 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Switch } from '@/components/ui/switch';
-import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useConditionStore } from '@/stores/conditionStore';
 
-export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
+export function CreateConditionDialog({ open, onOpenChange, projectId }) {
 	const { t } = useTranslation();
-	const { createDecorator } = useDecoratorStore();
+	const { createCondition } = useConditionStore();
 	const [isCreating, setIsCreating] = useState(false);
 	const [formData, setFormData] = useState({
 		name: '',
@@ -30,10 +30,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 	const addProperty = () => {
 		setFormData({
 			...formData,
-			properties: [
-				...formData.properties,
-				{ name: '', type: 'string', defaultValue: '' },
-			],
+			properties: [...formData.properties, { name: '', type: 'string', defaultValue: '' }],
 		});
 	};
 
@@ -65,20 +62,20 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 		if (!formData.name.trim()) {
 			newErrors.name = t('validation.required');
 		} else if (/\s/.test(formData.name)) {
-			newErrors.name = t('decorators.validation.noWhitespace');
+			newErrors.name = t('conditions.validation.noWhitespace');
 		}
 
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
 	};
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+	const handleSubmit = async (event) => {
+		event.preventDefault();
 		if (!validate()) return;
 
 		setIsCreating(true);
 		try {
-			await createDecorator({
+			await createCondition({
 				...formData,
 				projectId,
 			});
@@ -86,7 +83,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 			setErrors({});
 			onOpenChange(false);
 		} catch (error) {
-			console.error('Failed to create decorator:', error);
+			console.error('Failed to create condition:', error);
 		} finally {
 			setIsCreating(false);
 		}
@@ -96,64 +93,59 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[600px]">
 				<DialogHeader>
-					<DialogTitle>{t('decorators.addNew')}</DialogTitle>
-					<DialogDescription>
-						{t('decorators.createDescription')}
-					</DialogDescription>
+					<DialogTitle>{t('conditions.addNew')}</DialogTitle>
+					<DialogDescription>{t('conditions.createDescription')}</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit}>
 					<div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4 sm:-mx-6 sm:px-6">
 						<div className="grid gap-4 py-4">
 							<div className="grid gap-2">
-							<Label htmlFor="name">
-								{t('decorators.name')} <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="name"
-								value={formData.name}
-								onChange={(e) => {
-									setFormData({ ...formData, name: e.target.value });
-									if (errors.name) setErrors({ ...errors, name: null });
-								}}
-								placeholder={t('decorators.namePlaceholder')}
-								className={errors.name ? 'border-destructive' : ''}
-								required
-							/>
-							{errors.name && (
-								<p className="text-xs text-destructive">{errors.name}</p>
-							)}
-						</div>
+								<Label htmlFor="name">
+									{t('conditions.name')} <span className="text-destructive">*</span>
+								</Label>
+								<Input
+									id="name"
+									value={formData.name}
+									onChange={(event) => {
+										setFormData({ ...formData, name: event.target.value });
+										if (errors.name) setErrors({ ...errors, name: null });
+									}}
+									placeholder={t('conditions.namePlaceholder')}
+									className={errors.name ? 'border-destructive' : ''}
+									required
+								/>
+								{errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+							</div>
 							<div className="grid gap-2">
-							<Label htmlFor="type">{t('decorators.type')}</Label>
-							<Input
-								id="type"
-								value={formData.type}
-								onChange={(e) =>
-									setFormData({ ...formData, type: e.target.value })
-								}
-								placeholder={t('decorators.typePlaceholder')}
-							/>
-						</div>
+								<Label htmlFor="type">{t('conditions.type')}</Label>
+								<Input
+									id="type"
+									value={formData.type}
+									onChange={(event) =>
+										setFormData({ ...formData, type: event.target.value })
+									}
+									placeholder={t('conditions.typePlaceholder')}
+								/>
+							</div>
 
-						{/* Properties Section */}
 							<div className="grid gap-3 border-t pt-4">
 								<div className="flex items-center justify-between">
-								<Label>{t('decorators.properties.title')}</Label>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={addProperty}
-									className="gap-2"
-								>
-									<Plus className="h-3 w-3" />
-									{t('decorators.properties.add')}
-								</Button>
-							</div>
+									<Label>{t('conditions.properties.title')}</Label>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={addProperty}
+										className="gap-2"
+									>
+										<Plus className="h-3 w-3" />
+										{t('conditions.properties.add')}
+									</Button>
+								</div>
 
 								{formData.properties.length === 0 && (
 									<p className="text-sm text-muted-foreground text-center py-4">
-										{t('decorators.properties.empty')}
+										{t('conditions.properties.empty')}
 									</p>
 								)}
 
@@ -171,30 +163,26 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 										>
 											<X className="h-4 w-4 text-muted-foreground" />
 										</Button>
-										
+
 										<div className="grid gap-1.5">
-											<Label className="text-xs">
-												{t('decorators.properties.name')}
-											</Label>
+											<Label className="text-xs">{t('conditions.properties.name')}</Label>
 											<Input
 												value={property.name}
-												onChange={(e) =>
-													updateProperty(index, 'name', e.target.value)
+												onChange={(event) =>
+													updateProperty(index, 'name', event.target.value)
 												}
-												placeholder={t('decorators.properties.namePlaceholder')}
+												placeholder={t('conditions.properties.namePlaceholder')}
 												size="sm"
 												required
 											/>
 										</div>
 
 										<div className="grid gap-1.5">
-											<Label className="text-xs">
-												{t('decorators.properties.type')}
-											</Label>
+											<Label className="text-xs">{t('conditions.properties.type')}</Label>
 											<NativeSelect
 												value={property.type}
-												onChange={(e) =>
-													updateProperty(index, 'type', e.target.value)
+												onChange={(event) =>
+													updateProperty(index, 'type', event.target.value)
 												}
 											>
 												{[
@@ -212,7 +200,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 
 										<div className="grid gap-1.5">
 											<Label className="text-xs">
-												{t('decorators.properties.defaultValue')}
+												{t('conditions.properties.defaultValue')}
 											</Label>
 											{property.type === 'bool' ? (
 												<div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
@@ -231,16 +219,10 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 											) : (
 												<Input
 													value={property.defaultValue}
-													onChange={(e) =>
-														updateProperty(index, 'defaultValue', e.target.value)
+													onChange={(event) =>
+														updateProperty(index, 'defaultValue', event.target.value)
 													}
-													placeholder={
-														property.type === 'int'
-															? t('decorators.properties.placeholders.int')
-															: property.type === 'float'
-															? t('decorators.properties.placeholders.float')
-															: t('decorators.properties.placeholders.value')
-													}
+													placeholder={t('decorators.properties.placeholders.value')}
 													size="sm"
 												/>
 											)}
@@ -254,7 +236,7 @@ export function CreateDecoratorDialog({ open, onOpenChange, projectId }) {
 											onClick={() => removeProperty(index)}
 										>
 											<X className="h-4 w-4 text-muted-foreground" />
-										</Button>	
+										</Button>
 									</div>
 								))}
 							</div>

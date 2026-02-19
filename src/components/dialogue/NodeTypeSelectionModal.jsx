@@ -1,4 +1,4 @@
-import { MessageCircle, User, CornerUpLeft, CheckCircle2, Clock } from 'lucide-react';
+import { MessageCircle, User, CornerUpLeft, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
 import {
 	Dialog,
 	DialogContent,
@@ -7,7 +7,6 @@ import {
 	DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from 'react-i18next';
 import { getCreatableNodeDefinitions } from '@/config/dialogueNodes';
 
 /**
@@ -15,14 +14,13 @@ import { getCreatableNodeDefinitions } from '@/config/dialogueNodes';
  * Allows mobile users to select which type of node to create
  */
 export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType }) {
-	const { t } = useTranslation();
-
 	const iconMap = {
 		messageCircle: MessageCircle,
 		user: User,
 		cornerUpLeft: CornerUpLeft,
 		checkCircle2: CheckCircle2,
 		clock: Clock,
+		externalLink: ExternalLink,
 	};
 
 	const nodeTypes = getCreatableNodeDefinitions();

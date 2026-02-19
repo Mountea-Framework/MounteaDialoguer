@@ -166,6 +166,8 @@
 			"addPlayerTooltip": "Ajouter un nœud Joueur - glisser sur le canevas ou cliquer",
 			"return": "Retour",
 			"addReturnTooltip": "Ajouter un nœud Retour - glisser sur le canevas ou cliquer",
+			"openChildGraph": "Open Child Graph",
+			"addOpenChildGraphTooltip": "Ajouter un nœud Open Child Graph - glisser sur le canevas ou cliquer",
 			"complete": "Terminer",
 			"addCompleteTooltip": "Ajouter un nœud Terminer - glisser sur le canevas ou cliquer",
 			"delay": "Délai",
@@ -189,6 +191,9 @@
 			"return": "Retourner à",
 			"returnTarget": "Cible :",
 			"returnSelectNode": "Sélectionner un nœud...",
+			"openChildGraph": "Open Child Graph",
+			"openChildGraphTarget": "Dialogue :",
+			"openChildGraphSelectDialogue": "Sélectionner un dialogue...",
 			"rows": "{{count}} ligne",
 			"rows_plural": "{{count}} lignes",
 			"tooltip": {
@@ -222,7 +227,9 @@
 			"selectionTitlePlaceholder": "Entrer le titre de sélection...",
 			"dialogueRows": "Lignes de Dialogue",
 			"targetNode": "Retour au Nœud",
-			"targetNodePlaceholder": "Sélectionner le nœud cible..."
+			"targetNodePlaceholder": "Sélectionner le nœud cible...",
+			"targetDialogue": "Ouvrir le dialogue",
+			"targetDialoguePlaceholder": "Sélectionner le dialogue cible..."
 		},
 		"validation": {
 			"saveWarningTitle": "Enregistré avec des avertissements",
