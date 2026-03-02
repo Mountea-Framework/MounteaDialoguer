@@ -39,6 +39,7 @@ import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
+import { isDesktopElectronRuntime } from "@/lib/electronRuntime";
 import { useSyncStore } from "@/stores/syncStore";
 
 export const Route = createFileRoute("/")({
@@ -428,6 +429,7 @@ function MobileProjectsTable({
 function ProjectsDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isDesktopElectron = isDesktopElectronRuntime();
   const { projects, loadProjects, isLoading, createOnboardingExampleProject } =
     useProjectStore();
   const { dialogues, loadDialogues } = useDialogueStore();
@@ -437,11 +439,34 @@ function ProjectsDashboard() {
   const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
   const { runTour, finishTour, resetTour } = useOnboarding("dashboard");
+  const desktopSearchInputRef = useRef(null);
 
   useEffect(() => {
     loadProjects();
     loadDialogues();
   }, [loadProjects, loadDialogues]);
+
+  useEffect(() => {
+    const handleDesktopNewProject = () => {
+      setIsCreateDialogOpen(true);
+    };
+    const handleFocusSearch = () => {
+      desktopSearchInputRef.current?.focus();
+      desktopSearchInputRef.current?.select();
+    };
+    const handleShowTour = () => {
+      resetTour();
+    };
+
+    window.addEventListener("menu:new-project", handleDesktopNewProject);
+    window.addEventListener("command:dashboard-focus-search", handleFocusSearch);
+    window.addEventListener("command:dashboard-show-tour", handleShowTour);
+    return () => {
+      window.removeEventListener("menu:new-project", handleDesktopNewProject);
+      window.removeEventListener("command:dashboard-focus-search", handleFocusSearch);
+      window.removeEventListener("command:dashboard-show-tour", handleShowTour);
+    };
+  }, [resetTour]);
 
   useEffect(() => {
     if (!lastSyncedAt) return;
@@ -510,14 +535,42 @@ function ProjectsDashboard() {
         onOpenChange={setIsCreateDialogOpen}
       />
 
-      <DashboardHeader
-        onNewProject={handleNewProject}
-        onSearch={setSearchQuery}
-        searchQuery={searchQuery}
-        onShowTour={resetTour}
-      />
+      {!isDesktopElectron && (
+        <DashboardHeader
+          onNewProject={handleNewProject}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
+          onShowTour={resetTour}
+        />
+      )}
 
       <main className="flex-1 p-6 md:p-12 max-w-7xl mx-auto w-full">
+        {isDesktopElectron && (
+          <div className="mb-8 flex items-center gap-3">
+            <div className="relative w-full max-w-md" data-tour="search">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={desktopSearchInputRef}
+                type="text"
+                placeholder={t("common.search")}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <Button
+              onClick={handleNewProject}
+              size="sm"
+              className="gap-1 whitespace-nowrap"
+              data-tour="create-project"
+              aria-label={t("projects.createNew")}
+            >
+              <Plus className="h-4 w-4" />
+              {t("projects.createNew")}
+            </Button>
+          </div>
+        )}
+
         <MetricsCards
           projectCount={projects.length}
           dialogueCount={totalDialogues}

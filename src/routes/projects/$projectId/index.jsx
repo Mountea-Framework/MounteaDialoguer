@@ -17,6 +17,7 @@ import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { isMobileDevice } from '@/lib/deviceDetection';
+import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -44,10 +45,11 @@ export const Route = createFileRoute('/projects/$projectId/')({
 
 function ProjectDetailsPage() {
 	const { t } = useTranslation();
-	const { theme, resolvedTheme, setTheme } = useTheme();
+	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
 	const isMobile = isMobileDevice();
+	const isDesktopElectron = isDesktopElectronRuntime();
 	const { projects, loadProjects, deleteProject, exportProject, importProject } =
 		useProjectStore();
 	const { dialogues, loadDialogues } = useDialogueStore();
@@ -222,64 +224,65 @@ function ProjectDetailsPage() {
 
 	return (
 		<div className={`${isMobile ? 'h-[100dvh]' : 'h-screen'} flex flex-col overflow-hidden`}>
-			{/* Header */}
-			<AppHeader
-				className={isMobileSidebarOpen ? 'z-40' : undefined}
-				left={
-					<>
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => setIsMobileSidebarOpen(true)}
-							className="lg:hidden rounded-full shrink-0"
+			{!isDesktopElectron && (
+				<AppHeader
+					className={isMobileSidebarOpen ? 'z-40' : undefined}
+					left={
+						<>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={() => setIsMobileSidebarOpen(true)}
+								className="lg:hidden rounded-full shrink-0"
+							>
+								<Menu className="h-5 w-5" />
+							</Button>
+							<Link to="/">
+								<SimpleTooltip content={t('common.back')} side="bottom">
+									<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+										<ArrowLeft className="h-5 w-5" />
+									</Button>
+								</SimpleTooltip>
+							</Link>
+							<div className="min-w-0">
+								<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
+							</div>
+						</>
+					}
+					right={
+						<div
+							className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
+							data-header-mobile-hidden
 						>
-							<Menu className="h-5 w-5" />
-						</Button>
-						<Link to="/">
-							<SimpleTooltip content={t('common.back')} side="bottom">
-								<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-									<ArrowLeft className="h-5 w-5" />
-								</Button>
-							</SimpleTooltip>
-						</Link>
-						<div className="min-w-0">
-							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
+							<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+							{t('editor.saveStatus.saved')}
 						</div>
-					</>
-				}
-				right={
-					<div
-						className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
-						data-header-mobile-hidden
-					>
-						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-						{t('editor.saveStatus.saved')}
-					</div>
-				}
-				menuItems={
-					<>
-						<LanguageSelector />
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							className="justify-start"
-						>
-							{resolvedTheme === 'dark' ? (
-								<>
-									<Sun className="h-4 w-4 mr-2" />
-									{t('settings.lightMode')}
-								</>
-							) : (
-								<>
-									<Moon className="h-4 w-4 mr-2" />
-									{t('settings.darkMode')}
-								</>
-							)}
-						</Button>
-					</>
-				}
-			/>
+					}
+					menuItems={
+						<>
+							<LanguageSelector />
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+								className="justify-start"
+							>
+								{resolvedTheme === 'dark' ? (
+									<>
+										<Sun className="h-4 w-4 mr-2" />
+										{t('settings.lightMode')}
+									</>
+								) : (
+									<>
+										<Moon className="h-4 w-4 mr-2" />
+										{t('settings.darkMode')}
+									</>
+								)}
+							</Button>
+						</>
+					}
+				/>
+			)}
 
 			{/* Mobile Sidebar Overlay */}
 			{isMobileSidebarOpen && (

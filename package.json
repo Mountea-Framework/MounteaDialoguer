@@ -2,14 +2,59 @@
 	"name": "mountea-dialoguer",
 	"version": "0.2.0",
 	"type": "module",
+	"main": "electron/main.cjs",
 	"private": true,
 	"scripts": {
 		"dev": "vite",
+		"dev:electron:web": "vite --port 5173 --strictPort",
+		"dev:electron:main": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+		"dev:electron": "concurrently -k \"npm:dev:electron:web\" \"npm:dev:electron:main\"",
 		"build": "vite build",
 		"preview": "vite preview",
+		"electron:start": "electron .",
+		"electron:pack": "npm run build && electron-builder --dir",
+		"electron:dist": "npm run build && electron-builder",
 		"lint": "eslint src --ext js,jsx",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist"
+	},
+	"build": {
+		"appId": "com.mountea.dialoguer",
+		"productName": "Mountea Dialoguer",
+		"asar": true,
+		"directories": {
+			"output": "release"
+		},
+		"files": [
+			"dist/**/*",
+			"electron/**/*",
+			"package.json"
+		],
+		"win": {
+			"target": [
+				"nsis"
+			],
+			"icon": "public/mounteaDialoguerIcon.png"
+		},
+		"mac": {
+			"target": [
+				"dmg",
+				"zip"
+			],
+			"category": "public.app-category.productivity"
+		},
+		"linux": {
+			"target": [
+				"AppImage",
+				"deb"
+			],
+			"category": "Utility"
+		},
+		"nsis": {
+			"oneClick": false,
+			"perMachine": false,
+			"allowToChangeInstallationDirectory": true
+		}
 	},
 	"dependencies": {
 		"@radix-ui/react-alert-dialog": "^1.1.15",
@@ -50,6 +95,10 @@
 		"@types/react-dom": "^18.3.5",
 		"@vitejs/plugin-react": "^4.3.4",
 		"autoprefixer": "^10.4.20",
+		"concurrently": "^9.2.1",
+		"cross-env": "^10.1.0",
+		"electron": "^38.3.0",
+		"electron-builder": "^26.0.12",
 		"eslint": "^8.57.1",
 		"eslint-plugin-react": "^7.37.2",
 		"eslint-plugin-react-hooks": "^4.6.2",
@@ -59,6 +108,7 @@
 		"postcss-scss": "^4.0.9",
 		"tailwindcss": "^3.4.17",
 		"tailwindcss-animate": "^1.0.7",
-		"vite": "^6.0.5"
+		"vite": "^6.0.5",
+		"wait-on": "^9.0.1"
 	}
 }

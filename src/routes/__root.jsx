@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router';
+import { createRootRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, LifeBuoy, ShieldCheck } from 'lucide-react';
@@ -12,6 +12,7 @@ import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
+import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
 import {
 	Dialog,
@@ -36,12 +37,14 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui/tooltip';
+import i18n from '@/i18n';
 
 export const Route = createRootRoute({
 	component: RootComponent,
 });
 
 function RootComponent() {
+	const navigate = useNavigate();
 	const [isLoading, setIsLoading] = useState(true);
 	const [showContent, setShowContent] = useState(false);
 	const [promptedThisSession, setPromptedThisSession] = useState(false);
@@ -50,6 +53,7 @@ function RootComponent() {
 	const hasAutoSyncedRef = useRef(false);
 	const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } =
 		useCommandPaletteStore();
+	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const {
 		loadAccount,
 		hasHydrated,
@@ -64,6 +68,40 @@ function RootComponent() {
 	const currentPath = useRouterState({
 		select: (state) => state.location.pathname || '',
 	});
+	const routeContext = useMemo(() => {
+		const dialogueSettingsMatch = currentPath.match(
+			/^\/projects\/([^/]+)\/dialogue\/([^/]+)\/settings\/?$/
+		);
+		if (dialogueSettingsMatch) {
+			return {
+				type: 'dialogue-settings',
+				projectId: dialogueSettingsMatch[1],
+				dialogueId: dialogueSettingsMatch[2],
+			};
+		}
+
+		const dialogueMatch = currentPath.match(/^\/projects\/([^/]+)\/dialogue\/([^/]+)\/?$/);
+		if (dialogueMatch) {
+			return {
+				type: 'dialogue',
+				projectId: dialogueMatch[1],
+				dialogueId: dialogueMatch[2],
+			};
+		}
+
+		const projectMatch = currentPath.match(/^\/projects\/([^/]+)\/?$/);
+		if (projectMatch) {
+			return { type: 'project', projectId: projectMatch[1], dialogueId: '' };
+		}
+		if (currentPath === '/') {
+			return { type: 'dashboard', projectId: '', dialogueId: '' };
+		}
+		if (currentPath === '/terms-of-service' || currentPath === '/data-policy') {
+			return { type: 'legal', projectId: '', dialogueId: '' };
+		}
+
+		return { type: 'none', projectId: '', dialogueId: '' };
+	}, [currentPath]);
 	const isLegalPage =
 		currentPath === '/terms-of-service' || currentPath === '/data-policy';
 
@@ -174,6 +212,239 @@ function RootComponent() {
 		onboardingSignal,
 		setLoginDialogOpen,
 	]);
+
+	useEffect(() => {
+		const electronApi = typeof window !== 'undefined' ? window.electronAPI : null;
+		if (!electronApi?.isElectron || typeof electronApi.onMenuCommand !== 'function') {
+			return undefined;
+		}
+
+		const emit = (eventName, detail = {}) => {
+			window.dispatchEvent(new CustomEvent(eventName, { detail }));
+		};
+
+		const unsubscribe = electronApi.onMenuCommand((payload) => {
+			const command = payload?.command || '';
+			const commandPayload = payload?.payload || {};
+			switch (command) {
+				case 'new-project': {
+					if (currentPath !== '/') {
+						navigate({ to: '/' });
+						window.setTimeout(() => emit('menu:new-project'), 120);
+					} else {
+						emit('menu:new-project');
+					}
+					return;
+				}
+				case 'navigate-back': {
+					if (routeContext.type === 'dialogue-settings') {
+						navigate({
+							to: '/projects/$projectId/dialogue/$dialogueId',
+							params: {
+								projectId: routeContext.projectId,
+								dialogueId: routeContext.dialogueId,
+							},
+						});
+						return;
+					}
+					if (routeContext.type === 'dialogue') {
+						navigate({
+							to: '/projects/$projectId',
+							params: { projectId: routeContext.projectId },
+						});
+						return;
+					}
+					if (routeContext.type === 'project' || routeContext.type === 'legal') {
+						navigate({ to: '/' });
+						return;
+					}
+					window.history.back();
+					return;
+				}
+				case 'dashboard-focus-search': {
+					emit('command:dashboard-focus-search');
+					return;
+				}
+				case 'open-command-palette': {
+					setCommandPaletteOpen(true);
+					return;
+				}
+				case 'project-import': {
+					if (routeContext.projectId) {
+						emit('command:project-import', { projectId: routeContext.projectId });
+					}
+					return;
+				}
+				case 'project-export': {
+					if (routeContext.projectId) {
+						emit('command:project-export', { projectId: routeContext.projectId });
+					}
+					return;
+				}
+				case 'dialogue-save': {
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-save', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'dialogue-export': {
+					if (
+						routeContext.type === 'dialogue' ||
+						routeContext.type === 'dialogue-settings'
+					) {
+						emit('command:dialogue-export', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'dialogue-undo': {
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-undo', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'dialogue-redo': {
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-redo', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'dialogue-start-preview': {
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-start-preview', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'dialogue-recenter': {
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-recenter', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'dialogue-focus-start': {
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-focus-start', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'set-theme': {
+					const theme = commandPayload.theme;
+					if (theme === 'light' || theme === 'dark' || theme === 'system') {
+						emit('app:set-theme', { theme });
+					}
+					return;
+				}
+				case 'set-language': {
+					const language = commandPayload.language;
+					if (['en', 'cs', 'de', 'fr', 'es', 'pl'].includes(language)) {
+						i18n.changeLanguage(language);
+						window.localStorage.setItem('i18nextLng', language);
+					}
+					return;
+				}
+				case 'open-settings': {
+					if (
+						routeContext.type === 'dialogue' ||
+						routeContext.type === 'dialogue-settings'
+					) {
+						openSettingsCommand({
+							context: {
+								type: 'dialogue',
+								projectId: routeContext.projectId,
+								dialogueId: routeContext.dialogueId,
+							},
+							mode: 'detail',
+						});
+					} else if (routeContext.type === 'project') {
+						openSettingsCommand({
+							context: { type: 'project', projectId: routeContext.projectId },
+							mode: 'detail',
+						});
+					} else {
+						openSettingsCommand({ mode: 'list' });
+					}
+					return;
+				}
+				case 'open-sync': {
+					setLoginDialogOpen(true);
+					return;
+				}
+				case 'open-terms': {
+					emit('command:open-terms-of-service');
+					return;
+				}
+				case 'open-data-policy': {
+					emit('command:open-data-policy');
+					return;
+				}
+				case 'show-tour': {
+					if (routeContext.type === 'dashboard') {
+						emit('command:dashboard-show-tour');
+					} else if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-show-tour', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+						});
+					}
+					return;
+				}
+				case 'open-support': {
+					emit('command:open-support');
+					return;
+				}
+				default:
+					return;
+			}
+		});
+
+		return () => {
+			if (typeof unsubscribe === 'function') {
+				unsubscribe();
+			}
+		};
+	}, [
+		currentPath,
+		navigate,
+		openSettingsCommand,
+		routeContext.dialogueId,
+		routeContext.projectId,
+		routeContext.type,
+		setCommandPaletteOpen,
+		setLoginDialogOpen,
+	]);
+
+	useEffect(() => {
+		const electronApi = typeof window !== 'undefined' ? window.electronAPI : null;
+		if (!electronApi?.isElectron || typeof electronApi.setMenuContext !== 'function') {
+			return;
+		}
+
+		electronApi.setMenuContext({
+			route: routeContext.type,
+			projectId: routeContext.projectId,
+			dialogueId: routeContext.dialogueId,
+		});
+	}, [routeContext.dialogueId, routeContext.projectId, routeContext.type]);
 
 	return (
 		<ThemeProvider defaultTheme="system" storageKey="mountea-dialoguer-theme">

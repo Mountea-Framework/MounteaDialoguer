@@ -103,7 +103,7 @@ export const useSyncStore = create(
 						accountId: userInfo.sub || userInfo.id || '',
 						email: userInfo.email || '',
 						accessToken,
-						refreshToken: existing?.refreshToken || '',
+						refreshToken: authResult.refreshToken || existing?.refreshToken || '',
 						expiresAt,
 						scope: authResult.scope,
 						tokenType: authResult.tokenType,

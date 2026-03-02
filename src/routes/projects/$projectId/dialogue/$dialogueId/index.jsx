@@ -95,6 +95,7 @@ import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionM
 import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
 import { getDeviceType } from '@/lib/deviceDetection';
 import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
+import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
 import {
 	getNodeDefinition,
 	getNodeDefaultData,
@@ -257,7 +258,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 function DialogueEditorPage() {
 	const { t } = useTranslation();
-	const { theme, resolvedTheme, setTheme } = useTheme();
+	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
@@ -302,6 +303,7 @@ function DialogueEditorPage() {
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
+	const isDesktopElectron = isDesktopElectronRuntime();
 	const [isNodeTypeModalOpen, setIsNodeTypeModalOpen] = useState(false);
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
@@ -323,6 +325,10 @@ function DialogueEditorPage() {
 	}, []);
 
 	useLayoutEffect(() => {
+		if (isDesktopElectron) {
+			document.documentElement.style.setProperty('--app-header-height', '0px');
+			return undefined;
+		}
 		if (!headerRef.current) return undefined;
 
 		const updateHeaderHeight = () => {
@@ -339,7 +345,7 @@ function DialogueEditorPage() {
 			observer.disconnect();
 			window.removeEventListener('resize', updateHeaderHeight);
 		};
-	}, []);
+	}, [isDesktopElectron]);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') {
@@ -1940,26 +1946,81 @@ function DialogueEditorPage() {
 	};
 
 	useEffect(() => {
-		const handleCommandSave = (event) => {
+		const matchesDialogue = (event) => {
 			const detail = event?.detail;
-			if (!detail || detail.dialogueId !== dialogueId) return;
+			return Boolean(detail && detail.dialogueId === dialogueId);
+		};
+
+		const handleCommandSave = (event) => {
+			if (!matchesDialogue(event)) return;
 			handleSave();
 		};
 
 		const handleCommandExport = (event) => {
-			const detail = event?.detail;
-			if (!detail || detail.dialogueId !== dialogueId) return;
+			if (!matchesDialogue(event)) return;
 			handleExport();
+		};
+
+		const handleCommandUndo = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleUndo();
+		};
+
+		const handleCommandRedo = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleRedo();
+		};
+
+		const handleCommandStartPreview = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleStartPreview();
+		};
+
+		const handleCommandRecenter = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleRecenterGraph();
+		};
+
+		const handleCommandFocusStart = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleFocusStartNode();
+		};
+
+		const handleCommandShowTour = (event) => {
+			if (!matchesDialogue(event)) return;
+			resetTour();
 		};
 
 		window.addEventListener('command:dialogue-save', handleCommandSave);
 		window.addEventListener('command:dialogue-export', handleCommandExport);
+		window.addEventListener('command:dialogue-undo', handleCommandUndo);
+		window.addEventListener('command:dialogue-redo', handleCommandRedo);
+		window.addEventListener('command:dialogue-start-preview', handleCommandStartPreview);
+		window.addEventListener('command:dialogue-recenter', handleCommandRecenter);
+		window.addEventListener('command:dialogue-focus-start', handleCommandFocusStart);
+		window.addEventListener('command:dialogue-show-tour', handleCommandShowTour);
 
 		return () => {
 			window.removeEventListener('command:dialogue-save', handleCommandSave);
 			window.removeEventListener('command:dialogue-export', handleCommandExport);
+			window.removeEventListener('command:dialogue-undo', handleCommandUndo);
+			window.removeEventListener('command:dialogue-redo', handleCommandRedo);
+			window.removeEventListener('command:dialogue-start-preview', handleCommandStartPreview);
+			window.removeEventListener('command:dialogue-recenter', handleCommandRecenter);
+			window.removeEventListener('command:dialogue-focus-start', handleCommandFocusStart);
+			window.removeEventListener('command:dialogue-show-tour', handleCommandShowTour);
 		};
-	}, [dialogueId, handleSave, handleExport]);
+	}, [
+		dialogueId,
+		handleExport,
+		handleFocusStartNode,
+		handleRecenterGraph,
+		handleRedo,
+		handleSave,
+		handleStartPreview,
+		handleUndo,
+		resetTour,
+	]);
 
 	if (!dialogue || !project) {
 		return (
@@ -1980,176 +2041,177 @@ function DialogueEditorPage() {
 				/>
 			)}
 
-			{/* Header */}
-			<AppHeader
-				ref={headerRef}
-				data-tour="editor-header"
-				left={
-					<>
-						<Link to="/projects/$projectId" params={{ projectId }}>
-							<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-								<ArrowLeft className="h-5 w-5" />
-							</Button>
-						</Link>
-						<div className="min-w-0 flex flex-row items-baseline gap-2" data-header-title>
-							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
-							<p className="hidden md:flex text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
-						</div>
-					</>
-				}
-				right={
-					<>
-						<span className="hidden md:flex" data-header-mobile-hidden>
-							<SaveIndicator
-								status={saveStatus}
-								lastSaved={lastSaved}
-								className="hidden md:flex"
-							/>
-						</span>
+			{!isDesktopElectron && (
+				<AppHeader
+					ref={headerRef}
+					data-tour="editor-header"
+					left={
+						<>
+							<Link to="/projects/$projectId" params={{ projectId }}>
+								<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+									<ArrowLeft className="h-5 w-5" />
+								</Button>
+							</Link>
+							<div className="min-w-0 flex flex-row items-baseline gap-2" data-header-title>
+								<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
+								<p className="hidden md:flex text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
+							</div>
+						</>
+					}
+					right={
+						<>
+							<span className="hidden md:flex" data-header-mobile-hidden>
+								<SaveIndicator
+									status={saveStatus}
+									lastSaved={lastSaved}
+									className="hidden md:flex"
+								/>
+							</span>
 
-						{/* Command Palette Trigger */}
-						<Button
-							variant="outline"
-							size="icon"
-							className="rounded-full"
-							data-tour="save-button"
-							onClick={() =>
-								openCommandPalette({
-									placeholder: t('common.search'),
-									actions: [
-										{
-											group: t('editor.menu.file'),
-											items: [
-												{
-													icon: Save,
-													label: isSaving ? t('common.saving') : t('common.save'),
-													shortcut: 'Ctrl+S',
-													onSelect: handleSave,
-												},
-												{
-													icon: Download,
-													label: t('common.export'),
-													shortcut: 'Ctrl+E',
-													onSelect: handleExport,
-												},
-												...(deviceType !== 'mobile'
-													? [
-															{
-																icon: PlayCircle,
-																label: t('editor.preview.start'),
-																shortcut: '',
-																onSelect: handleStartPreview,
-															},
-													  ]
-													: []),
-											],
-										},
-										{
-											group: t('editor.menu.edit'),
-											items: [
-												{
-													icon: Undo2,
-													label: t('editor.menu.undo'),
-													shortcut: 'Ctrl+Z',
-													onSelect: handleUndo,
-												},
-												{
-													icon: Redo2,
-													label: t('editor.menu.redo'),
-													shortcut: 'Ctrl+Y',
-													onSelect: handleRedo,
-												},
-											],
-										},
-										{
-											group: t('editor.menu.view'),
-											items: [
-												{
-													key: 'language-selector',
-													render: () => (
-														<div className="flex items-center gap-3">
-															<span className="text-xs font-medium text-muted-foreground">
-																{t('settings.language')}
-															</span>
-															<LanguageSelector />
-														</div>
-													),
-												},
-												{
-													icon: resolvedTheme === 'dark' ? Sun : Moon,
-													label:
-														resolvedTheme === 'dark'
-															? t('settings.lightMode')
-															: t('settings.darkMode'),
-													shortcut: '',
-													onSelect: () =>
-														setTheme(
-															resolvedTheme === 'dark' ? 'light' : 'dark'
+							{/* Command Palette Trigger */}
+							<Button
+								variant="outline"
+								size="icon"
+								className="rounded-full"
+								data-tour="save-button"
+								onClick={() =>
+									openCommandPalette({
+										placeholder: t('common.search'),
+										actions: [
+											{
+												group: t('editor.menu.file'),
+												items: [
+													{
+														icon: Save,
+														label: isSaving ? t('common.saving') : t('common.save'),
+														shortcut: 'Ctrl+S',
+														onSelect: handleSave,
+													},
+													{
+														icon: Download,
+														label: t('common.export'),
+														shortcut: 'Ctrl+E',
+														onSelect: handleExport,
+													},
+													...(deviceType !== 'mobile'
+														? [
+																{
+																	icon: PlayCircle,
+																	label: t('editor.preview.start'),
+																	shortcut: '',
+																	onSelect: handleStartPreview,
+																},
+														  ]
+														: []),
+												],
+											},
+											{
+												group: t('editor.menu.edit'),
+												items: [
+													{
+														icon: Undo2,
+														label: t('editor.menu.undo'),
+														shortcut: 'Ctrl+Z',
+														onSelect: handleUndo,
+													},
+													{
+														icon: Redo2,
+														label: t('editor.menu.redo'),
+														shortcut: 'Ctrl+Y',
+														onSelect: handleRedo,
+													},
+												],
+											},
+											{
+												group: t('editor.menu.view'),
+												items: [
+													{
+														key: 'language-selector',
+														render: () => (
+															<div className="flex items-center gap-3">
+																<span className="text-xs font-medium text-muted-foreground">
+																	{t('settings.language')}
+																</span>
+																<LanguageSelector />
+															</div>
 														),
-												},
-												{
-													icon: Crosshair,
-													label: t('editor.nodeToolbar.recenter'),
-													shortcut: '',
-													onSelect: handleRecenterGraph,
-												},
-												{
-													icon: LocateFixed,
-													label: t('editor.nodeToolbar.backToStart'),
-													shortcut: '',
-													onSelect: handleFocusStartNode,
-												},
-												...(deviceType !== 'mobile'
-													? [
-															{
-																icon: HelpCircle,
-																label: t('editor.menu.showTour'),
-																shortcut: '',
-																onSelect: resetTour,
-															},
-													  ]
-													: []),
-											],
-										},
-										{
-											group: t('settings.title'),
-											items: [
-												{
-													icon: Settings,
-													label: t('settings.title'),
-													shortcut: '',
-													onSelect: () =>
-														openSettingsCommand({
-															context: {
-																type: 'dialogue',
-																name: dialogue.name,
-																projectId,
-																dialogueId,
-															},
-															mode: 'detail',
-														}),
-												},
-												{
-													icon: Heart,
-													label: t('editor.menu.support'),
-													shortcut: '',
-													onSelect: () =>
-														window.open(
-															'https://github.com/sponsors/Mountea-Framework',
-															'_blank'
-														),
-												},
-											],
-										},
-									],
-								})
-							}
-						>
-							<MoreVertical className="h-4 w-4" />
-						</Button>
-					</>
-				}
-			/>
+													},
+													{
+														icon: resolvedTheme === 'dark' ? Sun : Moon,
+														label:
+															resolvedTheme === 'dark'
+																? t('settings.lightMode')
+																: t('settings.darkMode'),
+														shortcut: '',
+														onSelect: () =>
+															setTheme(
+																resolvedTheme === 'dark' ? 'light' : 'dark'
+															),
+													},
+													{
+														icon: Crosshair,
+														label: t('editor.nodeToolbar.recenter'),
+														shortcut: '',
+														onSelect: handleRecenterGraph,
+													},
+													{
+														icon: LocateFixed,
+														label: t('editor.nodeToolbar.backToStart'),
+														shortcut: '',
+														onSelect: handleFocusStartNode,
+													},
+													...(deviceType !== 'mobile'
+														? [
+																{
+																	icon: HelpCircle,
+																	label: t('editor.menu.showTour'),
+																	shortcut: '',
+																	onSelect: resetTour,
+																},
+														  ]
+														: []),
+												],
+											},
+											{
+												group: t('settings.title'),
+												items: [
+													{
+														icon: Settings,
+														label: t('settings.title'),
+														shortcut: '',
+														onSelect: () =>
+															openSettingsCommand({
+																context: {
+																	type: 'dialogue',
+																	name: dialogue.name,
+																	projectId,
+																	dialogueId,
+																},
+																mode: 'detail',
+															}),
+													},
+													{
+														icon: Heart,
+														label: t('editor.menu.support'),
+														shortcut: '',
+														onSelect: () =>
+															window.open(
+																'https://github.com/sponsors/Mountea-Framework',
+																'_blank'
+															),
+													},
+												],
+											},
+										],
+									})
+								}
+							>
+								<MoreVertical className="h-4 w-4" />
+							</Button>
+						</>
+					}
+				/>
+			)}
 
 			{/* Main Content */}
 			<div className="flex-1 flex overflow-hidden">

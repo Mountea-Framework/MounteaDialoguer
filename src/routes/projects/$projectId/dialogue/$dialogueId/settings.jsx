@@ -40,6 +40,7 @@ import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { formatDate } from '@/lib/dateUtils';
+import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/settings'
@@ -49,9 +50,10 @@ export const Route = createFileRoute(
 
 function DialogueSettingsPage() {
 	const { t } = useTranslation();
-	const { theme, resolvedTheme, setTheme } = useTheme();
+	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const navigate = useNavigate();
+	const isDesktopElectron = isDesktopElectronRuntime();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, updateDialogue, deleteDialogue, exportDialogue } =
 		useDialogueStore();
@@ -116,15 +118,37 @@ function DialogueSettingsPage() {
 		}
 	};
 
-		const handleDelete = async () => {
-			try {
-				await deleteDialogue(dialogueId);
-				setShowDeleteDialog(false);
-				navigate({ to: '/projects/$projectId', params: { projectId } });
-			} catch (error) {
-				console.error('Failed to delete dialogue:', error);
-			}
+	const handleDelete = async () => {
+		try {
+			await deleteDialogue(dialogueId);
+			setShowDeleteDialog(false);
+			navigate({ to: '/projects/$projectId', params: { projectId } });
+		} catch (error) {
+			console.error('Failed to delete dialogue:', error);
+		}
+	};
+
+	useEffect(() => {
+		const handleCommandExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleExport();
 		};
+
+		const handleCommandSave = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleSave();
+		};
+
+		window.addEventListener('command:dialogue-export', handleCommandExport);
+		window.addEventListener('command:dialogue-save', handleCommandSave);
+
+		return () => {
+			window.removeEventListener('command:dialogue-export', handleCommandExport);
+			window.removeEventListener('command:dialogue-save', handleCommandSave);
+		};
+	}, [dialogueId, handleExport, handleSave]);
 
 	if (!dialogue || !project) {
 		return (
@@ -136,52 +160,53 @@ function DialogueSettingsPage() {
 
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
-			{/* Header */}
-			<AppHeader
-				left={
-					<>
-						<Link
-							to="/projects/$projectId/dialogue/$dialogueId"
-							params={{ projectId, dialogueId }}
-						>
-							<Button variant="ghost" size="icon" className="rounded-full">
-								<ArrowLeft className="h-5 w-5" />
-							</Button>
-						</Link>
-						<div className="flex items-center gap-4">
-							<div>
-								<h1 className="text-2xl font-bold tracking-tight">
-									{t('dialogues.dialogueSettings')}
-								</h1>
-								<p className="text-sm text-muted-foreground">{dialogue.name}</p>
+			{!isDesktopElectron && (
+				<AppHeader
+					left={
+						<>
+							<Link
+								to="/projects/$projectId/dialogue/$dialogueId"
+								params={{ projectId, dialogueId }}
+							>
+								<Button variant="ghost" size="icon" className="rounded-full">
+									<ArrowLeft className="h-5 w-5" />
+								</Button>
+							</Link>
+							<div className="flex items-center gap-4">
+								<div>
+									<h1 className="text-2xl font-bold tracking-tight">
+										{t('dialogues.dialogueSettings')}
+									</h1>
+									<p className="text-sm text-muted-foreground">{dialogue.name}</p>
+								</div>
 							</div>
-						</div>
-					</>
-				}
-				menuItems={
-					<>
-						<LanguageSelector />
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							className="justify-start"
-						>
-							{resolvedTheme === 'dark' ? (
-								<>
-									<Sun className="h-4 w-4 mr-2" />
-									{t('settings.lightMode')}
-								</>
-							) : (
-								<>
-									<Moon className="h-4 w-4 mr-2" />
-									{t('settings.darkMode')}
-								</>
-							)}
-						</Button>
-					</>
-				}
-			/>
+						</>
+					}
+					menuItems={
+						<>
+							<LanguageSelector />
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+								className="justify-start"
+							>
+								{resolvedTheme === 'dark' ? (
+									<>
+										<Sun className="h-4 w-4 mr-2" />
+										{t('settings.lightMode')}
+									</>
+								) : (
+									<>
+										<Moon className="h-4 w-4 mr-2" />
+										{t('settings.darkMode')}
+									</>
+								)}
+							</Button>
+						</>
+					}
+				/>
+			)}
 
 			{/* Content */}
 			<main className="flex-1 overflow-y-auto">
