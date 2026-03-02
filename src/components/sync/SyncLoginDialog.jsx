@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Cloud, LogOut, Shield } from 'lucide-react';
+import { LogOut, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { useSyncStore } from '@/stores/syncStore';
 import { cn } from '@/lib/utils';
 import { isMobileDevice } from '@/lib/deviceDetection';
+import { GoogleDriveIcon } from '@/components/sync/GoogleDriveIcon';
 
 export function SyncLoginDialog({
 	open,
@@ -100,16 +101,16 @@ export function SyncLoginDialog({
 				<div className="space-y-4 pb-2">
 					<div
 						className={`flex md:flex-row gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center ${isMobile ? 'flex-row' : 'flex-col'}`}>
-						<div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-blue-500 text-white flex items-center justify-center">
-							<Cloud className="h-5 w-5" />
+						<div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center border border-border shadow-sm">
+							<GoogleDriveIcon className="h-6 w-6" />
 						</div>
 						<div className="flex-1 min-w-0">
 							<p className="text-sm font-semibold">{t('sync.providers.googleDrive')}</p>
-							<p className="text-xs text-muted-foreground truncate">
-								{isConnected && accountLabel
-									? t('sync.connectedAs', { account: accountLabel })
-									: statusLabel}
-							</p>
+							{isConnected && accountLabel ? (
+								<p className="text-xs text-muted-foreground truncate">
+									{t('sync.connectedAs', { account: accountLabel })}
+								</p>
+							) : null}
 						</div>
 						<div className="text-xs font-medium text-muted-foreground">{statusLabel}</div>
 					</div>
@@ -196,7 +197,6 @@ export function SyncLoginDialog({
 								className="gap-2 w-full sm:w-auto"
 								disabled={isSyncing}
 							>
-								<Cloud className="h-4 w-4" />
 								{isSyncing ? t('sync.status.syncing') : t('sync.syncNow')}
 							</Button>
 							<Button variant="destructive" onClick={disconnect} className="gap-2 w-full sm:w-auto">
@@ -210,7 +210,6 @@ export function SyncLoginDialog({
 							disabled={!canConnect}
 							className={cn('gap-2 w-full sm:w-auto', isConnecting && 'opacity-80')}
 						>
-							<Cloud className="h-4 w-4" />
 							{isConnecting ? t('sync.connecting') : t('sync.connect')}
 						</Button>
 					)}
@@ -228,7 +227,6 @@ export function SyncLoginDialog({
 								className="gap-2 w-full"
 								disabled={isSyncing}
 							>
-								<Cloud className="h-4 w-4" />
 								{isSyncing ? t('sync.status.syncing') : t('sync.syncNow')}
 							</Button>
 							<Button variant="destructive" onClick={disconnect} className="gap-2 w-full">
@@ -242,7 +240,6 @@ export function SyncLoginDialog({
 							disabled={!canConnect}
 							className={cn('gap-2 w-full', isConnecting && 'opacity-80')}
 						>
-							<Cloud className="h-4 w-4" />
 							{isConnecting ? t('sync.connecting') : t('sync.connect')}
 						</Button>
 					)}

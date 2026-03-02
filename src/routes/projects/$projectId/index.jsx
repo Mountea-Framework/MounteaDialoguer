@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Download, Trash2, Edit3, Play, Sun, Moon, Menu, X } from 'lucide-react';
+import { ArrowLeft, Menu, Trash2, Sun, Moon } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useProjectStore } from '@/stores/projectStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
@@ -12,9 +12,7 @@ import { useConditionStore } from '@/stores/conditionStore';
 import { useSyncStore } from '@/stores/syncStore';
 import { ProjectSidebar } from '@/components/projects/ProjectSidebar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeProvider';
-import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
@@ -246,9 +244,6 @@ function ProjectDetailsPage() {
 						</Link>
 						<div className="min-w-0">
 							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
-							<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
-								{t('projects.projectDetails')}
-							</p>
 						</div>
 					</>
 				}
@@ -258,7 +253,7 @@ function ProjectDetailsPage() {
 						data-header-mobile-hidden
 					>
 						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-						{t('dialogues.autoSaved')}
+						{t('editor.saveStatus.saved')}
 					</div>
 				}
 				menuItems={

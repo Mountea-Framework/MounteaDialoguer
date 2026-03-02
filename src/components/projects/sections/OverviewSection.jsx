@@ -4,7 +4,6 @@ import Autoplay from 'embla-carousel-autoplay';
 import { Link } from '@tanstack/react-router';
 import { Download, Upload, Trash2, Edit3, ArrowRight, MessageCircle, FolderOpen, Calendar, Clock, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import {
@@ -14,10 +13,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatDate, formatDistanceToNow } from '@/lib/dateUtils';
+import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { toast } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
+import { calculateProjectSize } from '@/lib/storageUtils';
 
 /**
  * Overview Section Component
@@ -41,6 +41,7 @@ export function OverviewSection({
 	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
 	const [carouselApi, setCarouselApi] = useState();
 	const [activeMetricIndex, setActiveMetricIndex] = useState(0);
+	const [projectSizeBytes, setProjectSizeBytes] = useState(null);
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const autoplayPlugin = useRef(
 		Autoplay({
@@ -93,11 +94,32 @@ export function OverviewSection({
 		};
 	}, [carouselApi, isMobile]);
 
+	useEffect(() => {
+		let isActive = true;
+		const loadProjectSize = async () => {
+			const size = await calculateProjectSize(project.id);
+			if (isActive) {
+				setProjectSizeBytes(size);
+			}
+		};
+		loadProjectSize();
+		return () => {
+			isActive = false;
+		};
+	}, [
+		project.id,
+		dialogues.length,
+		participants.length,
+		categories.length,
+		decorators.length,
+		conditions.length,
+	]);
+
 	const metricCards = [
 		{
 			id: 'file-size',
 			label: 'File Size',
-			value: '--',
+			value: projectSizeBytes == null ? t('common.loading') : formatFileSize(projectSizeBytes),
 			meta: `${totalNodes} ${t('dialogues.nodes')}`,
 			icon: <FolderOpen className="h-4 w-4" />,
 			iconContainerClass: 'bg-blue-50 dark:bg-blue-900/20 text-primary',
@@ -157,14 +179,8 @@ export function OverviewSection({
 			{/* Project Header */}
 			<div className="flex items-start justify-between gap-3 mb-10 min-w-0">
 				<div className="group flex-1 min-w-0">
-					<label className="hidden md:block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-						{t('projects.projectName')}
-					</label>
 					<div className="flex items-center gap-3 min-w-0">
 						<h1 className="text-xl md:text-4xl font-bold tracking-tight truncate">{project.name}</h1>
-						{project.version && (
-							<Badge variant="success">v{project.version}</Badge>
-						)}
 						<button
 							onClick={() =>
 								openSettingsCommand({
@@ -295,7 +311,7 @@ export function OverviewSection({
 						<h2 className="text-lg font-bold">{t('dialogues.title')}</h2>
 						<button
 							onClick={() => onSectionChange?.('dialogues')}
-							className="text-sm text-primary hover:text-blue-600 font-medium flex items-center gap-1 transition-colors"
+							className="text-sm text-foreground hover:text-primary font-medium flex items-center gap-1 transition-colors"
 						>
 							View All <ArrowRight className="h-4 w-4" />
 						</button>
@@ -425,43 +441,6 @@ export function OverviewSection({
 							</div>
 						</CardContent>
 					</Card>
-
-					{/* Top Participants */}
-					{participants.length > 0 && (
-						<Card>
-							<CardContent className="p-6">
-								<div className="flex items-center justify-between mb-4">
-									<h3 className="text-sm font-bold uppercase tracking-wider">
-										{t('participants.top')}
-									</h3>
-									<button
-										onClick={() => onSectionChange?.('participants')}
-										className="text-xs text-primary hover:underline"
-									>
-										{t('common.manage')}
-									</button>
-								</div>
-								<div className="flex -space-x-2 overflow-hidden mb-3">
-									{participants.slice(0, 4).map((participant) => (
-										<div
-											key={participant.id}
-											className="inline-block h-8 w-8 rounded-full ring-2 ring-card bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold"
-										>
-											{participant.name.charAt(0).toUpperCase()}
-										</div>
-									))}
-									{participants.length > 4 && (
-										<div className="h-8 w-8 rounded-full ring-2 ring-card bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-											+{participants.length - 4}
-										</div>
-									)}
-								</div>
-								<p className="text-xs text-muted-foreground">
-									{t('participants.inProject', { count: participants.length })}
-								</p>
-							</CardContent>
-						</Card>
-					)}
 				</div>
 			</div>
 		</div>

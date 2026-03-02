@@ -1,4 +1,4 @@
-import { v5 as uuidv5, validate as uuidValidate } from "uuid";
+import { validate as uuidValidate } from "uuid";
 
 export const convertToStandardGuid = (id) => {
 	if (!id || typeof id !== "string") return null;

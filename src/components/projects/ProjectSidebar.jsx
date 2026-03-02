@@ -34,39 +34,33 @@ export function ProjectSidebar({
 			id: 'overview',
 			label: t('navigation.dashboard'),
 			icon: LayoutDashboard,
-			color: 'text-blue-500',
 		},
 		{
 			id: 'dialogues',
 			label: t('dialogues.title'),
 			icon: MessageCircle,
-			color: 'text-blue-500',
 			count: dialogueCount,
 		},
 		{
 			id: 'participants',
 			label: t('participants.title'),
 			icon: Users,
-			color: 'text-purple-500',
 			count: participantCount,
 		},
 		{
 			id: 'categories',
 			label: t('categories.title'),
 			icon: Folder,
-			color: 'text-orange-500',
 		},
 		{
 			id: 'decorators',
 			label: t('decorators.title'),
 			icon: Paintbrush,
-			color: 'text-green-500',
 		},
 		{
 			id: 'conditions',
 			label: t('conditions.title'),
 			icon: SlidersHorizontal,
-			color: 'text-cyan-500',
 		},
 	];
 
@@ -82,7 +76,7 @@ export function ProjectSidebar({
 			)}
 		>
 			{/* Mobile Close Button */}
-			<div className="lg:hidden flex justify-end p-4">
+			<div className="lg:hidden flex justify-end">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -91,24 +85,6 @@ export function ProjectSidebar({
 				>
 					<X className="h-5 w-5" />
 				</Button>
-			</div>
-
-			{/* Project Info Card */}
-			<div className="p-4">
-				<div className={cn(
-					`p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center text-center`,
-					isMobileOpen ? "flex-row justify-between" : ""
-				)}>
-					<div className={cn(`w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md mb-2`,
-						isMobileOpen ? "hidden" : ""
-					)}>
-						<Folder className="h-6 w-6" />
-					</div>
-					<h3 className="font-bold text-sm line-clamp-1">{project?.name}</h3>
-					{project?.version && (
-						<p className="text-xs text-muted-foreground mt-1">v{project.version}</p>
-					)}
-				</div>
 			</div>
 
 			{/* Navigation */}
@@ -128,7 +104,7 @@ export function ProjectSidebar({
 									: 'text-muted-foreground hover:bg-accent hover:text-foreground'
 							)}
 						>
-							<Icon className={cn('h-5 w-5', isActive && section.color)} />
+							<Icon className="h-5 w-5" />
 							<span className="flex-1 text-left">{section.label}</span>
 							{section.count !== undefined && (
 								<span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-md">

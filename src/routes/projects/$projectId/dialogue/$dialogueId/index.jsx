@@ -12,7 +12,6 @@ import {
 	useEdgesState,
 	MarkerType,
 	Panel,
-	useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
@@ -35,7 +34,7 @@ import {
 	X,
 	HelpCircle,
 	Network,
-	Menu,
+	MoreVertical,
 	Trash2,
 	PanelRightOpen,
 	Clock,
@@ -58,7 +57,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -1993,9 +1991,9 @@ function DialogueEditorPage() {
 								<ArrowLeft className="h-5 w-5" />
 							</Button>
 						</Link>
-						<div className="min-w-0">
+						<div className="min-w-0 flex flex-row items-baseline gap-2" data-header-title>
 							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
-							<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
+							<p className="hidden md:flex text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
 						</div>
 					</>
 				}
@@ -2147,7 +2145,7 @@ function DialogueEditorPage() {
 								})
 							}
 						>
-							<Menu className="h-4 w-4" />
+							<MoreVertical className="h-4 w-4" />
 						</Button>
 					</>
 				}

@@ -12,7 +12,7 @@
 		--card-foreground: 0 0% 11%;
 		--popover: 0 0% 100%;
 		--popover-foreground: 0 0% 11%;
-		--primary: 211 100% 50%;
+		--primary: 24 95% 53%;
 		--primary-foreground: 0 0% 100%;
 		--secondary: 0 0% 96%;
 		--secondary-foreground: 0 0% 11%;
@@ -24,7 +24,7 @@
 		--destructive-foreground: 0 0% 100%;
 		--border: 0 0% 90%;
 		--input: 0 0% 90%;
-		--ring: 211 100% 50%;
+		--ring: 24 95% 53%;
 		--radius: 0.75rem;
 	}
 
@@ -35,7 +35,7 @@
 		--card-foreground: 0 0% 96%;
 		--popover: 0 0% 12%;
 		--popover-foreground: 0 0% 96%;
-		--primary: 211 100% 50%;
+		--primary: 24 95% 53%;
 		--primary-foreground: 0 0% 100%;
 		--secondary: 0 0% 12%;
 		--secondary-foreground: 0 0% 96%;
@@ -47,7 +47,7 @@
 		--destructive-foreground: 0 0% 100%;
 		--border: 0 0% 20%;
 		--input: 0 0% 20%;
-		--ring: 211 100% 50%;
+		--ring: 24 95% 53%;
 	}
 }
 
@@ -110,4 +110,25 @@ input[type="range"].slider-vertical::-webkit-slider-runnable-track {
 
 input[type="range"].slider-vertical::-moz-range-track {
   @apply bg-border rounded-full;
+}
+
+@keyframes route-fade-enter {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.route-fade-enter {
+	animation: route-fade-enter 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.route-fade-enter {
+		animation: none;
+	}
 }

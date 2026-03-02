@@ -14,7 +14,7 @@ import { formatDate } from '@/lib/dateUtils';
  * Project Settings Section Component
  * Project settings and configuration
  */
-export function ProjectSettingsSection({ project, onExport, onDelete }) {
+export function ProjectSettingsSection({ project, onExport, onDelete, showHeader = true }) {
 	const { t } = useTranslation();
 	const { updateProject } = useProjectStore();
 	const [isEditing, setIsEditing] = useState(false);
@@ -58,13 +58,14 @@ export function ProjectSettingsSection({ project, onExport, onDelete }) {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div>
-				<h2 className="text-2xl font-bold">{t('settings.title')}</h2>
-				<p className="text-sm text-muted-foreground mt-1">
-					{t('settings.projectDescription')}
-				</p>
-			</div>
+			{showHeader ? (
+				<div>
+					<h2 className="text-2xl font-bold">{t('settings.title')}</h2>
+					<p className="text-sm text-muted-foreground mt-1">
+						{t('settings.projectDescription')}
+					</p>
+				</div>
+			) : null}
 
 			{/* Project Information */}
 			<Card>

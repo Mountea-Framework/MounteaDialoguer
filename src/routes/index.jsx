@@ -73,9 +73,11 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
       rightClassName={`${isMobileDevice() ? "w-full justify-between" : ""}`}
       left={
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-            <MessageCircle className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img
+            src="/mounteaDialoguerIcon.png"
+            alt={t("app.title")}
+            className="w-10 h-10 rounded-lg object-cover"
+          />
           <div className="hidden sm:block min-w-0">
             <h1 className="text-base lg:text-lg font-bold tracking-tight truncate">
               {t("app.title")}
@@ -437,7 +439,8 @@ function ProjectsDashboard() {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    loadDialogues();
+  }, [loadProjects, loadDialogues]);
 
   useEffect(() => {
     if (!lastSyncedAt) return;

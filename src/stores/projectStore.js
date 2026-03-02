@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
+import { useDialogueStore } from '@/stores/dialogueStore';
 
 /**
  * Project Store
@@ -1105,6 +1106,7 @@ export const useProjectStore = create((set, get) => ({
 				await db.conditions.where('projectId').equals(id).delete();
 			});
 			await get().loadProjects();
+			await useDialogueStore.getState().loadDialogues();
 			useSyncStore.getState().schedulePush(id);
 			toast({
 				variant: 'success',
