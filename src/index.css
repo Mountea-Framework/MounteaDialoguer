@@ -111,3 +111,24 @@ input[type="range"].slider-vertical::-webkit-slider-runnable-track {
 input[type="range"].slider-vertical::-moz-range-track {
   @apply bg-border rounded-full;
 }
+
+@keyframes route-fade-enter {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.route-fade-enter {
+	animation: route-fade-enter 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.route-fade-enter {
+		animation: none;
+	}
+}

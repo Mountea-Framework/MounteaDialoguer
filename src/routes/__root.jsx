@@ -1,5 +1,4 @@
 import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, LifeBuoy, ShieldCheck } from 'lucide-react';
@@ -184,7 +183,9 @@ function RootComponent() {
 			/>
 			{(showContent || !isLoading) && (
 				<div className="min-h-screen">
-					<Outlet />
+					<div key={currentPath} className="route-fade-enter">
+						<Outlet />
+					</div>
 					<PolicyQuickLinks />
 				</div>
 			)}
