@@ -23,6 +23,7 @@ const TIPS = [
 export function LoadingScreen({ isLoading = true, onLoadingComplete }) {
 	const [currentTipIndex, setCurrentTipIndex] = useState(0);
 	const [fadeOut, setFadeOut] = useState(false);
+	const appIconSrc = `${import.meta.env.BASE_URL}mounteaDialoguerIcon.png`;
 
 	// Rotate tips every 3 seconds
 	useEffect(() => {
@@ -66,7 +67,7 @@ export function LoadingScreen({ isLoading = true, onLoadingComplete }) {
 				{/* Logo */}
 				<div className="mb-8 flex items-center gap-4">
 					<img
-						src="/mounteaDialoguerIcon.png"
+						src={appIconSrc}
 						alt="Mountea Dialoguer"
 						className="w-16 h-16 rounded-2xl object-cover shadow-2xl"
 					/>
