@@ -49,6 +49,7 @@ export const Route = createFileRoute("/")({
 function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
   const { status: syncStatus, setLoginDialogOpen } = useSyncStore();
+  const appIconSrc = `${import.meta.env.BASE_URL}mounteaDialoguerIcon.png`;
 
   const syncLabel =
     syncStatus === "connected"
@@ -74,7 +75,7 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
       left={
         <div className="flex items-center gap-3">
           <img
-            src="/mounteaDialoguerIcon.png"
+            src={appIconSrc}
             alt={t("app.title")}
             className="w-10 h-10 rounded-lg object-cover"
           />
