@@ -35,7 +35,7 @@ import {
 	X,
 	HelpCircle,
 	Network,
-	Menu,
+	MoreVertical,
 	Trash2,
 	PanelRightOpen,
 	Clock,
@@ -2147,7 +2147,7 @@ function DialogueEditorPage() {
 								})
 							}
 						>
-							<Menu className="h-4 w-4" />
+							<MoreVertical className="h-4 w-4" />
 						</Button>
 					</>
 				}

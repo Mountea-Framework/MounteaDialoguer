@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 const TIPS = [
 	'Drag nodes onto the canvas to create dialogue flows',
@@ -65,9 +65,11 @@ export function LoadingScreen({ isLoading = true, onLoadingComplete }) {
 			<div className="relative z-10 flex flex-col items-center max-w-md px-8">
 				{/* Logo */}
 				<div className="mb-8 flex items-center gap-4">
-					<div className="w-16 h-16 bg-gradient-to-br from-primary to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-2xl">
-						<MessageCircle className="h-8 w-8" />
-					</div>
+					<img
+						src="/mounteaDialoguerIcon.png"
+						alt="Mountea Dialoguer"
+						className="w-16 h-16 rounded-2xl object-cover shadow-2xl"
+					/>
 					<div>
 						<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
 							Mountea

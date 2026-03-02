@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Download, Trash2, Edit3, Play, Sun, Moon, Menu, X } from 'lucide-react';
+import { ArrowLeft, Menu, Trash2, Sun, Moon } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useProjectStore } from '@/stores/projectStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
@@ -12,9 +12,7 @@ import { useConditionStore } from '@/stores/conditionStore';
 import { useSyncStore } from '@/stores/syncStore';
 import { ProjectSidebar } from '@/components/projects/ProjectSidebar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeProvider';
-import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
