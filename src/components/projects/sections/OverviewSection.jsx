@@ -4,7 +4,6 @@ import Autoplay from 'embla-carousel-autoplay';
 import { Link } from '@tanstack/react-router';
 import { Download, Upload, Trash2, Edit3, ArrowRight, MessageCircle, FolderOpen, Calendar, Clock, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import {
@@ -14,10 +13,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatDate, formatDistanceToNow } from '@/lib/dateUtils';
+import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { toast } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
+import { calculateProjectSize } from '@/lib/storageUtils';
 
 /**
  * Overview Section Component
@@ -41,6 +41,7 @@ export function OverviewSection({
 	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
 	const [carouselApi, setCarouselApi] = useState();
 	const [activeMetricIndex, setActiveMetricIndex] = useState(0);
+	const [projectSizeBytes, setProjectSizeBytes] = useState(null);
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const autoplayPlugin = useRef(
 		Autoplay({
@@ -93,11 +94,32 @@ export function OverviewSection({
 		};
 	}, [carouselApi, isMobile]);
 
+	useEffect(() => {
+		let isActive = true;
+		const loadProjectSize = async () => {
+			const size = await calculateProjectSize(project.id);
+			if (isActive) {
+				setProjectSizeBytes(size);
+			}
+		};
+		loadProjectSize();
+		return () => {
+			isActive = false;
+		};
+	}, [
+		project.id,
+		dialogues.length,
+		participants.length,
+		categories.length,
+		decorators.length,
+		conditions.length,
+	]);
+
 	const metricCards = [
 		{
 			id: 'file-size',
 			label: 'File Size',
-			value: '--',
+			value: projectSizeBytes == null ? t('common.loading') : formatFileSize(projectSizeBytes),
 			meta: `${totalNodes} ${t('dialogues.nodes')}`,
 			icon: <FolderOpen className="h-4 w-4" />,
 			iconContainerClass: 'bg-blue-50 dark:bg-blue-900/20 text-primary',

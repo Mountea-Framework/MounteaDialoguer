@@ -246,9 +246,6 @@ function ProjectDetailsPage() {
 						</Link>
 						<div className="min-w-0">
 							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
-							<p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
-								{t('projects.projectDetails')}
-							</p>
 						</div>
 					</>
 				}
@@ -258,7 +255,7 @@ function ProjectDetailsPage() {
 						data-header-mobile-hidden
 					>
 						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-						{t('dialogues.autoSaved')}
+						{t('editor.saveStatus.saved')}
 					</div>
 				}
 				menuItems={

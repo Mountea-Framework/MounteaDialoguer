@@ -1993,9 +1993,9 @@ function DialogueEditorPage() {
 								<ArrowLeft className="h-5 w-5" />
 							</Button>
 						</Link>
-						<div className="min-w-0">
+						<div className="min-w-0 flex flex-row items-baseline gap-2" data-header-title>
 							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
-							<p className="text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
+							<p className="hidden md:flex text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
 						</div>
 					</>
 				}

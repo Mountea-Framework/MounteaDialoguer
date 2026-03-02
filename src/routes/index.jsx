@@ -437,7 +437,8 @@ function ProjectsDashboard() {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    loadDialogues();
+  }, [loadProjects, loadDialogues]);
 
   useEffect(() => {
     if (!lastSyncedAt) return;

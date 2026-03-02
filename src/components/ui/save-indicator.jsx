@@ -1,4 +1,4 @@
-import { Check, Circle, Loader2, AlertCircle } from 'lucide-react';
+import { Circle, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
@@ -11,10 +11,10 @@ export function SaveIndicator({ status = 'saved', lastSaved, className }) {
 
 	const statusConfig = {
 		saved: {
-			icon: Check,
-			iconClass: 'text-green-500',
+			icon: null,
+			iconClass: '',
+			dotClass: 'h-2 w-2 rounded-full bg-green-500',
 			text: t('editor.saveStatus.saved'),
-			dotClass: 'bg-green-500',
 		},
 		saving: {
 			icon: Loader2,
@@ -68,7 +68,11 @@ export function SaveIndicator({ status = 'saved', lastSaved, className }) {
 	return (
 		<div className={cn('flex items-center gap-2 text-sm text-muted-foreground', className)}>
 			<div className="flex items-center gap-1.5">
-				<Icon className={cn('h-3.5 w-3.5', config.iconClass)} />
+				{Icon ? (
+					<Icon className={cn('h-3.5 w-3.5', config.iconClass)} />
+				) : (
+					<span className={cn(config.dotClass)} />
+				)}
 				<span className="font-medium">{config.text}</span>
 			</div>
 			{lastSaved && status === 'saved' && (
