@@ -157,14 +157,8 @@ export function OverviewSection({
 			{/* Project Header */}
 			<div className="flex items-start justify-between gap-3 mb-10 min-w-0">
 				<div className="group flex-1 min-w-0">
-					<label className="hidden md:block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-						{t('projects.projectName')}
-					</label>
 					<div className="flex items-center gap-3 min-w-0">
 						<h1 className="text-xl md:text-4xl font-bold tracking-tight truncate">{project.name}</h1>
-						{project.version && (
-							<Badge variant="success">v{project.version}</Badge>
-						)}
 						<button
 							onClick={() =>
 								openSettingsCommand({
@@ -425,43 +419,6 @@ export function OverviewSection({
 							</div>
 						</CardContent>
 					</Card>
-
-					{/* Top Participants */}
-					{participants.length > 0 && (
-						<Card>
-							<CardContent className="p-6">
-								<div className="flex items-center justify-between mb-4">
-									<h3 className="text-sm font-bold uppercase tracking-wider">
-										{t('participants.top')}
-									</h3>
-									<button
-										onClick={() => onSectionChange?.('participants')}
-										className="text-xs text-primary hover:underline"
-									>
-										{t('common.manage')}
-									</button>
-								</div>
-								<div className="flex -space-x-2 overflow-hidden mb-3">
-									{participants.slice(0, 4).map((participant) => (
-										<div
-											key={participant.id}
-											className="inline-block h-8 w-8 rounded-full ring-2 ring-card bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold"
-										>
-											{participant.name.charAt(0).toUpperCase()}
-										</div>
-									))}
-									{participants.length > 4 && (
-										<div className="h-8 w-8 rounded-full ring-2 ring-card bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-											+{participants.length - 4}
-										</div>
-									)}
-								</div>
-								<p className="text-xs text-muted-foreground">
-									{t('participants.inProject', { count: participants.length })}
-								</p>
-							</CardContent>
-						</Card>
-					)}
 				</div>
 			</div>
 		</div>
