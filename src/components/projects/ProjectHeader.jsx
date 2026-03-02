@@ -1,4 +1,4 @@
-import { ArrowLeft, MoreVertical, Download, Trash2, Edit, Settings } from 'lucide-react';
+import { ArrowLeft, Download, Trash2, Edit } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';

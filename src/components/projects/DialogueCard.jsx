@@ -2,9 +2,7 @@ import { MoreHorizontal, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDistanceToNow } from '@/lib/dateUtils';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 
 /**

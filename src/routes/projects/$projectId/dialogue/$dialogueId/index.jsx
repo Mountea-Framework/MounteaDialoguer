@@ -12,7 +12,6 @@ import {
 	useEdgesState,
 	MarkerType,
 	Panel,
-	useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
@@ -58,7 +57,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';

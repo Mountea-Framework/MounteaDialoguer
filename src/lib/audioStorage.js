@@ -3,8 +3,6 @@
  * Handles storing and retrieving audio files from IndexedDB
  */
 
-import { db } from './db';
-
 /**
  * Store audio file in IndexedDB
  * Returns the stored audio object with metadata
