@@ -34,39 +34,33 @@ export function ProjectSidebar({
 			id: 'overview',
 			label: t('navigation.dashboard'),
 			icon: LayoutDashboard,
-			color: 'text-blue-500',
 		},
 		{
 			id: 'dialogues',
 			label: t('dialogues.title'),
 			icon: MessageCircle,
-			color: 'text-blue-500',
 			count: dialogueCount,
 		},
 		{
 			id: 'participants',
 			label: t('participants.title'),
 			icon: Users,
-			color: 'text-purple-500',
 			count: participantCount,
 		},
 		{
 			id: 'categories',
 			label: t('categories.title'),
 			icon: Folder,
-			color: 'text-orange-500',
 		},
 		{
 			id: 'decorators',
 			label: t('decorators.title'),
 			icon: Paintbrush,
-			color: 'text-green-500',
 		},
 		{
 			id: 'conditions',
 			label: t('conditions.title'),
 			icon: SlidersHorizontal,
-			color: 'text-cyan-500',
 		},
 	];
 
@@ -82,7 +76,7 @@ export function ProjectSidebar({
 			)}
 		>
 			{/* Mobile Close Button */}
-			<div className="lg:hidden flex justify-end p-4">
+			<div className="lg:hidden flex justify-end">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -110,7 +104,7 @@ export function ProjectSidebar({
 									: 'text-muted-foreground hover:bg-accent hover:text-foreground'
 							)}
 						>
-							<Icon className={cn('h-5 w-5', isActive && section.color)} />
+							<Icon className="h-5 w-5" />
 							<span className="flex-1 text-left">{section.label}</span>
 							{section.count !== undefined && (
 								<span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-md">

@@ -163,7 +163,7 @@ export function SettingsCommandDialog() {
 									icon: X,
 									keys: ['Esc'],
 								},
-						  ]
+							]
 						: [
 								{
 									id: 'shortcut-command',
@@ -177,35 +177,63 @@ export function SettingsCommandDialog() {
 									icon: Keyboard,
 									keys: ['?'],
 								},
-						  ],
+							],
 			},
 		],
 		[actionLabel, context?.type, setMode, t]
 	);
 
-	const detailContent = (
+	const detailPanelContent =
+		context?.type === 'dialogue' ? (
+			<DialogueSettingsPanel
+				dialogue={dialogue}
+				onExport={() => exportDialogue(context?.dialogueId)}
+				onDelete={() => setShowDeleteDialog(true)}
+				showHeader={!isDesktop}
+			/>
+		) : project ? (
+			<ProjectSettingsSection
+				project={project}
+				onExport={() => exportProject(context?.projectId)}
+				onDelete={() => setShowDeleteDialog(true)}
+				showHeader={!isDesktop}
+			/>
+		) : (
+			<div className="h-full flex items-center justify-center">
+				<p className="text-muted-foreground">{t('common.loading')}</p>
+			</div>
+		);
+
+	const detailHeaderTitle =
+		context?.type === 'dialogue' ? t('dialogues.dialogueSettings') : t('settings.title');
+	const detailHeaderDescription =
+		context?.type === 'dialogue'
+			? t('settingsCommand.description')
+			: t('settings.projectDescription');
+
+	const detailContent = isDesktop ? (
+		<div className="h-[85vh] w-full flex flex-col">
+			<div className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur px-6 py-4">
+				<div className="flex items-start justify-between gap-3">
+					<div>
+						<p className="text-2xl font-bold">{detailHeaderTitle}</p>
+						<p className="text-sm text-muted-foreground mt-1">{detailHeaderDescription}</p>
+					</div>
+					<button
+						type="button"
+						onClick={close}
+						className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+						aria-label={t('common.close')}
+					>
+						<X className="h-4 w-4" />
+					</button>
+				</div>
+			</div>
+			<div className="flex-1 overflow-y-auto p-6">{detailPanelContent}</div>
+		</div>
+	) : (
 		<div className="max-h-[85vh] w-full max-w-4xl overflow-y-auto p-6">
-			{context?.type === 'dialogue' ? (
-				<DialogueSettingsPanel
-					dialogue={dialogue}
-					onExport={() => exportDialogue(context?.dialogueId)}
-					onDelete={() => setShowDeleteDialog(true)}
-				/>
-			) : (
-				<>
-					{project ? (
-						<ProjectSettingsSection
-							project={project}
-							onExport={() => exportProject(context?.projectId)}
-							onDelete={() => setShowDeleteDialog(true)}
-						/>
-					) : (
-						<div className="h-full flex items-center justify-center">
-							<p className="text-muted-foreground">{t('common.loading')}</p>
-						</div>
-					)}
-				</>
-			)}
+			{detailPanelContent}
 		</div>
 	);
 
@@ -248,6 +276,7 @@ export function SettingsCommandDialog() {
 			{isDesktop ? (
 				<Dialog open={open} onOpenChange={setOpen}>
 					<DialogContent
+						showClose={mode !== 'detail'}
 						className={mode === 'detail'
 							? 'max-w-4xl w-[calc(100%-2rem)] overflow-hidden p-0 shadow-2xl'
 							: 'max-w-2xl w-[calc(100%-2rem)] overflow-hidden p-0 shadow-2xl'}

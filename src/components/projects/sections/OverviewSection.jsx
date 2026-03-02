@@ -311,7 +311,7 @@ export function OverviewSection({
 						<h2 className="text-lg font-bold">{t('dialogues.title')}</h2>
 						<button
 							onClick={() => onSectionChange?.('dialogues')}
-							className="text-sm text-primary hover:text-blue-600 font-medium flex items-center gap-1 transition-colors"
+							className="text-sm text-foreground hover:text-primary font-medium flex items-center gap-1 transition-colors"
 						>
 							View All <ArrowRight className="h-4 w-4" />
 						</button>

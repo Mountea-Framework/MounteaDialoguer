@@ -14,7 +14,12 @@ import { formatDate } from '@/lib/dateUtils';
  * Dialogue Settings Panel
  * Used inside settings modal or settings page.
  */
-export function DialogueSettingsPanel({ dialogue, onExport, onDelete }) {
+export function DialogueSettingsPanel({
+	dialogue,
+	onExport,
+	onDelete,
+	showHeader = true,
+}) {
 	const { t } = useTranslation();
 	const { updateDialogue } = useDialogueStore();
 	const [isEditing, setIsEditing] = useState(false);
@@ -68,12 +73,14 @@ export function DialogueSettingsPanel({ dialogue, onExport, onDelete }) {
 
 	return (
 		<div className="space-y-6">
-			<div>
-				<h2 className="text-2xl font-bold">{t('dialogues.dialogueSettings')}</h2>
-				<p className="text-sm text-muted-foreground mt-1">
-					{t('settingsCommand.description')}
-				</p>
-			</div>
+			{showHeader ? (
+				<div>
+					<h2 className="text-2xl font-bold">{t('dialogues.dialogueSettings')}</h2>
+					<p className="text-sm text-muted-foreground mt-1">
+						{t('settingsCommand.description')}
+					</p>
+				</div>
+			) : null}
 
 			<Card>
 				<CardHeader>

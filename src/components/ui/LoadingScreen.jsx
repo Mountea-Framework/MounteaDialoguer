@@ -52,13 +52,13 @@ export function LoadingScreen({ isLoading = true, onLoadingComplete }) {
 
 	return (
 		<div
-			className={`fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-blue-950 dark:to-purple-950 transition-opacity duration-500 ${
+			className={`fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-zinc-950 dark:via-orange-950 dark:to-amber-950 transition-opacity duration-500 ${
 				fadeOut ? 'opacity-0' : 'opacity-100'
 			}`}
 		>
 			{/* Animated background pattern */}
 			<div className="absolute inset-0 opacity-20">
-				<div className="absolute inset-0 bg-[radial-gradient(#007AFF_1px,transparent_1px)] [background-size:24px_24px] animate-pulse" />
+				<div className="absolute inset-0 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:24px_24px] animate-pulse" />
 			</div>
 
 			{/* Content */}
@@ -71,7 +71,7 @@ export function LoadingScreen({ isLoading = true, onLoadingComplete }) {
 						className="w-16 h-16 rounded-2xl object-cover shadow-2xl"
 					/>
 					<div>
-						<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+						<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-amber-500 bg-clip-text text-transparent">
 							Mountea
 						</h1>
 						<p className="text-sm text-muted-foreground font-medium">
