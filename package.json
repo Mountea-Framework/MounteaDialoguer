@@ -33,7 +33,8 @@
 		],
 		"win": {
 			"target": [
-				"nsis"
+				"nsis",
+				"portable"
 			],
 			"icon": "public/mounteaDialoguerIcon.png"
 		},
