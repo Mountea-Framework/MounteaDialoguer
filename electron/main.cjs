@@ -12,6 +12,7 @@ const LOOPBACK_PATH = '/oauth/callback';
 const OAUTH_TIMEOUT_MS = 2 * 60 * 1000;
 const SUPPORT_URL = 'https://discord.gg/hCjh8e3Y9r';
 const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues';
+const APP_DISPLAY_NAME = 'Mountea Dialoguer';
 
 let mainWindow = null;
 const DEFAULT_MENU_CONTEXT = Object.freeze({
@@ -28,6 +29,8 @@ const SUPPORTED_LANGUAGES = [
 	{ code: 'es', label: 'Espanol' },
 	{ code: 'pl', label: 'Polski' },
 ];
+
+app.setName(APP_DISPLAY_NAME);
 
 function readDotEnvValue(key) {
 	const envPath = path.join(__dirname, '..', '.env');
@@ -201,7 +204,7 @@ function createAppMenu(context = menuContext) {
 		...(isMac
 			? [
 					{
-						label: app.name,
+						label: APP_DISPLAY_NAME,
 						submenu: [
 							{ role: 'about' },
 							{ type: 'separator' },
@@ -799,7 +802,7 @@ function createMainWindow() {
 		minHeight: 720,
 		show: false,
 		autoHideMenuBar: false,
-		title: 'Mountea Dialoguer',
+		title: APP_DISPLAY_NAME,
 		icon: iconPath,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.cjs'),
