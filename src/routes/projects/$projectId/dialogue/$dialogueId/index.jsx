@@ -311,8 +311,10 @@ function DialogueEditorPage() {
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
 	const headerRef = useRef(null);
+	const bottomToolbarRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
 	const mobileLoaderStartedAtRef = useRef(null);
+	const [hideBottomToolbarMeta, setHideBottomToolbarMeta] = useState(false);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -342,6 +344,29 @@ function DialogueEditorPage() {
 			window.removeEventListener('resize', updateHeaderHeight);
 		};
 	}, []);
+
+	useLayoutEffect(() => {
+		if (deviceType === 'mobile') {
+			setHideBottomToolbarMeta(false);
+			return undefined;
+		}
+		if (!bottomToolbarRef.current) return undefined;
+
+		const updateBottomToolbarDensity = () => {
+			const width = bottomToolbarRef.current?.getBoundingClientRect().width || 0;
+			setHideBottomToolbarMeta(width < 1320);
+		};
+
+		updateBottomToolbarDensity();
+		const observer = new ResizeObserver(updateBottomToolbarDensity);
+		observer.observe(bottomToolbarRef.current);
+		window.addEventListener('resize', updateBottomToolbarDensity);
+
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', updateBottomToolbarDensity);
+		};
+	}, [deviceType]);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') {
@@ -2487,12 +2512,13 @@ function DialogueEditorPage() {
 			{/* Bottom Toolbar - Hidden on mobile */}
 			{deviceType !== 'mobile' && (
 			<div
-				className={`border-t bg-card px-6 py-3 flex items-center justify-between transition-opacity ${
+				ref={bottomToolbarRef}
+				className={`border-t bg-card px-6 py-3 flex items-center gap-4 transition-opacity ${
 					isPreviewOpen ? 'pointer-events-none opacity-40 select-none' : ''
 				}`}
 				data-tour="node-toolbar"
 			>
-				<div className="flex items-center gap-2">
+				<div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					<SimpleTooltip content={t('editor.nodeToolbar.autoLayoutTooltip')} side="top">
 						<Button
 							variant="outline"
@@ -2598,13 +2624,19 @@ function DialogueEditorPage() {
 						</Button>
 					</SimpleTooltip>
 				</div>
-				<div className="flex items-center gap-4 text-sm text-muted-foreground">
-					<span>
-						{nodes.length} {t('dialogues.nodes')} • {edges.length}{' '}
-						{t('dialogues.edges')}
-					</span>
-					<span className="text-xs hidden md:block">
-						{t('editor.nodeToolbar.poweredBy')}{' '}
+				<div className="shrink-0 whitespace-nowrap flex items-center gap-4 text-sm text-muted-foreground">
+					{!hideBottomToolbarMeta && (
+						<span>
+							{nodes.length} {t('dialogues.nodes')} • {edges.length}{' '}
+							{t('dialogues.edges')}
+						</span>
+					)}
+					<span className="text-xs">
+						{!hideBottomToolbarMeta && (
+							<>
+								{t('editor.nodeToolbar.poweredBy')}{' '}
+							</>
+						)}
 						<a
 							href="https://reactflow.dev"
 							target="_blank"
