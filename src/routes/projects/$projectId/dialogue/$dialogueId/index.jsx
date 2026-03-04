@@ -161,6 +161,8 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
 const START_NODE_ANCHOR_POSITION = { x: 0, y: 0 };
 const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 };
+const FLOW_MIN_ZOOM = 0.1;
+const FLOW_MAX_ZOOM = 2;
 
 const parseSize = (value) => {
 	if (typeof value === 'number') return value;
@@ -2262,13 +2264,13 @@ function DialogueEditorPage() {
 				nodesDraggable={deviceType !== 'mobile'}
 				panOnDrag={true}
 				panOnScroll={false}
-				zoomOnScroll={false}
+				zoomOnScroll={deviceType !== 'mobile'}
 				zoomOnPinch={false}
 				zoomOnDoubleClick={false}
 				nodesConnectable={deviceType !== 'mobile'}
 				elementsSelectable={true}
-				minZoom={0.5}
-				maxZoom={2}
+				minZoom={FLOW_MIN_ZOOM}
+				maxZoom={FLOW_MAX_ZOOM}
 			>
 				<Background />
 				<Panel position="bottom-left" className="mb-2">
@@ -2294,7 +2296,11 @@ function DialogueEditorPage() {
 							</Button>
 						</SimpleTooltip>
 						<div className="w-6 h-px bg-border my-1" />
-						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none " />
+						<ZoomSlider
+							className="!p-0 !bg-transparent !border-0 !shadow-none "
+							minZoom={FLOW_MIN_ZOOM}
+							maxZoom={FLOW_MAX_ZOOM}
+						/>
 					</div>
 				</Panel>
 				{deviceType !== 'mobile' && (
