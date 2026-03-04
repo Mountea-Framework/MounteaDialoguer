@@ -64,7 +64,7 @@ export const AppHeader = forwardRef(function AppHeader(
 		>
 			<div
 				className={cn(
-					'flex items-center justify-between flex-nowrap min-w-0 px-4 py-3 md:px-12 w-full gap-3',
+					'flex items-center justify-between flex-nowrap min-w-0 px-4 py-3 md:px-3 w-full gap-3',
 					containerClassName
 				)}
 			>

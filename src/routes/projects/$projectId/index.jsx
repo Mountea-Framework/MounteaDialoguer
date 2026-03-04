@@ -224,41 +224,41 @@ function ProjectDetailsPage() {
 
 	return (
 		<div className={`${isMobile ? 'h-[100dvh]' : 'h-screen'} flex flex-col overflow-hidden`}>
-			{!isDesktopElectron && (
-				<AppHeader
-					className={isMobileSidebarOpen ? 'z-40' : undefined}
-					left={
-						<>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => setIsMobileSidebarOpen(true)}
-								className="lg:hidden rounded-full shrink-0"
-							>
-								<Menu className="h-5 w-5" />
-							</Button>
-							<Link to="/">
-								<SimpleTooltip content={t('common.back')} side="bottom">
-									<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-										<ArrowLeft className="h-5 w-5" />
-									</Button>
-								</SimpleTooltip>
-							</Link>
-							<div className="min-w-0">
-								<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
-							</div>
-						</>
-					}
-					right={
-						<div
-							className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
-							data-header-mobile-hidden
+			<AppHeader
+				className={isMobileSidebarOpen ? 'z-40' : undefined}
+				left={
+					<>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => setIsMobileSidebarOpen(true)}
+							className="lg:hidden rounded-full shrink-0"
 						>
-							<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-							{t('editor.saveStatus.saved')}
+							<Menu className="h-5 w-5" />
+						</Button>
+						<Link to="/">
+							<SimpleTooltip content={t('common.back')} side="bottom">
+								<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+									<ArrowLeft className="h-5 w-5" />
+								</Button>
+							</SimpleTooltip>
+						</Link>
+						<div className="min-w-0">
+							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{project.name}</h1>
 						</div>
-					}
-					menuItems={
+					</>
+				}
+				right={
+					<div
+						className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
+						data-header-mobile-hidden
+					>
+						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+						{t('editor.saveStatus.saved')}
+					</div>
+				}
+				menuItems={
+					isDesktopElectron ? null : (
 						<>
 							<LanguageSelector />
 							<Button
@@ -280,9 +280,9 @@ function ProjectDetailsPage() {
 								)}
 							</Button>
 						</>
-					}
-				/>
-			)}
+					)
+				}
+			/>
 
 			{/* Mobile Sidebar Overlay */}
 			{isMobileSidebarOpen && (

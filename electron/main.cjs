@@ -128,6 +128,30 @@ function isInternalNavigation(url) {
 	return url.startsWith('file://');
 }
 
+function shouldBlockNativeShortcut(input = {}) {
+	const key = String(input.key || '').toLowerCase();
+	const hasPrimaryModifier = Boolean(input.control || input.meta);
+
+	// Browser-like navigation and reload shortcuts should be disabled for desktop app UX.
+	if (key === 'f5' || key === 'browserbackward' || key === 'browserforward') {
+		return true;
+	}
+	if (input.alt && (key === 'left' || key === 'right')) {
+		return true;
+	}
+	if (hasPrimaryModifier && (key === 'r' || key === 'l')) {
+		return true;
+	}
+	if (key === 'f12') {
+		return true;
+	}
+	if (hasPrimaryModifier && input.shift && key === 'i') {
+		return true;
+	}
+
+	return false;
+}
+
 function sendMenuCommand(command, payload = {}) {
 	const targetWindow = BrowserWindow.getFocusedWindow() || mainWindow;
 	if (!targetWindow || targetWindow.isDestroyed()) return;
@@ -799,6 +823,12 @@ function createMainWindow() {
 		if (isAllowedExternalUrl(url)) {
 			event.preventDefault();
 			shell.openExternal(url);
+		}
+	});
+
+	mainWindow.webContents.on('before-input-event', (event, input) => {
+		if (shouldBlockNativeShortcut(input)) {
+			event.preventDefault();
 		}
 	});
 

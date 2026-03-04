@@ -325,10 +325,6 @@ function DialogueEditorPage() {
 	}, []);
 
 	useLayoutEffect(() => {
-		if (isDesktopElectron) {
-			document.documentElement.style.setProperty('--app-header-height', '0px');
-			return undefined;
-		}
 		if (!headerRef.current) return undefined;
 
 		const updateHeaderHeight = () => {
@@ -345,7 +341,7 @@ function DialogueEditorPage() {
 			observer.disconnect();
 			window.removeEventListener('resize', updateHeaderHeight);
 		};
-	}, [isDesktopElectron]);
+	}, []);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') {
@@ -2041,8 +2037,7 @@ function DialogueEditorPage() {
 				/>
 			)}
 
-			{!isDesktopElectron && (
-				<AppHeader
+			<AppHeader
 					ref={headerRef}
 					data-tour="editor-header"
 					left={
@@ -2068,150 +2063,150 @@ function DialogueEditorPage() {
 								/>
 							</span>
 
-							{/* Command Palette Trigger */}
-							<Button
-								variant="outline"
-								size="icon"
-								className="rounded-full"
-								data-tour="save-button"
-								onClick={() =>
-									openCommandPalette({
-										placeholder: t('common.search'),
-										actions: [
-											{
-												group: t('editor.menu.file'),
-												items: [
-													{
-														icon: Save,
-														label: isSaving ? t('common.saving') : t('common.save'),
-														shortcut: 'Ctrl+S',
-														onSelect: handleSave,
-													},
-													{
-														icon: Download,
-														label: t('common.export'),
-														shortcut: 'Ctrl+E',
-														onSelect: handleExport,
-													},
-													...(deviceType !== 'mobile'
-														? [
-																{
-																	icon: PlayCircle,
-																	label: t('editor.preview.start'),
-																	shortcut: '',
-																	onSelect: handleStartPreview,
-																},
-														  ]
-														: []),
-												],
-											},
-											{
-												group: t('editor.menu.edit'),
-												items: [
-													{
-														icon: Undo2,
-														label: t('editor.menu.undo'),
-														shortcut: 'Ctrl+Z',
-														onSelect: handleUndo,
-													},
-													{
-														icon: Redo2,
-														label: t('editor.menu.redo'),
-														shortcut: 'Ctrl+Y',
-														onSelect: handleRedo,
-													},
-												],
-											},
-											{
-												group: t('editor.menu.view'),
-												items: [
-													{
-														key: 'language-selector',
-														render: () => (
-															<div className="flex items-center gap-3">
-																<span className="text-xs font-medium text-muted-foreground">
-																	{t('settings.language')}
-																</span>
-																<LanguageSelector />
-															</div>
-														),
-													},
-													{
-														icon: resolvedTheme === 'dark' ? Sun : Moon,
-														label:
-															resolvedTheme === 'dark'
-																? t('settings.lightMode')
-																: t('settings.darkMode'),
-														shortcut: '',
-														onSelect: () =>
-															setTheme(
-																resolvedTheme === 'dark' ? 'light' : 'dark'
+							{!isDesktopElectron && (
+								<Button
+									variant="outline"
+									size="icon"
+									className="rounded-full"
+									data-tour="save-button"
+									onClick={() =>
+										openCommandPalette({
+											placeholder: t('common.search'),
+											actions: [
+												{
+													group: t('editor.menu.file'),
+													items: [
+														{
+															icon: Save,
+															label: isSaving ? t('common.saving') : t('common.save'),
+															shortcut: 'Ctrl+S',
+															onSelect: handleSave,
+														},
+														{
+															icon: Download,
+															label: t('common.export'),
+															shortcut: 'Ctrl+E',
+															onSelect: handleExport,
+														},
+														...(deviceType !== 'mobile'
+															? [
+																	{
+																		icon: PlayCircle,
+																		label: t('editor.preview.start'),
+																		shortcut: '',
+																		onSelect: handleStartPreview,
+																	},
+															  ]
+															: []),
+													],
+												},
+												{
+													group: t('editor.menu.edit'),
+													items: [
+														{
+															icon: Undo2,
+															label: t('editor.menu.undo'),
+															shortcut: 'Ctrl+Z',
+															onSelect: handleUndo,
+														},
+														{
+															icon: Redo2,
+															label: t('editor.menu.redo'),
+															shortcut: 'Ctrl+Y',
+															onSelect: handleRedo,
+														},
+													],
+												},
+												{
+													group: t('editor.menu.view'),
+													items: [
+														{
+															key: 'language-selector',
+															render: () => (
+																<div className="flex items-center gap-3">
+																	<span className="text-xs font-medium text-muted-foreground">
+																		{t('settings.language')}
+																	</span>
+																	<LanguageSelector />
+																</div>
 															),
-													},
-													{
-														icon: Crosshair,
-														label: t('editor.nodeToolbar.recenter'),
-														shortcut: '',
-														onSelect: handleRecenterGraph,
-													},
-													{
-														icon: LocateFixed,
-														label: t('editor.nodeToolbar.backToStart'),
-														shortcut: '',
-														onSelect: handleFocusStartNode,
-													},
-													...(deviceType !== 'mobile'
-														? [
-																{
-																	icon: HelpCircle,
-																	label: t('editor.menu.showTour'),
-																	shortcut: '',
-																	onSelect: resetTour,
-																},
-														  ]
-														: []),
-												],
-											},
-											{
-												group: t('settings.title'),
-												items: [
-													{
-														icon: Settings,
-														label: t('settings.title'),
-														shortcut: '',
-														onSelect: () =>
-															openSettingsCommand({
-																context: {
-																	type: 'dialogue',
-																	name: dialogue.name,
-																	projectId,
-																	dialogueId,
-																},
-																mode: 'detail',
-															}),
-													},
-													{
-														icon: Heart,
-														label: t('editor.menu.support'),
-														shortcut: '',
-														onSelect: () =>
-															window.open(
-																'https://github.com/sponsors/Mountea-Framework',
-																'_blank'
-															),
-													},
-												],
-											},
-										],
-									})
-								}
-							>
-								<MoreVertical className="h-4 w-4" />
-							</Button>
+														},
+														{
+															icon: resolvedTheme === 'dark' ? Sun : Moon,
+															label:
+																resolvedTheme === 'dark'
+																	? t('settings.lightMode')
+																	: t('settings.darkMode'),
+															shortcut: '',
+															onSelect: () =>
+																setTheme(
+																	resolvedTheme === 'dark' ? 'light' : 'dark'
+																),
+														},
+														{
+															icon: Crosshair,
+															label: t('editor.nodeToolbar.recenter'),
+															shortcut: '',
+															onSelect: handleRecenterGraph,
+														},
+														{
+															icon: LocateFixed,
+															label: t('editor.nodeToolbar.backToStart'),
+															shortcut: '',
+															onSelect: handleFocusStartNode,
+														},
+														...(deviceType !== 'mobile'
+															? [
+																	{
+																		icon: HelpCircle,
+																		label: t('editor.menu.showTour'),
+																		shortcut: '',
+																		onSelect: resetTour,
+																	},
+															  ]
+															: []),
+													],
+												},
+												{
+													group: t('settings.title'),
+													items: [
+														{
+															icon: Settings,
+															label: t('settings.title'),
+															shortcut: '',
+															onSelect: () =>
+																openSettingsCommand({
+																	context: {
+																		type: 'dialogue',
+																		name: dialogue.name,
+																		projectId,
+																		dialogueId,
+																	},
+																	mode: 'detail',
+																}),
+														},
+														{
+															icon: Heart,
+															label: t('editor.menu.support'),
+															shortcut: '',
+															onSelect: () =>
+																window.open(
+																	'https://github.com/sponsors/Mountea-Framework',
+																	'_blank'
+																),
+														},
+													],
+												},
+											],
+										})
+									}
+								>
+									<MoreVertical className="h-4 w-4" />
+								</Button>
+							)}
 						</>
 					}
 				/>
-			)}
 
 			{/* Main Content */}
 			<div className="flex-1 flex overflow-hidden">
