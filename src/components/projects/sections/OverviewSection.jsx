@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils';
 import { isMobileDevice } from '@/lib/deviceDetection';
+import { copyToClipboardWithToast } from '@/lib/clipboard';
 import { toast } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { calculateProjectSize } from '@/lib/storageUtils';
@@ -379,24 +380,14 @@ export function OverviewSection({
 										<code className="text-xs font-mono">{project.id.substring(0, 12)}...</code>
 										<button
 											type="button"
-											onClick={() => {
-												navigator.clipboard
-													.writeText(project.id)
-													.then(() => {
-														toast({
-															variant: 'success',
-															title: 'Copied',
-															description: 'Project ID copied to clipboard.',
-														});
-													})
-													.catch(() => {
-														toast({
-															variant: 'error',
-															title: 'Copy failed',
-															description: 'Unable to copy Project ID.',
-														});
-													});
-											}}
+											onClick={() =>
+												void copyToClipboardWithToast(project.id, toast, {
+													successTitle: 'Copied',
+													successMessage: 'Project ID copied to clipboard.',
+													errorTitle: 'Copy failed',
+													errorMessage: 'Unable to copy Project ID.',
+												})
+											}
 											className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors"
 											aria-label="Copy Project ID"
 										>

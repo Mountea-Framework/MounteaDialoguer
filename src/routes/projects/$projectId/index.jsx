@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
+import { SaveIndicator } from '@/components/ui/save-indicator';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
@@ -249,13 +250,9 @@ function ProjectDetailsPage() {
 					</>
 				}
 				right={
-					<div
-						className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
-						data-header-mobile-hidden
-					>
-						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-						{t('editor.saveStatus.saved')}
-					</div>
+					<span className="hidden md:flex" data-header-mobile-hidden>
+						<SaveIndicator status="saved" className="hidden md:flex" />
+					</span>
 				}
 				menuItems={
 					isDesktopElectron ? null : (

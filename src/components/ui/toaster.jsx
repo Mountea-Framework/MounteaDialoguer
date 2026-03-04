@@ -14,17 +14,20 @@ const toastStore = {
 		};
 	},
 	notify() {
-		this.listeners.forEach((listener) => listener(this.toasts));
+		const snapshot = [...this.toasts];
+		this.listeners.forEach((listener) => listener(snapshot));
 	},
 	addToast(toast) {
 		const id = Date.now() + Math.random();
-		this.toasts.push({ ...toast, id });
+		this.toasts = [...this.toasts, { ...toast, id }];
 		this.notify();
 		console.debug('[toast] add', id, toast.title);
 		return id;
 	},
 	removeToast(id) {
-		this.toasts = this.toasts.filter((t) => t.id !== id);
+		const nextToasts = this.toasts.filter((t) => t.id !== id);
+		if (nextToasts.length === this.toasts.length) return;
+		this.toasts = nextToasts;
 		this.notify();
 	},
 };
