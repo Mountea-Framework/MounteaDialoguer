@@ -2,6 +2,8 @@
 	"name": "mountea-dialoguer",
 	"productName": "Mountea Dialoguer",
 	"version": "0.2.0",
+	"description": "A dialogue graph editor for designing and organizing branching conversations.",
+	"author": "Dominik Pavlicek",
 	"type": "module",
 	"main": "electron/main.cjs",
 	"private": true,
@@ -13,8 +15,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"electron:start": "electron .",
-		"electron:pack": "npm run build && electron-builder --dir",
-		"electron:dist": "npm run build && electron-builder",
+		"electron:pack": "npm run build && node scripts/run-electron-builder.mjs --dir",
+		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
 		"lint": "eslint src --ext js,jsx",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist"
@@ -22,9 +24,11 @@
 	"build": {
 		"appId": "com.mountea.dialoguer",
 		"productName": "Mountea Dialoguer",
+		"icon": "mounteaDialoguerIcon.png",
 		"asar": true,
 		"directories": {
-			"output": "release"
+			"output": "release",
+			"buildResources": "public"
 		},
 		"files": [
 			"dist/**/*",
@@ -36,21 +40,24 @@
 				"nsis",
 				"portable"
 			],
-			"icon": "public/mounteaDialoguerIcon.png"
+			"icon": "mounteaDialoguerIcon.ico"
 		},
 		"mac": {
 			"target": [
 				"dmg",
 				"zip"
 			],
-			"category": "public.app-category.productivity"
+			"category": "public.app-category.productivity",
+			"icon": "mounteaDialoguerIcon.png",
+			"notarize": false
 		},
 		"linux": {
 			"target": [
 				"AppImage",
 				"deb"
 			],
-			"category": "Utility"
+			"category": "Utility",
+			"icon": "mounteaDialoguerIcon.png"
 		},
 		"nsis": {
 			"oneClick": false,
