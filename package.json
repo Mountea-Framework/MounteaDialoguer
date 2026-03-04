@@ -9,7 +9,7 @@
 		"dev": "vite",
 		"dev:electron:web": "vite --port 5173 --strictPort",
 		"dev:electron:main": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
-		"dev:electron": "concurrently -k \"npm:dev:electron:web\" \"npm:dev:electron:main\"",
+		"dev:electron": "node scripts/dev-electron.mjs",
 		"build": "vite build",
 		"preview": "vite preview",
 		"electron:start": "electron .",
