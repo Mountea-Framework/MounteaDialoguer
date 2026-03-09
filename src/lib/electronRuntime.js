@@ -8,3 +8,8 @@ export const isElectronRuntime = () => {
 export const isDesktopElectronRuntime = () => {
 	return isElectronRuntime() && !isMobileDevice();
 };
+
+export const hasSteamBridge = () => {
+	if (typeof window === 'undefined') return false;
+	return typeof window.electronAPI?.getSteamStatus === 'function';
+};

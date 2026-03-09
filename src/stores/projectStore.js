@@ -4,6 +4,10 @@ import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
+import {
+	trackExampleProjectCreated,
+	trackFirstNonExampleProjectCreated,
+} from '@/lib/achievements/achievementTracker';
 
 /**
  * Project Store
@@ -57,10 +61,16 @@ export const useProjectStore = create((set, get) => ({
 			const newProject = {
 				id,
 				...projectData,
+				isExample: false,
 				createdAt: now,
 				modifiedAt: now,
 			};
 			await db.projects.add(newProject);
+			try {
+				await trackFirstNonExampleProjectCreated();
+			} catch (error) {
+				console.warn('[achievements] Failed to track first project:', error);
+			}
 			await get().loadProjects();
 			useSyncStore.getState().schedulePush(newProject.id);
 			toast({
@@ -106,6 +116,7 @@ export const useProjectStore = create((set, get) => ({
 				name: 'OnboardingExample',
 				description: 'Example branching dialogue project created from onboarding',
 				version: '1.0.0',
+				isExample: true,
 				createdAt: now,
 				modifiedAt: now,
 			};
@@ -1032,6 +1043,11 @@ export const useProjectStore = create((set, get) => ({
 					await db.edges.bulkAdd(allEdges);
 				}
 			);
+			try {
+				await trackExampleProjectCreated();
+			} catch (error) {
+				console.warn('[achievements] Failed to track example project:', error);
+			}
 
 			await get().loadProjects();
 			useSyncStore.getState().schedulePush(projectId);
@@ -1332,6 +1348,7 @@ export const useProjectStore = create((set, get) => ({
 				id: newProjectId,
 				name: projectData.projectName,
 				description: projectData.description || '',
+				isExample: false,
 				createdAt: now,
 				modifiedAt: now,
 			};
@@ -1339,7 +1356,6 @@ export const useProjectStore = create((set, get) => ({
 			await db.projects.add(newProject);
 
 			const categoryIdMap = new Map();
-			const { useCategoryStore } = await import('./categoryStore');
 
 			for (const cat of categories) {
 				const newCatId = uuidv4();

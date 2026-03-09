@@ -11,6 +11,9 @@ import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
+import { useSteamStore } from '@/stores/steamStore';
+import { markUserActivity, trackActiveMinute } from '@/lib/achievements/achievementTracker';
+import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
@@ -54,6 +57,9 @@ function RootComponent() {
 	const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } =
 		useCommandPaletteStore();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
+	const loadSteamStatus = useSteamStore((state) => state.loadStatus);
+	const googleSyncEnabled = isGoogleSyncEnabled();
+	const steamChannel = isSteamChannel();
 	const {
 		loadAccount,
 		hasHydrated,
@@ -134,6 +140,7 @@ function RootComponent() {
 				// Wait for database to be ready
 				await db.open();
 				await loadAccount();
+				await loadSteamStatus();
 
 				// Ensure minimum loading time for smooth UX (1.5 seconds)
 				await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -148,7 +155,40 @@ function RootComponent() {
 		};
 
 		initializeApp();
-	}, [loadAccount]);
+	}, [loadAccount, loadSteamStatus]);
+
+	useEffect(() => {
+		const activityEvents = [
+			'mousemove',
+			'mousedown',
+			'keydown',
+			'touchstart',
+			'pointerdown',
+			'focus',
+		];
+
+		const handleActivity = () => {
+			markUserActivity();
+		};
+
+		handleActivity();
+		activityEvents.forEach((eventName) =>
+			window.addEventListener(eventName, handleActivity, { passive: true })
+		);
+
+		const timer = window.setInterval(() => {
+			trackActiveMinute().catch((error) => {
+				console.warn('[achievements] Failed to track active minute:', error);
+			});
+		}, 60_000);
+
+		return () => {
+			window.clearInterval(timer);
+			activityEvents.forEach((eventName) =>
+				window.removeEventListener(eventName, handleActivity)
+			);
+		};
+	}, []);
 
 	useEffect(() => {
 		if (!hasHydrated) return;
@@ -189,6 +229,8 @@ function RootComponent() {
 	useEffect(() => {
 		if (!hasHydrated || isLoading) return;
 		if (isLegalPage) return;
+		if (!googleSyncEnabled) return;
+		if (steamChannel) return;
 		if (promptedThisSession) return;
 		if (hideLoginPrompt) return;
 		if (status === 'connected' || status === 'connecting' || status === 'syncing') return;
@@ -204,6 +246,8 @@ function RootComponent() {
 	}, [
 		hasHydrated,
 		isLoading,
+		googleSyncEnabled,
+		steamChannel,
 		promptedThisSession,
 		hideLoginPrompt,
 		status,

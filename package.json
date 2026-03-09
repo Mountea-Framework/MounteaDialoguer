@@ -12,11 +12,13 @@
 		"dev:electron:web": "vite --port 5173 --strictPort",
 		"dev:electron:main": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
 		"dev:electron": "node scripts/dev-electron.mjs",
+		"dev:electron:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/dev-electron.mjs",
 		"build": "vite build",
 		"preview": "vite preview",
 		"electron:start": "electron .",
 		"electron:pack": "npm run build && node scripts/run-electron-builder.mjs --dir",
 		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
+		"electron:dist:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 npm run build && node scripts/run-electron-builder.mjs",
 		"lint": "eslint src --ext js,jsx",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist"
@@ -26,6 +28,9 @@
 		"productName": "Mountea Dialoguer",
 		"icon": "mounteaDialoguerIcon.png",
 		"asar": true,
+		"asarUnpack": [
+			"node_modules/steamworks.js/**/*"
+		],
 		"directories": {
 			"output": "release",
 			"buildResources": "public"
@@ -33,6 +38,7 @@
 		"files": [
 			"dist/**/*",
 			"electron/**/*",
+			"node_modules/steamworks.js/**/*",
 			"package.json"
 		],
 		"win": {
@@ -92,6 +98,7 @@
 		"react-dom": "^18.3.1",
 		"react-i18next": "^15.2.0",
 		"react-joyride": "^2.9.3",
+		"steamworks.js": "^0.4.0",
 		"tailwind-merge": "^2.5.5",
 		"uuid": "^11.0.3",
 		"vaul": "^1.1.2",

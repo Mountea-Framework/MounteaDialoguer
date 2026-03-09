@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useSyncStore } from '@/stores/syncStore';
+import { useSteamStore } from '@/stores/steamStore';
 import { cn } from '@/lib/utils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { GoogleDriveIcon } from '@/components/sync/GoogleDriveIcon';
+import { isGoogleSyncEnabled } from '@/lib/runtimeConfig';
 
 export function SyncLoginDialog({
 	open,
@@ -35,11 +37,14 @@ export function SyncLoginDialog({
 		syncAllProjects,
 		disconnect,
 	} = useSyncStore();
+	const steamStatus = useSteamStore((state) => state.status);
+	const openSteamOverlay = useSteamStore((state) => state.openOverlay);
+	const googleSyncEnabled = isGoogleSyncEnabled();
 
 	const isConnected = status === 'connected' && provider === 'googleDrive';
 	const isConnecting = status === 'connecting';
 	const isSyncing = status === 'syncing';
-	const canConnect = passphrase.trim().length > 0 && !isConnecting;
+	const canConnect = googleSyncEnabled && passphrase.trim().length > 0 && !isConnecting;
 	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
 
 	useEffect(() => {
@@ -56,6 +61,7 @@ export function SyncLoginDialog({
 	}, []);
 
 	const handleConnect = async () => {
+		if (!googleSyncEnabled) return;
 		const success = await connectGoogleDrive();
 		if (success) {
 			onOpenChange(false);
@@ -101,6 +107,45 @@ export function SyncLoginDialog({
 				<div className="space-y-4 pb-2">
 					<div
 						className={`flex md:flex-row gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center ${isMobile ? 'flex-row' : 'flex-col'}`}>
+						<div className="h-10 w-10 rounded-lg bg-black/90 text-white flex items-center justify-center border border-border shadow-sm">
+							S
+						</div>
+						<div className="flex-1 min-w-0">
+							<p className="text-sm font-semibold">{t('sync.providers.steam')}</p>
+							{steamStatus?.available && (steamStatus?.personaName || steamStatus?.steamId) ? (
+								<p className="text-xs text-muted-foreground truncate">
+									{t('sync.connectedAs', {
+										account: steamStatus.personaName || steamStatus.steamId,
+									})}
+								</p>
+							) : (
+								<p className="text-xs text-muted-foreground truncate">
+									{steamStatus?.error || t('sync.providers.none')}
+								</p>
+							)}
+						</div>
+						<div className="flex items-center gap-2">
+							<div className="text-xs font-medium text-muted-foreground">
+								{steamStatus?.available
+									? t('sync.status.connected')
+									: t('sync.status.disconnected')}
+							</div>
+							{steamStatus?.available ? (
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={() => openSteamOverlay('Achievements')}
+								>
+									{t('sync.steam.openOverlay')}
+								</Button>
+							) : null}
+						</div>
+					</div>
+
+					{googleSyncEnabled ? (
+						<div
+							className={`flex md:flex-row gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center ${isMobile ? 'flex-row' : 'flex-col'}`}>
 						<div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center border border-border shadow-sm">
 							<GoogleDriveIcon className="h-6 w-6" />
 						</div>
@@ -114,6 +159,11 @@ export function SyncLoginDialog({
 						</div>
 						<div className="text-xs font-medium text-muted-foreground">{statusLabel}</div>
 					</div>
+					) : (
+						<div className="rounded-lg border border-border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+							{t('sync.googleDisabled')}
+						</div>
+					)}
 
 					<div className="grid gap-4">
 						<div className="grid gap-2">
@@ -126,7 +176,7 @@ export function SyncLoginDialog({
 									clearError?.();
 								}}
 								placeholder={t('sync.accountPlaceholder')}
-								disabled={isConnected}
+								disabled={isConnected || !googleSyncEnabled}
 							/>
 						</div>
 
@@ -144,7 +194,7 @@ export function SyncLoginDialog({
 									clearError?.();
 								}}
 								placeholder={t('sync.passphrasePlaceholder')}
-								disabled={isConnected}
+								disabled={isConnected || !googleSyncEnabled}
 							/>
 							<p className="text-xs text-muted-foreground">
 								{t('sync.passphraseHint')}
@@ -159,7 +209,7 @@ export function SyncLoginDialog({
 							<Switch
 								checked={rememberPassphrase}
 								onCheckedChange={setRememberPassphrase}
-								disabled={isConnected}
+								disabled={isConnected || !googleSyncEnabled}
 							/>
 						</div>
 

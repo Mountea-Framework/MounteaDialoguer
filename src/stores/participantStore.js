@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
 import { useCategoryStore } from './categoryStore';
 import { useSyncStore } from '@/stores/syncStore';
+import { trackFirstParticipantCreated } from '@/lib/achievements/achievementTracker';
 
 export const useParticipantStore = create((set, get) => ({
 	participants: [],
@@ -84,6 +85,11 @@ export const useParticipantStore = create((set, get) => ({
 			};
 
 			await db.participants.add(newParticipant);
+			try {
+				await trackFirstParticipantCreated(participantData.projectId);
+			} catch (error) {
+				console.warn('[achievements] Failed to track first participant:', error);
+			}
 			await get().loadParticipants(participantData.projectId);
 			useSyncStore.getState().schedulePush(participantData.projectId);
 			toast({

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
+import { trackFirstConditionCreated } from '@/lib/achievements/achievementTracker';
 
 export const useConditionStore = create((set, get) => ({
 	conditions: [],
@@ -36,6 +37,11 @@ export const useConditionStore = create((set, get) => ({
 			};
 
 			await db.conditions.add(newCondition);
+			try {
+				await trackFirstConditionCreated(conditionData.projectId);
+			} catch (error) {
+				console.warn('[achievements] Failed to track first condition:', error);
+			}
 			await get().loadConditions(conditionData.projectId);
 			useSyncStore.getState().schedulePush(conditionData.projectId);
 			toast({

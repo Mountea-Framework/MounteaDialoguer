@@ -4,6 +4,12 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { URL, URLSearchParams } = require('node:url');
 const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const {
+	initializeSteamRuntime,
+	getSteamStatus,
+	openOverlay: openSteamOverlay,
+	unlockAchievement: unlockSteamAchievement,
+} = require('./steam.cjs');
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -31,6 +37,17 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 app.setName(APP_DISPLAY_NAME);
+
+let steamRuntimeState = {
+	initialized: false,
+	available: false,
+	channel: 'desktop',
+	appId: 0,
+	steamId: '',
+	personaName: '',
+	overlayEnabled: false,
+	error: '',
+};
 
 function readDotEnvValue(key) {
 	const envPath = path.join(__dirname, '..', '.env');
@@ -852,6 +869,9 @@ function registerIpcHandlers() {
 	ipcMain.removeAllListeners('menu:set-context');
 	ipcMain.removeHandler('shell:open-external');
 	ipcMain.removeHandler('auth:start-google-oauth');
+	ipcMain.removeHandler('steam:get-status');
+	ipcMain.removeHandler('steam:open-overlay');
+	ipcMain.removeHandler('steam:unlock-achievement');
 
 	ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
 		if (!isAllowedExternalUrl(rawUrl)) {
@@ -863,6 +883,21 @@ function registerIpcHandlers() {
 
 	ipcMain.handle('auth:start-google-oauth', async (_event, payload) => {
 		return startGoogleOAuth(payload || {});
+	});
+
+	ipcMain.handle('steam:get-status', async () => {
+		return getSteamStatus();
+	});
+
+	ipcMain.handle('steam:open-overlay', async (_event, payload) => {
+		const dialog = payload?.dialog || 'Friends';
+		const ok = openSteamOverlay(dialog);
+		return { ok };
+	});
+
+	ipcMain.handle('steam:unlock-achievement', async (_event, payload) => {
+		const achievementId = payload?.achievementId || '';
+		return unlockSteamAchievement(achievementId);
 	});
 
 	ipcMain.on('menu:set-context', (_event, payload) => {
@@ -884,6 +919,15 @@ if (!gotSingleInstanceLock) {
 	});
 
 	app.whenReady().then(() => {
+		steamRuntimeState = initializeSteamRuntime();
+		if (steamRuntimeState.available) {
+			console.log(
+				`[steam] runtime initialized appId=${steamRuntimeState.appId} steamId=${steamRuntimeState.steamId}`
+			);
+		} else {
+			console.log(`[steam] runtime not available: ${steamRuntimeState.error}`);
+		}
+
 		createAppMenu(menuContext);
 		registerIpcHandlers();
 		createMainWindow();

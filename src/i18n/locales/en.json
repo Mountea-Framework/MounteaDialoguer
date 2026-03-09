@@ -403,9 +403,14 @@
 		"title": "Cloud Sync",
 		"description": "Connect Google Drive to keep your projects in sync across devices.",
 		"providers": {
+			"steam": "Steam",
 			"googleDrive": "Google Drive",
 			"none": "Not Connected"
 		},
+		"steam": {
+			"openOverlay": "Overlay"
+		},
+		"googleDisabled": "Google sync is disabled in this build.",
 		"status": {
 			"connected": "Connected",
 			"connecting": "Connecting...",
