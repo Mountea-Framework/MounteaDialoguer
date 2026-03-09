@@ -15,6 +15,7 @@ import { useSteamStore } from '@/stores/steamStore';
 import { markUserActivity, trackActiveMinute } from '@/lib/achievements/achievementTracker';
 import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
 import { initializeActiveProfileFromSteamStatus } from '@/lib/profile/activeProfile';
+import { getSyncProviderConfig } from '@/lib/sync/providers/providerRegistry';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
@@ -80,6 +81,8 @@ function RootComponent() {
 	const activeProviderPassphrase = provider
 		? String(providerInputs?.[provider]?.passphrase || '')
 		: '';
+	const activeProviderRequiresPassphrase =
+		getSyncProviderConfig(provider)?.requiresPassphrase !== false;
 	const currentPath = useRouterState({
 		select: (state) => state.location.pathname || '',
 	});
@@ -146,11 +149,15 @@ function RootComponent() {
 	useEffect(() => {
 		const initializeApp = async () => {
 			try {
-				// Wait for database to be ready
-				await db.open();
-				await loadAccount();
 				const steamStatus = await loadSteamStatus();
 				initializeActiveProfileFromSteamStatus(steamStatus);
+				// Rehydrate profile-scoped persisted stores after profile is resolved.
+				if (typeof useSyncStore.persist?.rehydrate === 'function') {
+					await useSyncStore.persist.rehydrate();
+				}
+				// Wait for profile-scoped database to be ready
+				await db.open();
+				await loadAccount({ steamStatus });
 
 				// Ensure minimum loading time for smooth UX (1.5 seconds)
 				await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -258,7 +265,12 @@ function RootComponent() {
 	useEffect(() => {
 		if (!hasHydrated) return;
 		if (status !== 'connected') return;
-		if (!activeProviderPassphrase || !activeProviderPassphrase.trim()) return;
+		if (
+			activeProviderRequiresPassphrase &&
+			(!activeProviderPassphrase || !activeProviderPassphrase.trim())
+		) {
+			return;
+		}
 		if (isLoading || !showContent) return;
 		if (hasAutoSyncedRef.current) return;
 		console.log('[sync] Auto sync after hydration');
@@ -266,6 +278,7 @@ function RootComponent() {
 		syncAllProjects({ mode: 'pull', trigger: 'auto-hydration' });
 	}, [
 		activeProviderPassphrase,
+		activeProviderRequiresPassphrase,
 		hasHydrated,
 		isLoading,
 		showContent,

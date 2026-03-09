@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import {
 	startGoogleDriveAuth,
 	fetchUserInfo,
@@ -21,9 +21,11 @@ import {
 import { getSyncAccount, upsertSyncAccount, clearSyncAccount } from '@/lib/sync/syncStorage';
 import {
 	SYNC_PROVIDER_IDS,
+	getSyncProviderConfig,
 	normalizeSyncProviderId,
 	supportsCloudSync,
 } from '@/lib/sync/providers/providerRegistry';
+import { buildProfileScopedKey, getActiveProfileId } from '@/lib/profile/activeProfile';
 
 const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
 const DEFAULT_PROVIDER_INPUT = Object.freeze({
@@ -43,6 +45,33 @@ const DEFAULT_PULL_STATE = Object.freeze({
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
+
+const NOOP_PROFILE_STORAGE = Object.freeze({
+	getItem: () => null,
+	setItem: () => {},
+	removeItem: () => {},
+});
+
+const profileScopedSyncStorage = createJSONStorage(() => {
+	if (typeof window === 'undefined' || !window.localStorage) {
+		return NOOP_PROFILE_STORAGE;
+	}
+
+	return {
+		getItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			return window.localStorage.getItem(key);
+		},
+		setItem: (name, value) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.setItem(key, value);
+		},
+		removeItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.removeItem(key);
+		},
+	};
+});
 
 function traceSyncEvent(event, details = {}) {
 	const eventName = String(event || 'event');
@@ -107,6 +136,21 @@ function getProviderInputFromState(state, providerId) {
 function getProviderPassphraseFromState(state, providerId) {
 	const input = getProviderInputFromState(state, providerId);
 	return String(input.passphrase || '');
+}
+
+function resolveSyncPassphrase(state, providerId) {
+	const explicitPassphrase = getProviderPassphraseFromState(state, providerId);
+	if (explicitPassphrase && explicitPassphrase.trim()) {
+		return explicitPassphrase;
+	}
+
+	const providerConfig = getSyncProviderConfig(providerId);
+	if (providerConfig?.requiresPassphrase === false) {
+		const profileId = getActiveProfileId();
+		return `auto:${providerId}:${profileId}:v1`;
+	}
+
+	return '';
 }
 
 function createResetPullState(mode = 'project') {
@@ -199,18 +243,68 @@ export const useSyncStore = create(
 			setLoginDialogOpen: (value) => set({ loginDialogOpen: value }),
 			setSyncMode: (value) => set({ syncMode: value }),
 
-			loadAccount: async () => {
+			loadAccount: async (options = {}) => {
+				const steamStatus = options?.steamStatus || null;
+				const preferredProvider = normalizeProviderId(get().provider);
+				const steamAvailable = Boolean(steamStatus?.available);
+				const steamIdentity = String(
+					steamStatus?.personaName || steamStatus?.steamId || ''
+				);
 				const account = await getSyncAccount('googleDrive');
-				if (!account) return;
+				const shouldPreferSteam = preferredProvider === 'steam' && steamAvailable;
 
+				if (shouldPreferSteam) {
+					set((state) => ({
+						provider: 'steam',
+						status: 'connected',
+						clientId: getConfiguredClientId(),
+						error: null,
+						providerInputs: withProviderInput(state, 'steam', {
+							accountLabel: steamIdentity,
+						}),
+					}));
+					return;
+				}
+
+				if (account) {
+					set((state) => ({
+						provider: 'googleDrive',
+						status: 'connected',
+						clientId: getConfiguredClientId(),
+						providerInputs: withProviderInput(state, 'googleDrive', {
+							accountLabel: account.email || account.accountId || '',
+						}),
+					}));
+					return;
+				}
+
+				if (steamAvailable) {
+					set((state) => ({
+						provider: 'steam',
+						status: 'connected',
+						error: null,
+						providerInputs: withProviderInput(state, 'steam', {
+							accountLabel: steamIdentity,
+						}),
+					}));
+					return;
+				}
+
+				set({ provider: null, status: 'disconnected' });
+			},
+
+			connectSteamProvider: (steamStatus) => {
+				const isAvailable = Boolean(steamStatus?.available);
+				const identity = String(steamStatus?.personaName || steamStatus?.steamId || '');
 				set((state) => ({
-					provider: 'googleDrive',
-					status: 'connected',
-					clientId: getConfiguredClientId(),
-					providerInputs: withProviderInput(state, 'googleDrive', {
-						accountLabel: account.email || account.accountId || '',
+					provider: 'steam',
+					status: isAvailable ? 'connected' : 'disconnected',
+					error: null,
+					providerInputs: withProviderInput(state, 'steam', {
+						accountLabel: identity,
 					}),
 				}));
+				return isAvailable;
 			},
 
 			connectGoogleDrive: async () => {
@@ -297,12 +391,14 @@ export const useSyncStore = create(
 				const currentState = get();
 				const { status, provider, pullState, syncMode } = currentState;
 				const cloudProviderId = resolveCloudProviderId(currentState);
-				const passphrase = getProviderPassphraseFromState(currentState, provider);
+				const passphrase = resolveSyncPassphrase(currentState, provider);
+				const providerConfig = getSyncProviderConfig(provider);
+				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
 				if (!provider) return;
 				if (!cloudProviderId) return;
 				if (status === 'syncing') return;
 				if (status !== 'connected') return;
-				if (!passphrase || !passphrase.trim()) return;
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) return;
 				if (pullState?.active && pullState?.mode === 'project') return;
 				const { mode = syncMode || 'full', trigger = 'unknown' } = options;
 				traceSyncEvent('START', {
@@ -696,13 +792,15 @@ export const useSyncStore = create(
 				const currentState = get();
 				const { syncMode, provider } = currentState;
 				const cloudProviderId = resolveCloudProviderId(currentState);
-				const passphrase = getProviderPassphraseFromState(currentState, provider);
+				const passphrase = resolveSyncPassphrase(currentState, provider);
+				const providerConfig = getSyncProviderConfig(provider);
+				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
 				if (syncMode !== 'full') {
 					console.log('[sync] Skip pull (non-full mode)');
 					return;
 				}
 				if (!cloudProviderId) return;
-				if (!passphrase || !passphrase.trim()) {
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
 					set({ error: 'passphraseRequired', status: 'error' });
 					return;
 				}
@@ -792,13 +890,15 @@ export const useSyncStore = create(
 				const currentState = get();
 				const { syncMode, provider } = currentState;
 				const cloudProviderId = resolveCloudProviderId(currentState);
-				const passphrase = getProviderPassphraseFromState(currentState, provider);
+				const passphrase = resolveSyncPassphrase(currentState, provider);
+				const providerConfig = getSyncProviderConfig(provider);
+				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
 				if (syncMode === 'list') {
 					console.log('[sync] Skip push (list mode)');
 					return;
 				}
 				if (!cloudProviderId) return;
-				if (!passphrase || !passphrase.trim()) {
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
 					set({ error: 'passphraseRequired' });
 					return;
 				}
@@ -812,6 +912,7 @@ export const useSyncStore = create(
 		}),
 		{
 			name: SYNC_STORAGE_KEY,
+			storage: profileScopedSyncStorage,
 			partialize: (state) => ({
 				provider: state.provider,
 				providerInputs: createPersistedProviderInputs(state.providerInputs),

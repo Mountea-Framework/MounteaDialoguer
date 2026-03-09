@@ -25,6 +25,8 @@ const OAUTH_TIMEOUT_MS =
 const SUPPORT_URL = 'https://discord.gg/hCjh8e3Y9r';
 const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues';
 const APP_DISPLAY_NAME = 'Mountea Dialoguer';
+const STEAM_SYNC_ROOT_FOLDER = 'steam-sync';
+const STEAM_SYNC_FILE_EXTENSION = '.json';
 
 let mainWindow = null;
 const DEFAULT_MENU_CONTEXT = Object.freeze({
@@ -209,6 +211,194 @@ function shouldBlockNativeShortcut(input = {}) {
 	}
 
 	return false;
+}
+
+function sanitizeSteamSyncSegment(value, fallback = 'local') {
+	const normalized = String(value || '').trim().replace(/[^a-zA-Z0-9._-]/g, '_');
+	return normalized || fallback;
+}
+
+function getSteamSyncProfileDirectory(profileId) {
+	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
+	return path.join(app.getPath('userData'), STEAM_SYNC_ROOT_FOLDER, safeProfileId);
+}
+
+async function ensureSteamSyncProfileDirectory(profileId) {
+	const profileDir = getSteamSyncProfileDirectory(profileId);
+	await fs.promises.mkdir(profileDir, { recursive: true });
+	return profileDir;
+}
+
+function getSteamSyncFilePath(profileId, fileId) {
+	const safeFileId = sanitizeSteamSyncSegment(fileId, 'entry');
+	return path.join(
+		getSteamSyncProfileDirectory(profileId),
+		`${safeFileId}${STEAM_SYNC_FILE_EXTENSION}`
+	);
+}
+
+function normalizeSteamSyncAppProperties(rawValue) {
+	if (!rawValue || typeof rawValue !== 'object') return {};
+	const normalized = {};
+	for (const [key, value] of Object.entries(rawValue)) {
+		const safeKey = String(key || '').trim();
+		if (!safeKey) continue;
+		normalized[safeKey] = String(value ?? '');
+	}
+	return normalized;
+}
+
+function normalizeSteamSyncEntry(rawEntry, fallbackId = '') {
+	const id = sanitizeSteamSyncSegment(rawEntry?.id || fallbackId || crypto.randomUUID(), 'entry');
+	const name = String(rawEntry?.name || '').trim();
+	const parsedModified = Date.parse(String(rawEntry?.modifiedTime || ''));
+	const modifiedTime = Number.isFinite(parsedModified)
+		? new Date(parsedModified).toISOString()
+		: new Date().toISOString();
+
+	return {
+		id,
+		name,
+		content: typeof rawEntry?.content === 'string' ? rawEntry.content : '',
+		mimeType: String(rawEntry?.mimeType || 'application/json'),
+		appProperties: normalizeSteamSyncAppProperties(rawEntry?.appProperties),
+		modifiedTime,
+	};
+}
+
+function toSteamSyncFileMetadata(entry) {
+	return {
+		id: entry.id,
+		name: entry.name,
+		modifiedTime: entry.modifiedTime,
+		appProperties: entry.appProperties,
+	};
+}
+
+async function readSteamSyncEntry(filePath, fallbackId = '') {
+	const content = await fs.promises.readFile(filePath, 'utf8');
+	const parsed = JSON.parse(content);
+	const entry = normalizeSteamSyncEntry(parsed, fallbackId);
+	if (!entry.name) {
+		throw new Error('Invalid Steam sync entry: missing name');
+	}
+	return entry;
+}
+
+async function writeSteamSyncEntry(profileId, entry) {
+	await ensureSteamSyncProfileDirectory(profileId);
+	const filePath = getSteamSyncFilePath(profileId, entry.id);
+	await fs.promises.writeFile(filePath, JSON.stringify(entry, null, 2), 'utf8');
+	return filePath;
+}
+
+async function listSteamSyncEntries(profileId) {
+	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
+	const dirItems = await fs.promises.readdir(profileDir, { withFileTypes: true });
+	const entries = [];
+
+	for (const item of dirItems) {
+		if (!item.isFile()) continue;
+		if (!item.name.endsWith(STEAM_SYNC_FILE_EXTENSION)) continue;
+
+		const fileId = item.name.slice(0, -STEAM_SYNC_FILE_EXTENSION.length);
+		const filePath = path.join(profileDir, item.name);
+		try {
+			const entry = await readSteamSyncEntry(filePath, fileId);
+			entries.push(entry);
+		} catch (error) {
+			console.warn('[steam-sync] Failed to parse entry:', filePath, error?.message || error);
+		}
+	}
+
+	entries.sort((a, b) => Date.parse(b.modifiedTime) - Date.parse(a.modifiedTime));
+	return entries;
+}
+
+async function steamSyncFindFile(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const fileName = String(payload?.fileName || '').trim();
+	if (!fileName) return null;
+
+	const entries = await listSteamSyncEntries(profileId);
+	const match = entries.find((entry) => entry.name === fileName);
+	if (!match) return null;
+	return toSteamSyncFileMetadata(match);
+}
+
+async function steamSyncListFiles(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const namePrefix = String(payload?.namePrefix || '').trim();
+	const entries = await listSteamSyncEntries(profileId);
+	return entries
+		.filter((entry) => !namePrefix || entry.name.includes(namePrefix))
+		.map((entry) => toSteamSyncFileMetadata(entry));
+}
+
+async function steamSyncDownloadFile(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
+	if (!fileId) {
+		throw new Error('Missing Steam sync file id');
+	}
+
+	const filePath = getSteamSyncFilePath(profileId, fileId);
+	if (!fs.existsSync(filePath)) {
+		throw new Error(`Steam sync file not found: ${fileId}`);
+	}
+
+	const entry = await readSteamSyncEntry(filePath, fileId);
+	return entry.content;
+}
+
+async function steamSyncCreateFile(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const name = String(payload?.name || '').trim();
+	if (!name) {
+		throw new Error('Missing Steam sync file name');
+	}
+
+	const entry = normalizeSteamSyncEntry(
+		{
+			id: crypto.randomUUID(),
+			name,
+			content: String(payload?.content || ''),
+			mimeType: payload?.mimeType || 'application/json',
+			appProperties: payload?.appProperties || {},
+			modifiedTime: new Date().toISOString(),
+		},
+		''
+	);
+	await writeSteamSyncEntry(profileId, entry);
+	return toSteamSyncFileMetadata(entry);
+}
+
+async function steamSyncUpdateFile(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
+	if (!fileId) {
+		throw new Error('Missing Steam sync file id');
+	}
+
+	const filePath = getSteamSyncFilePath(profileId, fileId);
+	if (!fs.existsSync(filePath)) {
+		throw new Error(`Steam sync file not found: ${fileId}`);
+	}
+
+	const existing = await readSteamSyncEntry(filePath, fileId);
+	const updated = normalizeSteamSyncEntry(
+		{
+			...existing,
+			content: String(payload?.content || ''),
+			mimeType: payload?.mimeType || existing.mimeType || 'application/json',
+			appProperties: payload?.appProperties || existing.appProperties || {},
+			modifiedTime: new Date().toISOString(),
+		},
+		fileId
+	);
+
+	await writeSteamSyncEntry(profileId, updated);
+	return toSteamSyncFileMetadata(updated);
 }
 
 function sendMenuCommand(command, payload = {}) {
@@ -977,6 +1167,11 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('steam:open-overlay');
 	ipcMain.removeHandler('steam:set-rich-presence');
 	ipcMain.removeHandler('steam:unlock-achievement');
+	ipcMain.removeHandler('steam-sync:find-file');
+	ipcMain.removeHandler('steam-sync:list-files');
+	ipcMain.removeHandler('steam-sync:download-file');
+	ipcMain.removeHandler('steam-sync:create-file');
+	ipcMain.removeHandler('steam-sync:update-file');
 
 	ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
 		if (!isAllowedExternalUrl(rawUrl)) {
@@ -1008,6 +1203,26 @@ function registerIpcHandlers() {
 	ipcMain.handle('steam:unlock-achievement', async (_event, payload) => {
 		const achievementId = payload?.achievementId || '';
 		return unlockSteamAchievement(achievementId);
+	});
+
+	ipcMain.handle('steam-sync:find-file', async (_event, payload) => {
+		return await steamSyncFindFile(payload || {});
+	});
+
+	ipcMain.handle('steam-sync:list-files', async (_event, payload) => {
+		return await steamSyncListFiles(payload || {});
+	});
+
+	ipcMain.handle('steam-sync:download-file', async (_event, payload) => {
+		return await steamSyncDownloadFile(payload || {});
+	});
+
+	ipcMain.handle('steam-sync:create-file', async (_event, payload) => {
+		return await steamSyncCreateFile(payload || {});
+	});
+
+	ipcMain.handle('steam-sync:update-file', async (_event, payload) => {
+		return await steamSyncUpdateFile(payload || {});
 	});
 
 	ipcMain.on('menu:set-context', (_event, payload) => {

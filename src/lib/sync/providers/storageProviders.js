@@ -6,6 +6,13 @@ import {
 	updateAppDataFile as updateGoogleAppDataFile,
 } from '@/lib/sync/googleDriveClient';
 import {
+	findSteamCloudFile,
+	listSteamCloudFiles,
+	downloadSteamCloudFile,
+	createSteamCloudFile,
+	updateSteamCloudFile,
+} from '@/lib/sync/steamCloudClient';
+import {
 	DEFAULT_SYNC_PROVIDER_ID,
 	normalizeSyncProviderId,
 	supportsCloudSync,
@@ -27,22 +34,12 @@ const googleDriveStorageProvider = Object.freeze({
 
 const steamStorageProvider = Object.freeze({
 	id: 'steam',
-	supportsCloudSync: false,
-	findFileByName: async () => {
-		throw createUnsupportedProviderError('steam');
-	},
-	listFiles: async () => {
-		throw createUnsupportedProviderError('steam');
-	},
-	downloadFile: async () => {
-		throw createUnsupportedProviderError('steam');
-	},
-	createFile: async () => {
-		throw createUnsupportedProviderError('steam');
-	},
-	updateFile: async () => {
-		throw createUnsupportedProviderError('steam');
-	},
+	supportsCloudSync: true,
+	findFileByName: async (fileName) => await findSteamCloudFile(fileName),
+	listFiles: async ({ namePrefix } = {}) => await listSteamCloudFiles({ namePrefix }),
+	downloadFile: async (fileId) => await downloadSteamCloudFile(fileId),
+	createFile: async (payload) => await createSteamCloudFile(payload),
+	updateFile: async (payload) => await updateSteamCloudFile(payload),
 });
 
 const STORAGE_PROVIDERS = Object.freeze({

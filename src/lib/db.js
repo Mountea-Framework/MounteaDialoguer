@@ -1,12 +1,13 @@
 import Dexie from 'dexie';
+import { getActiveProfileId } from '@/lib/profile/activeProfile';
 
 /**
  * Mountea Dialoguer IndexedDB Database
  * Manages local storage for projects, dialogues, participants, and categories
  */
 export class MounteaDialoguerDB extends Dexie {
-	constructor() {
-		super('MounteaDialoguerDB');
+	constructor(databaseName = 'MounteaDialoguerDB') {
+		super(databaseName);
 
 		// Version 1 - Auto-increment IDs (deprecated)
 		this.version(1).stores({
@@ -112,4 +113,66 @@ export class MounteaDialoguerDB extends Dexie {
 	}
 }
 
-export const db = new MounteaDialoguerDB();
+function sanitizeProfileIdForDb(rawValue) {
+	const value = String(rawValue || '').trim();
+	if (!value) return 'local';
+	return value.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+function getDatabaseNameForProfile(profileId) {
+	const normalizedProfileId = sanitizeProfileIdForDb(profileId);
+	if (normalizedProfileId === 'local') {
+		return 'MounteaDialoguerDB';
+	}
+	return `MounteaDialoguerDB__${normalizedProfileId}`;
+}
+
+function resolveActiveProfileId() {
+	try {
+		return sanitizeProfileIdForDb(getActiveProfileId());
+	} catch (error) {
+		return 'local';
+	}
+}
+
+let activeDbInstance = null;
+let activeDbProfileId = '';
+
+function ensureDbInstance() {
+	const profileId = resolveActiveProfileId();
+	if (!activeDbInstance || activeDbProfileId !== profileId) {
+		if (activeDbInstance) {
+			try {
+				activeDbInstance.close();
+			} catch (error) {
+				// Swallow close errors; switching profile should be best-effort.
+			}
+		}
+		activeDbInstance = new MounteaDialoguerDB(getDatabaseNameForProfile(profileId));
+		activeDbProfileId = profileId;
+	}
+	return activeDbInstance;
+}
+
+export const db = new Proxy(
+	{},
+	{
+		get(_target, property) {
+			const instance = ensureDbInstance();
+			const value = instance[property];
+			if (typeof value === 'function') {
+				return value.bind(instance);
+			}
+			return value;
+		},
+		set(_target, property, value) {
+			const instance = ensureDbInstance();
+			instance[property] = value;
+			return true;
+		},
+	}
+);
+
+export function getProfileScopedDbName() {
+	return ensureDbInstance().name;
+}

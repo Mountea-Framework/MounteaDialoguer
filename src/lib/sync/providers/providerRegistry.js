@@ -8,7 +8,7 @@ export const SYNC_PROVIDER_CONFIGS = Object.freeze({
 	}),
 	steam: Object.freeze({
 		id: 'steam',
-		supportsCloudSync: false,
+		supportsCloudSync: true,
 		requiresPassphrase: false,
 	}),
 });

@@ -36,6 +36,7 @@ export function SyncLoginDialog({
 		error,
 		clearError,
 		connectGoogleDrive,
+		connectSteamProvider,
 		syncAllProjects,
 		disconnect,
 		getProviderInput,
@@ -58,6 +59,8 @@ export function SyncLoginDialog({
 	const googlePassphrase = googleInput.passphrase || '';
 	const googleRememberPassphrase = Boolean(googleInput.rememberPassphrase);
 	const steamIdentity = steamStatus?.personaName || steamStatus?.steamId || '';
+	const isSteamProviderActive =
+		provider === 'steam' && (status === 'connected' || status === 'syncing');
 
 	const isGoogleConnected = status === 'connected' && provider === 'googleDrive';
 	const isGoogleConnecting = status === 'connecting';
@@ -83,6 +86,16 @@ export function SyncLoginDialog({
 			return '';
 		});
 	}, [open, googleSyncEnabled, showSteamProvider]);
+
+	useEffect(() => {
+		if (provider === 'steam' && showSteamProvider) {
+			setActiveProvider('steam');
+			return;
+		}
+		if (provider === 'googleDrive' && googleSyncEnabled) {
+			setActiveProvider('googleDrive');
+		}
+	}, [googleSyncEnabled, provider, showSteamProvider]);
 
 	useEffect(() => {
 		const updateViewportType = () => setIsDesktop(!isMobileDevice());
@@ -218,6 +231,20 @@ export function SyncLoginDialog({
 											onClick={() => openSteamOverlay('Friends')}
 										>
 											{t('sync.steam.openOverlay')}
+										</Button>
+									) : null}
+
+									{steamStatus?.available ? (
+										<Button
+											type="button"
+											size="sm"
+											variant={isSteamProviderActive ? 'outline' : 'default'}
+											disabled={isSteamProviderActive}
+											onClick={() => connectSteamProvider(steamStatus)}
+										>
+											{isSteamProviderActive
+												? t('sync.status.connected')
+												: t('sync.connect')}
 										</Button>
 									) : null}
 
