@@ -18,6 +18,7 @@ import { useSteamStore } from '@/stores/steamStore';
 import { cn } from '@/lib/utils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { GoogleDriveIcon } from '@/components/sync/GoogleDriveIcon';
+import { SteamIcon } from '@/components/sync/SteamIcon';
 import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
 import { isElectronRuntime } from '@/lib/electronRuntime';
 
@@ -120,52 +121,39 @@ export function SyncLoginDialog({
 		return t('sync.status.disconnected');
 	}, [steamStatus?.available, t]);
 
-	const steamDiagnostics = useMemo(
-		() => [
-			{ key: 'App ID', value: String(steamStatus?.appId || 0) },
-			{ key: 'Steam ID', value: String(steamStatus?.steamId || '-') },
-			{
-				key: 'Launched Via Steam',
-				value: steamStatus?.launchedViaSteam ? t('common.true') : t('common.false'),
-			},
-			{
-				key: 'Available',
-				value: steamStatus?.available ? t('common.true') : t('common.false'),
-			},
-			{
-				key: 'Overlay Enabled',
-				value: steamStatus?.overlayEnabled ? t('common.true') : t('common.false'),
-			},
-			{
-				key: 'Error',
-				value: String(steamStatus?.error || '-'),
-			},
-			{
-				key: 'SteamGameId',
-				value: String(steamStatus?.steamGameId || '-'),
-			},
-			{
-				key: 'SteamAppId',
-				value: String(steamStatus?.steamAppIdEnv || '-'),
-			},
-			{
-				key: 'Overlay Env',
-				value: String(steamStatus?.overlayRenderer || '-'),
-			},
-		],
-		[
-			steamStatus?.appId,
-			steamStatus?.steamId,
-			steamStatus?.launchedViaSteam,
-			steamStatus?.available,
-			steamStatus?.overlayEnabled,
-			steamStatus?.error,
-			steamStatus?.steamGameId,
-			steamStatus?.steamAppIdEnv,
-			steamStatus?.overlayRenderer,
-			t,
-		]
-	);
+	const steamHeaderSubtitle = useMemo(() => {
+		if (steamStatus?.available && steamIdentity) {
+			return t('sync.steam.profile', { account: steamIdentity });
+		}
+		if (steamStatus?.available) return t('sync.status.connected');
+		if (steamStatus?.error) return String(steamStatus.error);
+		return t('sync.providers.none');
+	}, [steamIdentity, steamStatus?.available, steamStatus?.error, t]);
+
+	const steamDetailLines = useMemo(() => {
+		const lines = [];
+
+		if (steamStatus?.available && steamStatus?.launchedViaSteam && steamStatus?.overlayEnabled) {
+			lines.push(t('sync.steam.overlayReady'));
+		}
+
+		if (steamStatus?.available && !steamStatus?.launchedViaSteam) {
+			lines.push(t('sync.steam.overlayUnavailable'));
+			lines.push(t('sync.steam.overlayUnavailableHint'));
+		}
+
+		if (!steamStatus?.available && steamStatus?.error) {
+			lines.push(String(steamStatus.error));
+		}
+
+		return lines;
+	}, [
+		steamStatus?.available,
+		steamStatus?.launchedViaSteam,
+		steamStatus?.overlayEnabled,
+		steamStatus?.error,
+		t,
+	]);
 
 	const errorMessage = useMemo(() => {
 		if (!error) return '';
@@ -205,16 +193,12 @@ export function SyncLoginDialog({
 							>
 								<AccordionTrigger className="py-3 hover:no-underline">
 									<div className="flex min-w-0 flex-1 items-center gap-3">
-										<div className="h-10 w-10 rounded-lg border border-border bg-black/90 text-white flex items-center justify-center shadow-sm">
-											S
+										<div className="h-10 w-12 overflow-hidden rounded-lg border border-border bg-background flex items-center justify-center px-1 shadow-sm">
+											<SteamIcon className="h-5 w-full object-contain" />
 										</div>
 										<div className="min-w-0 flex-1 text-left">
 											<p className="text-sm font-semibold">{t('sync.providers.steam')}</p>
-											<p className="text-xs text-muted-foreground truncate">
-												{steamIdentity
-													? t('sync.connectedAs', { account: steamIdentity })
-													: steamStatus?.error || t('sync.providers.none')}
-											</p>
+											<p className="text-xs text-muted-foreground truncate">{steamHeaderSubtitle}</p>
 										</div>
 										<div className="text-xs font-medium text-muted-foreground">
 											{steamStatusLabel}
@@ -231,28 +215,19 @@ export function SyncLoginDialog({
 										>
 											{t('sync.steam.openOverlay')}
 										</Button>
-									) : (
-										<p className="text-xs text-muted-foreground">
-											{steamStatus?.error || t('sync.providers.none')}
-										</p>
-									)}
+									) : null}
 
-									<div className="rounded-md border border-border/70 bg-background/60 p-3">
-										<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-											Steam Diagnostics
-										</p>
-										<div className="mt-2 grid gap-1 text-xs">
-											{steamDiagnostics.map((item) => (
-												<div
-													key={item.key}
-													className="grid grid-cols-[120px_1fr] items-start gap-2"
-												>
-													<span className="text-muted-foreground">{item.key}</span>
-													<span className="break-all">{item.value}</span>
-												</div>
-											))}
+									{steamDetailLines.length > 0 ? (
+										<div className="rounded-md border border-border/70 bg-background/60 p-3">
+											<div className="grid gap-1.5 text-xs">
+												{steamDetailLines.map((line, index) => (
+													<p key={`${line}-${index}`} className="text-muted-foreground">
+														{line}
+													</p>
+												))}
+											</div>
 										</div>
-									</div>
+									) : null}
 								</AccordionContent>
 							</AccordionItem>
 						) : null}

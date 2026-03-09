@@ -335,8 +335,16 @@
     "title": "Cloudová synchronizace",
     "description": "Připojte Google Drive pro synchronizaci projektů mezi zařízeními.",
     "providers": {
+      "steam": "Steam",
       "googleDrive": "Google Drive",
       "none": "Nepřipojeno"
+    },
+    "steam": {
+      "openOverlay": "Overlay",
+      "profile": "Steam profil: {{account}}",
+      "overlayReady": "Overlay je připravené. Můžete použít i Shift+Tab.",
+      "overlayUnavailable": "Overlay není v této relaci dostupné.",
+      "overlayUnavailableHint": "Spusťte aplikaci přes Steam, aby se overlay zapnulo."
     },
     "status": {
       "connected": "Připojeno",

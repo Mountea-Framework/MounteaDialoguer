@@ -408,7 +408,11 @@
 			"none": "Not Connected"
 		},
 		"steam": {
-			"openOverlay": "Overlay"
+			"openOverlay": "Overlay",
+			"profile": "Steam profile: {{account}}",
+			"overlayReady": "Overlay is ready. You can also use Shift+Tab.",
+			"overlayUnavailable": "Overlay is unavailable in this session.",
+			"overlayUnavailableHint": "Launch the app from Steam to enable in-app overlay."
 		},
 		"googleDisabled": "Google sync is disabled in this build.",
 		"status": {
