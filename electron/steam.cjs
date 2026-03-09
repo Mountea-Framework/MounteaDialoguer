@@ -21,7 +21,7 @@ let steamClient = null;
 let steamState = { ...DEFAULT_STATE };
 let overlayPrepared = false;
 let cachedPackageMetadata = null;
-const OVERLAY_DIALOG_FALLBACKS = Object.freeze({
+const OVERLAY_DIALOG_VALUES = Object.freeze({
 	Friends: 0,
 	Community: 1,
 	Players: 2,
@@ -218,37 +218,37 @@ function openOverlay(dialog = 'Friends') {
 	if (!steamState.available || !steamClient) return false;
 	if (!steamState.launchedViaSteam) return false;
 
-	const normalizedDialog = String(dialog || 'Friends').trim();
-	const enumDialogValue =
-		steamClient?.overlay?.Dialog?.[normalizedDialog] ??
-		OVERLAY_DIALOG_FALLBACKS[normalizedDialog] ??
-		OVERLAY_DIALOG_FALLBACKS.Friends;
+	const requestedDialog = String(dialog || 'Friends').trim() || 'Friends';
+	const normalizedDialog =
+		{
+			friends: 'Friends',
+			community: 'Community',
+			players: 'Players',
+			settings: 'Settings',
+			officialgamegroup: 'OfficialGameGroup',
+			stats: 'Stats',
+			achievements: 'Achievements',
+		}[requestedDialog.toLowerCase()] || 'Friends';
+	const overlay = steamClient?.overlay;
+	const dialogEnum = overlay?.Dialog;
+	const activateDialogFn = overlay?.activateDialog;
 
-	const tryInvoke = (fn, ...args) => {
-		if (typeof fn !== 'function') return false;
-		try {
-			fn(...args);
-			return true;
-		} catch (error) {
-			return false;
-		}
-	};
+	if (typeof activateDialogFn !== 'function') return false;
 
-	const attempts = [
-		() => tryInvoke(steamClient?.overlay?.activateDialog, enumDialogValue),
-		() => tryInvoke(steamClient?.overlay?.activateDialog, normalizedDialog),
-		() => tryInvoke(steamClient?.overlay?.activate, enumDialogValue),
-		() => tryInvoke(steamClient?.overlay?.activate, normalizedDialog),
-		() => tryInvoke(steamClient?.localplayer?.activateGameOverlay, normalizedDialog),
-	];
+	// Keep one canonical call path to avoid opening a different Steam surface.
+	const dialogValue =
+		dialogEnum && Object.prototype.hasOwnProperty.call(dialogEnum, normalizedDialog)
+			? dialogEnum[normalizedDialog]
+			: OVERLAY_DIALOG_VALUES[normalizedDialog];
 
-	for (const attempt of attempts) {
-		if (attempt()) {
-			return true;
-		}
+	if (dialogValue === undefined || dialogValue === null) return false;
+
+	try {
+		activateDialogFn(dialogValue);
+		return true;
+	} catch (error) {
+		return false;
 	}
-
-	return false;
 }
 
 function setRichPresence(entries = {}) {
