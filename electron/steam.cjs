@@ -9,12 +9,27 @@ const DEFAULT_STATE = Object.freeze({
 	steamId: '',
 	personaName: '',
 	overlayEnabled: false,
+	launchedViaSteam: false,
+	overlayRenderer: '',
+	steamGameId: '',
+	steamAppIdEnv: '',
 	error: '',
 });
 
 let steamworksModule = null;
 let steamClient = null;
 let steamState = { ...DEFAULT_STATE };
+let overlayPrepared = false;
+let cachedPackageMetadata = null;
+const OVERLAY_DIALOG_FALLBACKS = Object.freeze({
+	Friends: 0,
+	Community: 1,
+	Players: 2,
+	Settings: 3,
+	OfficialGameGroup: 4,
+	Stats: 5,
+	Achievements: 6,
+});
 
 function toPositiveInt(value) {
 	const parsed = Number(value);
@@ -23,14 +38,61 @@ function toPositiveInt(value) {
 	return Math.floor(parsed);
 }
 
+function readPackageMetadata() {
+	if (cachedPackageMetadata) return cachedPackageMetadata;
+
+	const defaultMetadata = { channel: '', steamAppId: 0 };
+	try {
+		const packagePath = path.join(__dirname, '..', 'package.json');
+		if (!fs.existsSync(packagePath)) {
+			cachedPackageMetadata = defaultMetadata;
+			return cachedPackageMetadata;
+		}
+
+		const raw = fs.readFileSync(packagePath, 'utf8');
+		const parsed = JSON.parse(raw);
+		cachedPackageMetadata = {
+			channel: String(parsed?.mounteaDistChannel || '').trim().toLowerCase(),
+			steamAppId: toPositiveInt(parsed?.mounteaSteamAppId || 0),
+		};
+		return cachedPackageMetadata;
+	} catch (error) {
+		cachedPackageMetadata = defaultMetadata;
+		return cachedPackageMetadata;
+	}
+}
+
 function resolveDistributionChannel() {
-	const raw = process.env.VITE_DIST_CHANNEL || process.env.MOUNTEA_DIST_CHANNEL || 'desktop';
+	const fromPackage = readPackageMetadata().channel;
+	const raw =
+		process.env.VITE_DIST_CHANNEL ||
+		process.env.MOUNTEA_DIST_CHANNEL ||
+		fromPackage ||
+		'desktop';
 	return String(raw).trim().toLowerCase();
+}
+
+function detectSteamLaunchContext() {
+	const overlayRenderer = String(
+		process.env.GAMEOVERLAYRENDERER64 || process.env.GAMEOVERLAYRENDERER || ''
+	).trim();
+	const steamGameId = String(process.env.SteamGameId || '').trim();
+	const steamAppIdEnv = String(process.env.SteamAppId || '').trim();
+	const launchedViaSteam = Boolean(overlayRenderer || steamGameId || steamAppIdEnv);
+
+	return {
+		launchedViaSteam,
+		overlayRenderer,
+		steamGameId,
+		steamAppIdEnv,
+	};
 }
 
 function resolveSteamAppId() {
 	const fromEnv = toPositiveInt(process.env.STEAM_APP_ID || process.env.VITE_STEAM_APP_ID);
 	if (fromEnv > 0) return fromEnv;
+	const fromPackage = readPackageMetadata().steamAppId;
+	if (fromPackage > 0) return fromPackage;
 
 	// Dev fallback: allow steam_appid.txt next to the executable.
 	try {
@@ -52,15 +114,65 @@ function safeCall(fn, fallback) {
 	}
 }
 
+function normalizeSteamId(rawSteamId) {
+	if (!rawSteamId) return '';
+	if (typeof rawSteamId === 'string') return rawSteamId.trim();
+	if (typeof rawSteamId === 'number' || typeof rawSteamId === 'bigint') {
+		return String(rawSteamId);
+	}
+	if (typeof rawSteamId === 'object') {
+		const steamId64 = rawSteamId.steamId64;
+		if (steamId64 !== undefined && steamId64 !== null && steamId64 !== '') {
+			return String(steamId64);
+		}
+		const steamId32 = rawSteamId.steamId32;
+		if (steamId32 !== undefined && steamId32 !== null && steamId32 !== '') {
+			return String(steamId32);
+		}
+		const accountId = rawSteamId.accountId;
+		if (accountId !== undefined && accountId !== null && accountId !== '') {
+			return String(accountId);
+		}
+	}
+	return '';
+}
+
+function prepareSteamOverlayForElectron() {
+	if (overlayPrepared) return true;
+
+	const channel = resolveDistributionChannel();
+	const appId = resolveSteamAppId();
+	if (channel !== 'steam' || !appId) return false;
+
+	try {
+		if (!steamworksModule) {
+			steamworksModule = require('steamworks.js');
+		}
+		if (typeof steamworksModule?.electronEnableSteamOverlay !== 'function') {
+			return false;
+		}
+		steamworksModule.electronEnableSteamOverlay();
+		overlayPrepared = true;
+		return true;
+	} catch (error) {
+		return false;
+	}
+}
+
 function initializeSteamRuntime() {
 	const channel = resolveDistributionChannel();
 	const appId = resolveSteamAppId();
+	const launchContext = detectSteamLaunchContext();
 
 	steamState = {
 		...DEFAULT_STATE,
 		initialized: true,
 		channel,
 		appId,
+		launchedViaSteam: launchContext.launchedViaSteam,
+		overlayRenderer: launchContext.overlayRenderer,
+		steamGameId: launchContext.steamGameId,
+		steamAppIdEnv: launchContext.steamAppIdEnv,
 	};
 
 	if (channel !== 'steam') {
@@ -74,21 +186,22 @@ function initializeSteamRuntime() {
 	}
 
 	try {
-		steamworksModule = require('steamworks.js');
+		if (!steamworksModule) {
+			steamworksModule = require('steamworks.js');
+		}
 		steamClient = steamworksModule.init(appId);
 
-		const steamId = safeCall(() => steamClient?.localplayer?.getSteamId?.(), '');
+		const rawSteamId = safeCall(() => steamClient?.localplayer?.getSteamId?.(), null);
+		const steamId = normalizeSteamId(rawSteamId);
 		const personaName = safeCall(() => steamClient?.localplayer?.getName?.(), '');
 
 		steamState.available = Boolean(steamClient);
-		steamState.steamId = steamId ? String(steamId) : '';
+		steamState.steamId = steamId || '';
 		steamState.personaName = personaName ? String(personaName) : '';
 		steamState.error = '';
 
-		if (typeof steamworksModule?.electronEnableSteamOverlay === 'function') {
-			safeCall(() => steamworksModule.electronEnableSteamOverlay(), null);
-			steamState.overlayEnabled = true;
-		}
+		const overlayHooked = prepareSteamOverlayForElectron();
+		steamState.overlayEnabled = Boolean(overlayHooked && launchContext.launchedViaSteam);
 	} catch (error) {
 		steamState.available = false;
 		steamState.error = String(error?.message || 'Failed to initialize Steam runtime');
@@ -103,22 +216,78 @@ function getSteamStatus() {
 
 function openOverlay(dialog = 'Friends') {
 	if (!steamState.available || !steamClient) return false;
+	if (!steamState.launchedViaSteam) return false;
 
-	const normalizedDialog = String(dialog || 'Friends');
-	const methods = [
-		() => steamClient?.overlay?.activateDialog?.(normalizedDialog),
-		() => steamClient?.overlay?.activate?.(normalizedDialog),
-		() => steamClient?.localplayer?.activateGameOverlay?.(normalizedDialog),
+	const normalizedDialog = String(dialog || 'Friends').trim();
+	const enumDialogValue =
+		steamClient?.overlay?.Dialog?.[normalizedDialog] ??
+		OVERLAY_DIALOG_FALLBACKS[normalizedDialog] ??
+		OVERLAY_DIALOG_FALLBACKS.Friends;
+
+	const tryInvoke = (fn, ...args) => {
+		if (typeof fn !== 'function') return false;
+		try {
+			fn(...args);
+			return true;
+		} catch (error) {
+			return false;
+		}
+	};
+
+	const attempts = [
+		() => tryInvoke(steamClient?.overlay?.activateDialog, enumDialogValue),
+		() => tryInvoke(steamClient?.overlay?.activateDialog, normalizedDialog),
+		() => tryInvoke(steamClient?.overlay?.activate, enumDialogValue),
+		() => tryInvoke(steamClient?.overlay?.activate, normalizedDialog),
+		() => tryInvoke(steamClient?.localplayer?.activateGameOverlay, normalizedDialog),
 	];
 
-	for (const method of methods) {
-		const result = safeCall(method, undefined);
-		if (result !== undefined) {
+	for (const attempt of attempts) {
+		if (attempt()) {
 			return true;
 		}
 	}
 
 	return false;
+}
+
+function setRichPresence(entries = {}) {
+	if (!steamState.available || !steamClient) {
+		return { ok: false, error: 'Steam runtime unavailable' };
+	}
+
+	if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
+		return { ok: false, error: 'Invalid rich presence payload' };
+	}
+
+	const setRichPresenceFn =
+		steamClient?.localplayer?.setRichPresence ??
+		steamClient?.setRichPresence ??
+		steamworksModule?.localplayer?.setRichPresence ??
+		null;
+	if (typeof setRichPresenceFn !== 'function') {
+		return { ok: false, error: 'setRichPresence is not available in Steam client' };
+	}
+
+	try {
+		let applied = 0;
+		for (const [rawKey, rawValue] of Object.entries(entries)) {
+			const key = String(rawKey || '').trim();
+			if (!key) continue;
+			const value =
+				rawValue === undefined || rawValue === null || rawValue === ''
+					? null
+					: String(rawValue);
+			setRichPresenceFn(key, value);
+			applied += 1;
+		}
+		return { ok: true, applied };
+	} catch (error) {
+		return {
+			ok: false,
+			error: String(error?.message || 'Failed to set rich presence'),
+		};
+	}
 }
 
 function unlockAchievement(achievementId) {
@@ -137,7 +306,9 @@ function unlockAchievement(achievementId) {
 
 module.exports = {
 	initializeSteamRuntime,
+	prepareSteamOverlayForElectron,
 	getSteamStatus,
 	openOverlay,
+	setRichPresence,
 	unlockAchievement,
 };

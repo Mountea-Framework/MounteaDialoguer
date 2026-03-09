@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
 	getSteamStatus: () => ipcRenderer.invoke('steam:get-status'),
 	openSteamOverlay: (payload) => ipcRenderer.invoke('steam:open-overlay', payload),
+	setSteamRichPresence: (payload) => ipcRenderer.invoke('steam:set-rich-presence', payload),
 	unlockSteamAchievement: (payload) =>
 		ipcRenderer.invoke('steam:unlock-achievement', payload),
 	setMenuContext: (context) => ipcRenderer.send('menu:set-context', context),

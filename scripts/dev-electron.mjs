@@ -1,5 +1,7 @@
 import net from "node:net";
 import process from "node:process";
+import fs from "node:fs";
+import path from "node:path";
 import { spawn } from "node:child_process";
 
 const START_PORT = 5173;
@@ -8,8 +10,14 @@ const CONNECT_TIMEOUT_MS = 500;
 const BOOT_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 200;
 
-function commandForCurrentPlatform(command) {
-	return process.platform === "win32" ? `${command}.cmd` : command;
+function spawnTool(tool, args, options = {}) {
+	const isWindows = process.platform === "win32";
+	const command = isWindows ? "cmd.exe" : "npx";
+	const commandArgs = isWindows
+		? ["/d", "/s", "/c", "npx", tool, ...args]
+		: [tool, ...args];
+
+	return spawn(command, commandArgs, options);
 }
 
 function getFreePort(startPort, maxAttempts) {
@@ -83,16 +91,61 @@ function waitForPort(port, timeoutMs) {
 
 function terminateProcess(child) {
 	if (!child || child.killed) return;
+	if (process.platform === "win32") {
+		if (!child.pid) return;
+		const killer = spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+			stdio: "ignore",
+			windowsHide: true,
+		});
+		killer.on("error", () => {
+			// Ignore cleanup errors.
+		});
+		return;
+	}
 	child.kill("SIGTERM");
 }
 
+function resolveSteamAppIdFromEnv() {
+	const value = Number(process.env.STEAM_APP_ID || process.env.VITE_STEAM_APP_ID || 0);
+	if (!Number.isFinite(value)) return 0;
+	if (value <= 0) return 0;
+	return Math.floor(value);
+}
+
+function prepareSteamAppIdFile() {
+	const channel = String(process.env.VITE_DIST_CHANNEL || "").trim().toLowerCase();
+	if (channel !== "steam") return () => {};
+
+	const appId = resolveSteamAppIdFromEnv();
+	if (!appId) return () => {};
+
+	const filePath = path.join(process.cwd(), "steam_appid.txt");
+	const hadExistingFile = fs.existsSync(filePath);
+	if (!hadExistingFile) {
+		fs.writeFileSync(filePath, `${appId}\n`, "utf8");
+		console.log(`[dev:electron] Created steam_appid.txt for AppID ${appId}`);
+	}
+
+	return () => {
+		if (!hadExistingFile) {
+			try {
+				fs.unlinkSync(filePath);
+				console.log("[dev:electron] Removed temporary steam_appid.txt");
+			} catch {
+				// Ignore cleanup errors.
+			}
+		}
+	};
+}
+
 async function main() {
+	const cleanupSteamAppIdFile = prepareSteamAppIdFile();
 	const port = await getFreePort(START_PORT, PORT_SCAN_LIMIT);
 	const url = `http://localhost:${port}`;
 
 	console.log(`[dev:electron] Using Vite dev server: ${url}`);
 
-	const vite = spawn(commandForCurrentPlatform("vite"), ["--port", String(port), "--strictPort"], {
+	const vite = spawnTool("vite", ["--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
 		stdio: "inherit",
 		env: process.env,
 	});
@@ -106,8 +159,9 @@ async function main() {
 
 		terminateProcess(electron);
 		terminateProcess(vite);
+		cleanupSteamAppIdFile();
 
-		setTimeout(() => process.exit(exitCode), 250);
+		setTimeout(() => process.exit(exitCode), 750);
 	};
 
 	process.on("SIGINT", () => shutdown(0));
@@ -124,10 +178,13 @@ async function main() {
 
 	await waitForPort(port, BOOT_TIMEOUT_MS);
 
-	electron = spawn(commandForCurrentPlatform("electron"), ["."], {
+	const electronEnv = { ...process.env };
+	delete electronEnv.ELECTRON_RUN_AS_NODE;
+
+	electron = spawnTool("electron", ["."], {
 		stdio: "inherit",
 		env: {
-			...process.env,
+			...electronEnv,
 			VITE_DEV_SERVER_URL: url,
 		},
 	});

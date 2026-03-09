@@ -14,6 +14,7 @@ import { useSyncStore } from '@/stores/syncStore';
 import { useSteamStore } from '@/stores/steamStore';
 import { markUserActivity, trackActiveMinute } from '@/lib/achievements/achievementTracker';
 import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
+import { initializeActiveProfileFromSteamStatus } from '@/lib/profile/activeProfile';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
@@ -58,19 +59,27 @@ function RootComponent() {
 		useCommandPaletteStore();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const loadSteamStatus = useSteamStore((state) => state.loadStatus);
+	const steamStatus = useSteamStore((state) => state.status);
+	const setSteamRichPresence = useSteamStore((state) => state.setRichPresence);
 	const googleSyncEnabled = isGoogleSyncEnabled();
-	const steamChannel = isSteamChannel();
+	const steamChannelFromBuild = isSteamChannel();
+	const runtimeSteamChannel = String(steamStatus?.channel || '').toLowerCase() === 'steam';
+	const steamChannel = steamChannelFromBuild || runtimeSteamChannel;
 	const {
 		loadAccount,
 		hasHydrated,
 		status,
-		passphrase,
+		provider,
+		providerInputs,
 		syncAllProjects,
 		hideLoginPrompt,
 		setHideLoginPrompt,
 		loginDialogOpen,
 		setLoginDialogOpen,
 	} = useSyncStore();
+	const activeProviderPassphrase = provider
+		? String(providerInputs?.[provider]?.passphrase || '')
+		: '';
 	const currentPath = useRouterState({
 		select: (state) => state.location.pathname || '',
 	});
@@ -140,7 +149,8 @@ function RootComponent() {
 				// Wait for database to be ready
 				await db.open();
 				await loadAccount();
-				await loadSteamStatus();
+				const steamStatus = await loadSteamStatus();
+				initializeActiveProfileFromSteamStatus(steamStatus);
 
 				// Ensure minimum loading time for smooth UX (1.5 seconds)
 				await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -191,15 +201,55 @@ function RootComponent() {
 	}, []);
 
 	useEffect(() => {
+		if (!steamChannel) return;
+		if (!steamStatus?.available) return;
+
+		const statusByRoute = {
+			dashboard: 'Dashboard',
+			project: 'Project',
+			dialogue: 'Dialogue Editor',
+			'dialogue-settings': 'Dialogue Settings',
+			legal: 'Legal',
+			none: 'Browsing',
+		};
+		const status = statusByRoute[routeContext.type] || 'Browsing';
+
+		const entries = {
+			status,
+			route: routeContext.type || 'none',
+			project_id: routeContext.projectId || null,
+			dialogue_id: routeContext.dialogueId || null,
+		};
+
+		setSteamRichPresence(entries).catch((error) => {
+			console.warn('[steam] Failed to update rich presence:', error);
+		});
+	}, [
+		routeContext.dialogueId,
+		routeContext.projectId,
+		routeContext.type,
+		setSteamRichPresence,
+		steamChannel,
+		steamStatus?.available,
+	]);
+
+	useEffect(() => {
 		if (!hasHydrated) return;
 		if (status !== 'connected') return;
-		if (!passphrase || !passphrase.trim()) return;
+		if (!activeProviderPassphrase || !activeProviderPassphrase.trim()) return;
 		if (isLoading || !showContent) return;
 		if (hasAutoSyncedRef.current) return;
 		console.log('[sync] Auto sync after hydration');
 		hasAutoSyncedRef.current = true;
 		syncAllProjects({ mode: 'pull' });
-	}, [hasHydrated, status, passphrase, isLoading, showContent, syncAllProjects]);
+	}, [
+		activeProviderPassphrase,
+		hasHydrated,
+		isLoading,
+		showContent,
+		status,
+		syncAllProjects,
+	]);
 
 	useEffect(() => {
 		if (status === 'disconnected') {

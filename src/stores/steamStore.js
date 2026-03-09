@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
 	getSteamStatus as getSteamStatusClient,
 	openSteamOverlay as openSteamOverlayClient,
+	setSteamRichPresence as setSteamRichPresenceClient,
 	unlockSteamAchievement as unlockSteamAchievementClient,
 } from '@/lib/steam/steamClient';
 
@@ -13,12 +14,17 @@ const DEFAULT_STATUS = Object.freeze({
 	steamId: '',
 	personaName: '',
 	overlayEnabled: false,
+	launchedViaSteam: false,
+	overlayRenderer: '',
+	steamGameId: '',
+	steamAppIdEnv: '',
 	error: '',
 });
 
 export const useSteamStore = create((set, get) => ({
 	status: { ...DEFAULT_STATUS },
 	isLoading: false,
+	lastPresence: null,
 
 	loadStatus: async () => {
 		set({ isLoading: true });
@@ -39,6 +45,14 @@ export const useSteamStore = create((set, get) => ({
 
 	openOverlay: async (dialog = 'Friends') => {
 		return await openSteamOverlayClient(dialog);
+	},
+
+	setRichPresence: async (entries = {}) => {
+		const result = await setSteamRichPresenceClient(entries);
+		if (result?.ok) {
+			set({ lastPresence: { ...entries } });
+		}
+		return result;
 	},
 
 	unlockAchievement: async (achievementId) => {

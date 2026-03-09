@@ -1,6 +1,10 @@
 import { db } from '@/lib/db';
 import { useSteamStore } from '@/stores/steamStore';
 import { STEAM_ACHIEVEMENT_IDS } from '@/config/steamAchievements';
+import {
+	readProfileScopedItem,
+	writeProfileScopedItem,
+} from '@/lib/profile/activeProfile';
 
 const ACHIEVEMENT_STATE_KEY = 'mountea-achievements-state-v1';
 const PLAYTIME_MINUTES_KEY = 'mountea-achievements-playtime-minutes-v1';
@@ -8,22 +12,11 @@ const LAST_ACTIVITY_TS_KEY = 'mountea-achievements-last-activity-ts-v1';
 const ACTIVE_WINDOW_MS = 2 * 60 * 1000;
 
 function readLocalStorage(key, fallback = '') {
-	if (typeof window === 'undefined') return fallback;
-	try {
-		const value = window.localStorage.getItem(key);
-		return value ?? fallback;
-	} catch (error) {
-		return fallback;
-	}
+	return readProfileScopedItem(key, fallback);
 }
 
 function writeLocalStorage(key, value) {
-	if (typeof window === 'undefined') return;
-	try {
-		window.localStorage.setItem(key, value);
-	} catch (error) {
-		// Ignore quota and unavailable storage errors.
-	}
+	writeProfileScopedItem(key, value);
 }
 
 function loadAchievementState() {

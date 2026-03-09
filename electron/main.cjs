@@ -6,8 +6,10 @@ const { URL, URLSearchParams } = require('node:url');
 const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const {
 	initializeSteamRuntime,
+	prepareSteamOverlayForElectron,
 	getSteamStatus,
 	openOverlay: openSteamOverlay,
+	setRichPresence: setSteamRichPresence,
 	unlockAchievement: unlockSteamAchievement,
 } = require('./steam.cjs');
 
@@ -46,8 +48,15 @@ let steamRuntimeState = {
 	steamId: '',
 	personaName: '',
 	overlayEnabled: false,
+	launchedViaSteam: false,
+	overlayRenderer: '',
+	steamGameId: '',
+	steamAppIdEnv: '',
 	error: '',
 };
+
+// Must happen before app ready for Steam overlay injection switches.
+prepareSteamOverlayForElectron();
 
 function readDotEnvValue(key) {
 	const envPath = path.join(__dirname, '..', '.env');
@@ -871,6 +880,7 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('auth:start-google-oauth');
 	ipcMain.removeHandler('steam:get-status');
 	ipcMain.removeHandler('steam:open-overlay');
+	ipcMain.removeHandler('steam:set-rich-presence');
 	ipcMain.removeHandler('steam:unlock-achievement');
 
 	ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
@@ -893,6 +903,11 @@ function registerIpcHandlers() {
 		const dialog = payload?.dialog || 'Friends';
 		const ok = openSteamOverlay(dialog);
 		return { ok };
+	});
+
+	ipcMain.handle('steam:set-rich-presence', async (_event, payload) => {
+		const entries = payload?.entries || {};
+		return setSteamRichPresence(entries);
 	});
 
 	ipcMain.handle('steam:unlock-achievement', async (_event, payload) => {
@@ -922,7 +937,7 @@ if (!gotSingleInstanceLock) {
 		steamRuntimeState = initializeSteamRuntime();
 		if (steamRuntimeState.available) {
 			console.log(
-				`[steam] runtime initialized appId=${steamRuntimeState.appId} steamId=${steamRuntimeState.steamId}`
+				`[steam] runtime initialized appId=${steamRuntimeState.appId} steamId=${steamRuntimeState.steamId} launchedViaSteam=${steamRuntimeState.launchedViaSteam}`
 			);
 		} else {
 			console.log(`[steam] runtime not available: ${steamRuntimeState.error}`);

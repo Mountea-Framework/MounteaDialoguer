@@ -14,11 +14,13 @@
 		"dev:electron": "node scripts/dev-electron.mjs",
 		"dev:electron:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/dev-electron.mjs",
 		"build": "vite build",
+		"build:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 vite build",
 		"preview": "vite preview",
 		"electron:start": "electron .",
 		"electron:pack": "npm run build && node scripts/run-electron-builder.mjs --dir",
+		"electron:pack:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --dir --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
-		"electron:dist:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 npm run build && node scripts/run-electron-builder.mjs",
+		"electron:dist:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"lint": "eslint src --ext js,jsx",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist"
@@ -46,7 +48,7 @@
 				"nsis",
 				"portable"
 			],
-			"icon": "mounteaDialoguerIcon.ico"
+			"icon": "mounteaDialoguerIcon.png"
 		},
 		"mac": {
 			"target": [
@@ -72,6 +74,7 @@
 		}
 	},
 	"dependencies": {
+		"@radix-ui/react-accordion": "^1.2.12",
 		"@radix-ui/react-alert-dialog": "^1.1.15",
 		"@radix-ui/react-dialog": "^1.1.15",
 		"@radix-ui/react-dropdown-menu": "^2.1.16",

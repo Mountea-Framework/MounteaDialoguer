@@ -40,8 +40,13 @@ function forwardStream(stream, target, rawLogsEnabled) {
 function main() {
 	const args = process.argv.slice(2);
 	const rawLogsEnabled = process.env.ELECTRON_BUILDER_RAW_LOGS === "1";
+	const isWindows = process.platform === "win32";
+	const command = isWindows ? "cmd.exe" : commandForCurrentPlatform("npx");
+	const commandArgs = isWindows
+		? ["/d", "/s", "/c", "npx", "electron-builder", ...args]
+		: ["electron-builder", ...args];
 
-	const child = spawn(commandForCurrentPlatform("electron-builder"), args, {
+	const child = spawn(command, commandArgs, {
 		stdio: ["inherit", "pipe", "pipe"],
 		env: process.env,
 	});
