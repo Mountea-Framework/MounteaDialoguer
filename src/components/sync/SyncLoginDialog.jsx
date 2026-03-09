@@ -170,6 +170,9 @@ export function SyncLoginDialog({
 		return map[error] || t('common.error');
 	}, [error, t]);
 
+	const syncInputClassName =
+		'focus-visible:ring-1 focus-visible:ring-border/70 focus-visible:ring-offset-0 focus-visible:border-border';
+
 	const syncFormContent = (
 		<>
 			<div
@@ -272,6 +275,7 @@ export function SyncLoginDialog({
 												}}
 												placeholder={t('sync.accountPlaceholder')}
 												disabled={isGoogleConnected}
+												className={syncInputClassName}
 											/>
 										</div>
 
@@ -290,6 +294,7 @@ export function SyncLoginDialog({
 												}}
 												placeholder={t('sync.passphrasePlaceholder')}
 												disabled={isGoogleConnected}
+												className={syncInputClassName}
 											/>
 											<p className="text-xs text-muted-foreground">{t('sync.passphraseHint')}</p>
 										</div>

@@ -1,13 +1,24 @@
 import { encryptPayload, decryptPayload } from '@/lib/sync/crypto';
 import { buildProjectSnapshot, applyProjectSnapshot, applyProjectSnapshotAsNew } from '@/lib/sync/snapshot';
-import { findAppDataFile, downloadAppDataFile, createAppDataFile, updateAppDataFile, listAppDataFiles } from '@/lib/sync/googleDriveClient';
 import { getSyncProject, upsertSyncProject } from '@/lib/sync/syncStorage';
+import {
+	DEFAULT_SYNC_PROVIDER_ID,
+} from '@/lib/sync/providers/providerRegistry';
+import {
+	assertCloudSyncStorageProvider,
+	resolveSyncProviderId,
+} from '@/lib/sync/providers/storageProviders';
 import { db } from '@/lib/db';
 
-const PROVIDER = 'googleDrive';
 const FILE_PREFIX = 'mountea-project-';
 const FILE_SUFFIX = '.mteasnap';
 const MIME_TYPE = 'application/json';
+
+function getSyncContext(options = {}) {
+	const providerId = resolveSyncProviderId(options?.provider || DEFAULT_SYNC_PROVIDER_ID);
+	const storage = assertCloudSyncStorageProvider(providerId);
+	return { providerId, storage };
+}
 
 function buildFileName(projectId) {
 	return `${FILE_PREFIX}${projectId}${FILE_SUFFIX}`;
@@ -30,21 +41,23 @@ function getRevisionFromFile(file) {
 	return Number.isNaN(revision) ? 0 : revision;
 }
 
-export async function checkRemoteDiff(projectId) {
+export async function checkRemoteDiff(projectId, options = {}) {
+	const { providerId, storage } = getSyncContext(options);
 	const fileName = buildFileName(projectId);
-	const remoteFile = await findAppDataFile(fileName);
+	const remoteFile = await storage.findFileByName(fileName);
 	if (!remoteFile) return false;
 
 	const remoteRevision = getRevisionFromFile(remoteFile);
-	const local = await getSyncProject(projectId, PROVIDER);
+	const local = await getSyncProject(projectId, providerId);
 	const localRevision = local?.revision ? Number(local.revision) : 0;
 
 	return remoteRevision > localRevision;
 }
 
-export async function listRemoteProjects() {
+export async function listRemoteProjects(options = {}) {
+	const { storage } = getSyncContext(options);
 	console.log('[sync] Listing remote projects');
-	const files = await listAppDataFiles({ namePrefix: FILE_PREFIX });
+	const files = await storage.listFiles({ namePrefix: FILE_PREFIX });
 	return files
 		.map((file) => ({
 			projectId: extractProjectId(file),
@@ -109,9 +122,10 @@ export function dedupeRemoteProjects(remoteProjects) {
 	};
 }
 
-export async function diffRemoteLocal() {
+export async function diffRemoteLocal(options = {}) {
+	const { providerId } = getSyncContext(options);
 	console.log('[sync] Building remote/local diff');
-	const remoteRaw = await listRemoteProjects();
+	const remoteRaw = await listRemoteProjects({ provider: providerId });
 	const { unique: remoteUnique, duplicates } = dedupeRemoteProjects(remoteRaw);
 	const remoteMap = new Map(remoteUnique.map((item) => [item.projectId, item]));
 
@@ -120,7 +134,7 @@ export async function diffRemoteLocal() {
 
 	const localMeta = await db.syncProjects
 		.where('provider')
-		.equals(PROVIDER)
+		.equals(providerId)
 		.toArray();
 	const metaMap = new Map(localMeta.map((item) => [item.projectId, item]));
 
@@ -192,9 +206,16 @@ export async function diffRemoteLocal() {
 	};
 }
 
-export async function previewPullFromFile({ projectId, fileId, revision, passphrase }) {
+export async function previewPullFromFile({
+	projectId,
+	fileId,
+	revision,
+	passphrase,
+	provider = DEFAULT_SYNC_PROVIDER_ID,
+}) {
+	const { storage } = getSyncContext({ provider });
 	console.log('[sync] Preview pull', { projectId, fileId, revision });
-	const encryptedText = await downloadAppDataFile(fileId);
+	const encryptedText = await storage.downloadFile(fileId);
 	const payload = JSON.parse(encryptedText);
 	const snapshot = await decryptPayload(passphrase, payload);
 	return {
@@ -214,16 +235,23 @@ export async function previewPushProject({ projectId }) {
 	};
 }
 
-export async function pullProjectFromFile({ projectId, fileId, revision, passphrase }) {
+export async function pullProjectFromFile({
+	projectId,
+	fileId,
+	revision,
+	passphrase,
+	provider = DEFAULT_SYNC_PROVIDER_ID,
+}) {
+	const { providerId, storage } = getSyncContext({ provider });
 	console.log('[sync] Pulling project from file', { projectId, fileId, revision });
-	const encryptedText = await downloadAppDataFile(fileId);
+	const encryptedText = await storage.downloadFile(fileId);
 	const payload = JSON.parse(encryptedText);
 	const snapshot = await decryptPayload(passphrase, payload);
 
 	await applyProjectSnapshot(snapshot);
 
 	const remoteRevision = revision ?? 0;
-	await upsertSyncProject(projectId, PROVIDER, {
+	await upsertSyncProject(projectId, providerId, {
 		revision: remoteRevision,
 		remoteFileId: fileId,
 		lastSyncedAt: new Date().toISOString(),
@@ -232,17 +260,23 @@ export async function pullProjectFromFile({ projectId, fileId, revision, passphr
 	return { pulled: true, revision: remoteRevision };
 }
 
-export async function pullProject({ projectId, passphrase, onProgress }) {
+export async function pullProject({
+	projectId,
+	passphrase,
+	onProgress,
+	provider = DEFAULT_SYNC_PROVIDER_ID,
+}) {
+	const { providerId, storage } = getSyncContext({ provider });
 	console.log('[sync] Pulling project', { projectId });
 	const fileName = buildFileName(projectId);
 	onProgress?.('checking', 20);
-	const remoteFile = await findAppDataFile(fileName);
+	const remoteFile = await storage.findFileByName(fileName);
 	if (!remoteFile) {
 		return { pulled: false, reason: 'missing' };
 	}
 
 	onProgress?.('downloading', 45);
-	const encryptedText = await downloadAppDataFile(remoteFile.id);
+	const encryptedText = await storage.downloadFile(remoteFile.id);
 	const payload = JSON.parse(encryptedText);
 	onProgress?.('decrypting', 70);
 	const snapshot = await decryptPayload(passphrase, payload);
@@ -251,7 +285,7 @@ export async function pullProject({ projectId, passphrase, onProgress }) {
 	await applyProjectSnapshot(snapshot);
 
 	const remoteRevision = getRevisionFromFile(remoteFile);
-	await upsertSyncProject(projectId, PROVIDER, {
+	await upsertSyncProject(projectId, providerId, {
 		revision: remoteRevision,
 		remoteFileId: remoteFile.id,
 		lastSyncedAt: new Date().toISOString(),
@@ -260,17 +294,25 @@ export async function pullProject({ projectId, passphrase, onProgress }) {
 	return { pulled: true, revision: remoteRevision };
 }
 
-export async function pullProjectAsNew({ projectId, passphrase, fileId, revision, onProgress }) {
+export async function pullProjectAsNew({
+	projectId,
+	passphrase,
+	fileId,
+	revision,
+	onProgress,
+	provider = DEFAULT_SYNC_PROVIDER_ID,
+}) {
+	const { storage } = getSyncContext({ provider });
 	console.log('[sync] Pulling project as new', { projectId, fileId });
 	const fileName = buildFileName(projectId);
 	onProgress?.('checking', 20);
-	const remoteFile = fileId ? { id: fileId } : await findAppDataFile(fileName);
+	const remoteFile = fileId ? { id: fileId } : await storage.findFileByName(fileName);
 	if (!remoteFile) {
 		return { pulled: false, reason: 'missing' };
 	}
 
 	onProgress?.('downloading', 45);
-	const encryptedText = await downloadAppDataFile(remoteFile.id);
+	const encryptedText = await storage.downloadFile(remoteFile.id);
 	const payload = JSON.parse(encryptedText);
 	onProgress?.('decrypting', 70);
 	const snapshot = await decryptPayload(passphrase, payload);
@@ -281,15 +323,20 @@ export async function pullProjectAsNew({ projectId, passphrase, fileId, revision
 	return { pulled: true, sourceProjectId: projectId, newProjectId, revision: revision ?? 0 };
 }
 
-export async function pushProject({ projectId, passphrase }) {
+export async function pushProject({
+	projectId,
+	passphrase,
+	provider = DEFAULT_SYNC_PROVIDER_ID,
+}) {
+	const { providerId, storage } = getSyncContext({ provider });
 	console.log('[sync] Pushing project', { projectId });
 	const snapshot = await buildProjectSnapshot(projectId);
 	const encryptedPayload = await encryptPayload(passphrase, snapshot);
 	const content = JSON.stringify(encryptedPayload);
 
 	const fileName = buildFileName(projectId);
-	const remoteFile = await findAppDataFile(fileName);
-	const local = await getSyncProject(projectId, PROVIDER);
+	const remoteFile = await storage.findFileByName(fileName);
+	const local = await getSyncProject(projectId, providerId);
 	const localRevision = local?.revision ? Number(local.revision) : 0;
 	const nextRevision = localRevision + 1;
 
@@ -302,14 +349,14 @@ export async function pushProject({ projectId, passphrase }) {
 
 	let result;
 	if (remoteFile?.id) {
-		result = await updateAppDataFile({
+		result = await storage.updateFile({
 			fileId: remoteFile.id,
 			content,
 			mimeType: MIME_TYPE,
 			appProperties,
 		});
 	} else {
-		result = await createAppDataFile({
+		result = await storage.createFile({
 			name: fileName,
 			content,
 			mimeType: MIME_TYPE,
@@ -317,7 +364,7 @@ export async function pushProject({ projectId, passphrase }) {
 		});
 	}
 
-	await upsertSyncProject(projectId, PROVIDER, {
+	await upsertSyncProject(projectId, providerId, {
 		revision: nextRevision,
 		remoteFileId: result.id || remoteFile?.id || null,
 		lastSyncedAt: new Date().toISOString(),
@@ -326,9 +373,14 @@ export async function pushProject({ projectId, passphrase }) {
 	return { pushed: true, revision: nextRevision };
 }
 
-export async function syncAllProjects({ passphrase, onProgress }) {
+export async function syncAllProjects({
+	passphrase,
+	onProgress,
+	provider = DEFAULT_SYNC_PROVIDER_ID,
+}) {
+	const { providerId } = getSyncContext({ provider });
 	console.log('[sync] Sync all projects start');
-	const remoteProjects = await listRemoteProjects();
+	const remoteProjects = await listRemoteProjects({ provider: providerId });
 	const remoteMap = new Map(remoteProjects.map((item) => [item.projectId, item]));
 
 	const localProjects = await db.projects.toArray();
@@ -348,6 +400,7 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 				fileId: remote.fileId,
 				revision: remote.revision,
 				passphrase,
+				provider: providerId,
 			});
 		}
 	}
@@ -358,11 +411,11 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 
 		const remote = remoteMap.get(project.id);
 		if (!remote) {
-			await pushProject({ projectId: project.id, passphrase });
+			await pushProject({ projectId: project.id, passphrase, provider: providerId });
 			continue;
 		}
 
-		const localMeta = await getSyncProject(project.id, PROVIDER);
+		const localMeta = await getSyncProject(project.id, providerId);
 		if (!localMeta) {
 			const remoteUpdated = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
 			const localUpdated = project.modifiedAt ? Date.parse(project.modifiedAt) : 0;
@@ -372,10 +425,11 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 					fileId: remote.fileId,
 					revision: remote.revision,
 					passphrase,
+					provider: providerId,
 				});
 				continue;
 			}
-			await pushProject({ projectId: project.id, passphrase });
+			await pushProject({ projectId: project.id, passphrase, provider: providerId });
 			continue;
 		}
 
@@ -388,9 +442,10 @@ export async function syncAllProjects({ passphrase, onProgress }) {
 				fileId: remote.fileId,
 				revision: remoteRevision,
 				passphrase,
+				provider: providerId,
 			});
 		} else {
-			await pushProject({ projectId: project.id, passphrase });
+			await pushProject({ projectId: project.id, passphrase, provider: providerId });
 		}
 	}
 

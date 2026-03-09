@@ -201,6 +201,28 @@ function RootComponent() {
 	}, []);
 
 	useEffect(() => {
+		const applyScrollbarVisibility = () => {
+			if (typeof document === 'undefined') return;
+			const shouldHideScrollbars = !isMobileDevice();
+			document.documentElement.classList.toggle('hide-scrollbars', shouldHideScrollbars);
+		};
+
+		applyScrollbarVisibility();
+		window.addEventListener('resize', applyScrollbarVisibility);
+		window.addEventListener('orientationchange', applyScrollbarVisibility);
+		window.addEventListener('device-override', applyScrollbarVisibility);
+
+		return () => {
+			window.removeEventListener('resize', applyScrollbarVisibility);
+			window.removeEventListener('orientationchange', applyScrollbarVisibility);
+			window.removeEventListener('device-override', applyScrollbarVisibility);
+			if (typeof document !== 'undefined') {
+				document.documentElement.classList.remove('hide-scrollbars');
+			}
+		};
+	}, []);
+
+	useEffect(() => {
 		if (!steamChannel) return;
 		if (!steamStatus?.available) return;
 

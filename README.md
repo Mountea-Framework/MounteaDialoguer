@@ -84,6 +84,11 @@
 > - `VITE_GOOGLE_CLIENT_ID_DESKTOP`: used by Electron builds
 > - `VITE_GOOGLE_CLIENT_ID`: fallback if the runtime-specific key is not set
 > - `VITE_GOOGLE_CLIENT_SECRET_DESKTOP`: optional compatibility value if Google returns `client_secret is missing` during Electron token exchange
+> - `VITE_GOOGLE_TEAM_FOLDER_ID_DESKTOP`: optional shared Google Drive folder ID for team sync in Electron
+> - `VITE_GOOGLE_TEAM_FOLDER_ID_WEB`: optional shared folder ID for web builds
+> - `VITE_GOOGLE_TEAM_FOLDER_ID`: fallback shared folder ID for all runtimes
+>
+> If no team folder ID is configured, Google sync uses private `appDataFolder` storage per user.
 
 ## How To Support
 > If **Mountea Dialoguer** is valuable to your team, you can support it by:

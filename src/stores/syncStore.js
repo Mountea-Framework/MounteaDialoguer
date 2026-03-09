@@ -19,9 +19,13 @@ import {
 	syncAllProjects as syncAllProjectsEngine,
 } from '@/lib/sync/syncEngine';
 import { getSyncAccount, upsertSyncAccount, clearSyncAccount } from '@/lib/sync/syncStorage';
+import {
+	SYNC_PROVIDER_IDS,
+	normalizeSyncProviderId,
+	supportsCloudSync,
+} from '@/lib/sync/providers/providerRegistry';
 
 const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
-const SYNC_PROVIDER_IDS = Object.freeze(['googleDrive', 'steam']);
 const DEFAULT_PROVIDER_INPUT = Object.freeze({
 	accountLabel: '',
 	passphrase: '',
@@ -41,7 +45,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
 
 function normalizeProviderId(value) {
-	return String(value || '').trim();
+	return normalizeSyncProviderId(value);
 }
 
 function createProviderInput(input = {}) {
@@ -105,6 +109,17 @@ function createPersistedProviderInputs(providerInputs) {
 		};
 	}
 	return persisted;
+}
+
+function resolveCloudProviderId(state) {
+	const providerId = normalizeProviderId(state?.provider);
+	if (!providerId) return '';
+	if (!canUseCloudSyncProvider(providerId)) return '';
+	return providerId;
+}
+
+function canUseCloudSyncProvider(providerId) {
+	return Boolean(providerId) && supportsCloudSync(providerId);
 }
 
 export const useSyncStore = create(
@@ -232,20 +247,24 @@ export const useSyncStore = create(
 					if (message.includes('popup')) errorCode = 'popupBlocked';
 					if (message.includes('redirect_uri_mismatch')) errorCode = 'redirectUriMismatch';
 					if (message.includes('invalid_grant')) errorCode = 'invalidGrant';
+					if (message.includes('missing google client id')) errorCode = 'missingClientId';
 					set({ status: 'error', error: errorCode });
 					return false;
 				}
 			},
 
 			disconnect: async () => {
-				await clearSyncAccount('googleDrive');
+				const providerId = normalizeProviderId(get().provider);
+				if (providerId) {
+					await clearSyncAccount(providerId);
+				}
 				set((state) => ({
 					provider: null,
 					status: 'disconnected',
 					lastSyncedAt: null,
 					error: null,
 					pullState: createResetPullState('project'),
-					providerInputs: withProviderInput(state, 'googleDrive', {
+					providerInputs: withProviderInput(state, providerId || 'googleDrive', {
 						accountLabel: '',
 						passphrase: '',
 					}),
@@ -255,8 +274,10 @@ export const useSyncStore = create(
 			syncAllProjects: async (options = {}) => {
 				const currentState = get();
 				const { status, provider, pullState, syncMode } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
 				const passphrase = getProviderPassphraseFromState(currentState, provider);
 				if (!provider) return;
+				if (!cloudProviderId) return;
 				if (status === 'syncing') return;
 				if (status !== 'connected') return;
 				if (!passphrase || !passphrase.trim()) return;
@@ -270,7 +291,7 @@ export const useSyncStore = create(
 				try {
 					if (mode === 'list') {
 						console.log('[sync] Listing remote projects (debug)');
-						const diff = await diffRemoteLocalEngine();
+						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
 						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
 						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
 							([projectId, items]) => ({
@@ -294,6 +315,7 @@ export const useSyncStore = create(
 										fileId: item.remote.fileId,
 										revision: item.remote.revision,
 										passphrase,
+										provider: cloudProviderId,
 									});
 									previewPulls.push(preview);
 								} catch (error) {
@@ -328,7 +350,7 @@ export const useSyncStore = create(
 
 					if (mode === 'push') {
 						console.log('[sync] Push-only sync start');
-						const diff = await diffRemoteLocalEngine();
+						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
 						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
 						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
 							([projectId, items]) => ({
@@ -351,7 +373,11 @@ export const useSyncStore = create(
 						for (const projectId of diff.actions.toPush) {
 							try {
 								console.log('[sync] Pushing project', projectId);
-								await pushProjectToRemote({ projectId, passphrase });
+								await pushProjectToRemote({
+									projectId,
+									passphrase,
+									provider: cloudProviderId,
+								});
 							} catch (error) {
 								console.error('[sync] Push failed', projectId, error);
 							}
@@ -367,7 +393,7 @@ export const useSyncStore = create(
 
 					if (mode === 'pull') {
 						console.log('[sync] Pull-only sync start');
-						const diff = await diffRemoteLocalEngine();
+						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
 						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
 							([projectId, items]) => ({
 								projectId,
@@ -431,6 +457,7 @@ export const useSyncStore = create(
 									fileId: remote.fileId,
 									revision: remote.revision,
 									passphrase,
+									provider: cloudProviderId,
 								});
 								console.log('[sync] Pulled project', result);
 							} catch (error) {
@@ -454,6 +481,7 @@ export const useSyncStore = create(
 
 					await syncAllProjectsEngine({
 						passphrase,
+						provider: cloudProviderId,
 						onProgress: (info) => {
 							if (info?.phase === 'start') {
 								total = info.total || 0;
@@ -504,8 +532,11 @@ export const useSyncStore = create(
 			},
 
 			schedulePush: (projectId) => {
-				const { status, provider, syncMode } = get();
+				const state = get();
+				const { status, provider, syncMode } = state;
+				const cloudProviderId = resolveCloudProviderId(state);
 				if (status !== 'connected' || !provider) return;
+				if (!cloudProviderId) return;
 				if (!projectId) return;
 				if (syncMode === 'list') {
 					console.log('[sync] Skip auto-push (list mode)');
@@ -526,11 +557,14 @@ export const useSyncStore = create(
 			},
 
 			checkRemoteDiff: async (projectId) => {
-				const { status, provider } = get();
+				const currentState = get();
+				const { status, provider } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
 				if (status !== 'connected' || !provider) return false;
+				if (!cloudProviderId) return false;
 
 				try {
-					return await checkRemoteDiffEngine(projectId);
+					return await checkRemoteDiffEngine(projectId, { provider: cloudProviderId });
 				} catch (error) {
 					console.error('Remote diff check failed:', error);
 					const message = (error?.message || '').toLowerCase();
@@ -547,11 +581,13 @@ export const useSyncStore = create(
 				const { simulate = false } = options;
 				const currentState = get();
 				const { syncMode, provider } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
 				const passphrase = getProviderPassphraseFromState(currentState, provider);
 				if (syncMode !== 'full') {
 					console.log('[sync] Skip pull (non-full mode)');
 					return;
 				}
+				if (!cloudProviderId) return;
 				if (!passphrase || !passphrase.trim()) {
 					set({ error: 'passphraseRequired', status: 'error' });
 					return;
@@ -600,6 +636,7 @@ export const useSyncStore = create(
 					await pullProject({
 						projectId,
 						passphrase,
+						provider: cloudProviderId,
 						onProgress: (step, progress) =>
 							set({
 								pullState: {
@@ -640,17 +677,19 @@ export const useSyncStore = create(
 			pushProject: async (projectId) => {
 				const currentState = get();
 				const { syncMode, provider } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
 				const passphrase = getProviderPassphraseFromState(currentState, provider);
 				if (syncMode === 'list') {
 					console.log('[sync] Skip push (list mode)');
 					return;
 				}
+				if (!cloudProviderId) return;
 				if (!passphrase || !passphrase.trim()) {
 					set({ error: 'passphraseRequired' });
 					return;
 				}
 				try {
-					await pushProjectToRemote({ projectId, passphrase });
+					await pushProjectToRemote({ projectId, passphrase, provider: cloudProviderId });
 				} catch (error) {
 					console.error('Push failed:', error);
 					set({ error: 'syncFailed' });

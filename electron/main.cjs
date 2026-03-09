@@ -58,8 +58,7 @@ let steamRuntimeState = {
 // Must happen before app ready for Steam overlay injection switches.
 prepareSteamOverlayForElectron();
 
-function readDotEnvValue(key) {
-	const envPath = path.join(__dirname, '..', '.env');
+function readDotEnvValueFromFile(envPath, key) {
 	if (!fs.existsSync(envPath)) return '';
 
 	let content = '';
@@ -92,6 +91,24 @@ function readDotEnvValue(key) {
 	return '';
 }
 
+function readDotEnvValue(key) {
+	const appRoot = path.join(__dirname, '..');
+	const mode = String(process.env.NODE_ENV || '').trim().toLowerCase();
+	const envCandidates = [
+		'.env.local',
+		mode ? `.env.${mode}.local` : '',
+		mode ? `.env.${mode}` : '',
+		'.env',
+	].filter(Boolean);
+
+	for (const candidate of envCandidates) {
+		const value = readDotEnvValueFromFile(path.join(appRoot, candidate), key);
+		if (value) return value;
+	}
+
+	return '';
+}
+
 function resolveDesktopOAuthClientId(payloadClientId) {
 	return (
 		readDotEnvValue('VITE_GOOGLE_CLIENT_ID_DESKTOP') ||
@@ -102,12 +119,21 @@ function resolveDesktopOAuthClientId(payloadClientId) {
 }
 
 function resolveDesktopOAuthClientSecret(payloadClientSecret) {
-	return (
+	const resolved =
 		readDotEnvValue('VITE_GOOGLE_CLIENT_SECRET_DESKTOP') ||
 		process.env.VITE_GOOGLE_CLIENT_SECRET_DESKTOP ||
 		payloadClientSecret ||
-		''
-	);
+		'';
+
+	const trimmed = typeof resolved === 'string' ? resolved.trim() : '';
+	const lower = trimmed.toLowerCase();
+	const looksLikePlaceholder =
+		lower === 'your_desktop_client_secret' ||
+		lower === 'your_client_secret' ||
+		lower === '<your_desktop_client_secret>' ||
+		lower === '<your_client_secret>';
+
+	return looksLikePlaceholder ? '' : trimmed;
 }
 
 function toBase64Url(buffer) {
@@ -548,8 +574,7 @@ async function exchangeCodeForToken({
 			details.toLowerCase().includes('client_secret is missing')
 		) {
 			throw new Error(
-				'client_secret is missing. This OAuth client is likely configured as Web app. ' +
-				'Use a Desktop OAuth client ID, or set VITE_GOOGLE_CLIENT_SECRET_DESKTOP for compatibility.'
+				'client_secret is missing'
 			);
 		}
 		throw new Error(details);
@@ -683,7 +708,7 @@ async function executeOAuthAttempt({
 			res.end(
 				renderOAuthResultPage({
 					success: true,
-					message: 'Google sign-in completed. Return to Mountea Dialoguer.',
+					message: 'Authorization received. Return to Mountea Dialoguer to finish sign-in.',
 				})
 			);
 			settle(resolve, { kind: 'code', code });
@@ -722,11 +747,23 @@ async function executeOAuthAttempt({
 		}
 
 		const authUrl = `${AUTH_ENDPOINT}?${authParams.toString()}`;
+		console.log(`[oauth] Callback listening on ${redirectUri}`);
 		timeoutHandle = setTimeout(() => {
+			console.warn('[oauth] OAuth timed out waiting for callback');
 			rejectAuthResult(new Error('OAuth timed out'));
 		}, OAUTH_TIMEOUT_MS);
 
-		await shell.openExternal(authUrl);
+		shell.openExternal(authUrl).then(
+			() => {
+				console.log('[oauth] Browser launched for Google sign-in');
+			},
+			(error) => {
+				console.error('[oauth] Failed to open browser for Google sign-in', error);
+				rejectAuthResult(
+					new Error(String(error?.message || 'Failed to open browser for OAuth'))
+				);
+			}
+		);
 		const authResult = await authResultPromise;
 		clearTimeout(timeoutHandle);
 		timeoutHandle = null;
@@ -778,7 +815,7 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
 	const resolvedClientId = resolveDesktopOAuthClientId(clientId);
 	const resolvedClientSecret = resolveDesktopOAuthClientSecret(clientSecret);
 	console.log(
-		`[oauth] Config resolved clientIdSuffix=${resolvedClientId.slice(-12)} hasSecret=${Boolean(
+		`[oauth] Config resolved clientId=${resolvedClientId} hasSecret=${Boolean(
 			resolvedClientSecret && resolvedClientSecret.trim()
 		)}`
 	);
@@ -792,19 +829,22 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
 		});
 	} catch (error) {
 		const message = String(error?.message || '').toLowerCase();
-		const hasClientSecret =
-			typeof resolvedClientSecret === 'string' &&
-			resolvedClientSecret.trim().length > 0;
 		const allowImplicitFallback = process.env.MOUNTEA_OAUTH_ALLOW_IMPLICIT === '1';
+		const isRecoverableCodeFlowError =
+			message.includes('client_secret is missing') ||
+			message.includes('unsupported_response_type') ||
+			message.includes('unauthorized') ||
+			message.includes('invalid_client') ||
+			message.includes('unauthorized_client');
 		const shouldFallbackToToken =
-			allowImplicitFallback &&
-			!hasClientSecret &&
-			(message.includes('client_secret is missing') ||
-				message.includes('unsupported_response_type'));
+			allowImplicitFallback && isRecoverableCodeFlowError;
 		if (!shouldFallbackToToken) {
 			throw error;
 		}
-		console.warn('[oauth] Token exchange requested client_secret, retrying with implicit token flow.');
+		console.warn(
+			'[oauth] Code flow failed, retrying with implicit token flow.',
+			error?.message || error
+		);
 
 		return executeOAuthAttempt({
 			clientId: resolvedClientId,

@@ -1,16 +1,11 @@
+import { getGoogleDriveScopes } from '@/lib/sync/googleDriveConfig';
+
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const CLIENT_ID_STORAGE_KEY = 'mountea-google-client-id';
 
 const STORAGE_KEY = 'mountea-dialoguer-auth-state';
-
-const SCOPES = [
-	'https://www.googleapis.com/auth/drive.appdata',
-	'openid',
-	'email',
-	'profile',
-];
 
 export function getStoredClientId() {
 	if (typeof window === 'undefined') return '';
@@ -112,6 +107,7 @@ function waitForAuthResult(expectedState) {
 
 export async function startGoogleDriveAuth() {
 	const clientId = getClientId();
+	const scopes = getGoogleDriveScopes();
 	const electronApi = getElectronApi();
 	if (electronApi?.isElectron && typeof electronApi.startGoogleOAuth === 'function') {
 		const desktopClientSecret =
@@ -121,7 +117,7 @@ export async function startGoogleDriveAuth() {
 		const result = await electronApi.startGoogleOAuth({
 			clientId,
 			clientSecret: desktopClientSecret,
-			scopes: SCOPES,
+			scopes,
 		});
 
 		if (!result?.accessToken) {
@@ -147,7 +143,7 @@ export async function startGoogleDriveAuth() {
 		client_id: clientId,
 		redirect_uri: redirectUri,
 		response_type: 'token',
-		scope: SCOPES.join(' '),
+		scope: scopes.join(' '),
 		state,
 		prompt: 'consent',
 	});
