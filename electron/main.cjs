@@ -11,6 +11,7 @@ const {
 	openOverlay: openSteamOverlay,
 	setRichPresence: setSteamRichPresence,
 	unlockAchievement: unlockSteamAchievement,
+	shutdownSteamRuntime,
 } = require('./steam.cjs');
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -1275,6 +1276,19 @@ if (!gotSingleInstanceLock) {
 
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {
-		app.quit();
+		try {
+			shutdownSteamRuntime();
+		} catch (error) {
+			// Best-effort cleanup before exit.
+		}
+		app.exit(0);
+	}
+});
+
+app.on('before-quit', () => {
+	try {
+		shutdownSteamRuntime();
+	} catch (error) {
+		// Best-effort cleanup.
 	}
 });

@@ -304,6 +304,20 @@ function unlockAchievement(achievementId) {
 	};
 }
 
+function shutdownSteamRuntime() {
+	try {
+		if (steamworksModule && typeof steamworksModule.shutdown === 'function') {
+			steamworksModule.shutdown();
+		}
+	} catch (error) {
+		// Best-effort shutdown; quitting should proceed even if this fails.
+	}
+
+	steamClient = null;
+	steamState = { ...steamState, available: false };
+	return true;
+}
+
 module.exports = {
 	initializeSteamRuntime,
 	prepareSteamOverlayForElectron,
@@ -311,4 +325,5 @@ module.exports = {
 	openOverlay,
 	setRichPresence,
 	unlockAchievement,
+	shutdownSteamRuntime,
 };
