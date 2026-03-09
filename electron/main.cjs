@@ -17,7 +17,11 @@ const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const LOOPBACK_HOST = '127.0.0.1';
 const LOOPBACK_PATH = '/oauth/callback';
-const OAUTH_TIMEOUT_MS = 2 * 60 * 1000;
+const configuredOAuthTimeoutMs = Number(process.env.MOUNTEA_OAUTH_TIMEOUT_MS || '');
+const OAUTH_TIMEOUT_MS =
+	Number.isFinite(configuredOAuthTimeoutMs) && configuredOAuthTimeoutMs > 0
+		? configuredOAuthTimeoutMs
+		: 60 * 1000;
 const SUPPORT_URL = 'https://discord.gg/hCjh8e3Y9r';
 const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues';
 const APP_DISPLAY_NAME = 'Mountea Dialoguer';
@@ -590,6 +594,7 @@ async function executeOAuthAttempt({
 	responseType,
 }) {
 	console.log(`[oauth] Starting Google OAuth attempt (${responseType})`);
+	const oauthStartedAt = Date.now();
 	const trimmedClientId = typeof clientId === 'string' ? clientId.trim() : '';
 	if (!trimmedClientId) {
 		throw new Error('Missing Google client id');
@@ -605,6 +610,7 @@ async function executeOAuthAttempt({
 	let server = null;
 	let timeoutHandle = null;
 	let rejectAuthResult = null;
+	const callbackSockets = new Set();
 
 	const authResultPromise = new Promise((resolve, reject) => {
 		let settled = false;
@@ -616,12 +622,15 @@ async function executeOAuthAttempt({
 		rejectAuthResult = (reason) => settle(reject, reason);
 
 		server = http.createServer((req, res) => {
+			res.setHeader('Connection', 'close');
 			const requestUrl = new URL(req.url || '/', `http://${LOOPBACK_HOST}`);
 			if (requestUrl.pathname !== LOOPBACK_PATH) {
 				res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
 				res.end('Not found');
 				return;
 			}
+			const callbackElapsed = Date.now() - oauthStartedAt;
+			console.log(`[oauth] Callback request received after ${callbackElapsed}ms`);
 
 			const returnedState = requestUrl.searchParams.get('state') || '';
 			const code = requestUrl.searchParams.get('code');
@@ -717,6 +726,12 @@ async function executeOAuthAttempt({
 		server.on('error', (error) => {
 			rejectAuthResult(error);
 		});
+		server.on('connection', (socket) => {
+			callbackSockets.add(socket);
+			socket.on('close', () => {
+				callbackSockets.delete(socket);
+			});
+		});
 	});
 
 	try {
@@ -738,8 +753,12 @@ async function executeOAuthAttempt({
 			response_type: responseType,
 			scope: normalizedScopes.join(' '),
 			state,
-			prompt: 'consent',
+			include_granted_scopes: 'true',
 		});
+		const forceConsentPrompt = process.env.MOUNTEA_OAUTH_FORCE_CONSENT === '1';
+		if (forceConsentPrompt) {
+			authParams.set('prompt', 'consent');
+		}
 		if (responseType === 'code') {
 			authParams.set('code_challenge', codeChallenge);
 			authParams.set('code_challenge_method', 'S256');
@@ -748,6 +767,7 @@ async function executeOAuthAttempt({
 
 		const authUrl = `${AUTH_ENDPOINT}?${authParams.toString()}`;
 		console.log(`[oauth] Callback listening on ${redirectUri}`);
+		console.log(`[oauth] Waiting up to ${OAUTH_TIMEOUT_MS}ms for callback`);
 		timeoutHandle = setTimeout(() => {
 			console.warn('[oauth] OAuth timed out waiting for callback');
 			rejectAuthResult(new Error('OAuth timed out'));
@@ -765,10 +785,14 @@ async function executeOAuthAttempt({
 			}
 		);
 		const authResult = await authResultPromise;
+		console.log(
+			`[oauth] Callback payload accepted (${authResult.kind}) after ${Date.now() - oauthStartedAt}ms`
+		);
 		clearTimeout(timeoutHandle);
 		timeoutHandle = null;
 
 		if (authResult.kind === 'token') {
+			console.log(`[oauth] OAuth completed in ${Date.now() - oauthStartedAt}ms`);
 			return {
 				accessToken: authResult.accessToken,
 				refreshToken: '',
@@ -780,6 +804,8 @@ async function executeOAuthAttempt({
 			};
 		}
 
+		const tokenExchangeStartedAt = Date.now();
+		console.log('[oauth] Exchanging authorization code for token');
 		const tokenPayload = await exchangeCodeForToken({
 			clientId: trimmedClientId,
 			code: authResult.code,
@@ -787,11 +813,15 @@ async function executeOAuthAttempt({
 			codeVerifier,
 			clientSecret,
 		});
+		console.log(
+			`[oauth] Token exchange completed in ${Date.now() - tokenExchangeStartedAt}ms`
+		);
 
 		if (!tokenPayload.access_token) {
 			throw new Error('Missing access token');
 		}
 
+		console.log(`[oauth] OAuth completed in ${Date.now() - oauthStartedAt}ms`);
 		return {
 			accessToken: tokenPayload.access_token,
 			refreshToken: tokenPayload.refresh_token || '',
@@ -806,7 +836,31 @@ async function executeOAuthAttempt({
 			clearTimeout(timeoutHandle);
 		}
 		if (server?.listening) {
-			await new Promise((resolve) => server.close(resolve));
+			const closeStartedAt = Date.now();
+			await new Promise((resolve) => {
+				let settled = false;
+				const settle = () => {
+					if (settled) return;
+					settled = true;
+					resolve();
+				};
+
+				server.close(settle);
+				for (const socket of callbackSockets) {
+					try {
+						socket.end();
+						socket.destroy();
+					} catch (error) {
+						// Best effort. Individual socket teardown failures are non-fatal.
+					}
+				}
+
+				const fallbackTimer = setTimeout(settle, 1500);
+				if (typeof fallbackTimer.unref === 'function') {
+					fallbackTimer.unref();
+				}
+			});
+			console.log(`[oauth] Callback server closed in ${Date.now() - closeStartedAt}ms`);
 		}
 	}
 }
@@ -916,6 +970,7 @@ function createMainWindow() {
 
 function registerIpcHandlers() {
 	ipcMain.removeAllListeners('menu:set-context');
+	ipcMain.removeAllListeners('sync:trace');
 	ipcMain.removeHandler('shell:open-external');
 	ipcMain.removeHandler('auth:start-google-oauth');
 	ipcMain.removeHandler('steam:get-status');
@@ -957,6 +1012,14 @@ function registerIpcHandlers() {
 
 	ipcMain.on('menu:set-context', (_event, payload) => {
 		updateMenuContext(payload || {});
+	});
+
+	ipcMain.on('sync:trace', (_event, payload) => {
+		const eventName = String(payload?.event || 'event');
+		const details = payload?.details && typeof payload.details === 'object'
+			? payload.details
+			: {};
+		console.log(`[${new Date().toISOString()}] [sync] ${eventName}`, details);
 	});
 }
 

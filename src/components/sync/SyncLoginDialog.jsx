@@ -62,9 +62,10 @@ export function SyncLoginDialog({
 	const isGoogleConnected = status === 'connected' && provider === 'googleDrive';
 	const isGoogleConnecting = status === 'connecting';
 	const isGoogleSyncing = status === 'syncing' && provider === 'googleDrive';
+	const isGoogleBusy = isGoogleConnecting || isGoogleSyncing;
 	const showGoogleError = Boolean(error);
 	const canConnectGoogle =
-		googleSyncEnabled && googlePassphrase.trim().length > 0 && !isGoogleConnecting;
+		googleSyncEnabled && googlePassphrase.trim().length > 0 && !isGoogleBusy;
 	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
 
 	useEffect(() => {
@@ -105,7 +106,7 @@ export function SyncLoginDialog({
 	};
 
 	const handleManualSyncGoogle = async () => {
-		await syncAllProjects({ mode: 'full' });
+		await syncAllProjects({ mode: 'full', trigger: 'manual-google-sync' });
 	};
 
 	const googleStatusLabel = useMemo(() => {
@@ -274,7 +275,7 @@ export function SyncLoginDialog({
 													clearError?.();
 												}}
 												placeholder={t('sync.accountPlaceholder')}
-												disabled={isGoogleConnected}
+												disabled={isGoogleConnected || isGoogleBusy}
 												className={syncInputClassName}
 											/>
 										</div>
@@ -293,7 +294,7 @@ export function SyncLoginDialog({
 													clearError?.();
 												}}
 												placeholder={t('sync.passphrasePlaceholder')}
-												disabled={isGoogleConnected}
+												disabled={isGoogleConnected || isGoogleBusy}
 												className={syncInputClassName}
 											/>
 											<p className="text-xs text-muted-foreground">{t('sync.passphraseHint')}</p>
@@ -309,7 +310,7 @@ export function SyncLoginDialog({
 												onCheckedChange={(value) =>
 													setProviderRememberPassphrase('googleDrive', value)
 												}
-												disabled={isGoogleConnected}
+												disabled={isGoogleConnected || isGoogleBusy}
 											/>
 										</div>
 

@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	isElectron: true,
 	startGoogleOAuth: (payload) => ipcRenderer.invoke('auth:start-google-oauth', payload),
 	openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+	traceSyncEvent: (payload) => ipcRenderer.send('sync:trace', payload),
 	getSteamStatus: () => ipcRenderer.invoke('steam:get-status'),
 	openSteamOverlay: (payload) => ipcRenderer.invoke('steam:open-overlay', payload),
 	setSteamRichPresence: (payload) => ipcRenderer.invoke('steam:set-rich-presence', payload),

@@ -44,6 +44,24 @@ const DEFAULT_PULL_STATE = Object.freeze({
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
 
+function traceSyncEvent(event, details = {}) {
+	const eventName = String(event || 'event');
+	const safeDetails = details && typeof details === 'object' ? details : {};
+	const stampedDetails = {
+		...safeDetails,
+		atIso: new Date().toISOString(),
+		atMs: Date.now(),
+	};
+	console.log(`[sync] ${eventName}`, stampedDetails);
+	if (typeof window === 'undefined') return;
+	const electronApi = window.electronAPI;
+	if (typeof electronApi?.traceSyncEvent !== 'function') return;
+	electronApi.traceSyncEvent({
+		event: eventName,
+		details: stampedDetails,
+	});
+}
+
 function normalizeProviderId(value) {
 	return normalizeSyncProviderId(value);
 }
@@ -211,7 +229,7 @@ export const useSyncStore = create(
 
 				set({ status: 'connecting', error: null });
 				try {
-					console.log('[sync] Starting Google auth');
+					traceSyncEvent('AUTH_START', { provider: 'googleDrive' });
 					const authResult = await startGoogleDriveAuth();
 					const accessToken = authResult.accessToken;
 					const expiresIn = Number(authResult.expiresIn || 3600);
@@ -238,7 +256,10 @@ export const useSyncStore = create(
 							accountLabel: userInfo.email || userInfo.name || '',
 						}),
 					}));
-					console.log('[sync] Google auth complete');
+					traceSyncEvent('AUTH_CONNECTED', {
+						provider: 'googleDrive',
+						account: userInfo.email || userInfo.name || '',
+					});
 					return true;
 				} catch (error) {
 					console.error('Google Drive connect failed:', error);
@@ -272,6 +293,7 @@ export const useSyncStore = create(
 			},
 
 			syncAllProjects: async (options = {}) => {
+				const syncStartedAt = Date.now();
 				const currentState = get();
 				const { status, provider, pullState, syncMode } = currentState;
 				const cloudProviderId = resolveCloudProviderId(currentState);
@@ -282,7 +304,12 @@ export const useSyncStore = create(
 				if (status !== 'connected') return;
 				if (!passphrase || !passphrase.trim()) return;
 				if (pullState?.active && pullState?.mode === 'project') return;
-				const { mode = syncMode || 'full' } = options;
+				const { mode = syncMode || 'full', trigger = 'unknown' } = options;
+				traceSyncEvent('START', {
+					mode,
+					trigger,
+					provider: cloudProviderId,
+				});
 
 				set({ status: 'syncing' });
 				const resetPullState = createResetPullState('bulk');
@@ -350,7 +377,16 @@ export const useSyncStore = create(
 
 					if (mode === 'push') {
 						console.log('[sync] Push-only sync start');
+						const diffStartedAt = Date.now();
+						traceSyncEvent('PUSH_DIFF_START', { provider: cloudProviderId });
 						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
+						traceSyncEvent('PUSH_DIFF_DONE', {
+							elapsedMs: Date.now() - diffStartedAt,
+							toPull: diff.actions.toPull.length,
+							toPush: diff.actions.toPush.length,
+							remoteOnly: diff.actions.remoteOnly.length,
+							localOnly: diff.actions.localOnly.length,
+						});
 						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
 						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
 							([projectId, items]) => ({
@@ -366,6 +402,11 @@ export const useSyncStore = create(
 						}
 						if (diff.actions.toPush.length === 0) {
 							console.log('[sync] No projects to push');
+							traceSyncEvent('NOOP', {
+								mode: 'push',
+								reason: 'nothing-to-push',
+								elapsedMs: Date.now() - syncStartedAt,
+							});
 							set({ status: 'connected', pullState: resetPullState });
 							return;
 						}
@@ -373,16 +414,26 @@ export const useSyncStore = create(
 						for (const projectId of diff.actions.toPush) {
 							try {
 								console.log('[sync] Pushing project', projectId);
+								traceSyncEvent('PUSH_PROJECT_START', { projectId });
 								await pushProjectToRemote({
 									projectId,
 									passphrase,
 									provider: cloudProviderId,
 								});
+								traceSyncEvent('PUSH_PROJECT_DONE', { projectId });
 							} catch (error) {
 								console.error('[sync] Push failed', projectId, error);
+								traceSyncEvent('PUSH_PROJECT_ERROR', {
+									projectId,
+									message: String(error?.message || error),
+								});
 							}
 						}
 						console.log('[sync] Push-only sync complete');
+						traceSyncEvent('COMPLETE', {
+							mode: 'push',
+							elapsedMs: Date.now() - syncStartedAt,
+						});
 						set({
 							status: 'connected',
 							lastSyncedAt: new Date().toISOString(),
@@ -393,7 +444,16 @@ export const useSyncStore = create(
 
 					if (mode === 'pull') {
 						console.log('[sync] Pull-only sync start');
+						const diffStartedAt = Date.now();
+						traceSyncEvent('PULL_DIFF_START', { provider: cloudProviderId });
 						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
+						traceSyncEvent('PULL_DIFF_DONE', {
+							elapsedMs: Date.now() - diffStartedAt,
+							toPull: diff.actions.toPull.length,
+							toPush: diff.actions.toPush.length,
+							remoteOnly: diff.actions.remoteOnly.length,
+							localOnly: diff.actions.localOnly.length,
+						});
 						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
 							([projectId, items]) => ({
 								projectId,
@@ -406,6 +466,11 @@ export const useSyncStore = create(
 
 						if (diff.actions.toPull.length === 0) {
 							console.log('[sync] No projects to pull');
+							traceSyncEvent('NOOP', {
+								mode: 'pull',
+								reason: 'nothing-to-pull',
+								elapsedMs: Date.now() - syncStartedAt,
+							});
 							set({ status: 'connected', pullState: resetPullState });
 							return;
 						}
@@ -433,6 +498,12 @@ export const useSyncStore = create(
 							index += 1;
 							const comparison = comparisonMap.get(projectId);
 							const remote = comparison?.remote;
+							const pullProjectStartedAt = Date.now();
+							traceSyncEvent('PULL_PROJECT_START', {
+								projectId,
+								index,
+								total,
+							});
 
 							set({
 								pullState: {
@@ -460,8 +531,21 @@ export const useSyncStore = create(
 									provider: cloudProviderId,
 								});
 								console.log('[sync] Pulled project', result);
+								traceSyncEvent('PULL_PROJECT_DONE', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - pullProjectStartedAt,
+								});
 							} catch (error) {
 								console.error('[sync] Pull failed', projectId, error);
+								traceSyncEvent('PULL_PROJECT_ERROR', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - pullProjectStartedAt,
+									message: String(error?.message || error),
+								});
 							}
 						}
 
@@ -476,15 +560,26 @@ export const useSyncStore = create(
 							pullState: resetPullState,
 						});
 						console.log('[sync] Pull-only sync complete');
+						traceSyncEvent('COMPLETE', {
+							mode: 'pull',
+							elapsedMs: Date.now() - syncStartedAt,
+						});
 						return;
 					}
 
+					traceSyncEvent('FULL_SYNC_ENGINE_START', { provider: cloudProviderId });
 					await syncAllProjectsEngine({
 						passphrase,
 						provider: cloudProviderId,
 						onProgress: (info) => {
 							if (info?.phase === 'start') {
 								total = info.total || 0;
+								traceSyncEvent('FULL_SYNC_ENGINE_PROGRESS', {
+									phase: 'start',
+									total: info.total || 0,
+									remoteCount: info.remoteCount || 0,
+									localCount: info.localCount || 0,
+								});
 								if (info.remoteCount > 0) {
 									shouldShow = true;
 									set({
@@ -504,6 +599,13 @@ export const useSyncStore = create(
 
 							if (!shouldShow || !total) return;
 							const progress = Math.min(100, Math.round((info.index / total) * 100));
+							traceSyncEvent('FULL_SYNC_ENGINE_PROGRESS', {
+								phase: info.phase || 'sync',
+								index: info.index || 0,
+								total,
+								projectId: info.projectId || null,
+								progress,
+							});
 							set({
 								pullState: {
 									active: true,
@@ -517,10 +619,22 @@ export const useSyncStore = create(
 							});
 						},
 					});
+					traceSyncEvent('FULL_SYNC_ENGINE_DONE', {
+						elapsedMs: Date.now() - syncStartedAt,
+					});
 					set({ status: 'connected', lastSyncedAt: new Date().toISOString() });
 					set({ pullState: resetPullState });
+					traceSyncEvent('COMPLETE', {
+						mode,
+						elapsedMs: Date.now() - syncStartedAt,
+					});
 				} catch (error) {
 					console.error('Sync all failed:', error);
+					traceSyncEvent('ERROR', {
+						mode,
+						elapsedMs: Date.now() - syncStartedAt,
+						message: String(error?.message || error),
+					});
 					const message = (error?.message || '').toLowerCase();
 					if (message.includes('tokenexpired')) {
 						set({ status: 'error', error: 'tokenExpired' });

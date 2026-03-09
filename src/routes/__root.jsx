@@ -263,7 +263,7 @@ function RootComponent() {
 		if (hasAutoSyncedRef.current) return;
 		console.log('[sync] Auto sync after hydration');
 		hasAutoSyncedRef.current = true;
-		syncAllProjects({ mode: 'pull' });
+		syncAllProjects({ mode: 'pull', trigger: 'auto-hydration' });
 	}, [
 		activeProviderPassphrase,
 		hasHydrated,
