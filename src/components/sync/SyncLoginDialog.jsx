@@ -59,8 +59,9 @@ export function SyncLoginDialog({
 	const googlePassphrase = googleInput.passphrase || '';
 	const googleRememberPassphrase = Boolean(googleInput.rememberPassphrase);
 	const steamIdentity = steamStatus?.personaName || steamStatus?.steamId || '';
-	const isSteamProviderActive =
-		provider === 'steam' && (status === 'connected' || status === 'syncing');
+	const isSteamProviderSelected = provider === 'steam';
+	const isSteamProviderConnected = provider === 'steam' && status === 'connected';
+	const isSteamSyncing = status === 'syncing' && provider === 'steam';
 
 	const isGoogleConnected = status === 'connected' && provider === 'googleDrive';
 	const isGoogleConnecting = status === 'connecting';
@@ -120,6 +121,10 @@ export function SyncLoginDialog({
 
 	const handleManualSyncGoogle = async () => {
 		await syncAllProjects({ mode: 'full', trigger: 'manual-google-sync' });
+	};
+
+	const handleManualSyncSteam = async () => {
+		await syncAllProjects({ mode: 'full', trigger: 'manual-steam-sync' });
 	};
 
 	const googleStatusLabel = useMemo(() => {
@@ -235,17 +240,32 @@ export function SyncLoginDialog({
 									) : null}
 
 									{steamStatus?.available ? (
-										<Button
-											type="button"
-											size="sm"
-											variant={isSteamProviderActive ? 'outline' : 'default'}
-											disabled={isSteamProviderActive}
-											onClick={() => connectSteamProvider(steamStatus)}
-										>
-											{isSteamProviderActive
-												? t('sync.status.connected')
-												: t('sync.connect')}
-										</Button>
+										<div className="flex flex-wrap gap-2">
+											<Button
+												type="button"
+												size="sm"
+												variant={isSteamProviderConnected ? 'outline' : 'default'}
+												disabled={isSteamSyncing || isSteamProviderConnected}
+												onClick={() => connectSteamProvider(steamStatus)}
+											>
+												{isSteamProviderConnected
+													? t('sync.status.connected')
+													: t('sync.steam.connectCta', { defaultValue: 'Connect' })}
+											</Button>
+											{isSteamProviderSelected ? (
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													disabled={isSteamSyncing}
+													onClick={handleManualSyncSteam}
+												>
+													{isSteamSyncing
+														? t('sync.status.syncing')
+														: t('sync.syncNow')}
+												</Button>
+											) : null}
+										</div>
 									) : null}
 
 									{steamDetailLines.length > 0 ? (

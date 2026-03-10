@@ -9,10 +9,17 @@ import {
 	resolveSyncProviderId,
 } from '@/lib/sync/providers/storageProviders';
 import { db } from '@/lib/db';
+import { getActiveProfileId } from '@/lib/profile/activeProfile';
 
 const FILE_PREFIX = 'mountea-project-';
 const FILE_SUFFIX = '.mteasnap';
 const MIME_TYPE = 'application/json';
+const STEAM_REMOTE_LIST_RETRY_COUNT = 8;
+const STEAM_REMOTE_LIST_RETRY_DELAY_MS = 3000;
+
+function wait(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function getSyncContext(options = {}) {
 	const providerId = resolveSyncProviderId(options?.provider || DEFAULT_SYNC_PROVIDER_ID);
@@ -66,6 +73,31 @@ export async function listRemoteProjects(options = {}) {
 			updatedAt: file.modifiedTime,
 		}))
 		.filter((item) => item.projectId);
+}
+
+async function listRemoteProjectsWithSteamRetry(providerId, reason = 'unspecified') {
+	let remoteProjects = await listRemoteProjects({ provider: providerId });
+	if (providerId !== 'steam' || remoteProjects.length > 0) {
+		return remoteProjects;
+	}
+
+	for (let attempt = 1; attempt <= STEAM_REMOTE_LIST_RETRY_COUNT; attempt += 1) {
+		console.log(
+			`[sync] Steam remote list empty; retry ${attempt}/${STEAM_REMOTE_LIST_RETRY_COUNT} in ${STEAM_REMOTE_LIST_RETRY_DELAY_MS}ms (${reason})`
+		);
+		await wait(STEAM_REMOTE_LIST_RETRY_DELAY_MS);
+		remoteProjects = await listRemoteProjects({ provider: providerId });
+		if (remoteProjects.length > 0) {
+			console.log('[sync] Steam remote list became available', {
+				reason,
+				count: remoteProjects.length,
+				attempt,
+			});
+			break;
+		}
+	}
+
+	return remoteProjects;
 }
 
 function compareRemoteEntries(a, b) {
@@ -125,7 +157,7 @@ export function dedupeRemoteProjects(remoteProjects) {
 export async function diffRemoteLocal(options = {}) {
 	const { providerId } = getSyncContext(options);
 	console.log('[sync] Building remote/local diff');
-	const remoteRaw = await listRemoteProjects({ provider: providerId });
+	const remoteRaw = await listRemoteProjectsWithSteamRetry(providerId, 'diff');
 	const { unique: remoteUnique, duplicates } = dedupeRemoteProjects(remoteRaw);
 	const remoteMap = new Map(remoteUnique.map((item) => [item.projectId, item]));
 
@@ -343,6 +375,7 @@ export async function pushProject({
 	const appProperties = {
 		revision: String(nextRevision),
 		projectId,
+		profileId: String(getActiveProfileId() || 'local'),
 		schemaVersion: '1',
 		updatedAt: new Date().toISOString(),
 	};
@@ -380,7 +413,7 @@ export async function syncAllProjects({
 }) {
 	const { providerId } = getSyncContext({ provider });
 	console.log('[sync] Sync all projects start');
-	const remoteProjects = await listRemoteProjects({ provider: providerId });
+	const remoteProjects = await listRemoteProjectsWithSteamRetry(providerId, 'full-sync');
 	const remoteMap = new Map(remoteProjects.map((item) => [item.projectId, item]));
 
 	const localProjects = await db.projects.toArray();

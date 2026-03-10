@@ -184,6 +184,15 @@ function canUseCloudSyncProvider(providerId) {
 	return Boolean(providerId) && supportsCloudSync(providerId);
 }
 
+function canRunSyncForStatus(providerId, status) {
+	const normalizedProvider = normalizeProviderId(providerId);
+	if (normalizedProvider === 'steam') {
+		// Steam provider should remain usable even if Google auth set a global error.
+		return status !== 'syncing';
+	}
+	return status === 'connected';
+}
+
 export const useSyncStore = create(
 	persist(
 		(set, get) => ({
@@ -247,11 +256,14 @@ export const useSyncStore = create(
 				const steamStatus = options?.steamStatus || null;
 				const preferredProvider = normalizeProviderId(get().provider);
 				const steamAvailable = Boolean(steamStatus?.available);
+				const steamChannel =
+					String(steamStatus?.channel || '').trim().toLowerCase() === 'steam';
 				const steamIdentity = String(
 					steamStatus?.personaName || steamStatus?.steamId || ''
 				);
 				const account = await getSyncAccount('googleDrive');
-				const shouldPreferSteam = preferredProvider === 'steam' && steamAvailable;
+				const shouldPreferSteam =
+					steamAvailable && (steamChannel || preferredProvider === 'steam');
 
 				if (shouldPreferSteam) {
 					set((state) => ({
@@ -263,6 +275,12 @@ export const useSyncStore = create(
 							accountLabel: steamIdentity,
 						}),
 					}));
+					traceSyncEvent('AUTH_CONNECTED', {
+						provider: 'steam',
+						account: steamIdentity,
+						available: true,
+						source: 'auto-load',
+					});
 					return;
 				}
 
@@ -293,7 +311,7 @@ export const useSyncStore = create(
 				set({ provider: null, status: 'disconnected' });
 			},
 
-			connectSteamProvider: (steamStatus) => {
+			connectSteamProvider: async (steamStatus) => {
 				const isAvailable = Boolean(steamStatus?.available);
 				const identity = String(steamStatus?.personaName || steamStatus?.steamId || '');
 				set((state) => ({
@@ -304,15 +322,33 @@ export const useSyncStore = create(
 						accountLabel: identity,
 					}),
 				}));
+				traceSyncEvent('AUTH_CONNECTED', {
+					provider: 'steam',
+					account: identity,
+					available: isAvailable,
+				});
+				if (isAvailable) {
+					await get().syncAllProjects({
+						mode: 'full',
+						trigger: 'steam-connect',
+					});
+				}
 				return isAvailable;
 			},
 
 			connectGoogleDrive: async () => {
+				const stateBeforeAuth = get();
 				const passphrase = getProviderPassphraseFromState(get(), 'googleDrive');
 				try {
 					getGoogleClientId();
 				} catch (error) {
-					set({ error: 'missingClientId', status: 'error' });
+					set((state) => ({
+						error: 'missingClientId',
+						status:
+							normalizeProviderId(state.provider) === 'steam'
+								? state.status || 'connected'
+								: 'error',
+					}));
 					return false;
 				}
 
@@ -363,7 +399,16 @@ export const useSyncStore = create(
 					if (message.includes('redirect_uri_mismatch')) errorCode = 'redirectUriMismatch';
 					if (message.includes('invalid_grant')) errorCode = 'invalidGrant';
 					if (message.includes('missing google client id')) errorCode = 'missingClientId';
-					set({ status: 'error', error: errorCode });
+					set((state) => {
+						const currentProvider = normalizeProviderId(state.provider);
+						const shouldPreserveSteamStatus =
+							currentProvider === 'steam' ||
+							normalizeProviderId(stateBeforeAuth.provider) === 'steam';
+						return {
+							status: shouldPreserveSteamStatus ? 'connected' : 'error',
+							error: errorCode,
+						};
+					});
 					return false;
 				}
 			},
@@ -394,12 +439,46 @@ export const useSyncStore = create(
 				const passphrase = resolveSyncPassphrase(currentState, provider);
 				const providerConfig = getSyncProviderConfig(provider);
 				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
-				if (!provider) return;
-				if (!cloudProviderId) return;
-				if (status === 'syncing') return;
-				if (status !== 'connected') return;
-				if (requiresPassphrase && (!passphrase || !passphrase.trim())) return;
-				if (pullState?.active && pullState?.mode === 'project') return;
+				if (!provider) {
+					traceSyncEvent('SKIP', { reason: 'missing-provider' });
+					return;
+				}
+				if (!cloudProviderId) {
+					traceSyncEvent('SKIP', {
+						reason: 'provider-not-cloud-capable',
+						provider,
+					});
+					return;
+				}
+				if (status === 'syncing') {
+					traceSyncEvent('SKIP', {
+						reason: 'already-syncing',
+						provider: cloudProviderId,
+					});
+					return;
+				}
+				if (!canRunSyncForStatus(cloudProviderId, status)) {
+					traceSyncEvent('SKIP', {
+						reason: 'provider-not-connected',
+						provider: cloudProviderId,
+						status,
+					});
+					return;
+				}
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
+					traceSyncEvent('SKIP', {
+						reason: 'missing-passphrase',
+						provider: cloudProviderId,
+					});
+					return;
+				}
+				if (pullState?.active && pullState?.mode === 'project') {
+					traceSyncEvent('SKIP', {
+						reason: 'project-pull-active',
+						provider: cloudProviderId,
+					});
+					return;
+				}
 				const { mode = syncMode || 'full', trigger = 'unknown' } = options;
 				traceSyncEvent('START', {
 					mode,
@@ -745,7 +824,8 @@ export const useSyncStore = create(
 				const state = get();
 				const { status, provider, syncMode } = state;
 				const cloudProviderId = resolveCloudProviderId(state);
-				if (status !== 'connected' || !provider) return;
+				if (!provider) return;
+				if (!canRunSyncForStatus(cloudProviderId, status)) return;
 				if (!cloudProviderId) return;
 				if (!projectId) return;
 				if (syncMode === 'list') {

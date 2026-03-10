@@ -273,14 +273,16 @@ function RootComponent() {
 		}
 		if (isLoading || !showContent) return;
 		if (hasAutoSyncedRef.current) return;
-		console.log('[sync] Auto sync after hydration');
+		const autoMode = provider === 'steam' ? 'full' : 'pull';
+		console.log('[sync] Auto sync after hydration', { provider, mode: autoMode });
 		hasAutoSyncedRef.current = true;
-		syncAllProjects({ mode: 'pull', trigger: 'auto-hydration' });
+		syncAllProjects({ mode: autoMode, trigger: 'auto-hydration' });
 	}, [
 		activeProviderPassphrase,
 		activeProviderRequiresPassphrase,
 		hasHydrated,
 		isLoading,
+		provider,
 		showContent,
 		status,
 		syncAllProjects,
