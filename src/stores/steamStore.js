@@ -18,6 +18,12 @@ const DEFAULT_STATUS = Object.freeze({
 	overlayRenderer: '',
 	steamGameId: '',
 	steamAppIdEnv: '',
+	cloud: {
+		available: false,
+		enabledForAccount: false,
+		enabledForApp: false,
+		error: '',
+	},
 	error: '',
 });
 

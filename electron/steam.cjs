@@ -217,7 +217,10 @@ function initializeSteamRuntime() {
 }
 
 function getSteamStatus() {
-	return { ...steamState };
+	return {
+		...steamState,
+		cloud: getSteamCloudStatus(),
+	};
 }
 
 function openOverlay(dialog = 'Friends') {

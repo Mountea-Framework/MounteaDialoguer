@@ -18,6 +18,12 @@ export async function getSteamStatus() {
 			overlayRenderer: '',
 			steamGameId: '',
 			steamAppIdEnv: '',
+			cloud: {
+				available: false,
+				enabledForAccount: false,
+				enabledForApp: false,
+				error: '',
+			},
 			error: 'Steam runtime unavailable in this environment',
 		};
 	}
@@ -37,6 +43,12 @@ export async function getSteamStatus() {
 			overlayRenderer: '',
 			steamGameId: '',
 			steamAppIdEnv: '',
+			cloud: {
+				available: false,
+				enabledForAccount: false,
+				enabledForApp: false,
+				error: '',
+			},
 			error: String(error?.message || 'Failed to load Steam status'),
 		};
 	}

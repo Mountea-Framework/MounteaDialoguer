@@ -1,5 +1,33 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { buildProfileScopedKey } from '@/lib/profile/activeProfile';
+
+const NOOP_PROFILE_STORAGE = Object.freeze({
+	getItem: () => null,
+	setItem: () => {},
+	removeItem: () => {},
+});
+
+const profileScopedUiStorage = createJSONStorage(() => {
+	if (typeof window === 'undefined' || !window.localStorage) {
+		return NOOP_PROFILE_STORAGE;
+	}
+
+	return {
+		getItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			return window.localStorage.getItem(key);
+		},
+		setItem: (name, value) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.setItem(key, value);
+		},
+		removeItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.removeItem(key);
+		},
+	};
+});
 
 /**
  * UI Store
@@ -37,6 +65,7 @@ export const useUIStore = create(
 		}),
 		{
 			name: 'mountea-dialoguer-ui',
+			storage: profileScopedUiStorage,
 		}
 	)
 );

@@ -282,6 +282,21 @@ async function ensureSteamSyncDirectoriesForRuntime(runtimeState = steamRuntimeS
 	const profileId = sanitizeSteamSyncSegment(`steam-${steamId}`, 'local');
 	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
 	logSteamSyncEvent('PROFILE_READY', { profileId, profileDir });
+
+	// Seed local bundle cache immediately so Steam Auto-Cloud has a concrete file
+	// even before the first project write in this session.
+	const { bundle, source } = await readSteamSyncBundle(profileId);
+	let cloudWritten = false;
+	if (source !== 'steam-cloud') {
+		cloudWritten = writeSteamSyncBundleToCloud(profileId, bundle);
+	}
+	logSteamSyncEvent('PROFILE_SYNC_READY', {
+		profileId,
+		source,
+		entryCount: Array.isArray(bundle?.entries) ? bundle.entries.length : 0,
+		cloudWritten,
+		cloud: getSteamCloudRuntimeStatus(),
+	});
 }
 
 function getSteamSyncFilePath(profileId, fileId) {
@@ -464,7 +479,16 @@ async function readSteamSyncBundleFromLocal(profileId) {
 
 	const legacyEntries = await readLegacySteamSyncEntriesFromLocal(profileId);
 	if (legacyEntries.length === 0) {
-		return createEmptySteamSyncBundle(profileId);
+		const seededBundle = await writeSteamSyncBundleToLocal(
+			profileId,
+			createEmptySteamSyncBundle(profileId),
+			{ skipCleanup: true }
+		);
+		logSteamSyncEvent('BUNDLE_LOCAL_SEEDED', {
+			profileId,
+			bundlePath: getSteamSyncBundleCachePath(profileId),
+		});
+		return seededBundle;
 	}
 
 	const migrated = normalizeSteamSyncBundle(

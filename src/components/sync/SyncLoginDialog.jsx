@@ -111,6 +111,24 @@ export function SyncLoginDialog({
 		};
 	}, []);
 
+	useEffect(() => {
+		if (!open) return;
+		if (!showSteamProvider || !steamStatus?.available) return;
+		if (provider === 'steam' && (status === 'connected' || status === 'syncing')) return;
+		if (provider === 'googleDrive' && status === 'connected') return;
+
+		connectSteamProvider(steamStatus).catch((error) => {
+			console.warn('[sync] Failed to auto-connect Steam provider:', error);
+		});
+	}, [
+		connectSteamProvider,
+		open,
+		provider,
+		showSteamProvider,
+		status,
+		steamStatus,
+	]);
+
 	const handleConnectGoogle = async () => {
 		if (!googleSyncEnabled) return;
 		const success = await connectGoogleDrive();
@@ -136,9 +154,11 @@ export function SyncLoginDialog({
 	}, [provider, status, t]);
 
 	const steamStatusLabel = useMemo(() => {
-		if (steamStatus?.available) return t('sync.status.connected');
+		if (!steamStatus?.available) return t('sync.status.disconnected');
+		if (isSteamSyncing) return t('sync.status.syncing');
+		if (isSteamProviderConnected) return t('sync.status.connected');
 		return t('sync.status.disconnected');
-	}, [steamStatus?.available, t]);
+	}, [isSteamProviderConnected, isSteamSyncing, steamStatus?.available, t]);
 
 	const steamHeaderSubtitle = useMemo(() => {
 		if (steamStatus?.available && steamIdentity) {
@@ -241,17 +261,17 @@ export function SyncLoginDialog({
 
 									{steamStatus?.available ? (
 										<div className="flex flex-wrap gap-2">
-											<Button
-												type="button"
-												size="sm"
-												variant={isSteamProviderConnected ? 'outline' : 'default'}
-												disabled={isSteamSyncing || isSteamProviderConnected}
-												onClick={() => connectSteamProvider(steamStatus)}
-											>
-												{isSteamProviderConnected
-													? t('sync.status.connected')
-													: t('sync.steam.connectCta', { defaultValue: 'Connect' })}
-											</Button>
+											{!isSteamProviderConnected ? (
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													disabled={isSteamSyncing}
+													onClick={() => connectSteamProvider(steamStatus)}
+												>
+													{t('sync.steam.connectCta', { defaultValue: 'Use Steam Sync' })}
+												</Button>
+											) : null}
 											{isSteamProviderSelected ? (
 												<Button
 													type="button"
