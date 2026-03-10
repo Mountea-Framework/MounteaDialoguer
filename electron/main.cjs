@@ -11,6 +11,11 @@ const {
 	openOverlay: openSteamOverlay,
 	setRichPresence: setSteamRichPresence,
 	unlockAchievement: unlockSteamAchievement,
+	getSteamCloudStatus,
+	listSteamCloudFileNames,
+	steamCloudFileExists,
+	readSteamCloudFile,
+	writeSteamCloudFile,
 	shutdownSteamRuntime,
 } = require('./steam.cjs');
 
@@ -28,6 +33,9 @@ const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues
 const APP_DISPLAY_NAME = 'Mountea Dialoguer';
 const STEAM_SYNC_ROOT_FOLDER = 'steam-sync';
 const STEAM_SYNC_FILE_EXTENSION = '.json';
+const STEAM_SYNC_CLOUD_FILE_PREFIX = 'steam-sync__';
+const STEAM_SYNC_BUNDLE_FILE_BASENAME = 'bundle';
+const STEAM_SYNC_BUNDLE_CACHE_FILE_NAME = `${STEAM_SYNC_BUNDLE_FILE_BASENAME}${STEAM_SYNC_FILE_EXTENSION}`;
 
 let mainWindow = null;
 const DEFAULT_MENU_CONTEXT = Object.freeze({
@@ -219,15 +227,61 @@ function sanitizeSteamSyncSegment(value, fallback = 'local') {
 	return normalized || fallback;
 }
 
+function getSteamSyncRootDirectory() {
+	return path.join(app.getPath('userData'), STEAM_SYNC_ROOT_FOLDER);
+}
+
 function getSteamSyncProfileDirectory(profileId) {
 	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
-	return path.join(app.getPath('userData'), STEAM_SYNC_ROOT_FOLDER, safeProfileId);
+	return path.join(getSteamSyncRootDirectory(), safeProfileId);
+}
+
+function logSteamSyncEvent(eventName, details = {}) {
+	const safeEvent = String(eventName || 'event');
+	const safeDetails = details && typeof details === 'object' ? details : {};
+	const timestamp = new Date().toISOString();
+	const logLine = `[${timestamp}] [steam-sync] ${safeEvent} ${JSON.stringify(safeDetails)}`;
+	console.log(logLine);
+	try {
+		if (app.isReady()) {
+			const diagnosticsPath = path.join(app.getPath('userData'), 'steam-sync-diagnostics.log');
+			fs.appendFileSync(diagnosticsPath, `${logLine}\n`, 'utf8');
+		}
+	} catch (error) {
+		// Best-effort diagnostics logging only.
+	}
+}
+
+async function ensureSteamSyncRootDirectory() {
+	const rootDir = getSteamSyncRootDirectory();
+	await fs.promises.mkdir(rootDir, { recursive: true });
+	return rootDir;
 }
 
 async function ensureSteamSyncProfileDirectory(profileId) {
+	await ensureSteamSyncRootDirectory();
 	const profileDir = getSteamSyncProfileDirectory(profileId);
 	await fs.promises.mkdir(profileDir, { recursive: true });
 	return profileDir;
+}
+
+async function ensureSteamSyncDirectoriesForRuntime(runtimeState = steamRuntimeState) {
+	const userDataPath = app.getPath('userData');
+	const rootDir = await ensureSteamSyncRootDirectory();
+	const cloudStatus = getSteamCloudRuntimeStatus();
+	logSteamSyncEvent('ROOT_READY', {
+		userDataPath,
+		rootDir,
+		cloud: cloudStatus,
+	});
+
+	const steamAvailable = Boolean(runtimeState?.available);
+	const steamId = String(runtimeState?.steamId || '').trim();
+	if (!steamAvailable || !steamId) return;
+
+	const profileId = sanitizeSteamSyncSegment(`steam-${steamId}`, 'local');
+	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
+	logSteamSyncEvent('PROFILE_READY', { profileId, profileDir });
 }
 
 function getSteamSyncFilePath(profileId, fileId) {
@@ -236,6 +290,54 @@ function getSteamSyncFilePath(profileId, fileId) {
 		getSteamSyncProfileDirectory(profileId),
 		`${safeFileId}${STEAM_SYNC_FILE_EXTENSION}`
 	);
+}
+
+function getSteamSyncBundleCachePath(profileId) {
+	return path.join(
+		getSteamSyncProfileDirectory(profileId),
+		STEAM_SYNC_BUNDLE_CACHE_FILE_NAME
+	);
+}
+
+function getSteamSyncBundleCloudFileName(profileId) {
+	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
+	return `${STEAM_SYNC_CLOUD_FILE_PREFIX}${safeProfileId}__${STEAM_SYNC_BUNDLE_FILE_BASENAME}${STEAM_SYNC_FILE_EXTENSION}`;
+}
+
+function buildSteamSyncCloudFileName(profileId, fileId) {
+	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
+	const safeFileId = sanitizeSteamSyncSegment(fileId, 'entry');
+	return `${STEAM_SYNC_CLOUD_FILE_PREFIX}${safeProfileId}__${safeFileId}${STEAM_SYNC_FILE_EXTENSION}`;
+}
+
+function parseSteamSyncCloudFileName(storageName) {
+	const name = String(storageName || '').trim();
+	if (!name.startsWith(STEAM_SYNC_CLOUD_FILE_PREFIX)) return null;
+	if (!name.endsWith(STEAM_SYNC_FILE_EXTENSION)) return null;
+
+	const withoutPrefix = name.slice(STEAM_SYNC_CLOUD_FILE_PREFIX.length);
+	const withoutSuffix = withoutPrefix.slice(0, -STEAM_SYNC_FILE_EXTENSION.length);
+	const separatorIndex = withoutSuffix.indexOf('__');
+	if (separatorIndex < 0) return null;
+
+	const profileId = sanitizeSteamSyncSegment(withoutSuffix.slice(0, separatorIndex), 'local');
+	const fileId = sanitizeSteamSyncSegment(withoutSuffix.slice(separatorIndex + 2), '');
+	if (!fileId) return null;
+	return { profileId, fileId };
+}
+
+function getSteamCloudRuntimeStatus() {
+	const status = getSteamCloudStatus();
+	const enabled = Boolean(
+		status?.available && status?.enabledForApp && status?.enabledForAccount
+	);
+	return {
+		available: Boolean(status?.available),
+		enabledForApp: Boolean(status?.enabledForApp),
+		enabledForAccount: Boolean(status?.enabledForAccount),
+		enabled,
+		error: String(status?.error || ''),
+	};
 }
 
 function normalizeSteamSyncAppProperties(rawValue) {
@@ -267,6 +369,173 @@ function normalizeSteamSyncEntry(rawEntry, fallbackId = '') {
 	};
 }
 
+function createEmptySteamSyncBundle(profileId) {
+	return {
+		schemaVersion: 1,
+		profileId: sanitizeSteamSyncSegment(profileId, 'local'),
+		modifiedTime: new Date().toISOString(),
+		entries: [],
+	};
+}
+
+function normalizeSteamSyncBundle(rawBundle, profileId) {
+	const fallbackProfileId = sanitizeSteamSyncSegment(profileId, 'local');
+	const rawEntries = Array.isArray(rawBundle?.entries) ? rawBundle.entries : [];
+	const deduped = new Map();
+
+	for (const rawEntry of rawEntries) {
+		const normalized = normalizeSteamSyncEntry(rawEntry, rawEntry?.id || '');
+		if (!normalized.name) continue;
+		const existing = deduped.get(normalized.id);
+		if (!existing) {
+			deduped.set(normalized.id, normalized);
+			continue;
+		}
+		const existingTs = Date.parse(existing.modifiedTime || '') || 0;
+		const normalizedTs = Date.parse(normalized.modifiedTime || '') || 0;
+		if (normalizedTs >= existingTs) {
+			deduped.set(normalized.id, normalized);
+		}
+	}
+
+	const entries = Array.from(deduped.values()).sort(
+		(a, b) => Date.parse(b.modifiedTime) - Date.parse(a.modifiedTime)
+	);
+	return {
+		schemaVersion: Number(rawBundle?.schemaVersion || 1),
+		profileId: sanitizeSteamSyncSegment(rawBundle?.profileId || fallbackProfileId, fallbackProfileId),
+		modifiedTime: new Date().toISOString(),
+		entries,
+	};
+}
+
+async function readLegacySteamSyncEntriesFromLocal(profileId) {
+	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
+	const dirItems = await fs.promises.readdir(profileDir, { withFileTypes: true });
+	const entries = [];
+
+	for (const item of dirItems) {
+		if (!item.isFile()) continue;
+		if (!item.name.endsWith(STEAM_SYNC_FILE_EXTENSION)) continue;
+		if (item.name === STEAM_SYNC_BUNDLE_CACHE_FILE_NAME) continue;
+
+		const fileId = item.name.slice(0, -STEAM_SYNC_FILE_EXTENSION.length);
+		const filePath = path.join(profileDir, item.name);
+		try {
+			const content = await fs.promises.readFile(filePath, 'utf8');
+			const parsed = JSON.parse(content);
+			const entry = normalizeSteamSyncEntry(parsed, fileId);
+			if (!entry.name) continue;
+			entries.push(entry);
+		} catch (error) {
+			console.warn('[steam-sync] Failed to parse legacy entry:', filePath, error?.message || error);
+		}
+	}
+
+	return entries;
+}
+
+async function cleanupLegacySteamSyncFiles(profileId) {
+	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
+	const dirItems = await fs.promises.readdir(profileDir, { withFileTypes: true });
+	for (const item of dirItems) {
+		if (!item.isFile()) continue;
+		if (!item.name.endsWith(STEAM_SYNC_FILE_EXTENSION)) continue;
+		if (item.name === STEAM_SYNC_BUNDLE_CACHE_FILE_NAME) continue;
+		const fullPath = path.join(profileDir, item.name);
+		try {
+			await fs.promises.unlink(fullPath);
+		} catch (error) {
+			// Best-effort cleanup only.
+		}
+	}
+}
+
+async function readSteamSyncBundleFromLocal(profileId) {
+	const bundlePath = getSteamSyncBundleCachePath(profileId);
+	if (fs.existsSync(bundlePath)) {
+		try {
+			const content = await fs.promises.readFile(bundlePath, 'utf8');
+			return normalizeSteamSyncBundle(JSON.parse(content), profileId);
+		} catch (error) {
+			console.warn('[steam-sync] Failed to parse bundle cache:', bundlePath, error?.message || error);
+		}
+	}
+
+	const legacyEntries = await readLegacySteamSyncEntriesFromLocal(profileId);
+	if (legacyEntries.length === 0) {
+		return createEmptySteamSyncBundle(profileId);
+	}
+
+	const migrated = normalizeSteamSyncBundle(
+		{
+			schemaVersion: 1,
+			profileId,
+			entries: legacyEntries,
+		},
+		profileId
+	);
+	await writeSteamSyncBundleToLocal(profileId, migrated, { skipCleanup: true });
+	await cleanupLegacySteamSyncFiles(profileId);
+	logSteamSyncEvent('BUNDLE_MIGRATED', {
+		profileId,
+		entryCount: migrated.entries.length,
+	});
+	return migrated;
+}
+
+function readSteamSyncBundleFromCloud(profileId) {
+	const cloudStatus = getSteamCloudRuntimeStatus();
+	if (!cloudStatus.enabled) return null;
+
+	const storageName = getSteamSyncBundleCloudFileName(profileId);
+	if (!steamCloudFileExists(storageName)) return null;
+
+	try {
+		const rawContent = readSteamCloudFile(storageName);
+		return normalizeSteamSyncBundle(JSON.parse(rawContent), profileId);
+	} catch (error) {
+		console.warn('[steam-sync] Failed to parse cloud bundle:', error?.message || error);
+		return null;
+	}
+}
+
+async function writeSteamSyncBundleToLocal(profileId, bundle, options = {}) {
+	const normalized = normalizeSteamSyncBundle(bundle, profileId);
+	await ensureSteamSyncProfileDirectory(profileId);
+	const bundlePath = getSteamSyncBundleCachePath(profileId);
+	await fs.promises.writeFile(bundlePath, JSON.stringify(normalized, null, 2), 'utf8');
+	if (!options?.skipCleanup) {
+		await cleanupLegacySteamSyncFiles(profileId);
+	}
+	return normalized;
+}
+
+function writeSteamSyncBundleToCloud(profileId, bundle) {
+	const cloudStatus = getSteamCloudRuntimeStatus();
+	if (!cloudStatus.enabled) return false;
+	const storageName = getSteamSyncBundleCloudFileName(profileId);
+	const normalized = normalizeSteamSyncBundle(bundle, profileId);
+	return writeSteamCloudFile(storageName, JSON.stringify(normalized));
+}
+
+async function readSteamSyncBundle(profileId) {
+	const cloudBundle = readSteamSyncBundleFromCloud(profileId);
+	if (cloudBundle) {
+		await writeSteamSyncBundleToLocal(profileId, cloudBundle);
+		return { bundle: cloudBundle, source: 'steam-cloud' };
+	}
+
+	const localBundle = await readSteamSyncBundleFromLocal(profileId);
+	return { bundle: localBundle, source: 'local-cache' };
+}
+
+async function writeSteamSyncBundle(profileId, bundle) {
+	const normalized = await writeSteamSyncBundleToLocal(profileId, bundle);
+	const cloudWritten = writeSteamSyncBundleToCloud(profileId, normalized);
+	return { bundle: normalized, cloudWritten };
+}
+
 function toSteamSyncFileMetadata(entry) {
 	return {
 		id: entry.id,
@@ -286,33 +555,14 @@ async function readSteamSyncEntry(filePath, fallbackId = '') {
 	return entry;
 }
 
-async function writeSteamSyncEntry(profileId, entry) {
-	await ensureSteamSyncProfileDirectory(profileId);
-	const filePath = getSteamSyncFilePath(profileId, entry.id);
-	await fs.promises.writeFile(filePath, JSON.stringify(entry, null, 2), 'utf8');
-	return filePath;
-}
-
 async function listSteamSyncEntries(profileId) {
-	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
-	const dirItems = await fs.promises.readdir(profileDir, { withFileTypes: true });
-	const entries = [];
-
-	for (const item of dirItems) {
-		if (!item.isFile()) continue;
-		if (!item.name.endsWith(STEAM_SYNC_FILE_EXTENSION)) continue;
-
-		const fileId = item.name.slice(0, -STEAM_SYNC_FILE_EXTENSION.length);
-		const filePath = path.join(profileDir, item.name);
-		try {
-			const entry = await readSteamSyncEntry(filePath, fileId);
-			entries.push(entry);
-		} catch (error) {
-			console.warn('[steam-sync] Failed to parse entry:', filePath, error?.message || error);
-		}
-	}
-
-	entries.sort((a, b) => Date.parse(b.modifiedTime) - Date.parse(a.modifiedTime));
+	const { bundle, source } = await readSteamSyncBundle(profileId);
+	const entries = Array.isArray(bundle?.entries) ? bundle.entries : [];
+	logSteamSyncEvent('LIST_SOURCE', {
+		profileId,
+		source,
+		count: entries.length,
+	});
 	return entries;
 }
 
@@ -324,6 +574,7 @@ async function steamSyncFindFile(payload = {}) {
 	const entries = await listSteamSyncEntries(profileId);
 	const match = entries.find((entry) => entry.name === fileName);
 	if (!match) return null;
+	logSteamSyncEvent('FIND', { profileId, fileName, found: true, fileId: match.id });
 	return toSteamSyncFileMetadata(match);
 }
 
@@ -331,9 +582,16 @@ async function steamSyncListFiles(payload = {}) {
 	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
 	const namePrefix = String(payload?.namePrefix || '').trim();
 	const entries = await listSteamSyncEntries(profileId);
-	return entries
+	const mapped = entries
 		.filter((entry) => !namePrefix || entry.name.includes(namePrefix))
 		.map((entry) => toSteamSyncFileMetadata(entry));
+	logSteamSyncEvent('LIST', {
+		profileId,
+		namePrefix,
+		count: mapped.length,
+		directory: getSteamSyncProfileDirectory(profileId),
+	});
+	return mapped;
 }
 
 async function steamSyncDownloadFile(payload = {}) {
@@ -343,12 +601,17 @@ async function steamSyncDownloadFile(payload = {}) {
 		throw new Error('Missing Steam sync file id');
 	}
 
-	const filePath = getSteamSyncFilePath(profileId, fileId);
-	if (!fs.existsSync(filePath)) {
+	const { bundle, source } = await readSteamSyncBundle(profileId);
+	const entry = (bundle?.entries || []).find((item) => item.id === fileId);
+	if (!entry) {
 		throw new Error(`Steam sync file not found: ${fileId}`);
 	}
-
-	const entry = await readSteamSyncEntry(filePath, fileId);
+	logSteamSyncEvent('DOWNLOAD', {
+		profileId,
+		fileId,
+		name: entry.name,
+		source,
+	});
 	return entry.content;
 }
 
@@ -370,7 +633,35 @@ async function steamSyncCreateFile(payload = {}) {
 		},
 		''
 	);
-	await writeSteamSyncEntry(profileId, entry);
+
+	const { bundle } = await readSteamSyncBundle(profileId);
+	const nextBundle = normalizeSteamSyncBundle(
+		{
+			...bundle,
+			profileId,
+			modifiedTime: new Date().toISOString(),
+			entries: [...(bundle?.entries || []), entry],
+		},
+		profileId
+	);
+
+	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
+	if (!cloudWritten) {
+		logSteamSyncEvent('CREATE_CLOUD_SKIPPED', {
+			profileId,
+			fileId: entry.id,
+			name: entry.name,
+			cloud: getSteamCloudRuntimeStatus(),
+		});
+	}
+
+	logSteamSyncEvent('CREATE', {
+		profileId,
+		fileId: entry.id,
+		name: entry.name,
+		bundlePath: getSteamSyncBundleCachePath(profileId),
+		cloudWritten,
+	});
 	return toSteamSyncFileMetadata(entry);
 }
 
@@ -381,12 +672,11 @@ async function steamSyncUpdateFile(payload = {}) {
 		throw new Error('Missing Steam sync file id');
 	}
 
-	const filePath = getSteamSyncFilePath(profileId, fileId);
-	if (!fs.existsSync(filePath)) {
+	const { bundle } = await readSteamSyncBundle(profileId);
+	const existing = (bundle?.entries || []).find((item) => item.id === fileId);
+	if (!existing) {
 		throw new Error(`Steam sync file not found: ${fileId}`);
 	}
-
-	const existing = await readSteamSyncEntry(filePath, fileId);
 	const updated = normalizeSteamSyncEntry(
 		{
 			...existing,
@@ -398,7 +688,34 @@ async function steamSyncUpdateFile(payload = {}) {
 		fileId
 	);
 
-	await writeSteamSyncEntry(profileId, updated);
+	const nextEntries = (bundle?.entries || []).map((item) =>
+		item.id === fileId ? updated : item
+	);
+	const nextBundle = normalizeSteamSyncBundle(
+		{
+			...bundle,
+			profileId,
+			modifiedTime: new Date().toISOString(),
+			entries: nextEntries,
+		},
+		profileId
+	);
+	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
+	if (!cloudWritten) {
+		logSteamSyncEvent('UPDATE_CLOUD_SKIPPED', {
+			profileId,
+			fileId: updated.id,
+			name: updated.name,
+			cloud: getSteamCloudRuntimeStatus(),
+		});
+	}
+	logSteamSyncEvent('UPDATE', {
+		profileId,
+		fileId: updated.id,
+		name: updated.name,
+		bundlePath: getSteamSyncBundleCachePath(profileId),
+		cloudWritten,
+	});
 	return toSteamSyncFileMetadata(updated);
 }
 
@@ -1235,7 +1552,17 @@ function registerIpcHandlers() {
 		const details = payload?.details && typeof payload.details === 'object'
 			? payload.details
 			: {};
-		console.log(`[${new Date().toISOString()}] [sync] ${eventName}`, details);
+		const timestamp = new Date().toISOString();
+		const line = `[${timestamp}] [sync] ${eventName} ${JSON.stringify(details)}`;
+		console.log(line);
+		try {
+			if (app.isReady()) {
+				const diagnosticsPath = path.join(app.getPath('userData'), 'steam-sync-diagnostics.log');
+				fs.appendFileSync(diagnosticsPath, `${line}\n`, 'utf8');
+			}
+		} catch (error) {
+			// Best-effort diagnostics logging only.
+		}
 	});
 }
 
@@ -1252,7 +1579,7 @@ if (!gotSingleInstanceLock) {
 		mainWindow.focus();
 	});
 
-	app.whenReady().then(() => {
+	app.whenReady().then(async () => {
 		steamRuntimeState = initializeSteamRuntime();
 		if (steamRuntimeState.available) {
 			console.log(
@@ -1260,6 +1587,13 @@ if (!gotSingleInstanceLock) {
 			);
 		} else {
 			console.log(`[steam] runtime not available: ${steamRuntimeState.error}`);
+		}
+		try {
+			await ensureSteamSyncDirectoriesForRuntime(steamRuntimeState);
+		} catch (error) {
+			logSteamSyncEvent('ROOT_READY_ERROR', {
+				message: String(error?.message || error),
+			});
 		}
 
 		createAppMenu(menuContext);

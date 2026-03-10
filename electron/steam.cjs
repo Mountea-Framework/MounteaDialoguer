@@ -30,6 +30,12 @@ const OVERLAY_DIALOG_VALUES = Object.freeze({
 	Stats: 5,
 	Achievements: 6,
 });
+const DEFAULT_STEAM_CLOUD_STATUS = Object.freeze({
+	available: false,
+	enabledForAccount: false,
+	enabledForApp: false,
+	error: '',
+});
 
 function toPositiveInt(value) {
 	const parsed = Number(value);
@@ -290,6 +296,114 @@ function setRichPresence(entries = {}) {
 	}
 }
 
+function getSteamCloudApi() {
+	if (!steamState.available || !steamClient) return null;
+	return steamClient?.cloud ?? steamworksModule?.cloud ?? null;
+}
+
+function getSteamCloudStatus() {
+	const cloud = getSteamCloudApi();
+	if (!cloud) return { ...DEFAULT_STEAM_CLOUD_STATUS };
+
+	try {
+		const enabledForAccount = Boolean(cloud?.isEnabledForAccount?.());
+		const enabledForApp = Boolean(cloud?.isEnabledForApp?.());
+		return {
+			available: true,
+			enabledForAccount,
+			enabledForApp,
+			error: '',
+		};
+	} catch (error) {
+		return {
+			available: false,
+			enabledForAccount: false,
+			enabledForApp: false,
+			error: String(error?.message || 'Steam cloud status failed'),
+		};
+	}
+}
+
+function listSteamCloudFileNames() {
+	const cloud = getSteamCloudApi();
+	if (!cloud || typeof cloud?.listFiles !== 'function') {
+		return [];
+	}
+
+	try {
+		const files = cloud.listFiles();
+		if (!Array.isArray(files)) return [];
+		return files
+			.map((item) => String(item?.name || '').trim())
+			.filter(Boolean);
+	} catch (error) {
+		return [];
+	}
+}
+
+function steamCloudFileExists(name) {
+	const fileName = String(name || '').trim();
+	if (!fileName) return false;
+
+	const cloud = getSteamCloudApi();
+	if (!cloud || typeof cloud?.fileExists !== 'function') {
+		return false;
+	}
+
+	try {
+		return Boolean(cloud.fileExists(fileName));
+	} catch (error) {
+		return false;
+	}
+}
+
+function readSteamCloudFile(name) {
+	const fileName = String(name || '').trim();
+	if (!fileName) {
+		throw new Error('Steam cloud file name is required');
+	}
+
+	const cloud = getSteamCloudApi();
+	if (!cloud || typeof cloud?.readFile !== 'function') {
+		throw new Error('Steam cloud read is unavailable');
+	}
+
+	const content = cloud.readFile(fileName);
+	return typeof content === 'string' ? content : String(content || '');
+}
+
+function writeSteamCloudFile(name, content) {
+	const fileName = String(name || '').trim();
+	if (!fileName) return false;
+
+	const cloud = getSteamCloudApi();
+	if (!cloud || typeof cloud?.writeFile !== 'function') {
+		return false;
+	}
+
+	try {
+		return Boolean(cloud.writeFile(fileName, String(content || '')));
+	} catch (error) {
+		return false;
+	}
+}
+
+function deleteSteamCloudFile(name) {
+	const fileName = String(name || '').trim();
+	if (!fileName) return false;
+
+	const cloud = getSteamCloudApi();
+	if (!cloud || typeof cloud?.deleteFile !== 'function') {
+		return false;
+	}
+
+	try {
+		return Boolean(cloud.deleteFile(fileName));
+	} catch (error) {
+		return false;
+	}
+}
+
 function unlockAchievement(achievementId) {
 	const id = String(achievementId || '').trim();
 	if (!id) return { ok: false, error: 'Invalid achievement id' };
@@ -325,5 +439,11 @@ module.exports = {
 	openOverlay,
 	setRichPresence,
 	unlockAchievement,
+	getSteamCloudStatus,
+	listSteamCloudFileNames,
+	steamCloudFileExists,
+	readSteamCloudFile,
+	writeSteamCloudFile,
+	deleteSteamCloudFile,
 	shutdownSteamRuntime,
 };
