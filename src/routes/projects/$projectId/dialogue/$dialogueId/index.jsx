@@ -60,6 +60,7 @@ import { Label } from '@/components/ui/label';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUIStore } from '@/stores/uiStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useConditionStore } from '@/stores/conditionStore';
@@ -100,6 +101,11 @@ import {
 	getNodeDefinition,
 	getNodeDefaultData,
 } from '@/config/dialogueNodes';
+import {
+	normalizeLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import { getLocalizationLocaleLabel } from '@/lib/localization/localeCatalog';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -265,10 +271,32 @@ function DialogueEditorPage() {
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
 		useDialogueStore();
+	const { contentLocaleByProject, setProjectContentLocale } = useUIStore((state) => ({
+		contentLocaleByProject: state.contentLocaleByProject,
+		setProjectContentLocale: state.setProjectContentLocale,
+	}));
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
 	const { conditions, loadConditions } = useConditionStore();
 	const { categories, loadCategories } = useCategoryStore();
+	const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
+	const dialogue = useMemo(() => dialogues.find((d) => d.id === dialogueId), [dialogues, dialogueId]);
+	const projectLocalization = useMemo(
+		() => normalizeProjectLocalizationConfig(project?.localization || {}),
+		[project?.localization]
+	);
+	const localizationEnabled = Boolean(projectLocalization.enabled);
+	const contentLocale = useMemo(() => {
+		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
+		if (
+			savedLocale &&
+			Array.isArray(projectLocalization.supportedLocales) &&
+			projectLocalization.supportedLocales.includes(savedLocale)
+		) {
+			return savedLocale;
+		}
+		return projectLocalization.defaultLocale;
+	}, [contentLocaleByProject, projectId, projectLocalization]);
 
 	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -443,7 +471,9 @@ function DialogueEditorPage() {
 				setShowDesktopGraphLoader(getDeviceType() !== 'mobile');
 
 				try {
-					const result = await loadDialogueGraph(dialogueId);
+					const result = await loadDialogueGraph(dialogueId, {
+						activeLocale: contentLocale,
+					});
 					const { nodes: loadedNodes, edges: loadedEdges, viewport: loadedViewport } = result;
 
 					if (loadedNodes.length > 0 || loadedEdges.length > 0) {
@@ -468,7 +498,7 @@ function DialogueEditorPage() {
 			}
 		};
 		loadGraph();
-	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance]);
+	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance, contentLocale]);
 
 	const isMobileGraphLoading =
 		deviceType === 'mobile' &&
@@ -710,13 +740,25 @@ function DialogueEditorPage() {
 		};
 	}, []);
 
-	const project = projects.find((p) => p.id === projectId);
-	const dialogue = dialogues.find((d) => d.id === dialogueId);
 	const availableConditionDefinitions = conditions.filter((condition) => condition.projectId === projectId);
 	const selectedNodeDefinition = selectedNode
 		? getNodeDefinition(selectedNode.type)
 		: null;
 	const projectCategories = categories.filter((c) => c.projectId === projectId);
+
+	useEffect(() => {
+		if (!projectId || !localizationEnabled) return;
+		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
+		if (savedLocale !== contentLocale) {
+			setProjectContentLocale(projectId, contentLocale);
+		}
+	}, [
+		contentLocale,
+		contentLocaleByProject,
+		localizationEnabled,
+		projectId,
+		setProjectContentLocale,
+	]);
 
 	const renderNodeField = (field) => {
 		if (!selectedNode) return null;
@@ -1333,7 +1375,9 @@ function DialogueEditorPage() {
 			logMissingRequiredNodes();
 			showValidationToasts(missingRequiredNodes);
 
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
+				activeLocale: contentLocale,
+			});
 			const now = new Date();
 			setLastSaved(now);
 			setSaveSuccess(true);
@@ -1354,6 +1398,7 @@ function DialogueEditorPage() {
 		viewport,
 		dialogueId,
 		saveDialogueGraph,
+		contentLocale,
 		getMissingRequiredNodes,
 		logMissingRequiredNodes,
 		showValidationToasts,
@@ -1960,13 +2005,48 @@ function DialogueEditorPage() {
 			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
 
 			// Save first to ensure we export the latest version
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
+				activeLocale: contentLocale,
+			});
 			// Then export
 			await exportDialogue(dialogueId);
 		} catch (error) {
 			console.error('Failed to export dialogue:', error);
 		}
 	};
+
+	const handleContentLocaleChange = useCallback(
+		(event) => {
+			const nextLocale = normalizeLocaleTag(
+				event?.target?.value,
+				projectLocalization.defaultLocale
+			);
+			if (!localizationEnabled || !projectId) return;
+			if (nextLocale === contentLocale) return;
+			if (hasUnsavedChanges) {
+				toastStandalone({
+					variant: 'error',
+					title: t('editor.localization.unsavedSwitchTitle', {
+						defaultValue: 'Save Required',
+					}),
+					description: t('editor.localization.unsavedSwitchDescription', {
+						defaultValue: 'Save your changes before switching content locale.',
+					}),
+				});
+				return;
+			}
+			setProjectContentLocale(projectId, nextLocale);
+		},
+		[
+			contentLocale,
+			hasUnsavedChanges,
+			localizationEnabled,
+			projectId,
+			projectLocalization.defaultLocale,
+			setProjectContentLocale,
+			t,
+		]
+	);
 
 	useEffect(() => {
 		const matchesDialogue = (event) => {
@@ -2082,6 +2162,27 @@ function DialogueEditorPage() {
 					}
 					right={
 						<>
+							{localizationEnabled && (
+								<div className="hidden md:flex items-center gap-2" data-header-mobile-hidden>
+									<Label htmlFor="content-locale" className="text-xs text-muted-foreground">
+										{t('editor.localization.contentLocale', {
+											defaultValue: 'Content locale',
+										})}
+									</Label>
+									<NativeSelect
+										id="content-locale"
+										value={contentLocale}
+										onChange={handleContentLocaleChange}
+										className="h-9 min-w-[9rem]"
+									>
+										{projectLocalization.supportedLocales.map((locale) => (
+											<option key={locale} value={locale}>
+												{getLocalizationLocaleLabel(locale)} ({locale})
+											</option>
+										))}
+									</NativeSelect>
+								</div>
+							)}
 							<span className="hidden md:flex" data-header-mobile-hidden>
 								<SaveIndicator
 									status={saveStatus}

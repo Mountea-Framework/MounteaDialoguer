@@ -5,9 +5,47 @@ import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import {
+	DEFAULT_LOCALE,
+	buildLocalizedEntriesFromNodes,
+	isValidLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import {
 	trackExampleProjectCreated,
 	trackFirstNonExampleProjectCreated,
 } from '@/lib/achievements/achievementTracker';
+
+async function seedProjectLocalizationDefaultLocale(projectId, defaultLocale) {
+	const dialogues = await db.dialogues.where('projectId').equals(projectId).toArray();
+	const allExisting = await db.localizedStrings.where('projectId').equals(projectId).toArray();
+	const existingByDialogue = new Map();
+
+	for (const entry of allExisting) {
+		const key = String(entry?.dialogueId || '').trim();
+		if (!key) continue;
+		if (!existingByDialogue.has(key)) {
+			existingByDialogue.set(key, []);
+		}
+		existingByDialogue.get(key).push(entry);
+	}
+
+	const toUpsert = [];
+	for (const dialogue of dialogues) {
+		const nodes = await db.nodes.where('dialogueId').equals(dialogue.id).toArray();
+		const entries = buildLocalizedEntriesFromNodes({
+			projectId,
+			dialogueId: dialogue.id,
+			nodes,
+			locale: defaultLocale,
+			existingEntries: existingByDialogue.get(dialogue.id) || [],
+		});
+		toUpsert.push(...entries);
+	}
+
+	if (toUpsert.length > 0) {
+		await db.localizedStrings.bulkPut(toUpsert);
+	}
+}
 
 /**
  * Project Store
@@ -34,7 +72,11 @@ export const useProjectStore = create((set, get) => ({
 						.where('projectId')
 						.equals(project.id)
 						.count();
-					return { ...project, dialogueCount };
+					return {
+						...project,
+						localization: normalizeProjectLocalizationConfig(project?.localization || {}),
+						dialogueCount,
+					};
 				})
 			);
 
@@ -61,6 +103,13 @@ export const useProjectStore = create((set, get) => ({
 			const newProject = {
 				id,
 				...projectData,
+				localization: normalizeProjectLocalizationConfig(
+					projectData?.localization || {
+						enabled: false,
+						defaultLocale: DEFAULT_LOCALE,
+						supportedLocales: [DEFAULT_LOCALE],
+					}
+				),
 				isExample: false,
 				createdAt: now,
 				modifiedAt: now,
@@ -116,6 +165,11 @@ export const useProjectStore = create((set, get) => ({
 				name: 'OnboardingExample',
 				description: 'Example branching dialogue project created from onboarding',
 				version: '1.0.0',
+				localization: normalizeProjectLocalizationConfig({
+					enabled: false,
+					defaultLocale: DEFAULT_LOCALE,
+					supportedLocales: [DEFAULT_LOCALE],
+				}),
 				isExample: true,
 				createdAt: now,
 				modifiedAt: now,
@@ -1076,10 +1130,33 @@ export const useProjectStore = create((set, get) => ({
 	updateProject: async (id, updates) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.projects.update(id, {
+			const existingProject = await db.projects.get(id);
+			if (!existingProject) {
+				throw new Error('Project not found');
+			}
+
+			const previousLocalization = normalizeProjectLocalizationConfig(
+				existingProject.localization || {}
+			);
+			const nextLocalization =
+				updates && Object.prototype.hasOwnProperty.call(updates, 'localization')
+					? normalizeProjectLocalizationConfig(updates.localization || {})
+					: previousLocalization;
+
+			const nextPayload = {
 				...updates,
 				modifiedAt: new Date().toISOString(),
-			});
+			};
+
+			if (Object.prototype.hasOwnProperty.call(nextPayload, 'localization')) {
+				nextPayload.localization = nextLocalization;
+			}
+
+			await db.projects.update(id, nextPayload);
+
+			if (!previousLocalization.enabled && nextLocalization.enabled) {
+				await seedProjectLocalizationDefaultLocale(id, nextLocalization.defaultLocale);
+			}
 			await get().loadProjects();
 			useSyncStore.getState().schedulePush(id);
 			toast({
@@ -1099,13 +1176,56 @@ export const useProjectStore = create((set, get) => ({
 		}
 	},
 
+	updateProjectLocalization: async (id, localizationUpdates = {}) => {
+		set({ isLoading: true, error: null });
+		try {
+			const project = await db.projects.get(id);
+			if (!project) {
+				throw new Error('Project not found');
+			}
+
+			const rawSupported = Array.isArray(localizationUpdates?.supportedLocales)
+				? localizationUpdates.supportedLocales
+				: [];
+			const invalidLocale = rawSupported.find((locale) => !isValidLocaleTag(locale));
+			if (invalidLocale) {
+				throw new Error(`Invalid locale tag: ${invalidLocale}`);
+			}
+
+			const rawDefault = String(localizationUpdates?.defaultLocale || '').trim();
+			if (rawDefault && !isValidLocaleTag(rawDefault)) {
+				throw new Error(`Invalid locale tag: ${rawDefault}`);
+			}
+
+			const nextLocalization = normalizeProjectLocalizationConfig({
+				...(project.localization || {}),
+				...localizationUpdates,
+			});
+
+			await get().updateProject(id, {
+				localization: nextLocalization,
+			});
+
+			return nextLocalization;
+		} catch (error) {
+			console.error('Error updating project localization:', error);
+			toast({
+				variant: 'error',
+				title: 'Failed to Update Localization',
+				description: error.message || 'An unexpected error occurred',
+			});
+			set({ error: error.message, isLoading: false });
+			throw error;
+		}
+	},
+
 	/**
 	 * Delete a project and all its related data
 	 */
 	deleteProject: async (id) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.nodes, db.edges], async () => {
+			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.localizedStrings, db.nodes, db.edges], async () => {
 				const projectDialogues = await db.dialogues.where('projectId').equals(id).toArray();
 				const dialogueIds = projectDialogues.map((dialogue) => dialogue.id);
 
@@ -1120,6 +1240,7 @@ export const useProjectStore = create((set, get) => ({
 				await db.categories.where('projectId').equals(id).delete();
 				await db.decorators.where('projectId').equals(id).delete();
 				await db.conditions.where('projectId').equals(id).delete();
+				await db.localizedStrings.where('projectId').equals(id).delete();
 			});
 			await get().loadProjects();
 			await useDialogueStore.getState().loadDialogues();
@@ -1148,7 +1269,15 @@ export const useProjectStore = create((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const project = await db.projects.get(id);
-			set({ currentProject: project, isLoading: false });
+			set({
+				currentProject: project
+					? {
+						...project,
+						localization: normalizeProjectLocalizationConfig(project.localization || {}),
+					}
+					: null,
+				isLoading: false,
+			});
 		} catch (error) {
 			console.error('Error setting current project:', error);
 			toast({
@@ -1223,6 +1352,7 @@ export const useProjectStore = create((set, get) => ({
 				projectName: project.name,
 				projectDescription: project.description || '',
 				version: project.version || '1.0.0',
+				localization: normalizeProjectLocalizationConfig(project.localization || {}),
 				createdAt: project.createdAt,
 				modifiedAt: project.modifiedAt || new Date().toISOString(),
 			};
@@ -1347,7 +1477,9 @@ export const useProjectStore = create((set, get) => ({
 			const newProject = {
 				id: newProjectId,
 				name: projectData.projectName,
-				description: projectData.description || '',
+				description: projectData.projectDescription || projectData.description || '',
+				version: projectData.version || '1.0.0',
+				localization: normalizeProjectLocalizationConfig(projectData.localization || {}),
 				isExample: false,
 				createdAt: now,
 				modifiedAt: now,

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
+import { buildLocalizedStringKey } from '@/lib/localization/stringTable';
 
 export async function buildProjectSnapshot(projectId) {
 	const project = await db.projects.get(projectId);
@@ -12,6 +13,10 @@ export async function buildProjectSnapshot(projectId) {
 	const categories = await db.categories.where('projectId').equals(projectId).toArray();
 	const decorators = await db.decorators.where('projectId').equals(projectId).toArray();
 	const conditions = await db.conditions.where('projectId').equals(projectId).toArray();
+	const localizedStrings = await db.localizedStrings
+		.where('projectId')
+		.equals(projectId)
+		.toArray();
 
 	const dialogueIds = dialogues.map((dialogue) => dialogue.id);
 	const nodes = dialogueIds.length
@@ -22,13 +27,14 @@ export async function buildProjectSnapshot(projectId) {
 		: [];
 
 	return {
-		version: 1,
+		version: 2,
 		project,
 		dialogues,
 		participants,
 		categories,
 		decorators,
 		conditions,
+		localizedStrings,
 		nodes,
 		edges,
 	};
@@ -42,6 +48,7 @@ export async function applyProjectSnapshot(snapshot) {
 		categories = [],
 		decorators = [],
 		conditions = [],
+		localizedStrings = [],
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
@@ -59,6 +66,7 @@ export async function applyProjectSnapshot(snapshot) {
 			db.categories,
 			db.decorators,
 			db.conditions,
+			db.localizedStrings,
 			db.nodes,
 			db.edges,
 		],
@@ -76,6 +84,7 @@ export async function applyProjectSnapshot(snapshot) {
 			await db.categories.where('projectId').equals(project.id).delete();
 			await db.decorators.where('projectId').equals(project.id).delete();
 			await db.conditions.where('projectId').equals(project.id).delete();
+			await db.localizedStrings.where('projectId').equals(project.id).delete();
 
 			await db.projects.put(project);
 
@@ -84,6 +93,7 @@ export async function applyProjectSnapshot(snapshot) {
 			if (categories.length > 0) await db.categories.bulkAdd(categories);
 			if (decorators.length > 0) await db.decorators.bulkAdd(decorators);
 			if (conditions.length > 0) await db.conditions.bulkAdd(conditions);
+			if (localizedStrings.length > 0) await db.localizedStrings.bulkAdd(localizedStrings);
 			if (nodes.length > 0) await db.nodes.bulkAdd(nodes);
 			if (edges.length > 0) await db.edges.bulkAdd(edges);
 		}
@@ -98,6 +108,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 		categories = [],
 		decorators = [],
 		conditions = [],
+		localizedStrings = [],
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
@@ -182,6 +193,24 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 		dialogueId: dialogueIdMap.get(edge.dialogueId) || edge.dialogueId,
 	}));
 
+	const newLocalizedStrings = localizedStrings.map((entry) => {
+		const mappedDialogueId = dialogueIdMap.get(entry.dialogueId) || entry.dialogueId || '';
+		const key = buildLocalizedStringKey({
+			dialogueId: mappedDialogueId,
+			nodeId: entry.nodeId,
+			rowId: entry.rowId,
+			field: entry.field,
+		});
+		return {
+			...entry,
+			projectId: newProjectId,
+			dialogueId: mappedDialogueId,
+			key: key || entry.key,
+			createdAt: now,
+			modifiedAt: now,
+		};
+	});
+
 	await db.transaction(
 		'rw',
 		[
@@ -191,6 +220,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 			db.categories,
 			db.decorators,
 			db.conditions,
+			db.localizedStrings,
 			db.nodes,
 			db.edges,
 		],
@@ -201,6 +231,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 			if (normalizedCategories.length > 0) await db.categories.bulkAdd(normalizedCategories);
 			if (newDecorators.length > 0) await db.decorators.bulkAdd(newDecorators);
 			if (newConditions.length > 0) await db.conditions.bulkAdd(newConditions);
+			if (newLocalizedStrings.length > 0) await db.localizedStrings.bulkAdd(newLocalizedStrings);
 			if (newNodes.length > 0) await db.nodes.bulkAdd(newNodes);
 			if (newEdges.length > 0) await db.edges.bulkAdd(newEdges);
 		}

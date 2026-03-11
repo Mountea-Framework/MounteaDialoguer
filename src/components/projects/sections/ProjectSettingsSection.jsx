@@ -1,14 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Download, Trash2, AlertTriangle, Info } from 'lucide-react';
+import { Save, Download, Trash2, AlertTriangle, Info, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { useProjectStore } from '@/stores/projectStore';
 import { formatDate } from '@/lib/dateUtils';
+import {
+	DEFAULT_LOCALE,
+	isValidLocaleTag,
+	normalizeLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import {
+	getLocalizationLocaleLabel,
+	LOCALIZATION_LOCALE_OPTIONS,
+} from '@/lib/localization/localeCatalog';
 
 /**
  * Project Settings Section Component
@@ -16,7 +28,7 @@ import { formatDate } from '@/lib/dateUtils';
  */
 export function ProjectSettingsSection({ project, onExport, onDelete, showHeader = true }) {
 	const { t } = useTranslation();
-	const { updateProject } = useProjectStore();
+	const { updateProject, updateProjectLocalization } = useProjectStore();
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [formData, setFormData] = useState({
@@ -24,6 +36,53 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 		description: project.description || '',
 		version: project.version || '1.0.0',
 	});
+	const [localizationData, setLocalizationData] = useState(() =>
+		normalizeProjectLocalizationConfig(project.localization || {})
+	);
+	const [selectedLocaleToAdd, setSelectedLocaleToAdd] = useState('');
+	const [localizationError, setLocalizationError] = useState('');
+	const [isSavingLocalization, setIsSavingLocalization] = useState(false);
+	const [isLocalizationDirty, setIsLocalizationDirty] = useState(false);
+	const availableLocaleOptions = useMemo(
+		() =>
+			LOCALIZATION_LOCALE_OPTIONS.filter(
+				(option) => !localizationData.supportedLocales.includes(option.code)
+			),
+		[localizationData.supportedLocales]
+	);
+
+	useEffect(() => {
+		setFormData({
+			name: project.name || '',
+			description: project.description || '',
+			version: project.version || '1.0.0',
+		});
+		setLocalizationData(normalizeProjectLocalizationConfig(project.localization || {}));
+		setSelectedLocaleToAdd('');
+		setLocalizationError('');
+		setIsLocalizationDirty(false);
+		setIsEditing(false);
+	}, [project]);
+
+	useEffect(() => {
+		if (availableLocaleOptions.length === 0) {
+			setSelectedLocaleToAdd('');
+			return;
+		}
+
+		const hasCurrentSelection = availableLocaleOptions.some(
+			(option) => option.code === selectedLocaleToAdd
+		);
+		if (!hasCurrentSelection) {
+			setSelectedLocaleToAdd(availableLocaleOptions[0].code);
+		}
+	}, [availableLocaleOptions, selectedLocaleToAdd]);
+
+	const updateLocalizationDraft = (next) => {
+		setLocalizationData(normalizeProjectLocalizationConfig(next));
+		setIsLocalizationDirty(true);
+		setLocalizationError('');
+	};
 
 	const handleSave = async () => {
 		if (!formData.name.trim()) return;
@@ -50,6 +109,102 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 			version: project.version || '1.0.0',
 		});
 		setIsEditing(false);
+	};
+
+	const handleAddLocale = () => {
+		const raw = String(selectedLocaleToAdd || '').trim();
+		if (!raw) return;
+		if (!isValidLocaleTag(raw)) {
+			setLocalizationError(
+				t('settings.localization.invalidLocale', {
+					defaultValue: 'Enter a valid BCP-47 locale tag (for example: en, en-US, cs-CZ).',
+				})
+			);
+			return;
+		}
+
+		const normalized = normalizeLocaleTag(raw, '');
+		if (!normalized) {
+			setLocalizationError(
+				t('settings.localization.invalidLocale', {
+					defaultValue: 'Enter a valid BCP-47 locale tag (for example: en, en-US, cs-CZ).',
+				})
+			);
+			return;
+		}
+		if (localizationData.supportedLocales.includes(normalized)) {
+			setLocalizationError(
+				t('settings.localization.duplicateLocale', {
+					defaultValue: 'This locale is already in the supported list.',
+				})
+			);
+			return;
+		}
+
+		updateLocalizationDraft({
+			...localizationData,
+			supportedLocales: [...localizationData.supportedLocales, normalized],
+		});
+	};
+
+	const handleRemoveLocale = (locale) => {
+		if (localizationData.enabled && locale === localizationData.defaultLocale) {
+			setLocalizationError(
+				t('settings.localization.removeDefaultBlocked', {
+					defaultValue: 'You cannot remove the default locale while localization is enabled.',
+				})
+			);
+			return;
+		}
+
+		const nextSupported = localizationData.supportedLocales.filter((item) => item !== locale);
+		let nextDefault = localizationData.defaultLocale;
+		if (!nextSupported.includes(nextDefault)) {
+			nextDefault = nextSupported[0] || DEFAULT_LOCALE;
+		}
+		updateLocalizationDraft({
+			...localizationData,
+			defaultLocale: nextDefault,
+			supportedLocales: nextSupported.length > 0 ? nextSupported : [nextDefault],
+		});
+	};
+
+	const handleLocalizationSave = async () => {
+		setIsSavingLocalization(true);
+		setLocalizationError('');
+		try {
+			const invalid = localizationData.supportedLocales.find((locale) => !isValidLocaleTag(locale));
+			if (invalid) {
+				throw new Error(`Invalid locale tag: ${invalid}`);
+			}
+			if (!isValidLocaleTag(localizationData.defaultLocale)) {
+				throw new Error(`Invalid locale tag: ${localizationData.defaultLocale}`);
+			}
+
+			let supportedLocales = [...localizationData.supportedLocales];
+			if (!supportedLocales.includes(localizationData.defaultLocale)) {
+				supportedLocales = [localizationData.defaultLocale, ...supportedLocales];
+			}
+
+			const nextLocalization = normalizeProjectLocalizationConfig({
+				...localizationData,
+				supportedLocales,
+			});
+
+			const persisted = await updateProjectLocalization(project.id, nextLocalization);
+			setLocalizationData(normalizeProjectLocalizationConfig(persisted));
+			setIsLocalizationDirty(false);
+		} catch (error) {
+			console.error('Failed to update localization settings:', error);
+			setLocalizationError(
+				error.message ||
+					t('settings.localization.saveError', {
+						defaultValue: 'Failed to update localization settings.',
+					})
+			);
+		} finally {
+			setIsSavingLocalization(false);
+		}
 	};
 
 	const handleDelete = () => {
@@ -141,6 +296,150 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 							</Button>
 						</div>
 					)}
+				</CardContent>
+			</Card>
+
+			{/* Localization */}
+			<Card>
+				<CardHeader>
+					<CardTitle>
+						{t('settings.localization.title', { defaultValue: 'Localization' })}
+					</CardTitle>
+					<CardDescription>
+						{t('settings.localization.description', {
+							defaultValue:
+								'Enable per-project StringTable-style localization for dialogue content.',
+						})}
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+						<div className="space-y-1">
+							<p className="text-sm font-medium">
+								{t('settings.localization.enable', {
+									defaultValue: 'Enable localization',
+								})}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{t('settings.localization.enableHint', {
+									defaultValue:
+										'When enabled, dialogue text is resolved through a per-project StringTable.',
+								})}
+							</p>
+						</div>
+						<Switch
+							checked={Boolean(localizationData.enabled)}
+							onCheckedChange={(checked) =>
+								updateLocalizationDraft({ ...localizationData, enabled: checked })
+							}
+						/>
+					</div>
+
+					<div className="grid gap-2">
+						<Label htmlFor="default-locale">
+							{t('settings.localization.defaultLocale', {
+								defaultValue: 'Default locale',
+							})}
+						</Label>
+						<NativeSelect
+							id="default-locale"
+							value={localizationData.defaultLocale}
+							onChange={(event) =>
+								updateLocalizationDraft({
+									...localizationData,
+									defaultLocale: normalizeLocaleTag(
+										event.target.value,
+										localizationData.defaultLocale
+									),
+								})
+							}
+						>
+							{localizationData.supportedLocales.map((locale) => (
+								<option key={locale} value={locale}>
+									{getLocalizationLocaleLabel(locale)} ({locale})
+								</option>
+							))}
+						</NativeSelect>
+					</div>
+
+					<div className="grid gap-2">
+						<Label htmlFor="new-locale">
+							{t('settings.localization.supportedLocales', {
+								defaultValue: 'Supported locales',
+							})}
+						</Label>
+						<div className="flex gap-2">
+							<NativeSelect
+								id="new-locale"
+								value={selectedLocaleToAdd}
+								onChange={(event) => setSelectedLocaleToAdd(event.target.value)}
+								disabled={availableLocaleOptions.length === 0}
+								className="flex-1"
+							>
+								{availableLocaleOptions.length === 0 ? (
+									<option value="">
+										{t('settings.localization.allSuggestedAdded', {
+											defaultValue: 'All suggested locales are already added.',
+										})}
+									</option>
+								) : (
+									availableLocaleOptions.map((option) => (
+										<option key={option.code} value={option.code}>
+											{option.label} ({option.code})
+										</option>
+									))
+								)}
+							</NativeSelect>
+							<Button
+								variant="outline"
+								onClick={handleAddLocale}
+								className="gap-2"
+								disabled={availableLocaleOptions.length === 0}
+							>
+								<Plus className="h-4 w-4" />
+								{t('common.add')}
+							</Button>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							{localizationData.supportedLocales.map((locale) => (
+								<div
+									key={locale}
+									className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs"
+								>
+									<span>{getLocalizationLocaleLabel(locale)}</span>
+									<span className="text-muted-foreground">({locale})</span>
+									{locale === localizationData.defaultLocale ? (
+										<span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+											{t('settings.localization.defaultTag', { defaultValue: 'default' })}
+										</span>
+									) : null}
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-5 w-5"
+										onClick={() => handleRemoveLocale(locale)}
+									>
+										<X className="h-3 w-3" />
+									</Button>
+								</div>
+							))}
+						</div>
+					</div>
+
+					{localizationError ? (
+						<p className="text-sm text-destructive">{localizationError}</p>
+					) : null}
+
+					<div className="flex justify-end gap-2 pt-2 border-t">
+						<Button
+							onClick={handleLocalizationSave}
+							disabled={!isLocalizationDirty || isSavingLocalization}
+							className="gap-2"
+						>
+							<Save className="h-4 w-4" />
+							{isSavingLocalization ? t('common.saving') : t('common.save')}
+						</Button>
+					</div>
 				</CardContent>
 			</Card>
 

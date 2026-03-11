@@ -28,6 +28,7 @@ function summarizeSnapshot(snapshot) {
 		participantCount: snapshot?.participants?.length || 0,
 		categoryCount: snapshot?.categories?.length || 0,
 		decoratorCount: snapshot?.decorators?.length || 0,
+		localizedStringCount: snapshot?.localizedStrings?.length || 0,
 		nodeCount: snapshot?.nodes?.length || 0,
 		edgeCount: snapshot?.edges?.length || 0,
 		dialogueNames: dialogues.slice(0, 5).map((dialogue) => dialogue?.name || '').filter(Boolean),

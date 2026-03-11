@@ -40,6 +40,7 @@ export const useUIStore = create(
 			viewMode: 'grid',
 			sortBy: 'modifiedAt',
 			sortOrder: 'desc',
+			contentLocaleByProject: {},
 
 			/**
 			 * Toggle sidebar visibility
@@ -62,6 +63,19 @@ export const useUIStore = create(
 			 */
 			setSortBy: (sortBy) => set({ sortBy }),
 			setSortOrder: (sortOrder) => set({ sortOrder }),
+			setProjectContentLocale: (projectId, locale) =>
+				set((state) => ({
+					contentLocaleByProject: {
+						...state.contentLocaleByProject,
+						[String(projectId || '')]: String(locale || ''),
+					},
+				})),
+			clearProjectContentLocale: (projectId) =>
+				set((state) => {
+					const next = { ...state.contentLocaleByProject };
+					delete next[String(projectId || '')];
+					return { contentLocaleByProject: next };
+				}),
 		}),
 		{
 			name: 'mountea-dialoguer-ui',
