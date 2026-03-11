@@ -271,10 +271,8 @@ function DialogueEditorPage() {
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
 		useDialogueStore();
-	const { contentLocaleByProject, setProjectContentLocale } = useUIStore((state) => ({
-		contentLocaleByProject: state.contentLocaleByProject,
-		setProjectContentLocale: state.setProjectContentLocale,
-	}));
+	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
+	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
 	const { conditions, loadConditions } = useConditionStore();
@@ -340,6 +338,7 @@ function DialogueEditorPage() {
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
+	const graphLoadKeyRef = useRef('');
 	const headerRef = useRef(null);
 	const bottomToolbarRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
@@ -460,6 +459,12 @@ function DialogueEditorPage() {
 	useEffect(() => {
 		const loadGraph = async () => {
 			if (dialogueId) {
+				const loadKey = `${dialogueId}:${contentLocale}`;
+				if (graphLoadKeyRef.current === loadKey) {
+					return;
+				}
+				graphLoadKeyRef.current = loadKey;
+
 				setHasGraphInitialized(false);
 				setHasLoadedViewport(false);
 				setHasInitialLayout(false);
@@ -491,6 +496,7 @@ function DialogueEditorPage() {
 						setHasLoadedViewport(true);
 					}
 				} catch (error) {
+					graphLoadKeyRef.current = '';
 					console.error('Failed to load dialogue graph:', error);
 				} finally {
 					setHasGraphInitialized(true);
@@ -503,6 +509,12 @@ function DialogueEditorPage() {
 	const isMobileGraphLoading =
 		deviceType === 'mobile' &&
 		(!hasGraphInitialized || (!hasLoadedViewport && (!hasInitialLayout || !hasInitialFocus)));
+
+	useEffect(() => {
+		if (!dialogueId) {
+			graphLoadKeyRef.current = '';
+		}
+	}, [dialogueId]);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') {
@@ -745,20 +757,6 @@ function DialogueEditorPage() {
 		? getNodeDefinition(selectedNode.type)
 		: null;
 	const projectCategories = categories.filter((c) => c.projectId === projectId);
-
-	useEffect(() => {
-		if (!projectId || !localizationEnabled) return;
-		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
-		if (savedLocale !== contentLocale) {
-			setProjectContentLocale(projectId, contentLocale);
-		}
-	}, [
-		contentLocale,
-		contentLocaleByProject,
-		localizationEnabled,
-		projectId,
-		setProjectContentLocale,
-	]);
 
 	const renderNodeField = (field) => {
 		if (!selectedNode) return null;

@@ -50,6 +50,15 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 			),
 		[localizationData.supportedLocales]
 	);
+	const effectiveSelectedLocaleToAdd = useMemo(() => {
+		if (
+			selectedLocaleToAdd &&
+			availableLocaleOptions.some((option) => option.code === selectedLocaleToAdd)
+		) {
+			return selectedLocaleToAdd;
+		}
+		return availableLocaleOptions[0]?.code || '';
+	}, [availableLocaleOptions, selectedLocaleToAdd]);
 
 	useEffect(() => {
 		setFormData({
@@ -63,20 +72,6 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 		setIsLocalizationDirty(false);
 		setIsEditing(false);
 	}, [project]);
-
-	useEffect(() => {
-		if (availableLocaleOptions.length === 0) {
-			setSelectedLocaleToAdd('');
-			return;
-		}
-
-		const hasCurrentSelection = availableLocaleOptions.some(
-			(option) => option.code === selectedLocaleToAdd
-		);
-		if (!hasCurrentSelection) {
-			setSelectedLocaleToAdd(availableLocaleOptions[0].code);
-		}
-	}, [availableLocaleOptions, selectedLocaleToAdd]);
 
 	const updateLocalizationDraft = (next) => {
 		setLocalizationData(normalizeProjectLocalizationConfig(next));
@@ -112,7 +107,7 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 	};
 
 	const handleAddLocale = () => {
-		const raw = String(selectedLocaleToAdd || '').trim();
+		const raw = String(effectiveSelectedLocaleToAdd || '').trim();
 		if (!raw) return;
 		if (!isValidLocaleTag(raw)) {
 			setLocalizationError(
@@ -371,7 +366,7 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 						<div className="flex gap-2">
 							<NativeSelect
 								id="new-locale"
-								value={selectedLocaleToAdd}
+								value={effectiveSelectedLocaleToAdd}
 								onChange={(event) => setSelectedLocaleToAdd(event.target.value)}
 								disabled={availableLocaleOptions.length === 0}
 								className="flex-1"
