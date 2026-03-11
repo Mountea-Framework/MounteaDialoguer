@@ -339,6 +339,7 @@ function DialogueEditorPage() {
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
 	const graphLoadKeyRef = useRef('');
+	const hasPendingNodeDataEditsRef = useRef(false);
 	const headerRef = useRef(null);
 	const bottomToolbarRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
@@ -464,6 +465,7 @@ function DialogueEditorPage() {
 					return;
 				}
 				graphLoadKeyRef.current = loadKey;
+				hasPendingNodeDataEditsRef.current = false;
 
 				setHasGraphInitialized(false);
 				setHasLoadedViewport(false);
@@ -703,18 +705,24 @@ function DialogueEditorPage() {
 	const prevSelectedNodeRef = useRef(selectedNode);
 	useEffect(() => {
 		const prevNode = prevSelectedNodeRef.current;
-		if (prevNode && prevNode !== selectedNode) {
-			// User switched to a different node or deselected, save current state
+		if (
+			prevNode &&
+			prevNode !== selectedNode &&
+			hasPendingNodeDataEditsRef.current
+		) {
+			// User left an edited node: create one undo checkpoint.
 			saveToHistory(nodes, edges);
-			markUnsaved();
+			hasPendingNodeDataEditsRef.current = false;
 		}
 		prevSelectedNodeRef.current = selectedNode;
-	}, [selectedNode, nodes, edges, saveToHistory, markUnsaved]);
+	}, [selectedNode, nodes, edges, saveToHistory]);
 
 	// Warn before leaving with unsaved changes
+	const shouldWarnOnLeave = hasUnsavedChanges && saveStatus !== 'saved';
+
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
-			if (hasUnsavedChanges) {
+			if (shouldWarnOnLeave) {
 				e.preventDefault();
 				e.returnValue = '';
 				return '';
@@ -723,11 +731,11 @@ function DialogueEditorPage() {
 
 		window.addEventListener('beforeunload', handleBeforeUnload);
 		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-	}, [hasUnsavedChanges]);
+	}, [shouldWarnOnLeave]);
 
 	const blocker = useBlocker({
-		shouldBlockFn: () => hasUnsavedChanges,
-		enableBeforeUnload: true,
+		shouldBlockFn: () => shouldWarnOnLeave,
+		enableBeforeUnload: false,
 		withResolver: true,
 	});
 
@@ -1381,6 +1389,7 @@ function DialogueEditorPage() {
 			setSaveSuccess(true);
 			setSaveStatus('saved');
 			setHasUnsavedChanges(false);
+			hasPendingNodeDataEditsRef.current = false;
 			celebrateSuccess();
 			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (error) {
@@ -1412,15 +1421,30 @@ function DialogueEditorPage() {
 	// Update node data (without saving to history on every keystroke)
 	const updateNodeData = useCallback(
 		(nodeId, newData) => {
+			let didChange = false;
 			setNodes((nds) =>
 				nds.map((node) =>
 					node.id === nodeId
-						? { ...node, data: { ...node.data, ...newData } }
+						? (() => {
+								const currentData = node.data || {};
+								const hasValueChange = Object.entries(newData || {}).some(
+									([key, value]) => currentData[key] !== value
+								);
+								if (!hasValueChange) {
+									return node;
+								}
+								didChange = true;
+								return { ...node, data: { ...currentData, ...newData } };
+						  })()
 						: node
 				)
 			);
+			if (didChange) {
+				hasPendingNodeDataEditsRef.current = true;
+				markUnsaved();
+			}
 		},
-		[setNodes]
+		[setNodes, markUnsaved]
 	);
 
 	// Add decorator to node
