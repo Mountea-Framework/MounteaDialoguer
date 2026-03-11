@@ -571,13 +571,15 @@ function ProjectsDashboard() {
           </div>
         )}
 
-        <MetricsCards
-          projectCount={projects.length}
-          dialogueCount={totalDialogues}
-          diskUsage={diskUsage}
-        />
+        <div data-tour="dashboard-metrics">
+          <MetricsCards
+            projectCount={projects.length}
+            dialogueCount={totalDialogues}
+            diskUsage={diskUsage}
+          />
+        </div>
 
-        <div className="mt-10">
+        <div className="mt-10" data-tour="workspace-section">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold tracking-tight">
               {t("projects.recentProjects")}
@@ -604,6 +606,7 @@ function ProjectsDashboard() {
                       variant="outline"
                       onClick={handleCreateExampleProject}
                       disabled={isCreatingExampleProject}
+                      data-tour="example-project"
                     >
                       <Sparkles className="h-4 w-4" />
                       {isCreatingExampleProject
