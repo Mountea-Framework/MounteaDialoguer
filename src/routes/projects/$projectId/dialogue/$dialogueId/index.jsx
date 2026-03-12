@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -72,6 +72,13 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuShortcut,
+	ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -140,16 +147,81 @@ const getInitialNodes = (t) => [
 
 const initialEdges = [];
 
+const noop = () => {};
+
+const NodeContextMenuContext = createContext({
+	onDeleteNode: noop,
+});
+
+const useNodeContextMenu = () => useContext(NodeContextMenuContext);
+
+const NodeContextMenuProvider = ({ value, children }) => {
+	return (
+		<NodeContextMenuContext.Provider value={value || { onDeleteNode: noop }}>
+			{children}
+		</NodeContextMenuContext.Provider>
+	);
+};
+
+const withNodeContextMenu = (NodeComponent) => {
+	const WrappedNode = (props) => {
+		const { t } = useTranslation();
+		const { onDeleteNode } = useNodeContextMenu();
+		const isPlaceholder = props.type === 'placeholderNode';
+		const canDelete = !isPlaceholder && props.id !== START_NODE_ID;
+
+		if (isPlaceholder) {
+			return <NodeComponent {...props} />;
+		}
+
+		return (
+			<ContextMenu>
+				<ContextMenuTrigger asChild>
+					<div>
+						<NodeComponent {...props} />
+					</div>
+				</ContextMenuTrigger>
+				<ContextMenuContent className="w-40">
+					<ContextMenuItem
+						variant="destructive"
+						disabled={!canDelete}
+						onSelect={(event) => {
+							event.preventDefault();
+							if (!canDelete) return;
+							onDeleteNode?.(props.id);
+						}}
+					>
+						{t('common.delete')}
+						<ContextMenuShortcut>Del</ContextMenuShortcut>
+					</ContextMenuItem>
+				</ContextMenuContent>
+			</ContextMenu>
+		);
+	};
+
+	WrappedNode.displayName = `WithNodeContextMenu(${NodeComponent.displayName || NodeComponent.name || 'Node'})`;
+	return WrappedNode;
+};
+
+const StartNodeWithContextMenu = withNodeContextMenu(StartNode);
+const LeadNodeWithContextMenu = withNodeContextMenu(LeadNode);
+const AnswerNodeWithContextMenu = withNodeContextMenu(AnswerNode);
+const ReturnNodeWithContextMenu = withNodeContextMenu(ReturnNode);
+const OpenChildGraphNodeWithContextMenu = withNodeContextMenu(OpenChildGraphNode);
+const CompleteNodeWithContextMenu = withNodeContextMenu(CompleteNode);
+const DelayNodeWithContextMenu = withNodeContextMenu(DelayNode);
+const PlaceholderNodeWithContextMenu = withNodeContextMenu(PlaceholderNode);
+
 // Node type definitions
 const nodeTypes = {
-	startNode: StartNode,
-	leadNode: LeadNode,
-	answerNode: AnswerNode,
-	returnNode: ReturnNode,
-	openChildGraphNode: OpenChildGraphNode,
-	completeNode: CompleteNode,
-	delayNode: DelayNode,
-	placeholderNode: PlaceholderNode,
+	startNode: StartNodeWithContextMenu,
+	leadNode: LeadNodeWithContextMenu,
+	answerNode: AnswerNodeWithContextMenu,
+	returnNode: ReturnNodeWithContextMenu,
+	openChildGraphNode: OpenChildGraphNodeWithContextMenu,
+	completeNode: CompleteNodeWithContextMenu,
+	delayNode: DelayNodeWithContextMenu,
+	placeholderNode: PlaceholderNodeWithContextMenu,
 };
 const edgeTypes = {
 	conditionEdge: ConditionEdge,
@@ -1127,40 +1199,46 @@ function DialogueEditorPage() {
 		setSelectedEdge(null);
 	}, []);
 
+	const deleteNodeById = useCallback((nodeId) => {
+		if (!nodeId || nodeId === START_NODE_ID) return;
+
+		setNodes((nds) => {
+			const placeholderIdsToRemove = nds
+				.filter(
+					(n) =>
+						n.type === 'placeholderNode' &&
+						n.data?.parentNodeId === nodeId
+				)
+				.map((n) => n.id);
+
+			const updatedNodes = nds.filter(
+				(n) => n.id !== nodeId && !placeholderIdsToRemove.includes(n.id)
+			);
+
+			// Also remove edges connected to this node or its placeholders.
+			setEdges((eds) => {
+				const updatedEdges = eds.filter(
+					(e) =>
+						e.source !== nodeId &&
+						e.target !== nodeId &&
+						!placeholderIdsToRemove.includes(e.source) &&
+						!placeholderIdsToRemove.includes(e.target)
+				);
+				saveToHistory(updatedNodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+			return updatedNodes;
+		});
+
+		setSelectedNode((current) => (current?.id === nodeId ? null : current));
+	}, [setNodes, setEdges, saveToHistory, markUnsaved]);
+
 	// Delete selected node
 	const deleteSelectedNode = useCallback(() => {
-		if (selectedNode && selectedNode.id !== '00000000-0000-0000-0000-000000000001') {
-			setNodes((nds) => {
-				const placeholderIdsToRemove = nds
-					.filter(
-						(n) =>
-							n.type === 'placeholderNode' &&
-							n.data?.parentNodeId === selectedNode.id
-					)
-					.map((n) => n.id);
-
-				const updatedNodes = nds.filter(
-					(n) => n.id !== selectedNode.id && !placeholderIdsToRemove.includes(n.id)
-				);
-
-				// Also remove edges connected to this node or its placeholders
-				setEdges((eds) => {
-					const updatedEdges = eds.filter(
-						(e) =>
-							e.source !== selectedNode.id &&
-							e.target !== selectedNode.id &&
-							!placeholderIdsToRemove.includes(e.source) &&
-							!placeholderIdsToRemove.includes(e.target)
-					);
-					saveToHistory(updatedNodes, updatedEdges);
-					markUnsaved();
-					return updatedEdges;
-				});
-				return updatedNodes;
-			});
-			setSelectedNode(null);
-		}
-	}, [selectedNode, setNodes, setEdges, saveToHistory, markUnsaved]);
+		if (!selectedNode) return;
+		deleteNodeById(selectedNode.id);
+	}, [selectedNode, deleteNodeById]);
 
 	const deleteSelectedNodeCascade = useCallback(() => {
 		if (!selectedNode || selectedNode.id === '00000000-0000-0000-0000-000000000001') {
@@ -2159,6 +2237,13 @@ function DialogueEditorPage() {
 		resetTour,
 	]);
 
+	const nodeContextMenuValue = useMemo(
+		() => ({
+			onDeleteNode: deleteNodeById,
+		}),
+		[deleteNodeById]
+	);
+
 	if (!dialogue || !project) {
 		return (
 			<div className="h-screen flex items-center justify-center">
@@ -2379,74 +2464,76 @@ function DialogueEditorPage() {
 					onDragOver={deviceType !== 'mobile' ? onDragOver : undefined}
 					data-tour="canvas"
 				>
-					<ReactFlow
-						nodes={previewDisplayNodes}
-						edges={previewDisplayEdges}
-						onNodesChange={onNodesChange}
-						onEdgesChange={onEdgesChange}
-						onConnect={onConnect}
-						onNodeClick={onNodeClick}
-						onEdgeClick={onEdgeClick}
-						onPaneClick={onPaneClick}
-						onMove={onMove}
-						onInit={setReactFlowInstance}
-				isValidConnection={isConnectionAllowed}
-				nodeTypes={nodeTypes}
-				edgeTypes={edgeTypes}
-				className="bg-grid"
-				proOptions={{ hideAttribution: true }}
-				// Mobile: Disable node dragging but allow manual panning via drag
-				nodesDraggable={deviceType !== 'mobile'}
-				panOnDrag={true}
-				panOnScroll={false}
-				zoomOnScroll={deviceType !== 'mobile'}
-				zoomOnPinch={false}
-				zoomOnDoubleClick={false}
-				nodesConnectable={deviceType !== 'mobile'}
-				elementsSelectable={true}
-				minZoom={FLOW_MIN_ZOOM}
-				maxZoom={FLOW_MAX_ZOOM}
-			>
-				<Background />
-				<Panel position="bottom-left" className="mb-2">
-					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-2 absolute bottom-6 flex flex-col items-center gap-1">
-						<SimpleTooltip content={t('editor.nodeToolbar.recenterTooltip')} side="top">
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={handleRecenterGraph}
-							>
-								<Crosshair className="h-4 w-4" />
-							</Button>
-						</SimpleTooltip>
-						<SimpleTooltip content={t('editor.nodeToolbar.startFocusTooltip')} side="top">
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={handleFocusStartNode}
-							>
-								<LocateFixed className="h-4 w-4" />
-							</Button>
-						</SimpleTooltip>
-						<div className="w-6 h-px bg-border my-1" />
-						<ZoomSlider
-							className="!p-0 !bg-transparent !border-0 !shadow-none "
-							minZoom={FLOW_MIN_ZOOM}
-							maxZoom={FLOW_MAX_ZOOM}
+					<NodeContextMenuProvider value={nodeContextMenuValue}>
+						<ReactFlow
+							nodes={previewDisplayNodes}
+							edges={previewDisplayEdges}
+							onNodesChange={onNodesChange}
+							onEdgesChange={onEdgesChange}
+							onConnect={onConnect}
+							onNodeClick={onNodeClick}
+							onEdgeClick={onEdgeClick}
+							onPaneClick={onPaneClick}
+							onMove={onMove}
+							onInit={setReactFlowInstance}
+					isValidConnection={isConnectionAllowed}
+					nodeTypes={nodeTypes}
+					edgeTypes={edgeTypes}
+					className="bg-grid"
+					proOptions={{ hideAttribution: true }}
+					// Mobile: Disable node dragging but allow manual panning via drag
+					nodesDraggable={deviceType !== 'mobile'}
+					panOnDrag={true}
+					panOnScroll={false}
+					zoomOnScroll={deviceType !== 'mobile'}
+					zoomOnPinch={false}
+					zoomOnDoubleClick={false}
+					nodesConnectable={deviceType !== 'mobile'}
+					elementsSelectable={true}
+					minZoom={FLOW_MIN_ZOOM}
+					maxZoom={FLOW_MAX_ZOOM}
+				>
+					<Background />
+					<Panel position="bottom-left" className="mb-2">
+						<div className="bg-card border border-border rounded-full shadow-lg px-2 py-2 absolute bottom-6 flex flex-col items-center gap-1">
+							<SimpleTooltip content={t('editor.nodeToolbar.recenterTooltip')} side="top">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={handleRecenterGraph}
+								>
+									<Crosshair className="h-4 w-4" />
+								</Button>
+							</SimpleTooltip>
+							<SimpleTooltip content={t('editor.nodeToolbar.startFocusTooltip')} side="top">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={handleFocusStartNode}
+								>
+									<LocateFixed className="h-4 w-4" />
+								</Button>
+							</SimpleTooltip>
+							<div className="w-6 h-px bg-border my-1" />
+							<ZoomSlider
+								className="!p-0 !bg-transparent !border-0 !shadow-none "
+								minZoom={FLOW_MIN_ZOOM}
+								maxZoom={FLOW_MAX_ZOOM}
+							/>
+						</div>
+					</Panel>
+					{deviceType !== 'mobile' && (
+						<MiniMap
+							nodeColor={getMinimapColor}
+							className="!bg-card !border !border-border !rounded-lg !shadow-lg"
+							maskColor="rgb(0, 0, 0, 0.1)"
+							data-tour="minimap"
 						/>
-					</div>
-				</Panel>
-				{deviceType !== 'mobile' && (
-					<MiniMap
-						nodeColor={getMinimapColor}
-						className="!bg-card !border !border-border !rounded-lg !shadow-lg"
-						maskColor="rgb(0, 0, 0, 0.1)"
-						data-tour="minimap"
-					/>
-				)}
-			</ReactFlow>
+					)}
+				</ReactFlow>
+					</NodeContextMenuProvider>
 
 					{deviceType !== 'mobile' && (
 						<DialoguePreviewOverlay
