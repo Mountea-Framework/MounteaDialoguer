@@ -39,6 +39,43 @@ function shortHash(value, length = 4) {
 	return hash.toString(16).padStart(8, '0').slice(0, Math.max(2, length));
 }
 
+function ensureUniqueToken({
+	token = '',
+	usedTokens = null,
+	seed = '',
+	fallbackBase = 'item',
+}) {
+	const registry = usedTokens instanceof Set ? usedTokens : null;
+	const safeToken = slugifyForKeySegment(token || '', '');
+	const baseFromToken = safeToken.replace(/_[a-f0-9]{2,8}$/i, '');
+	const base = slugifyForKeySegment(baseFromToken || safeToken || fallbackBase, fallbackBase);
+	const seedHash = shortHash(seed || base);
+
+	const reserve = (candidate) => {
+		const next = slugifyForKeySegment(candidate, '');
+		if (!next) return '';
+		if (!registry) return next;
+		if (registry.has(next)) return '';
+		registry.add(next);
+		return next;
+	};
+
+	const primary = reserve(safeToken || `${base}_${seedHash}`);
+	if (primary) return primary;
+
+	const hashed = reserve(`${base}_${seedHash}`);
+	if (hashed) return hashed;
+
+	let index = 2;
+	while (index < 100000) {
+		const candidate = reserve(`${base}_${index}`);
+		if (candidate) return candidate;
+		index += 1;
+	}
+
+	return reserve(`${base}_${shortHash(`${seed}:overflow`, 8)}`) || `${base}_${seedHash}`;
+}
+
 export function slugifyForKeySegment(value, fallback = 'item') {
 	const source = toStringSafe(value)
 		.normalize('NFKD')
@@ -53,7 +90,11 @@ export function slugifyForKeySegment(value, fallback = 'item') {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, '_')
 		.replace(/^_+|_+$/g, '');
-	return fallbackSanitized || 'item';
+	if (fallbackSanitized) return fallbackSanitized;
+	// Preserve explicit empty fallback, used by callers that require "no segment"
+	// instead of injecting a synthetic placeholder like "item".
+	if (String(fallback) === '') return '';
+	return 'item';
 }
 
 export function isValidLocaleTag(value) {
@@ -109,13 +150,13 @@ export function isProjectLocalizationEnabled() {
 
 export function ensureDialogueLocalizationSlug(dialogue = null) {
 	const existing = slugifyForKeySegment(dialogue?.localizationSlug || '', '');
-	if (existing) return existing;
+	if (existing && existing !== 'item') return existing;
 	return slugifyForKeySegment(dialogue?.name || dialogue?.id || 'dialogue', 'dialogue');
 }
 
 export function ensureNodeLocalizationToken(node = null) {
 	const existing = slugifyForKeySegment(node?.data?.localizationNodeToken || '', '');
-	if (existing) return existing;
+	if (existing && existing !== 'item') return existing;
 	const base = slugifyForKeySegment(
 		node?.data?.displayName || node?.data?.label || node?.type || 'node',
 		'node'
@@ -125,7 +166,7 @@ export function ensureNodeLocalizationToken(node = null) {
 
 export function ensureRowLocalizationToken(row = null) {
 	const existing = slugifyForKeySegment(row?.localizationRowToken || '', '');
-	if (existing) return existing;
+	if (existing && existing !== 'item') return existing;
 	const base = slugifyForKeySegment(row?.text || row?.id || 'line', 'line').slice(0, 24);
 	return `${base}_${shortHash(row?.id || base)}`;
 }
@@ -321,6 +362,54 @@ function buildLegacyOrReadableKey({
 	return buildLocalizedStringKey({ dialogueId, nodeId, rowId, field });
 }
 
+function resolveReusableLocalizedKey({
+	key = '',
+	field = '',
+	dialogueId = '',
+	dialogueSlug = '',
+	nodeId = '',
+	rowId = '',
+	expectedNodeToken = '',
+	expectedRowToken = '',
+}) {
+	const candidate = String(key || '').trim();
+	if (!candidate) return '';
+	const parsed = parseLocalizedStringKey(candidate);
+	if (!parsed || parsed.field !== field) return '';
+
+	if (parsed.keyType === 'readable') {
+		const safeDialogueSlug = slugifyForKeySegment(dialogueSlug || '', '');
+		const safeExpectedNodeToken = slugifyForKeySegment(expectedNodeToken || '', '');
+		const safeExpectedRowToken = slugifyForKeySegment(expectedRowToken || '', '');
+		if (!safeDialogueSlug || parsed.dialogueSlug !== safeDialogueSlug) return '';
+		if (safeExpectedNodeToken && parsed.nodeToken !== safeExpectedNodeToken) return '';
+		if (
+			field === LOCALIZED_STRING_FIELDS.rowText &&
+			safeExpectedRowToken &&
+			parsed.rowToken !== safeExpectedRowToken
+		) {
+			return '';
+		}
+		if (field === LOCALIZED_STRING_FIELDS.rowText && !parsed.rowToken) return '';
+		return candidate;
+	}
+
+	if (parsed.keyType === 'legacy') {
+		const safeDialogueId = String(dialogueId || '').trim();
+		const safeNodeId = String(nodeId || '').trim();
+		const safeRowId = String(rowId || '').trim();
+		if (
+			parsed.dialogueId === safeDialogueId &&
+			parsed.nodeId === safeNodeId &&
+			(field !== LOCALIZED_STRING_FIELDS.rowText || parsed.rowId === safeRowId)
+		) {
+			return candidate;
+		}
+	}
+
+	return '';
+}
+
 export function prepareLocalizedNodesAndEntries({
 	projectId = '',
 	dialogueId = '',
@@ -345,6 +434,7 @@ export function prepareLocalizedNodesAndEntries({
 
 	const entriesByKey = new Map();
 	const seenKeys = new Set();
+	const seenNodeTokens = new Set();
 	const nodesForPersistence = [];
 
 	for (const rawNode of nodes || []) {
@@ -356,7 +446,13 @@ export function prepareLocalizedNodesAndEntries({
 			continue;
 		}
 
-		const nodeToken = ensureNodeLocalizationToken({ ...node, data: nodeData });
+		let nodeToken = ensureNodeLocalizationToken({ ...node, data: nodeData });
+		nodeToken = ensureUniqueToken({
+			token: nodeToken,
+			usedTokens: seenNodeTokens,
+			seed: nodeId,
+			fallbackBase: 'node',
+		});
 		nodeData.localizationNodeToken = nodeToken;
 
 		const upsertFieldEntry = ({
@@ -366,7 +462,16 @@ export function prepareLocalizedNodesAndEntries({
 			rowId = '',
 			rowToken = '',
 		}) => {
-			const keyFromNode = String(nodeData[keyField] || '').trim();
+			const keyFromNode = resolveReusableLocalizedKey({
+				key: nodeData[keyField],
+				field,
+				dialogueId: safeDialogueId,
+				dialogueSlug: safeDialogueSlug,
+				nodeId,
+				rowId,
+				expectedNodeToken: nodeToken,
+				expectedRowToken: rowToken,
+			});
 			const key =
 				keyFromNode ||
 				buildLegacyOrReadableKey({
@@ -440,14 +545,31 @@ export function prepareLocalizedNodesAndEntries({
 		}
 
 		if (Array.isArray(nodeData.dialogueRows)) {
+			const seenRowTokens = new Set();
 			nodeData.dialogueRows = nodeData.dialogueRows.map((rawRow, rowIndex) => {
 				const row = { ...(rawRow || {}) };
 				const rowId = String(row?.id || '').trim();
-				const rowToken = ensureRowLocalizationToken(rawRow);
+				let rowToken = ensureRowLocalizationToken(rawRow);
+				rowToken = ensureUniqueToken({
+					token: rowToken,
+					usedTokens: seenRowTokens,
+					seed: rowId || `${nodeId}:${rowIndex}`,
+					fallbackBase: 'line',
+				});
 				row.localizationRowToken = rowToken;
 
+				const reusableRowKey = resolveReusableLocalizedKey({
+					key: row.textKey,
+					field: LOCALIZED_STRING_FIELDS.rowText,
+					dialogueId: safeDialogueId,
+					dialogueSlug: safeDialogueSlug,
+					nodeId,
+					rowId,
+					expectedNodeToken: nodeToken,
+					expectedRowToken: rowToken,
+				});
 				const rowTextKey =
-					String(row.textKey || '').trim() ||
+					reusableRowKey ||
 					buildLegacyOrReadableKey({
 						dialogueId: safeDialogueId,
 						dialogueSlug: safeDialogueSlug,
@@ -545,39 +667,53 @@ export function materializeLocalizedNodes({
 		const nodeToken = ensureNodeLocalizationToken({ ...node, data: nextData });
 		nextData.localizationNodeToken = nodeToken;
 
-		const displayNameKey =
-			String(nextData.displayNameKey || '').trim() ||
-			buildLegacyOrReadableKey({
-				dialogueId: safeDialogueId,
-				dialogueSlug: safeDialogueSlug,
-				nodeId,
-				nodeToken,
-				field: LOCALIZED_STRING_FIELDS.displayName,
+		const hasDisplayNameRef =
+			Object.prototype.hasOwnProperty.call(nextData, 'displayName') ||
+			Boolean(String(nextData.displayNameKey || '').trim());
+		if (hasDisplayNameRef) {
+			const displayNameKey =
+				String(nextData.displayNameKey || '').trim() ||
+				buildLegacyOrReadableKey({
+					dialogueId: safeDialogueId,
+					dialogueSlug: safeDialogueSlug,
+					nodeId,
+					nodeToken,
+					field: LOCALIZED_STRING_FIELDS.displayName,
+				});
+			nextData.displayNameKey = displayNameKey;
+			nextData.displayName = resolveLocalizedValueInternal({
+				entry: byKey.get(displayNameKey),
+				locale,
+				defaultLocale,
+				legacyValue: nextData.displayName,
 			});
-		const selectionTitleKey =
-			String(nextData.selectionTitleKey || '').trim() ||
-			buildLegacyOrReadableKey({
-				dialogueId: safeDialogueId,
-				dialogueSlug: safeDialogueSlug,
-				nodeId,
-				nodeToken,
-				field: LOCALIZED_STRING_FIELDS.selectionTitle,
-			});
-		nextData.displayNameKey = displayNameKey;
-		nextData.selectionTitleKey = selectionTitleKey;
+		} else {
+			delete nextData.displayNameKey;
+		}
 
-		nextData.displayName = resolveLocalizedValueInternal({
-			entry: byKey.get(displayNameKey),
-			locale,
-			defaultLocale,
-			legacyValue: nextData.displayName,
-		});
-		nextData.selectionTitle = resolveLocalizedValueInternal({
-			entry: byKey.get(selectionTitleKey),
-			locale,
-			defaultLocale,
-			legacyValue: nextData.selectionTitle,
-		});
+		const hasSelectionTitleRef =
+			Object.prototype.hasOwnProperty.call(nextData, 'selectionTitle') ||
+			Boolean(String(nextData.selectionTitleKey || '').trim());
+		if (hasSelectionTitleRef) {
+			const selectionTitleKey =
+				String(nextData.selectionTitleKey || '').trim() ||
+				buildLegacyOrReadableKey({
+					dialogueId: safeDialogueId,
+					dialogueSlug: safeDialogueSlug,
+					nodeId,
+					nodeToken,
+					field: LOCALIZED_STRING_FIELDS.selectionTitle,
+				});
+			nextData.selectionTitleKey = selectionTitleKey;
+			nextData.selectionTitle = resolveLocalizedValueInternal({
+				entry: byKey.get(selectionTitleKey),
+				locale,
+				defaultLocale,
+				legacyValue: nextData.selectionTitle,
+			});
+		} else {
+			delete nextData.selectionTitleKey;
+		}
 
 		if (Array.isArray(nextData.dialogueRows)) {
 			nextData.dialogueRows = nextData.dialogueRows.map((rawRow) => {

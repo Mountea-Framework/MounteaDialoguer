@@ -7,6 +7,7 @@ import { useDialogueStore } from '@/stores/dialogueStore';
 import {
 	DEFAULT_LOCALE,
 	buildLocalizedEntriesFromNodes,
+	ensureDialogueLocalizationSlug,
 	isValidLocaleTag,
 	normalizeProjectLocalizationConfig,
 } from '@/lib/localization/stringTable';
@@ -47,6 +48,9 @@ async function seedProjectLocalizationDefaultLocale(projectId, defaultLocale) {
 		await db.localizedStrings.bulkPut(toUpsert);
 	}
 }
+
+const EXAMPLE_PROJECT_DEFAULT_LOCALE = 'de';
+const EXAMPLE_PROJECT_SUPPORTED_LOCALES = ['de', DEFAULT_LOCALE];
 
 /**
  * Project Store
@@ -167,9 +171,9 @@ export const useProjectStore = create((set, get) => ({
 				description: 'Example branching dialogue project created from onboarding',
 				version: '1.0.0',
 				localization: normalizeProjectLocalizationConfig({
-					enabled: false,
-					defaultLocale: DEFAULT_LOCALE,
-					supportedLocales: [DEFAULT_LOCALE],
+					enabled: true,
+					defaultLocale: EXAMPLE_PROJECT_DEFAULT_LOCALE,
+					supportedLocales: EXAMPLE_PROJECT_SUPPORTED_LOCALES,
 				}),
 				isExample: true,
 				createdAt: now,
@@ -228,6 +232,10 @@ export const useProjectStore = create((set, get) => ({
 				projectId,
 				name: 'MerchantBranchingExample',
 				description: 'Branching example that demonstrates all node types',
+				localizationSlug: ensureDialogueLocalizationSlug({
+					name: 'MerchantBranchingExample',
+				}),
+				localizationVersion: 2,
 				createdAt: now,
 				modifiedAt: now,
 				viewport: { x: 0, y: 0, zoom: 1 },
@@ -237,6 +245,10 @@ export const useProjectStore = create((set, get) => ({
 				projectId,
 				name: 'RuinsFollowupExample',
 				description: 'Small child dialogue opened from the rumors branch',
+				localizationSlug: ensureDialogueLocalizationSlug({
+					name: 'RuinsFollowupExample',
+				}),
+				localizationVersion: 2,
 				createdAt: now,
 				modifiedAt: now,
 				viewport: { x: 0, y: 0, zoom: 1 },
@@ -1098,6 +1110,11 @@ export const useProjectStore = create((set, get) => ({
 					await db.edges.bulkAdd(allEdges);
 				}
 			);
+
+			for (const locale of newProject.localization.supportedLocales || []) {
+				await seedProjectLocalizationDefaultLocale(projectId, locale);
+			}
+
 			try {
 				await trackExampleProjectCreated();
 			} catch (error) {
@@ -1399,9 +1416,6 @@ export const useProjectStore = create((set, get) => ({
 			const { useDialogueStore } = await import('./dialogueStore');
 			const dialogueStore = useDialogueStore.getState();
 
-			let successCount = 0;
-			let errorCount = 0;
-
 			for (const dialogue of dialogues) {
 				try {
 					console.log(`Exporting dialogue: ${dialogue.name} (${dialogue.id})`);
@@ -1412,23 +1426,14 @@ export const useProjectStore = create((set, get) => ({
 					// Add to dialogues folder with sanitized name
 					const sanitizedName = dialogue.name.replace(/[^a-z0-9]/gi, '_');
 					dialoguesFolder.file(`${sanitizedName}.mnteadlg`, dialogueBlob);
-
-					successCount++;
 					console.log(`Successfully exported dialogue: ${dialogue.name}`);
 				} catch (error) {
-					errorCount++;
 					console.error(`Failed to export dialogue ${dialogue.name}:`, error);
-
-					// Show error for this dialogue
-					toast({
-						variant: 'error',
-						title: `Failed to Export Dialogue: ${dialogue.name}`,
-						description: error.message,
-					});
+					throw new Error(
+						`Failed to export dialogue "${dialogue.name}": ${error.message || 'Unknown error'}`
+					);
 				}
 			}
-
-			console.log(`Exported ${successCount} dialogues, ${errorCount} failed`);
 
 			// Generate the final ZIP
 			const blob = await projectZip.generateAsync({ type: 'blob' });

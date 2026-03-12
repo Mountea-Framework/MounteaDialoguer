@@ -27,6 +27,26 @@ const normalizeDialogueRow = (row = {}) => ({
 
 const normalizeDialogueRows = (rows = []) => rows.map((row) => normalizeDialogueRow(row));
 
+function stripLocalizedTextFromNodeData(nodeData = {}) {
+	const nextData = { ...(nodeData || {}) };
+	if (nextData.displayNameKey) {
+		delete nextData.displayName;
+	}
+	if (nextData.selectionTitleKey) {
+		delete nextData.selectionTitle;
+	}
+	if (Array.isArray(nextData.dialogueRows)) {
+		nextData.dialogueRows = nextData.dialogueRows.map((row) => {
+			const nextRow = { ...(row || {}) };
+			if (nextRow.textKey) {
+				delete nextRow.text;
+			}
+			return nextRow;
+		});
+	}
+	return nextData;
+}
+
 function getProjectLocalizationState(project) {
 	const localization = normalizeProjectLocalizationConfig(project?.localization || {});
 	return {
@@ -46,6 +66,27 @@ function stripLocalizedTextFromRows(rows = []) {
 		delete next.text;
 		return next;
 	});
+}
+
+function buildPersistedNodesWithoutLocalizedText(nodes = [], dialogueId = '') {
+	return (nodes || []).map((node) => ({
+		...node,
+		dialogueId,
+		data: stripLocalizedTextFromNodeData(node?.data || {}),
+	}));
+}
+
+function summarizeLocalizationValidationErrors(errors = [], limit = 3) {
+	if (!Array.isArray(errors) || errors.length === 0) {
+		return 'unknown localization validation error';
+	}
+	const parts = errors.slice(0, limit).map((error) => {
+		const type = String(error?.type || 'unknown');
+		const key = String(error?.key || '').trim();
+		return key ? `${type} (${key})` : type;
+	});
+	const remainder = errors.length - parts.length;
+	return remainder > 0 ? `${parts.join(', ')} (+${remainder} more)` : parts.join(', ');
 }
 
 async function ensureDialogueLocalizationMetadata(dialogue = null) {
@@ -246,26 +287,16 @@ export const useDialogueStore = create((set, get) => ({
 	/**
 	 * Update nodes for current dialogue
 	 */
-	updateNodes: async (dialogueId, nodes) => {
-		set({ isLoading: true, error: null });
-		try {
-			await db.transaction('rw', db.nodes, async () => {
-				await db.nodes.where('dialogueId').equals(dialogueId).delete();
-				await db.nodes.bulkAdd(
-					nodes.map(node => ({ ...node, dialogueId }))
-				);
-			});
-			set({ nodes, isLoading: false });
-		} catch (error) {
-			console.error('Error updating nodes:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Update Nodes',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
-			throw error;
-		}
+	updateNodes: async (dialogueId, nodes, options = {}) => {
+		const dialogue = await db.dialogues.get(dialogueId);
+		const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+		return get().saveDialogueGraph(
+			dialogueId,
+			nodes,
+			edges,
+			dialogue?.viewport || { x: 0, y: 0, zoom: 1 },
+			options
+		);
 	},
 
 	/**
@@ -334,7 +365,11 @@ export const useDialogueStore = create((set, get) => ({
 				});
 				if (!validation.valid) {
 					console.error('[localization] Validation errors', validation.errors);
-					throw new Error('Localization integrity validation failed for this dialogue.');
+					throw new Error(
+						`Localization integrity validation failed for this dialogue: ${summarizeLocalizationValidationErrors(
+							validation.errors
+						)}`
+					);
 				}
 
 				// Convert audio blobs to base64 for storage
@@ -372,11 +407,13 @@ export const useDialogueStore = create((set, get) => ({
 				await db.nodes.where('dialogueId').equals(dialogueId).delete();
 				await db.edges.where('dialogueId').equals(dialogueId).delete();
 
-				// Add new nodes and edges with processed audio
-				if (processedNodes.length > 0) {
-					await db.nodes.bulkAdd(
-						processedNodes.map(node => ({ ...node, dialogueId }))
-					);
+				// Add new nodes and edges with processed audio.
+				const persistedNodes = buildPersistedNodesWithoutLocalizedText(
+					processedNodes,
+					dialogueId
+				);
+				if (persistedNodes.length > 0) {
+					await db.nodes.bulkAdd(persistedNodes);
 				}
 				if (edges.length > 0) {
 					await db.edges.bulkAdd(
@@ -490,8 +527,12 @@ export const useDialogueStore = create((set, get) => ({
 						if (validation.valid) {
 							await db.transaction('rw', [db.nodes, db.localizedStrings, db.dialogues], async () => {
 								await db.nodes.where('dialogueId').equals(dialogueId).delete();
-								if (migrated.nodes.length > 0) {
-									await db.nodes.bulkAdd(migrated.nodes.map((node) => ({ ...node, dialogueId })));
+								const migratedPersistedNodes = buildPersistedNodesWithoutLocalizedText(
+									migrated.nodes,
+									dialogueId
+								);
+								if (migratedPersistedNodes.length > 0) {
+									await db.nodes.bulkAdd(migratedPersistedNodes);
 								}
 								await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
 								await db.localizedStrings.bulkPut(migrated.entries);
@@ -624,7 +665,7 @@ export const useDialogueStore = create((set, get) => ({
 					stringEntries: effectiveStringTableEntries,
 				});
 				let exportValidation = validateLocalizedEntriesForDialogue({
-					nodes: persistedNodes,
+					nodes: localizedPreviewNodes,
 					entries: effectiveStringTableEntries,
 					defaultLocale: localizationState.defaultLocale,
 				});
@@ -643,12 +684,20 @@ export const useDialogueStore = create((set, get) => ({
 						defaultLocale: localizationState.defaultLocale,
 					});
 					if (!repairedValidation.valid) {
-						throw new Error('Dialogue export blocked by invalid localization references.');
+						throw new Error(
+							`Dialogue export blocked by invalid localization references: ${summarizeLocalizationValidationErrors(
+								repairedValidation.errors
+							)}`
+						);
 					}
 					await db.transaction('rw', [db.nodes, db.localizedStrings, db.dialogues], async () => {
 						await db.nodes.where('dialogueId').equals(dialogueId).delete();
-						if (repaired.nodes.length > 0) {
-							await db.nodes.bulkAdd(repaired.nodes.map((node) => ({ ...node, dialogueId })));
+						const repairedPersistedNodes = buildPersistedNodesWithoutLocalizedText(
+							repaired.nodes,
+							dialogueId
+						);
+						if (repairedPersistedNodes.length > 0) {
+							await db.nodes.bulkAdd(repairedPersistedNodes);
 						}
 						await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
 						await db.localizedStrings.bulkPut(repaired.entries);
@@ -672,7 +721,11 @@ export const useDialogueStore = create((set, get) => ({
 					exportValidation = repairedValidation;
 				}
 				if (!exportValidation.valid) {
-					throw new Error('Dialogue export blocked by invalid localization references.');
+					throw new Error(
+						`Dialogue export blocked by invalid localization references: ${summarizeLocalizationValidationErrors(
+							exportValidation.errors
+						)}`
+					);
 				}
 
 				console.log(`[exportDialogueAsBlob] Found ${nodes.length} nodes and ${edges.length} edges`);
@@ -1090,11 +1143,11 @@ export const useDialogueStore = create((set, get) => ({
 					data: nodeData,
 				};
 
-				await db.nodes.add(newNode);
 				importedNodesForLocalization.push(newNode);
 			}
 
 			// Step 7: Import edges with updated node IDs
+			const remappedEdges = [];
 			for (const edge of edges) {
 				const newEdge = {
 					id: uuidv4(),
@@ -1106,7 +1159,7 @@ export const useDialogueStore = create((set, get) => ({
 					markerEnd: edge.markerEnd,
 				};
 
-				await db.edges.add(newEdge);
+				remappedEdges.push(newEdge);
 			}
 
 				// Step 8: Import optional StringTable data and remap to current dialogue metadata
@@ -1135,23 +1188,33 @@ export const useDialogueStore = create((set, get) => ({
 					locale: localizationState.defaultLocale,
 					existingEntries: localizedEntriesToUpsert,
 				});
-				if (preparedImport.entries.length > 0) {
-					const validation = validateLocalizedEntriesForDialogue({
-						nodes: preparedImport.nodes,
-						entries: preparedImport.entries,
-						defaultLocale: localizationState.defaultLocale,
-					});
-					if (!validation.valid) {
-						throw new Error('Imported dialogue contains invalid localization references.');
-					}
-					await db.transaction('rw', [db.nodes, db.localizedStrings], async () => {
-						await db.nodes.where('dialogueId').equals(dialogueId).delete();
-						await db.nodes.bulkAdd(preparedImport.nodes.map((node) => ({ ...node, dialogueId })));
-						await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
-						await db.localizedStrings.bulkPut(preparedImport.entries);
-					});
-					localizedEntriesToUpsert = preparedImport.entries;
+				const validation = validateLocalizedEntriesForDialogue({
+					nodes: preparedImport.nodes,
+					entries: preparedImport.entries,
+					defaultLocale: localizationState.defaultLocale,
+				});
+				if (!validation.valid) {
+					throw new Error('Imported dialogue contains invalid localization references.');
 				}
+				await db.transaction('rw', [db.nodes, db.edges, db.localizedStrings], async () => {
+					await db.nodes.where('dialogueId').equals(dialogueId).delete();
+					const importPersistedNodes = buildPersistedNodesWithoutLocalizedText(
+						preparedImport.nodes,
+						dialogueId
+					);
+					if (importPersistedNodes.length > 0) {
+						await db.nodes.bulkAdd(importPersistedNodes);
+					}
+					await db.edges.where('dialogueId').equals(dialogueId).delete();
+					if (remappedEdges.length > 0) {
+						await db.edges.bulkAdd(remappedEdges);
+					}
+					await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
+					if (preparedImport.entries.length > 0) {
+						await db.localizedStrings.bulkPut(preparedImport.entries);
+					}
+				});
+				localizedEntriesToUpsert = preparedImport.entries;
 
 			// Step 9: Process audio files from dialogueRows
 			// Note: Audio files in the export are stored as blobs in the ZIP
