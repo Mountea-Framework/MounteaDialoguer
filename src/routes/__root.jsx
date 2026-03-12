@@ -12,6 +12,8 @@ import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
 import { useSyncStore } from '@/stores/syncStore';
 import { useSteamStore } from '@/stores/steamStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { useUIStore } from '@/stores/uiStore';
 import { markUserActivity, trackActiveMinute } from '@/lib/achievements/achievementTracker';
 import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
 import { initializeActiveProfileFromSteamStatus } from '@/lib/profile/activeProfile';
@@ -42,13 +44,17 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui/tooltip';
-import i18n from '@/i18n';
+import {
+	normalizeLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
 
 export const Route = createRootRoute({
 	component: RootComponent,
 });
 
 function RootComponent() {
+	const { i18n: runtimeI18n } = useTranslation();
 	const navigate = useNavigate();
 	const [isLoading, setIsLoading] = useState(true);
 	const [showContent, setShowContent] = useState(false);
@@ -62,6 +68,9 @@ function RootComponent() {
 	const loadSteamStatus = useSteamStore((state) => state.loadStatus);
 	const steamStatus = useSteamStore((state) => state.status);
 	const setSteamRichPresence = useSteamStore((state) => state.setRichPresence);
+	const projects = useProjectStore((state) => state.projects);
+	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
+	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 	const googleSyncEnabled = isGoogleSyncEnabled();
 	const steamChannelFromBuild = isSteamChannel();
 	const runtimeSteamChannel = String(steamStatus?.channel || '').toLowerCase() === 'steam';
@@ -122,6 +131,30 @@ function RootComponent() {
 	}, [currentPath]);
 	const isLegalPage =
 		currentPath === '/terms-of-service' || currentPath === '/data-policy';
+	const appLanguage = useMemo(
+		() =>
+			String(runtimeI18n.resolvedLanguage || runtimeI18n.language || 'en')
+				.split('-')[0]
+				.trim() || 'en',
+		[runtimeI18n.language, runtimeI18n.resolvedLanguage]
+	);
+	const menuLocalizationContext = useMemo(() => {
+		const projectId = String(routeContext.projectId || '');
+		if (!projectId) {
+			return { contentLocale: '', supportedContentLocales: [] };
+		}
+		const project = (projects || []).find((item) => String(item?.id || '') === projectId);
+		const localization = normalizeProjectLocalizationConfig(project?.localization || {});
+		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
+		const resolvedContentLocale =
+			savedLocale && localization.supportedLocales.includes(savedLocale)
+				? savedLocale
+				: localization.defaultLocale;
+		return {
+			contentLocale: resolvedContentLocale,
+			supportedContentLocales: localization.supportedLocales,
+		};
+	}, [contentLocaleByProject, projects, routeContext.projectId]);
 
 	useEffect(() => {
 		const allowedOrigins = (import.meta.env.VITE_EMBED_ALLOWED_ORIGINS || '')
@@ -488,9 +521,28 @@ function RootComponent() {
 				case 'set-language': {
 					const language = commandPayload.language;
 					if (['en', 'cs', 'de', 'fr', 'es', 'pl'].includes(language)) {
-						i18n.changeLanguage(language);
+						runtimeI18n.changeLanguage(language);
 						window.localStorage.setItem('i18nextLng', language);
 					}
+					return;
+				}
+				case 'set-content-locale': {
+					const locale = normalizeLocaleTag(commandPayload.locale, '');
+					if (!locale || !routeContext.projectId) return;
+					if (routeContext.type === 'dialogue') {
+						emit('command:dialogue-set-content-locale', {
+							projectId: routeContext.projectId,
+							dialogueId: routeContext.dialogueId,
+							locale,
+						});
+						return;
+					}
+					setProjectContentLocale(routeContext.projectId, locale);
+					emit('command:dialogue-set-content-locale', {
+						projectId: routeContext.projectId,
+						dialogueId: routeContext.dialogueId,
+						locale,
+					});
 					return;
 				}
 				case 'open-settings': {
@@ -560,8 +612,10 @@ function RootComponent() {
 		routeContext.dialogueId,
 		routeContext.projectId,
 		routeContext.type,
+		runtimeI18n,
 		setCommandPaletteOpen,
 		setLoginDialogOpen,
+		setProjectContentLocale,
 	]);
 
 	useEffect(() => {
@@ -574,8 +628,18 @@ function RootComponent() {
 			route: routeContext.type,
 			projectId: routeContext.projectId,
 			dialogueId: routeContext.dialogueId,
+			appLanguage,
+			contentLocale: menuLocalizationContext.contentLocale,
+			supportedContentLocales: menuLocalizationContext.supportedContentLocales,
 		});
-	}, [routeContext.dialogueId, routeContext.projectId, routeContext.type]);
+	}, [
+		appLanguage,
+		menuLocalizationContext.contentLocale,
+		menuLocalizationContext.supportedContentLocales,
+		routeContext.dialogueId,
+		routeContext.projectId,
+		routeContext.type,
+	]);
 
 	return (
 		<ThemeProvider defaultTheme="system" storageKey="mountea-dialoguer-theme">

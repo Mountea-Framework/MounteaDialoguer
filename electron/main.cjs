@@ -42,15 +42,18 @@ const DEFAULT_MENU_CONTEXT = Object.freeze({
 	route: 'none',
 	projectId: '',
 	dialogueId: '',
+	appLanguage: 'en',
+	contentLocale: '',
+	supportedContentLocales: [],
 });
 let menuContext = { ...DEFAULT_MENU_CONTEXT };
 const SUPPORTED_LANGUAGES = [
 	{ code: 'en', label: 'English' },
-	{ code: 'cs', label: 'Čeština' },
-	{ code: 'de', label: 'Deutsch' },
-	{ code: 'fr', label: 'Francais' },
-	{ code: 'es', label: 'Espanol' },
-	{ code: 'pl', label: 'Polski' },
+	{ code: 'cs', label: 'Czech' },
+	{ code: 'de', label: 'German' },
+	{ code: 'fr', label: 'French' },
+	{ code: 'es', label: 'Spanish' },
+	{ code: 'pl', label: 'Polish' },
 ];
 
 app.setName(APP_DISPLAY_NAME);
@@ -749,11 +752,58 @@ function sendMenuCommand(command, payload = {}) {
 	targetWindow.webContents.send('menu:command', { command, payload });
 }
 
+function normalizeLocaleCode(value) {
+	return String(value || '').trim();
+}
+
+function getLocaleMenuLabel(localeCode) {
+	const normalized = normalizeLocaleCode(localeCode);
+	if (!normalized) return '';
+
+	const exactMatch = SUPPORTED_LANGUAGES.find((item) => item.code === normalized);
+	if (exactMatch) {
+		return `${exactMatch.label} (${normalized})`;
+	}
+
+	const base = normalized.split('-')[0];
+	const baseMatch = SUPPORTED_LANGUAGES.find((item) => item.code === base);
+	if (baseMatch) {
+		return `${baseMatch.label} (${normalized})`;
+	}
+
+	try {
+		const displayNames = new Intl.DisplayNames(['en'], { type: 'language' });
+		const fallbackLabel = displayNames.of(base) || normalized;
+		return `${fallbackLabel} (${normalized})`;
+	} catch (error) {
+		return normalized;
+	}
+}
+
 function normalizeMenuContext(payload = {}) {
 	const route = String(payload?.route || DEFAULT_MENU_CONTEXT.route);
 	const projectId = String(payload?.projectId || '');
 	const dialogueId = String(payload?.dialogueId || '');
-	return { route, projectId, dialogueId };
+	const appLanguage =
+		normalizeLocaleCode(payload?.appLanguage) ||
+		normalizeLocaleCode(DEFAULT_MENU_CONTEXT.appLanguage) ||
+		'en';
+	const supportedContentLocales = Array.isArray(payload?.supportedContentLocales)
+		? payload.supportedContentLocales.map((locale) => normalizeLocaleCode(locale)).filter(Boolean)
+		: [];
+	const requestedContentLocale = normalizeLocaleCode(payload?.contentLocale);
+	const contentLocale = supportedContentLocales.includes(requestedContentLocale)
+		? requestedContentLocale
+		: supportedContentLocales[0] || '';
+
+	return {
+		route,
+		projectId,
+		dialogueId,
+		appLanguage,
+		contentLocale,
+		supportedContentLocales,
+	};
 }
 
 function updateMenuContext(payload = {}) {
@@ -775,7 +825,20 @@ function createAppMenu(context = menuContext) {
 	const canExportDialogue = isDialogue || isDialogueSettings;
 	const canUndoRedoDialogue = isDialogue;
 	const canGraphNavigation = isDialogue;
+	const canSetContentLocale = (isDialogue || isDialogueSettings) && Boolean(normalizedContext.projectId);
 	const canShowTour = isDashboard || isDialogue;
+	const contentLocaleMenuItems = normalizedContext.supportedContentLocales.map((localeCode) => ({
+		label: getLocaleMenuLabel(localeCode),
+		type: 'radio',
+		checked: normalizedContext.contentLocale === localeCode,
+		click: () => sendMenuCommand('set-content-locale', { locale: localeCode }),
+	}));
+	const languageMenuItems = SUPPORTED_LANGUAGES.map(({ code, label }) => ({
+		label: `${label} (${code})`,
+		type: 'radio',
+		checked: normalizedContext.appLanguage === code,
+		click: () => sendMenuCommand('set-language', { language: code }),
+	}));
 	const settingsLabel =
 		isDialogue || isDialogueSettings
 			? 'Dialogue Settings'
@@ -923,11 +986,16 @@ function createAppMenu(context = menuContext) {
 					],
 				},
 				{
+					label: 'Content Locale',
+					enabled: canSetContentLocale,
+					submenu:
+						contentLocaleMenuItems.length > 0
+							? contentLocaleMenuItems
+							: [{ label: 'No locales available', enabled: false }],
+				},
+				{
 					label: 'Language',
-					submenu: SUPPORTED_LANGUAGES.map(({ code, label }) => ({
-						label,
-						click: () => sendMenuCommand('set-language', { language: code }),
-					})),
+					submenu: languageMenuItems,
 				},
 				{ type: 'separator' },
 				{
@@ -1650,3 +1718,4 @@ app.on('before-quit', () => {
 		// Best-effort cleanup.
 	}
 });
+

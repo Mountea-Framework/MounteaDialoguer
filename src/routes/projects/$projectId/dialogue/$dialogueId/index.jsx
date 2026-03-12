@@ -2128,9 +2128,13 @@ function DialogueEditorPage() {
 	};
 
 	const handleContentLocaleChange = useCallback(
-		(event) => {
+		(nextValueOrEvent) => {
+			const rawNextValue =
+				typeof nextValueOrEvent === 'string'
+					? nextValueOrEvent
+					: nextValueOrEvent?.target?.value;
 			const nextLocale = normalizeLocaleTag(
-				event?.target?.value,
+				rawNextValue,
 				projectLocalization.defaultLocale
 			);
 			if (!localizationEnabled || !projectId) return;
@@ -2205,6 +2209,12 @@ function DialogueEditorPage() {
 			if (!matchesDialogue(event)) return;
 			resetTour();
 		};
+		const handleCommandSetContentLocale = (event) => {
+			if (!matchesDialogue(event)) return;
+			const locale = String(event?.detail?.locale || '').trim();
+			if (!locale) return;
+			handleContentLocaleChange(locale);
+		};
 
 		window.addEventListener('command:dialogue-save', handleCommandSave);
 		window.addEventListener('command:dialogue-export', handleCommandExport);
@@ -2214,6 +2224,10 @@ function DialogueEditorPage() {
 		window.addEventListener('command:dialogue-recenter', handleCommandRecenter);
 		window.addEventListener('command:dialogue-focus-start', handleCommandFocusStart);
 		window.addEventListener('command:dialogue-show-tour', handleCommandShowTour);
+		window.addEventListener(
+			'command:dialogue-set-content-locale',
+			handleCommandSetContentLocale
+		);
 
 		return () => {
 			window.removeEventListener('command:dialogue-save', handleCommandSave);
@@ -2224,9 +2238,14 @@ function DialogueEditorPage() {
 			window.removeEventListener('command:dialogue-recenter', handleCommandRecenter);
 			window.removeEventListener('command:dialogue-focus-start', handleCommandFocusStart);
 			window.removeEventListener('command:dialogue-show-tour', handleCommandShowTour);
+			window.removeEventListener(
+				'command:dialogue-set-content-locale',
+				handleCommandSetContentLocale
+			);
 		};
 	}, [
 		dialogueId,
+		handleContentLocaleChange,
 		handleExport,
 		handleFocusStartNode,
 		handleRecenterGraph,
@@ -2281,27 +2300,6 @@ function DialogueEditorPage() {
 					}
 					right={
 						<>
-							{localizationEnabled && (
-								<div className="hidden md:flex items-center gap-2" data-header-mobile-hidden>
-									<Label htmlFor="content-locale" className="text-xs text-muted-foreground">
-										{t('editor.localization.contentLocale', {
-											defaultValue: 'Content locale',
-										})}
-									</Label>
-									<NativeSelect
-										id="content-locale"
-										value={contentLocale}
-										onChange={handleContentLocaleChange}
-										className="h-9 min-w-[9rem]"
-									>
-										{projectLocalization.supportedLocales.map((locale) => (
-											<option key={locale} value={locale}>
-												{getLocalizationLocaleLabel(locale)} ({locale})
-											</option>
-										))}
-									</NativeSelect>
-								</div>
-							)}
 							<span className="hidden md:flex" data-header-mobile-hidden>
 								<SaveIndicator
 									status={saveStatus}
@@ -2367,6 +2365,33 @@ function DialogueEditorPage() {
 												{
 													group: t('editor.menu.view'),
 													items: [
+														...(localizationEnabled
+															? [
+																	{
+																		key: 'content-locale-selector',
+																		render: () => (
+																			<div className="flex items-center gap-3">
+																				<span className="text-xs font-medium text-muted-foreground">
+																					{t('editor.localization.contentLocale', {
+																						defaultValue: 'Content locale',
+																					})}
+																				</span>
+																				<NativeSelect
+																					value={contentLocale}
+																					onChange={handleContentLocaleChange}
+																					className="h-9 min-w-[11rem]"
+																				>
+																					{projectLocalization.supportedLocales.map((locale) => (
+																						<option key={locale} value={locale}>
+																							{getLocalizationLocaleLabel(locale)} ({locale})
+																						</option>
+																					))}
+																				</NativeSelect>
+																			</div>
+																		),
+																	},
+															  ]
+															: []),
 														{
 															key: 'language-selector',
 															render: () => (

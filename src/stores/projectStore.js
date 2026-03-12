@@ -6,6 +6,7 @@ import { useSyncStore } from '@/stores/syncStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import {
 	DEFAULT_LOCALE,
+	LOCALIZED_STRING_FIELDS,
 	buildLocalizedEntriesFromNodes,
 	ensureDialogueLocalizationSlug,
 	isValidLocaleTag,
@@ -49,8 +50,147 @@ async function seedProjectLocalizationDefaultLocale(projectId, defaultLocale) {
 	}
 }
 
-const EXAMPLE_PROJECT_DEFAULT_LOCALE = 'de';
-const EXAMPLE_PROJECT_SUPPORTED_LOCALES = ['de', DEFAULT_LOCALE];
+const EXAMPLE_PROJECT_DEFAULT_LOCALE = DEFAULT_LOCALE;
+const EXAMPLE_PROJECT_SUPPORTED_LOCALES = [DEFAULT_LOCALE, 'de'];
+
+const EXAMPLE_GERMAN_ROW_TRANSLATIONS = Object.freeze({
+	'Welcome, traveler. How can I help today?': 'Willkommen, Reisender. Wie kann ich heute helfen?',
+	'I can trade, buy your wares, or share local news.':
+		'Ich kann handeln, eure Waren kaufen oder lokale Neuigkeiten teilen.',
+	'Show me what you have in stock.': 'Zeig mir, was du auf Lager hast.',
+	'What have you heard lately?': 'Was hast du in letzter Zeit gehoert?',
+	'Got any tasks that pay?': 'Hast du bezahlte Auftraege?',
+	'I have a few things to sell.': 'Ich habe ein paar Dinge zu verkaufen.',
+	'I should get moving.': 'Ich sollte weiterziehen.',
+	'Right, one moment while I check the crate list.':
+		'Gut, einen Moment, waehrend ich die Kistenliste pruefe.',
+	'I can offer a basic travel bundle or the premium pack.':
+		'Ich kann ein einfaches Reisepaket oder das Premiumpaket anbieten.',
+	'The standard bundle is enough.': 'Das Standardpaket reicht.',
+	'I want the premium pack.': 'Ich nehme das Premiumpaket.',
+	'Let us pause the trade for now.': 'Lassen wir den Handel vorerst ruhen.',
+	'Done. Safe roads and fair weather.': 'Erledigt. Sichere Wege und gutes Wetter.',
+	'A wise choice. You are fully provisioned now.':
+		'Eine weise Wahl. Du bist jetzt bestens ausgeruestet.',
+	'Keep this between us. Which story do you want first?':
+		'Das bleibt unter uns. Welche Geschichte willst du zuerst hoeren?',
+	'What is happening on the roads?': 'Was ist auf den Strassen los?',
+	'Anything about the old ruins?': 'Gibt es etwas ueber die alten Ruinen?',
+	'That is enough gossip for now.': 'Das reicht fuer jetzt mit den Geruechten.',
+	'Scouts saw raiders near the northern toll bridge.':
+		'Spaeher haben Pluenderer nahe der noerdlichen Zollbruecke gesehen.',
+	'Strange lights were seen there after dusk. Best avoid it.':
+		'Dort wurden nach Einbruch der Daemmerung seltsame Lichter gesehen. Besser meiden.',
+	'Actually yes. A crate is overdue at the mill road checkpoint.':
+		'Tatsaechlich ja. Eine Kiste ist am Kontrollpunkt an der Muehlenstrasse ueberfaellig.',
+	'I can handle that delivery.': 'Ich kann diese Lieferung uebernehmen.',
+	'Not right now, sorry.': 'Gerade nicht, tut mir leid.',
+	'Excellent. Take this token and report back before dusk.':
+		'Ausgezeichnet. Nimm diese Marke und melde dich vor Einbruch der Daemmerung zurueck.',
+	'Set it on the counter. What are you offering?':
+		'Leg es auf den Tresen. Was bietest du an?',
+	'A sack of orchard apples.': 'Ein Sack Obstgarten-Aepfel.',
+	'I found this old relic in a ruined watchtower.':
+		'Ich habe dieses alte Relikt in einem verfallenen Wachturm gefunden.',
+	'Fair produce. I can pay ten silver.': 'Gute Ware. Ich kann zehn Silber zahlen.',
+	'Interesting craftsmanship. I will pay fifty silver.':
+		'Interessante Handwerkskunst. Ich zahle fuenfzig Silber.',
+	'Safe travels. My stall stays open till moonrise.':
+		'Gute Reise. Mein Stand bleibt bis Mondaufgang geoeffnet.',
+	'If you visit the ruins, light a lantern first and avoid the lower vault.':
+		'Wenn du die Ruinen besuchst, zuende zuerst eine Laterne an und meide das untere Gewoelbe.',
+	'That is all I know. Return safely.': 'Das ist alles, was ich weiss. Komm sicher zurueck.',
+});
+
+const EXAMPLE_GERMAN_DISPLAY_NAME_TRANSLATIONS = Object.freeze({
+	'Start Node': 'Startknoten',
+	'Waldermar Greeting': 'Waldermar Begruessung',
+	'Buy Supplies': 'Vorraete kaufen',
+	'Ask Rumors': 'Nach Geruechten fragen',
+	'Ask for Work': 'Nach Arbeit fragen',
+	'Sell Goods': 'Waren verkaufen',
+	Leave: 'Verlassen',
+	'Waldermar Stock Check': 'Waldermar prueft Bestand',
+	'Check Inventory': 'Bestand pruefen',
+	'Waldermar Offer': 'Waldermars Angebot',
+	'Take Standard Bundle': 'Standardpaket nehmen',
+	'Take Premium Bundle': 'Premiumpaket nehmen',
+	'Maybe Later': 'Vielleicht spaeter',
+	'Trade Complete': 'Handel abgeschlossen',
+	'Premium Trade Complete': 'Premium-Handel abgeschlossen',
+	'Return To Greeting': 'Zur Begruessung zurueck',
+	'Waldermar Lowers Voice': 'Waldermar senkt die Stimme',
+	'Ask About Roads': 'Nach den Strassen fragen',
+	'Ask About Ruins': 'Nach den Ruinen fragen',
+	'Return to Main Topics': 'Zu den Hauptthemen zurueck',
+	'Road Warning': 'Warnung vor den Strassen',
+	'Ruins Warning': 'Warnung vor den Ruinen',
+	'Open Ruins Follow-up': 'Ruinen-Folgegespraech oeffnen',
+	'Waldermar Needs Help': 'Waldermar braucht Hilfe',
+	'Think About Offer': 'Ueber Angebot nachdenken',
+	'Accept Delivery Job': 'Lieferauftrag annehmen',
+	'Decline Delivery Job': 'Lieferauftrag ablehnen',
+	'Quest Accepted': 'Auftrag angenommen',
+	'Waldermar Appraises Goods': 'Waldermar schaetzt Waren',
+	'Sell Apples': 'Aepfel verkaufen',
+	'Sell Old Relic': 'Altes Relikt verkaufen',
+	'Sale Complete': 'Verkauf abgeschlossen',
+	'Inspect Relic': 'Relikt begutachten',
+	'Relic Sale Complete': 'Reliktverkauf abgeschlossen',
+	'Farewell Complete': 'Abschied abgeschlossen',
+	'Waldermar Ruins Follow-up': 'Waldermar Ruinen-Folgegespraech',
+	'Ruins Follow-up Complete': 'Ruinen-Folgegespraech abgeschlossen',
+});
+
+const EXAMPLE_GERMAN_SELECTION_TITLE_TRANSLATIONS = Object.freeze({
+	'Show me your supplies.': 'Zeig mir deine Vorratswaren.',
+	'Any rumors worth hearing?': 'Gibt es Geruechte, die sich lohnen?',
+	'Need help with anything?': 'Brauchst du bei etwas Hilfe?',
+	'I want to sell items.': 'Ich moechte Gegenstaende verkaufen.',
+	'Not today. Goodbye.': 'Heute nicht. Auf Wiedersehen.',
+	'I will take the standard bundle.': 'Ich nehme das Standardpaket.',
+	'I will take the premium pack.': 'Ich nehme das Premiumpaket.',
+	'Actually, maybe later.': 'Eigentlich vielleicht spaeter.',
+	'Tell me about the roads.': 'Erzaehl mir von den Strassen.',
+	'What about the old ruins?': 'Was ist mit den alten Ruinen?',
+	'Let us talk about something else.': 'Lass uns ueber etwas anderes sprechen.',
+	'I can deliver it.': 'Ich kann es liefern.',
+	'I cannot right now.': 'Ich kann gerade nicht.',
+	'Fresh apples.': 'Frische Aepfel.',
+	'An old relic.': 'Ein altes Relikt.',
+});
+
+async function applyExampleGermanTranslations(projectId) {
+	const entries = await db.localizedStrings.where('projectId').equals(projectId).toArray();
+	const now = new Date().toISOString();
+	const updates = [];
+	const fieldTranslationMap = {
+		[LOCALIZED_STRING_FIELDS.rowText]: EXAMPLE_GERMAN_ROW_TRANSLATIONS,
+		[LOCALIZED_STRING_FIELDS.displayName]: EXAMPLE_GERMAN_DISPLAY_NAME_TRANSLATIONS,
+		[LOCALIZED_STRING_FIELDS.selectionTitle]: EXAMPLE_GERMAN_SELECTION_TITLE_TRANSLATIONS,
+	};
+
+	for (const entry of entries) {
+		const translationMap = fieldTranslationMap[entry?.field];
+		if (!translationMap) continue;
+		const values = entry?.values && typeof entry.values === 'object' ? { ...entry.values } : {};
+		const sourceText = String(values.en || values[DEFAULT_LOCALE] || '').trim();
+		const germanText = translationMap[sourceText];
+		if (!germanText || values.de === germanText) continue;
+		updates.push({
+			...entry,
+			values: {
+				...values,
+				de: germanText,
+			},
+			modifiedAt: now,
+		});
+	}
+
+	if (updates.length > 0) {
+		await db.localizedStrings.bulkPut(updates);
+	}
+}
 
 /**
  * Project Store
@@ -69,6 +209,15 @@ export const useProjectStore = create((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const projects = await db.projects.toArray();
+			const exampleProjectsWithGerman = projects.filter((project) => {
+				if (!project?.isExample) return false;
+				const localization = normalizeProjectLocalizationConfig(project?.localization || {});
+				return localization.supportedLocales.includes('de');
+			});
+
+			for (const exampleProject of exampleProjectsWithGerman) {
+				await applyExampleGermanTranslations(exampleProject.id);
+			}
 
 			// Load dialogue counts for each project
 			const projectsWithCounts = await Promise.all(
@@ -1111,9 +1260,12 @@ export const useProjectStore = create((set, get) => ({
 				}
 			);
 
+			await seedProjectLocalizationDefaultLocale(projectId, newProject.localization.defaultLocale);
 			for (const locale of newProject.localization.supportedLocales || []) {
+				if (locale === newProject.localization.defaultLocale) continue;
 				await seedProjectLocalizationDefaultLocale(projectId, locale);
 			}
+			await applyExampleGermanTranslations(projectId);
 
 			try {
 				await trackExampleProjectCreated();

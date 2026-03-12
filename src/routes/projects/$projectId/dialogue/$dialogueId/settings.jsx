@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
 	ArrowLeft,
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
 	Card,
 	CardContent,
@@ -39,8 +40,14 @@ import {
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUIStore } from '@/stores/uiStore';
 import { formatDate } from '@/lib/dateUtils';
 import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+import {
+	normalizeLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import { getLocalizationLocaleLabel } from '@/lib/localization/localeCatalog';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/settings'
@@ -57,6 +64,8 @@ function DialogueSettingsPage() {
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, updateDialogue, deleteDialogue, exportDialogue } =
 		useDialogueStore();
+	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
+	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
@@ -74,6 +83,28 @@ function DialogueSettingsPage() {
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
+	const projectLocalization = useMemo(
+		() => normalizeProjectLocalizationConfig(project?.localization || {}),
+		[project?.localization]
+	);
+	const contentLocale = useMemo(() => {
+		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
+		if (savedLocale && projectLocalization.supportedLocales.includes(savedLocale)) {
+			return savedLocale;
+		}
+		return projectLocalization.defaultLocale;
+	}, [contentLocaleByProject, projectId, projectLocalization]);
+	const handleContentLocaleChange = useCallback(
+		(event) => {
+			if (!projectId) return;
+			const nextLocale = normalizeLocaleTag(
+				event?.target?.value,
+				projectLocalization.defaultLocale
+			);
+			setProjectContentLocale(projectId, nextLocale);
+		},
+		[projectId, projectLocalization.defaultLocale, setProjectContentLocale]
+	);
 
 	// Update form when dialogue loads
 	useEffect(() => {
@@ -184,6 +215,24 @@ function DialogueSettingsPage() {
 					}
 					menuItems={
 						<>
+							<div className="flex items-center gap-3">
+								<span className="text-xs font-medium text-muted-foreground">
+									{t('editor.localization.contentLocale', {
+										defaultValue: 'Content locale',
+									})}
+								</span>
+								<NativeSelect
+									value={contentLocale}
+									onChange={handleContentLocaleChange}
+									className="h-9 min-w-[11rem]"
+								>
+									{projectLocalization.supportedLocales.map((locale) => (
+										<option key={locale} value={locale}>
+											{getLocalizationLocaleLabel(locale)} ({locale})
+										</option>
+									))}
+								</NativeSelect>
+							</div>
 							<LanguageSelector />
 							<Button
 								variant="ghost"
@@ -218,6 +267,41 @@ function DialogueSettingsPage() {
 							Configure dialogue properties and behavior
 						</p>
 					</div>
+
+					<Card>
+						<CardHeader>
+							<CardTitle>
+								{t('editor.localization.contentLocale', {
+									defaultValue: 'Content locale',
+								})}
+							</CardTitle>
+							<CardDescription>
+								{t('editor.localization.localeSelectorHint', {
+									defaultValue:
+										'Select which localized dialogue content is displayed while editing this project.',
+								})}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							<Label htmlFor="settings-content-locale">
+								{t('editor.localization.contentLocale', {
+									defaultValue: 'Content locale',
+								})}
+							</Label>
+							<NativeSelect
+								id="settings-content-locale"
+								value={contentLocale}
+								onChange={handleContentLocaleChange}
+								className="h-10 max-w-sm"
+							>
+								{projectLocalization.supportedLocales.map((locale) => (
+									<option key={locale} value={locale}>
+										{getLocalizationLocaleLabel(locale)} ({locale})
+									</option>
+								))}
+							</NativeSelect>
+						</CardContent>
+					</Card>
 
 					{/* Dialogue Information */}
 					<Card>
@@ -391,7 +475,7 @@ function DialogueSettingsPage() {
 						</AlertDialogMedia>
 						<AlertDialogTitle>Delete Dialogue</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete "{dialogue.name}"? This action cannot
+							Are you sure you want to delete &quot;{dialogue.name}&quot;? This action cannot
 							be undone and will delete all nodes and connections.
 						</AlertDialogDescription>
 					</AlertDialogHeader>

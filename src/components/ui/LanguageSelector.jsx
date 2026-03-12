@@ -3,12 +3,12 @@ import { Languages } from 'lucide-react';
 import { NativeSelect } from '@/components/ui/native-select';
 
 const LANGUAGES = [
-	{ code: 'en', name: 'English', flag: 'EN' },
-	{ code: 'cs', name: 'Čeština', flag: 'CZ' },
-	{ code: 'de', name: 'Deutsch', flag: 'DE' },
-	{ code: 'fr', name: 'Francais', flag: 'FR' },
-	{ code: 'es', name: 'Espanol', flag: 'ES' },
-	{ code: 'pl', name: 'Polski', flag: 'PL' },
+	{ code: 'en', name: 'English' },
+	{ code: 'cs', name: 'Czech' },
+	{ code: 'de', name: 'German' },
+	{ code: 'fr', name: 'French' },
+	{ code: 'es', name: 'Spanish' },
+	{ code: 'pl', name: 'Polish' },
 ];
 
 /**
@@ -25,7 +25,6 @@ export function LanguageSelector({ variant = 'default' }) {
 
 	const activeLanguage = i18n.resolvedLanguage || i18n.language || 'en';
 	const normalizedLanguage = activeLanguage.split('-')[0];
-	const currentLanguage = LANGUAGES.find((lang) => lang.code === normalizedLanguage) || LANGUAGES[0];
 
 	if (variant === 'icon') {
 		return (
@@ -38,7 +37,7 @@ export function LanguageSelector({ variant = 'default' }) {
 				>
 					{LANGUAGES.map((language) => (
 						<option key={language.code} value={language.code}>
-							{language.flag} {language.name}
+							{language.name} ({language.code})
 						</option>
 					))}
 				</NativeSelect>
@@ -55,7 +54,7 @@ export function LanguageSelector({ variant = 'default' }) {
 		>
 			{LANGUAGES.map((language) => (
 				<option key={language.code} value={language.code}>
-					{language.flag} {language.name}
+					{language.name} ({language.code})
 				</option>
 			))}
 		</NativeSelect>
