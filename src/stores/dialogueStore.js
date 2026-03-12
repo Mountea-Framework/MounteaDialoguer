@@ -5,13 +5,16 @@ import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
 import {
 	DEFAULT_LOCALE,
-	buildLocalizedEntriesFromNodes,
+	buildStringTableV2Payload,
+	ensureDialogueLocalizationSlug,
 	filterLocalizedEntriesByDialogue,
-	isProjectLocalizationEnabled,
 	materializeLocalizedNodes,
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
+	parseImportedStringTableData,
+	prepareLocalizedNodesAndEntries,
 	remapLocalizedEntriesForImportedDialogue,
+	validateLocalizedEntriesForDialogue,
 } from '@/lib/localization/stringTable';
 
 const normalizeDialogueRow = (row = {}) => ({
@@ -27,7 +30,6 @@ const normalizeDialogueRows = (rows = []) => rows.map((row) => normalizeDialogue
 function getProjectLocalizationState(project) {
 	const localization = normalizeProjectLocalizationConfig(project?.localization || {});
 	return {
-		enabled: isProjectLocalizationEnabled(project),
 		defaultLocale: localization.defaultLocale || DEFAULT_LOCALE,
 		supportedLocales: localization.supportedLocales || [DEFAULT_LOCALE],
 	};
@@ -36,6 +38,34 @@ function getProjectLocalizationState(project) {
 async function loadDialogueLocalizedEntries(projectId, dialogueId) {
 	const allEntries = await db.localizedStrings.where('projectId').equals(projectId).toArray();
 	return filterLocalizedEntriesByDialogue(allEntries, dialogueId);
+}
+
+function stripLocalizedTextFromRows(rows = []) {
+	return normalizeDialogueRows(rows).map((row) => {
+		const next = { ...row };
+		delete next.text;
+		return next;
+	});
+}
+
+async function ensureDialogueLocalizationMetadata(dialogue = null) {
+	if (!dialogue?.id) return dialogue;
+	const nextSlug = ensureDialogueLocalizationSlug(dialogue);
+	const nextVersion = 2;
+	const shouldUpdate =
+		String(dialogue.localizationSlug || '').trim() !== nextSlug ||
+		Number(dialogue.localizationVersion || 0) < nextVersion;
+	if (!shouldUpdate) return dialogue;
+	await db.dialogues.update(dialogue.id, {
+		localizationSlug: nextSlug,
+		localizationVersion: nextVersion,
+		modifiedAt: new Date().toISOString(),
+	});
+	return {
+		...dialogue,
+		localizationSlug: nextSlug,
+		localizationVersion: nextVersion,
+	};
 }
 
 /**
@@ -86,17 +116,23 @@ export const useDialogueStore = create((set, get) => ({
 	/**
 	 * Create a new dialogue
 	 */
-	createDialogue: async (dialogueData) => {
-		set({ isLoading: true, error: null });
-		try {
-			const now = new Date().toISOString();
-			const id = uuidv4();
-			const newDialogue = {
-				id,
-				...dialogueData,
-				createdAt: now,
-				modifiedAt: now,
-			};
+		createDialogue: async (dialogueData) => {
+			set({ isLoading: true, error: null });
+			try {
+				const now = new Date().toISOString();
+				const id = uuidv4();
+				const localizationSlug = ensureDialogueLocalizationSlug({
+					id,
+					name: dialogueData?.name,
+				});
+				const newDialogue = {
+					id,
+					...dialogueData,
+					localizationSlug,
+					localizationVersion: 2,
+					createdAt: now,
+					modifiedAt: now,
+				};
 			await db.dialogues.add(newDialogue);
 			await get().loadDialogues(dialogueData.projectId);
 			useSyncStore.getState().schedulePush(dialogueData.projectId);
@@ -260,67 +296,77 @@ export const useDialogueStore = create((set, get) => ({
 	/**
 	 * Save both nodes and edges for a dialogue
 	 */
-	saveDialogueGraph: async (dialogueId, nodes, edges, viewport, options = {}) => {
-		set({ isLoading: true, error: null });
-		try {
-			const { prepareAudioForStorage } = await import('@/lib/audioUtils');
-			const dialogue = await db.dialogues.get(dialogueId);
-			const project = dialogue?.projectId ? await db.projects.get(dialogue.projectId) : null;
-			const localizationState = getProjectLocalizationState(project);
-			const activeLocale = normalizeLocaleTag(
-				options?.activeLocale,
-				localizationState.defaultLocale
-			);
-
-			let localizedEntriesToUpsert = [];
-			let sourceNodesForPersistence = nodes;
-
-			if (localizationState.enabled && dialogue?.projectId) {
-				const existingEntries = await loadDialogueLocalizedEntries(
-					dialogue.projectId,
-					dialogueId
+		saveDialogueGraph: async (dialogueId, nodes, edges, viewport, options = {}) => {
+			set({ isLoading: true, error: null });
+			try {
+				const { prepareAudioForStorage } = await import('@/lib/audioUtils');
+				const dialogue = await ensureDialogueLocalizationMetadata(await db.dialogues.get(dialogueId));
+				const project = dialogue?.projectId ? await db.projects.get(dialogue.projectId) : null;
+				const localizationState = getProjectLocalizationState(project);
+				const activeLocale = normalizeLocaleTag(
+					options?.activeLocale,
+					localizationState.defaultLocale
 				);
-				localizedEntriesToUpsert = buildLocalizedEntriesFromNodes({
+
+				if (!dialogue?.projectId) {
+					throw new Error('Dialogue has no project scope for localization.');
+				}
+
+				const existingEntries = await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId);
+				const prepared = prepareLocalizedNodesAndEntries({
 					projectId: dialogue.projectId,
 					dialogueId,
+					dialogueSlug: dialogue.localizationSlug,
 					nodes,
 					locale: activeLocale,
 					existingEntries,
 				});
+				const sourceNodesForPersistence = prepared.nodes;
+				const localizedEntriesToUpsert = prepared.entries;
 
-				// Keep legacy node fields in default locale for compatibility exports.
-				sourceNodesForPersistence = materializeLocalizedNodes({
-					nodes,
-					dialogueId,
-					locale: localizationState.defaultLocale,
-					defaultLocale: localizationState.defaultLocale,
-					stringEntries: localizedEntriesToUpsert,
-				});
-			}
-
-			// Convert audio blobs to base64 for storage
-			const processedNodes = await Promise.all(
-				sourceNodesForPersistence.map(async (node) => {
-					if (node.data?.dialogueRows) {
-						const processedRows = await Promise.all(
-							normalizeDialogueRows(node.data.dialogueRows).map(async (row) => {
-								if (row.audioFile?.blob) {
-									const storedAudio = await prepareAudioForStorage(row.audioFile);
-									return { ...row, audioFile: storedAudio };
-								}
-								return row;
-							})
-						);
-						return { ...node, data: { ...node.data, dialogueRows: processedRows } };
-					}
-					return node;
-				})
-			);
-
-			await db.transaction('rw', [db.nodes, db.edges, db.dialogues, db.localizedStrings], async () => {
-				if (localizedEntriesToUpsert.length > 0) {
-					await db.localizedStrings.bulkPut(localizedEntriesToUpsert);
+				if (prepared.diagnostics.some((item) => item.type === 'duplicate_key')) {
+					throw new Error('Localization key collision detected. Please rename duplicated items.');
 				}
+				const validation = validateLocalizedEntriesForDialogue({
+					nodes: sourceNodesForPersistence,
+					entries: localizedEntriesToUpsert,
+					defaultLocale: localizationState.defaultLocale,
+				});
+				if (!validation.valid) {
+					console.error('[localization] Validation errors', validation.errors);
+					throw new Error('Localization integrity validation failed for this dialogue.');
+				}
+
+				// Convert audio blobs to base64 for storage
+				const processedNodes = await Promise.all(
+					sourceNodesForPersistence.map(async (node) => {
+						if (node.data?.dialogueRows) {
+							const processedRows = await Promise.all(
+								node.data.dialogueRows.map(async (row) => {
+									if (row.audioFile?.blob) {
+										const storedAudio = await prepareAudioForStorage(row.audioFile);
+										return { ...row, audioFile: storedAudio, text: undefined };
+									}
+									return row;
+								})
+							);
+							return {
+								...node,
+								data: {
+									...node.data,
+									dialogueRows: stripLocalizedTextFromRows(processedRows),
+								},
+							};
+						}
+						return node;
+					})
+				);
+
+				await db.transaction('rw', [db.nodes, db.edges, db.dialogues, db.localizedStrings], async () => {
+					await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
+					if (localizedEntriesToUpsert.length > 0) {
+						await db.localizedStrings.bulkPut(localizedEntriesToUpsert);
+					}
 
 				// Delete existing nodes and edges
 				await db.nodes.where('dialogueId').equals(dialogueId).delete();
@@ -338,12 +384,14 @@ export const useDialogueStore = create((set, get) => ({
 					);
 				}
 
-				// Update dialogue modified time and viewport
-				await db.dialogues.update(dialogueId, {
-					modifiedAt: new Date().toISOString(),
-					viewport: viewport || { x: 0, y: 0, zoom: 1 },
+					// Update dialogue modified time and viewport
+					await db.dialogues.update(dialogueId, {
+						modifiedAt: new Date().toISOString(),
+						viewport: viewport || { x: 0, y: 0, zoom: 1 },
+						localizationSlug: dialogue.localizationSlug,
+						localizationVersion: 2,
+					});
 				});
-			});
 			set({ nodes, edges, isLoading: false });
 			if (dialogue?.projectId) {
 				useSyncStore.getState().schedulePush(dialogue.projectId);
@@ -363,26 +411,31 @@ export const useDialogueStore = create((set, get) => ({
 	/**
 	 * Load dialogue graph (nodes and edges)
 	 */
-	loadDialogueGraph: async (dialogueId, options = {}) => {
-		set({ isLoading: true, error: null });
-		try {
-			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
+		loadDialogueGraph: async (dialogueId, options = {}) => {
+			set({ isLoading: true, error: null });
+			try {
+				const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
 
-			const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
-			const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
-			const dialogue = await db.dialogues.get(dialogueId);
-			const project = dialogue?.projectId ? await db.projects.get(dialogue.projectId) : null;
-			const viewport = dialogue?.viewport || { x: 0, y: 0, zoom: 1 };
-			const localizationState = getProjectLocalizationState(project);
-			const activeLocale = normalizeLocaleTag(
-				options?.activeLocale,
-				localizationState.defaultLocale
-			);
+				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
+				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+				const dialogue = await ensureDialogueLocalizationMetadata(await db.dialogues.get(dialogueId));
+				const project = dialogue?.projectId ? await db.projects.get(dialogue.projectId) : null;
+				const viewport = dialogue?.viewport || { x: 0, y: 0, zoom: 1 };
+				const localizationState = getProjectLocalizationState(project);
+				const activeLocale = normalizeLocaleTag(
+					options?.activeLocale,
+					localizationState.defaultLocale
+				);
+				const defaultLocale = localizationState.defaultLocale;
+				let entries = dialogue?.projectId
+					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
+					: [];
+				let didPersistMigration = false;
 
-			// Convert base64 back to blobs for audio playback and export
-			let nodes = loadedNodes.map((node) => {
-				if (node.data?.dialogueRows) {
-					const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
+				// Convert base64 back to blobs for audio playback and export
+				let nodes = loadedNodes.map((node) => {
+					if (node.data?.dialogueRows) {
+						const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
 						if (row.audioFile?.base64) {
 							const restoredAudio = restoreAudioFromStorage(row.audioFile);
 							return { ...row, audioFile: restoredAudio };
@@ -390,23 +443,86 @@ export const useDialogueStore = create((set, get) => ({
 						return row;
 					});
 					return { ...node, data: { ...node.data, dialogueRows: restoredRows } };
-				}
-				return node;
-			});
+					}
+					return node;
+				});
 
-			if (localizationState.enabled && dialogue?.projectId) {
-				const entries = await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId);
 				nodes = materializeLocalizedNodes({
 					nodes,
 					dialogueId,
+					dialogueSlug: dialogue?.localizationSlug,
 					locale: activeLocale,
-					defaultLocale: localizationState.defaultLocale,
+					defaultLocale,
 					stringEntries: entries,
 				});
-			}
 
-			set({ nodes, edges, isLoading: false });
-			return { nodes, edges, viewport };
+				const hasMissingRefs = nodes.some((node) => {
+					const nodeData = node?.data || {};
+					if (Object.prototype.hasOwnProperty.call(nodeData, 'displayName') && !nodeData.displayNameKey) {
+						return true;
+					}
+					if (
+						Object.prototype.hasOwnProperty.call(nodeData, 'selectionTitle') &&
+						!nodeData.selectionTitleKey
+					) {
+						return true;
+					}
+					return Array.isArray(nodeData.dialogueRows)
+						? nodeData.dialogueRows.some((row) => !row?.textKey)
+						: false;
+				});
+
+				if (dialogue?.projectId && (Number(dialogue.localizationVersion || 0) < 2 || hasMissingRefs)) {
+					const migrated = prepareLocalizedNodesAndEntries({
+						projectId: dialogue.projectId,
+						dialogueId,
+						dialogueSlug: dialogue.localizationSlug,
+						nodes,
+						locale: defaultLocale,
+						existingEntries: entries,
+					});
+					if (migrated.entries.length > 0) {
+						const validation = validateLocalizedEntriesForDialogue({
+							nodes: migrated.nodes,
+							entries: migrated.entries,
+							defaultLocale,
+						});
+						if (validation.valid) {
+							await db.transaction('rw', [db.nodes, db.localizedStrings, db.dialogues], async () => {
+								await db.nodes.where('dialogueId').equals(dialogueId).delete();
+								if (migrated.nodes.length > 0) {
+									await db.nodes.bulkAdd(migrated.nodes.map((node) => ({ ...node, dialogueId })));
+								}
+								await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
+								await db.localizedStrings.bulkPut(migrated.entries);
+								await db.dialogues.update(dialogueId, {
+									localizationSlug: dialogue.localizationSlug,
+									localizationVersion: 2,
+									modifiedAt: new Date().toISOString(),
+								});
+							});
+							didPersistMigration = true;
+							entries = migrated.entries;
+							nodes = materializeLocalizedNodes({
+								nodes: migrated.nodes,
+								dialogueId,
+								dialogueSlug: dialogue.localizationSlug,
+								locale: activeLocale,
+								defaultLocale,
+								stringEntries: entries,
+							});
+						} else {
+							console.error('[localization] Migration validation failed', validation.errors);
+						}
+					}
+				}
+
+				if (didPersistMigration && dialogue?.projectId) {
+					useSyncStore.getState().schedulePush(dialogue.projectId);
+				}
+
+				set({ nodes, edges, isLoading: false });
+				return { nodes, edges, viewport };
 		} catch (error) {
 			console.error('Error loading dialogue graph:', error);
 			toast({
@@ -463,42 +579,105 @@ export const useDialogueStore = create((set, get) => ({
 	},
 
 	// Export dialogue as Blob (for nested exports in project)
-	exportDialogueAsBlob: async (dialogueId) => {
-		try {
-			console.log(`[exportDialogueAsBlob] Starting export for dialogue: ${dialogueId}`);
-			const JSZip = (await import('jszip')).default;
+		exportDialogueAsBlob: async (dialogueId) => {
+			try {
+				console.log(`[exportDialogueAsBlob] Starting export for dialogue: ${dialogueId}`);
+				const JSZip = (await import('jszip')).default;
 
-			const dialogue = await db.dialogues.get(dialogueId);
-			if (!dialogue) {
-				throw new Error(`Dialogue not found: ${dialogueId}`);
-			}
-			console.log(`[exportDialogueAsBlob] Found dialogue: ${dialogue.name}`);
+				const dialogue = await ensureDialogueLocalizationMetadata(await db.dialogues.get(dialogueId));
+				if (!dialogue) {
+					throw new Error(`Dialogue not found: ${dialogueId}`);
+				}
+				console.log(`[exportDialogueAsBlob] Found dialogue: ${dialogue.name}`);
 
-			const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
-			const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
-			const stringTableEntries = dialogue.projectId
-				? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
-				: [];
+				const project = dialogue.projectId ? await db.projects.get(dialogue.projectId) : null;
+				const localizationState = getProjectLocalizationState(project);
+				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
+				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+				const stringTableEntries = dialogue.projectId
+					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
+					: [];
 
 			// Restore audio from base64 to blobs for export
 			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
-			const nodes = loadedNodes.map((node) => {
-				if (node.data?.dialogueRows) {
-					const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
-						if (row.audioFile?.base64) {
-							const restoredAudio = restoreAudioFromStorage(row.audioFile);
+				const nodes = loadedNodes.map((node) => {
+					if (node.data?.dialogueRows) {
+						const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
+							if (row.audioFile?.base64) {
+								const restoredAudio = restoreAudioFromStorage(row.audioFile);
 							return { ...row, audioFile: restoredAudio };
 						}
 						return row;
 					});
 					return { ...node, data: { ...node.data, dialogueRows: restoredRows } };
+					}
+					return node;
+				});
+				let persistedNodes = loadedNodes;
+				let effectiveStringTableEntries = stringTableEntries;
+				let localizedPreviewNodes = materializeLocalizedNodes({
+					nodes: persistedNodes,
+					dialogueId,
+					dialogueSlug: dialogue.localizationSlug,
+					locale: localizationState.defaultLocale,
+					defaultLocale: localizationState.defaultLocale,
+					stringEntries: effectiveStringTableEntries,
+				});
+				let exportValidation = validateLocalizedEntriesForDialogue({
+					nodes: persistedNodes,
+					entries: effectiveStringTableEntries,
+					defaultLocale: localizationState.defaultLocale,
+				});
+				if (!exportValidation.valid && dialogue.projectId) {
+					const repaired = prepareLocalizedNodesAndEntries({
+						projectId: dialogue.projectId,
+						dialogueId,
+						dialogueSlug: dialogue.localizationSlug,
+						nodes: localizedPreviewNodes,
+						locale: localizationState.defaultLocale,
+						existingEntries: effectiveStringTableEntries,
+					});
+					const repairedValidation = validateLocalizedEntriesForDialogue({
+						nodes: repaired.nodes,
+						entries: repaired.entries,
+						defaultLocale: localizationState.defaultLocale,
+					});
+					if (!repairedValidation.valid) {
+						throw new Error('Dialogue export blocked by invalid localization references.');
+					}
+					await db.transaction('rw', [db.nodes, db.localizedStrings, db.dialogues], async () => {
+						await db.nodes.where('dialogueId').equals(dialogueId).delete();
+						if (repaired.nodes.length > 0) {
+							await db.nodes.bulkAdd(repaired.nodes.map((node) => ({ ...node, dialogueId })));
+						}
+						await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
+						await db.localizedStrings.bulkPut(repaired.entries);
+						await db.dialogues.update(dialogueId, {
+							localizationSlug: dialogue.localizationSlug,
+							localizationVersion: 2,
+							modifiedAt: new Date().toISOString(),
+						});
+					});
+					useSyncStore.getState().schedulePush(dialogue.projectId);
+					persistedNodes = repaired.nodes;
+					effectiveStringTableEntries = repaired.entries;
+					localizedPreviewNodes = materializeLocalizedNodes({
+						nodes: persistedNodes,
+						dialogueId,
+						dialogueSlug: dialogue.localizationSlug,
+						locale: localizationState.defaultLocale,
+						defaultLocale: localizationState.defaultLocale,
+						stringEntries: effectiveStringTableEntries,
+					});
+					exportValidation = repairedValidation;
 				}
-				return node;
-			});
+				if (!exportValidation.valid) {
+					throw new Error('Dialogue export blocked by invalid localization references.');
+				}
 
-			console.log(`[exportDialogueAsBlob] Found ${nodes.length} nodes and ${edges.length} edges`);
-			// Validate Start Node exists
-			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
+				console.log(`[exportDialogueAsBlob] Found ${nodes.length} nodes and ${edges.length} edges`);
+				// Validate Start Node exists
+				const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
 			if (!startNode) {
 				throw new Error('Export failed: Start Node (00000000-0000-0000-0000-000000000001) is missing from the dialogue');
 			}
@@ -506,25 +685,25 @@ export const useDialogueStore = create((set, get) => ({
 			// Collect unique participants and categories from nodes
 			const participantSet = new Set();
 			const decoratorsExport = [];
-			const allDialogueRows = [];
+				const allDialogueRows = [];
 
-			nodes.forEach((node) => {
-				// Extract participant
-				if (node.data?.participant) {
-					participantSet.add(node.data.participant);
-				}
+				localizedPreviewNodes.forEach((node) => {
+					// Extract participant
+					if (node.data?.participant) {
+						participantSet.add(node.data.participant);
+					}
 
-				// Extract dialogue rows
-				if (node.data?.dialogueRows) {
-					normalizeDialogueRows(node.data.dialogueRows).forEach((row) => {
-						allDialogueRows.push({
-							id: row.id,
-							text: row.text || '',
-							audioPath: row.audioFile?.blob ? `audio/${row.id}/` : null,
-							nodeId: node.id,
-							duration: row.duration || 0,
+					// Extract dialogue rows
+					if (node.data?.dialogueRows) {
+						normalizeDialogueRows(node.data.dialogueRows).forEach((row) => {
+							allDialogueRows.push({
+								id: row.id,
+								textKey: row.textKey || '',
+								audioPath: row.audioFile?.blob ? `audio/${row.id}/` : null,
+								nodeId: node.id,
+								duration: row.duration || 0,
+							});
 						});
-					});
 				}
 
 				// Extract decorators with nodeId
@@ -568,12 +747,14 @@ export const useDialogueStore = create((set, get) => ({
 				categoryPathMap.set(cat.name, fullPath);
 			});
 
-			// Prepare export data
-			const dialogueData = {
-				dialogueGuid: dialogue.id,
-				dialogueName: dialogue.name,
-				modifiedOnDate: dialogue.modifiedAt || new Date().toISOString(),
-			};
+				// Prepare export data
+				const dialogueData = {
+					dialogueGuid: dialogue.id,
+					dialogueName: dialogue.name,
+					localizationSlug: dialogue.localizationSlug,
+					localizationVersion: dialogue.localizationVersion || 2,
+					modifiedOnDate: dialogue.modifiedAt || new Date().toISOString(),
+				};
 
 			const categoriesExport = usedCategories.map((cat) => ({
 				name: cat.name,
@@ -585,54 +766,56 @@ export const useDialogueStore = create((set, get) => ({
 				fullPath: categoryPathMap.get(p.category) || p.category,
 			}));
 
-			// Create ZIP file
-			const zip = new JSZip();
+				// Create ZIP file
+				const zip = new JSZip();
 
-			// Strip audio data from nodes for JSON serialization
-			// (actual audio files go in the audio/ folder)
-			const nodesForExport = nodes.map((node) => {
-				if (node.data?.dialogueRows) {
-					const rowsWithoutAudio = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
-						const rowWithoutAudio = { ...row };
+				// Strip audio data from nodes for JSON serialization
+				// (actual audio files go in the audio/ folder)
+				const nodesForExport = persistedNodes.map((node) => {
+					if (!node.data?.dialogueRows) {
+						return node;
+					}
+					const rowsWithoutAudio = node.data.dialogueRows.map((row) => {
+						const rowWithoutAudio = { ...(row || {}) };
 						delete rowWithoutAudio.audioFile;
+						delete rowWithoutAudio.text;
 						return rowWithoutAudio;
 					});
 					return { ...node, data: { ...node.data, dialogueRows: rowsWithoutAudio } };
-				}
-				return node;
-			});
+				});
 
 			// Add JSON files
-			zip.file('dialogueData.json', JSON.stringify(dialogueData, null, 2));
-			zip.file('categories.json', JSON.stringify(categoriesExport, null, 2));
-			zip.file('participants.json', JSON.stringify(participantsExport, null, 2));
-			zip.file('nodes.json', JSON.stringify(nodesForExport, null, 2));
-			zip.file('edges.json', JSON.stringify(edges, null, 2));
-			zip.file('dialogueRows.json', JSON.stringify(allDialogueRows, null, 2));
-			zip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
-			zip.file(
-				'stringTable.json',
-				JSON.stringify(
-					{
-						version: 1,
-						dialogueId,
-						entries: stringTableEntries,
-					},
-					null,
-					2
-				)
-			);
+				zip.file('dialogueData.json', JSON.stringify(dialogueData, null, 2));
+				zip.file('categories.json', JSON.stringify(categoriesExport, null, 2));
+				zip.file('participants.json', JSON.stringify(participantsExport, null, 2));
+				zip.file('nodes.json', JSON.stringify(nodesForExport, null, 2));
+				zip.file('edges.json', JSON.stringify(edges, null, 2));
+				zip.file('dialogueRows.json', JSON.stringify(allDialogueRows, null, 2));
+				zip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
+				zip.file(
+					'stringTable.json',
+					JSON.stringify(
+						buildStringTableV2Payload({
+							dialogueId,
+							defaultLocale: localizationState.defaultLocale,
+							locales: localizationState.supportedLocales,
+							entries: effectiveStringTableEntries,
+						}),
+						null,
+						2
+					)
+				);
 
 			// Add audio files
 			const audioFolder = zip.folder('audio');
-			for (const row of allDialogueRows) {
-				if (row.audioPath) {
-					// Find the actual audio file from nodes
-					const node = nodes.find((n) =>
-						n.data?.dialogueRows?.some((r) => r.id === row.id)
-					);
-					if (node) {
-						const dialogueRow = node.data.dialogueRows.find((r) => r.id === row.id);
+				for (const row of allDialogueRows) {
+					if (row.audioPath) {
+						// Find the actual audio file from nodes
+						const node = localizedPreviewNodes.find((n) =>
+							n.data?.dialogueRows?.some((r) => r.id === row.id)
+						);
+						if (node) {
+							const dialogueRow = node.data.dialogueRows.find((r) => r.id === row.id);
 						if (dialogueRow?.audioFile?.blob) {
 							const rowFolder = audioFolder.folder(row.id);
 							rowFolder.file(dialogueRow.audioFile.name, dialogueRow.audioFile.blob);
@@ -681,13 +864,9 @@ export const useDialogueStore = create((set, get) => ({
 			const decorators = decoratorsStr ? JSON.parse(decoratorsStr) : [];
 			const nodes = JSON.parse(nodesStr);
 			const edges = JSON.parse(edgesStr);
-			const dialogueRows = dialogueRowsStr ? JSON.parse(dialogueRowsStr) : [];
-			const stringTableData = stringTableStr ? JSON.parse(stringTableStr) : null;
-			const importedStringEntries = Array.isArray(stringTableData)
-				? stringTableData
-				: Array.isArray(stringTableData?.entries)
-					? stringTableData.entries
-					: [];
+				const dialogueRows = dialogueRowsStr ? JSON.parse(dialogueRowsStr) : [];
+				const stringTableData = stringTableStr ? JSON.parse(stringTableStr) : null;
+				const importedStringEntries = parseImportedStringTableData(stringTableData);
 			// Validate Start Node exists
 			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
 			if (!startNode) {
@@ -834,15 +1013,21 @@ export const useDialogueStore = create((set, get) => ({
 
 			// Step 5: Create the dialogue
 			const dialogueId = uuidv4();
-			const newDialogue = {
-				id: dialogueId,
-				projectId,
-				name: finalName,
-				description: '',
-				nodeCount: nodes.length,
-				createdAt: now,
-				modifiedAt: now,
-			};
+				const newDialogue = {
+					id: dialogueId,
+					projectId,
+					name: finalName,
+					description: '',
+					nodeCount: nodes.length,
+					localizationSlug: ensureDialogueLocalizationSlug({
+						localizationSlug: dialogueData?.localizationSlug,
+						name: finalName,
+						id: dialogueId,
+					}),
+					localizationVersion: 2,
+					createdAt: now,
+					modifiedAt: now,
+				};
 
 			await db.dialogues.add(newDialogue);
 
@@ -924,36 +1109,49 @@ export const useDialogueStore = create((set, get) => ({
 				await db.edges.add(newEdge);
 			}
 
-			// Step 8: Import optional StringTable data and remap to new IDs
-			if (importedStringEntries.length > 0) {
-				const remappedEntries = remapLocalizedEntriesForImportedDialogue({
-					entries: importedStringEntries,
-					newProjectId: projectId,
-					newDialogueId: dialogueId,
-					nodeIdMap: nodeIdMapping,
-					rowIdMap: rowIdMapping,
-				});
-				if (remappedEntries.length > 0) {
-					await db.localizedStrings.bulkPut(remappedEntries);
-				}
-			}
-
-			if (importedStringEntries.length === 0) {
-				const project = await db.projects.get(projectId);
-				const localizationState = getProjectLocalizationState(project);
-				if (localizationState.enabled) {
-					const seededEntries = buildLocalizedEntriesFromNodes({
-						projectId,
-						dialogueId,
-						nodes: importedNodesForLocalization,
-						locale: localizationState.defaultLocale,
-						existingEntries: [],
+				// Step 8: Import optional StringTable data and remap to current dialogue metadata
+				let localizedEntriesToUpsert = [];
+				if (importedStringEntries.length > 0) {
+					const remappedEntries = remapLocalizedEntriesForImportedDialogue({
+						entries: importedStringEntries,
+						newProjectId: projectId,
+						newDialogueId: dialogueId,
+						newDialogueSlug: newDialogue.localizationSlug,
+						nodeIdMap: nodeIdMapping,
+						rowIdMap: rowIdMapping,
 					});
-					if (seededEntries.length > 0) {
-						await db.localizedStrings.bulkPut(seededEntries);
+					if (remappedEntries.length > 0) {
+						localizedEntriesToUpsert = remappedEntries;
 					}
 				}
-			}
+
+				const project = await db.projects.get(projectId);
+				const localizationState = getProjectLocalizationState(project);
+				const preparedImport = prepareLocalizedNodesAndEntries({
+					projectId,
+					dialogueId,
+					dialogueSlug: newDialogue.localizationSlug,
+					nodes: importedNodesForLocalization,
+					locale: localizationState.defaultLocale,
+					existingEntries: localizedEntriesToUpsert,
+				});
+				if (preparedImport.entries.length > 0) {
+					const validation = validateLocalizedEntriesForDialogue({
+						nodes: preparedImport.nodes,
+						entries: preparedImport.entries,
+						defaultLocale: localizationState.defaultLocale,
+					});
+					if (!validation.valid) {
+						throw new Error('Imported dialogue contains invalid localization references.');
+					}
+					await db.transaction('rw', [db.nodes, db.localizedStrings], async () => {
+						await db.nodes.where('dialogueId').equals(dialogueId).delete();
+						await db.nodes.bulkAdd(preparedImport.nodes.map((node) => ({ ...node, dialogueId })));
+						await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
+						await db.localizedStrings.bulkPut(preparedImport.entries);
+					});
+					localizedEntriesToUpsert = preparedImport.entries;
+				}
 
 			// Step 9: Process audio files from dialogueRows
 			// Note: Audio files in the export are stored as blobs in the ZIP
@@ -979,14 +1177,16 @@ export const useDialogueStore = create((set, get) => ({
 								// Store audio in IndexedDB
 								// We'll need to update the node's dialogue row with audio data
 								const nodeId = nodeIdMapping.get(row.nodeId);
-								const remappedRowId =
-									rowIdMapping.get(`${row.nodeId}:${row.id}`) || row.id;
-								if (nodeId) {
-									const node = await db.nodes.get(nodeId);
-									if (node && node.data.dialogueRows) {
-										const normalizedRows = normalizeDialogueRows(node.data.dialogueRows);
-										const rowIndex = normalizedRows.findIndex((r) => r.id === remappedRowId);
-										if (rowIndex !== -1) {
+									const remappedRowId =
+										rowIdMapping.get(`${row.nodeId}:${row.id}`) || row.id;
+									if (nodeId) {
+										const node = await db.nodes.get(nodeId);
+										if (node && node.data.dialogueRows) {
+											const normalizedRows = node.data.dialogueRows.map((item) => ({
+												...(item || {}),
+											}));
+											const rowIndex = normalizedRows.findIndex((r) => r.id === remappedRowId);
+											if (rowIndex !== -1) {
 											// Create audio file data
 											const audioFileData = {
 												id: uuidv4(),
@@ -997,9 +1197,10 @@ export const useDialogueStore = create((set, get) => ({
 												path: `audio/${remappedRowId}/${audioFiles[0].split('/').pop()}`,
 											};
 
-											normalizedRows[rowIndex].audioFile = audioFileData;
-											normalizedRows[rowIndex].duration = row.duration;
-											node.data.dialogueRows = normalizedRows;
+												normalizedRows[rowIndex].audioFile = audioFileData;
+												normalizedRows[rowIndex].duration = row.duration;
+												delete normalizedRows[rowIndex].text;
+												node.data.dialogueRows = normalizedRows;
 
 											await db.nodes.update(nodeId, { data: node.data });
 										}

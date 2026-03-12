@@ -308,27 +308,25 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-						<div className="space-y-1">
-							<p className="text-sm font-medium">
-								{t('settings.localization.enable', {
-									defaultValue: 'Enable localization',
-								})}
-							</p>
-							<p className="text-xs text-muted-foreground">
-								{t('settings.localization.enableHint', {
-									defaultValue:
-										'When enabled, dialogue text is resolved through a per-project StringTable.',
-								})}
-							</p>
+						<div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+							<div className="space-y-1">
+								<p className="text-sm font-medium">
+									{t('settings.localization.enable', {
+										defaultValue: 'Localization mode',
+									})}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{t('settings.localization.enableHint', {
+										defaultValue:
+											'Dialogue content localization is always on and resolved through StringTable keys.',
+									})}
+								</p>
+							</div>
+							<Switch
+								checked={true}
+								disabled={true}
+							/>
 						</div>
-						<Switch
-							checked={Boolean(localizationData.enabled)}
-							onCheckedChange={(checked) =>
-								updateLocalizationDraft({ ...localizationData, enabled: checked })
-							}
-						/>
-					</div>
 
 					<div className="grid gap-2">
 						<Label htmlFor="default-locale">

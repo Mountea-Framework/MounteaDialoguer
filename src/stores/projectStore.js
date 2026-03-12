@@ -35,6 +35,7 @@ async function seedProjectLocalizationDefaultLocale(projectId, defaultLocale) {
 		const entries = buildLocalizedEntriesFromNodes({
 			projectId,
 			dialogueId: dialogue.id,
+			dialogueSlug: dialogue.localizationSlug || '',
 			nodes,
 			locale: defaultLocale,
 			existingEntries: existingByDialogue.get(dialogue.id) || [],
@@ -1152,12 +1153,12 @@ export const useProjectStore = create((set, get) => ({
 				nextPayload.localization = nextLocalization;
 			}
 
-			await db.projects.update(id, nextPayload);
+				await db.projects.update(id, nextPayload);
 
-			if (!previousLocalization.enabled && nextLocalization.enabled) {
-				await seedProjectLocalizationDefaultLocale(id, nextLocalization.defaultLocale);
-			}
-			await get().loadProjects();
+				if (previousLocalization.defaultLocale !== nextLocalization.defaultLocale) {
+					await seedProjectLocalizationDefaultLocale(id, nextLocalization.defaultLocale);
+				}
+				await get().loadProjects();
 			useSyncStore.getState().schedulePush(id);
 			toast({
 				variant: 'success',

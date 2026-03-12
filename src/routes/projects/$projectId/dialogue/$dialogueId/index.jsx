@@ -43,6 +43,7 @@ import {
 	LocateFixed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ButtonGroup } from '@/components/ui/button-group';
 import {
 	AlertDialog,
@@ -771,12 +772,22 @@ function DialogueEditorPage() {
 
 		const label = field.labelKey ? t(field.labelKey) : field.label || '';
 		const requiredLabel = field.required ? `${label} *` : label;
+		const labelContent = (
+			<span className="inline-flex items-center gap-2">
+				<span>{requiredLabel}</span>
+				{field.localizable ? (
+					<Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+						{t('editor.localization.localizableBadge', { defaultValue: 'Localizable' })}
+					</Badge>
+				) : null}
+			</span>
+		);
 
 		switch (field.type) {
 			case 'text':
 				return (
 					<div className="grid gap-2" key={field.id}>
-						<Label htmlFor={field.id}>{requiredLabel}</Label>
+						<Label htmlFor={field.id}>{labelContent}</Label>
 						<Input
 							id={field.id}
 							value={selectedNode.data[field.id] || ''}
@@ -828,7 +839,7 @@ function DialogueEditorPage() {
 
 					return (
 						<div className="space-y-2" key={field.id}>
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
 								value={selectedNode.data[field.id] || ''}
@@ -876,7 +887,7 @@ function DialogueEditorPage() {
 
 					return (
 						<div className="space-y-2" key={field.id}>
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
 								value={selectedNode.data[field.id] || ''}
@@ -907,7 +918,7 @@ function DialogueEditorPage() {
 
 					return (
 						<div className="space-y-2" key={field.id}>
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
 								value={selectedNode.data[field.id] || ''}
@@ -928,18 +939,19 @@ function DialogueEditorPage() {
 					);
 				}
 				return null;
-			case 'dialogueRows':
-				return (
-					<div className="space-y-2" key={field.id}>
-						<DialogueRowsPanel
-							dialogueRows={selectedNode.data.dialogueRows || []}
-							onChange={(newRows) =>
-								updateNodeData(selectedNode.id, { dialogueRows: newRows })
-							}
-							participants={participants}
-						/>
-					</div>
-				);
+				case 'dialogueRows':
+					return (
+						<div className="space-y-2" key={field.id}>
+							<DialogueRowsPanel
+								dialogueRows={selectedNode.data.dialogueRows || []}
+								onChange={(newRows) =>
+									updateNodeData(selectedNode.id, { dialogueRows: newRows })
+								}
+								participants={participants}
+								isLocalizable={Boolean(field.localizable)}
+							/>
+						</div>
+					);
 			case 'decorators':
 				return (
 					<DecoratorsPanel
@@ -968,7 +980,7 @@ function DialogueEditorPage() {
 				return (
 					<div className="space-y-2" key={field.id}>
 						<div className="flex items-center justify-between">
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<span className="text-xs text-muted-foreground">
 								{selectedNode.data[field.id] ?? field.min}
 								{field.unit ? ` ${field.unit}` : ''}
@@ -993,7 +1005,7 @@ function DialogueEditorPage() {
 				return (
 					<div key={field.id}>
 						<Label className="text-xs text-muted-foreground">
-							{requiredLabel}
+							{labelContent}
 						</Label>
 						<code className="text-xs font-mono bg-muted px-2 py-1 rounded block mt-1">
 							{selectedNode.id}
