@@ -58,8 +58,114 @@ const SUPPORTED_LANGUAGES = [
 	{ code: 'es', label: 'Spanish' },
 	{ code: 'pl', label: 'Polish' },
 ];
+const USER_DATA_DIR_ARG_PREFIX = '--user-data-dir=';
+const USER_DATA_REROUTE_FLAG = '--mountea-user-data-reroute';
+
+function canUseUserDataPath(targetPath) {
+	const resolvedPath = String(targetPath || '').trim();
+	if (!resolvedPath) return false;
+	try {
+		fs.mkdirSync(resolvedPath, { recursive: true });
+		fs.accessSync(resolvedPath, fs.constants.R_OK | fs.constants.W_OK);
+
+		// Chromium startup requires creating a singleton lock file in userData.
+		const singletonLockProbe = path.join(resolvedPath, 'SingletonLock');
+		if (fs.existsSync(singletonLockProbe)) {
+			fs.accessSync(singletonLockProbe, fs.constants.R_OK | fs.constants.W_OK);
+		} else {
+			fs.writeFileSync(singletonLockProbe, 'probe', { encoding: 'utf8', flag: 'wx' });
+			fs.unlinkSync(singletonLockProbe);
+		}
+
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function getUserDataFallbackCandidates() {
+	const candidates = [];
+	const envOverride = String(process.env.MOUNTEA_USER_DATA_DIR || '').trim();
+	if (envOverride) {
+		candidates.push(envOverride);
+	}
+
+	const localAppData = String(process.env.LOCALAPPDATA || '').trim();
+	if (localAppData) {
+		candidates.push(path.join(localAppData, APP_DISPLAY_NAME));
+		candidates.push(path.join(localAppData, APP_DISPLAY_NAME, 'user-data'));
+	}
+
+	const tempPath = String(app.getPath('temp') || '').trim();
+	if (tempPath) {
+		candidates.push(path.join(tempPath, APP_DISPLAY_NAME, 'user-data'));
+	}
+
+	return [...new Set(candidates.filter(Boolean))];
+}
+
+function getUserDataDirFromProcessArgs() {
+	for (const rawArg of process.argv || []) {
+		const arg = String(rawArg || '');
+		if (!arg.startsWith(USER_DATA_DIR_ARG_PREFIX)) continue;
+		return arg.slice(USER_DATA_DIR_ARG_PREFIX.length).trim();
+	}
+	return '';
+}
+
+function ensureWritableUserDataPath() {
+	const userDataDirFromArgs = getUserDataDirFromProcessArgs();
+	if (userDataDirFromArgs && canUseUserDataPath(userDataDirFromArgs)) {
+		return userDataDirFromArgs;
+	}
+
+	let defaultUserDataPath = '';
+	try {
+		defaultUserDataPath = String(app.getPath('userData') || '').trim();
+	} catch {
+		defaultUserDataPath = '';
+	}
+
+	if (canUseUserDataPath(defaultUserDataPath)) {
+		return defaultUserDataPath;
+	}
+
+	for (const candidate of getUserDataFallbackCandidates()) {
+		if (!canUseUserDataPath(candidate)) continue;
+
+		if (!process.argv.includes(USER_DATA_REROUTE_FLAG)) {
+			const relaunchArgs = (process.argv || [])
+				.slice(1)
+				.filter(
+					(arg) =>
+						!String(arg || '').startsWith(USER_DATA_DIR_ARG_PREFIX) &&
+						String(arg || '') !== USER_DATA_REROUTE_FLAG
+				);
+			console.warn(
+				`[startup] userData fallback requires relaunch: "${candidate}" (default "${defaultUserDataPath}")`
+			);
+			app.relaunch({
+				args: [...relaunchArgs, `${USER_DATA_DIR_ARG_PREFIX}${candidate}`, USER_DATA_REROUTE_FLAG],
+			});
+			app.exit(0);
+			process.exit(0);
+		}
+
+		app.setPath('userData', candidate);
+		console.warn(
+			`[startup] userData fallback activated: "${candidate}" (default "${defaultUserDataPath}")`
+		);
+		return candidate;
+	}
+
+	console.warn(
+		`[startup] No writable userData path found; continuing with default "${defaultUserDataPath}".`
+	);
+	return defaultUserDataPath;
+}
 
 app.setName(APP_DISPLAY_NAME);
+ensureWritableUserDataPath();
 initMainProcessSentry();
 
 function reportMainProcessError(error, context = {}) {
