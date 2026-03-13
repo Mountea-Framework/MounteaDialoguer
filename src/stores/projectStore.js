@@ -17,6 +17,24 @@ import {
 	trackFirstNonExampleProjectCreated,
 } from '@/lib/achievements/achievementTracker';
 
+const MAX_PROJECT_IMPORT_ARCHIVE_BYTES = 25 * 1024 * 1024;
+const MAX_PROJECT_IMPORT_ENTRY_COUNT = 1000;
+const MAX_PROJECT_IMPORT_TEXT_BYTES = 5 * 1024 * 1024;
+const MAX_PROJECT_IMPORT_DIALOGUE_FILES = 250;
+
+function parseImportedJsonText({ label, value }) {
+	if (!value) return null;
+	const byteLength = new TextEncoder().encode(String(value)).length;
+	if (byteLength > MAX_PROJECT_IMPORT_TEXT_BYTES) {
+		throw new Error(`${label} exceeds import size limit`);
+	}
+	try {
+		return JSON.parse(value);
+	} catch (error) {
+		throw new Error(`Invalid JSON in ${label}`);
+	}
+}
+
 async function seedProjectLocalizationDefaultLocale(projectId, defaultLocale) {
 	const dialogues = await db.dialogues.where('projectId').equals(projectId).toArray();
 	const allExisting = await db.localizedStrings.where('projectId').equals(projectId).toArray();
@@ -1609,8 +1627,30 @@ export const useProjectStore = create((set, get) => ({
 
 	importProject: async (file) => {
 		try {
+			if (!file) {
+				throw new Error('Missing import file');
+			}
+			if (file.size > MAX_PROJECT_IMPORT_ARCHIVE_BYTES) {
+				throw new Error(
+					`Project archive is too large (max ${Math.floor(
+						MAX_PROJECT_IMPORT_ARCHIVE_BYTES / (1024 * 1024)
+					)} MB)`
+				);
+			}
+
 			const JSZip = (await import('jszip')).default;
 			const zip = await JSZip.loadAsync(file);
+			const allZipEntries = Object.values(zip.files || {});
+			const fileEntries = allZipEntries.filter((entry) => entry && !entry.dir);
+			if (fileEntries.length > MAX_PROJECT_IMPORT_ENTRY_COUNT) {
+				throw new Error('Project archive contains too many files');
+			}
+			for (const entry of fileEntries) {
+				const safePath = String(entry?.name || '');
+				if (safePath.startsWith('/') || safePath.includes('..')) {
+					throw new Error(`Unsafe path in project archive: ${safePath}`);
+				}
+			}
 
 			const projectDataStr = await zip.file('projectData.json')?.async('text');
 			const participantsStr = await zip.file('participants.json')?.async('text');
@@ -1622,11 +1662,41 @@ export const useProjectStore = create((set, get) => ({
 				throw new Error('Invalid project file: missing projectData.json');
 			}
 
-			const projectData = JSON.parse(projectDataStr);
-			const participants = participantsStr ? JSON.parse(participantsStr) : [];
-			const categories = categoriesStr ? JSON.parse(categoriesStr) : [];
-			const decorators = decoratorsStr ? JSON.parse(decoratorsStr) : [];
-			const conditions = conditionsStr ? JSON.parse(conditionsStr) : [];
+			const projectData = parseImportedJsonText({
+				label: 'projectData.json',
+				value: projectDataStr,
+			});
+			if (!projectData || typeof projectData !== 'object' || Array.isArray(projectData)) {
+				throw new Error('Invalid project metadata in projectData.json');
+			}
+			const participants =
+				parseImportedJsonText({
+					label: 'participants.json',
+					value: participantsStr,
+				}) || [];
+			const categories =
+				parseImportedJsonText({
+					label: 'categories.json',
+					value: categoriesStr,
+				}) || [];
+			const decorators =
+				parseImportedJsonText({
+					label: 'decorators.json',
+					value: decoratorsStr,
+				}) || [];
+			const conditions =
+				parseImportedJsonText({
+					label: 'conditions.json',
+					value: conditionsStr,
+				}) || [];
+			if (
+				!Array.isArray(participants) ||
+				!Array.isArray(categories) ||
+				!Array.isArray(decorators) ||
+				!Array.isArray(conditions)
+			) {
+				throw new Error('Imported project metadata must contain arrays');
+			}
 
 			const { v4: uuidv4 } = await import('uuid');
 			const newProjectId = uuidv4();
@@ -1720,9 +1790,15 @@ export const useProjectStore = create((set, get) => ({
 						dialogueFiles.push({ path: relativePath, file });
 					}
 				});
+				if (dialogueFiles.length > MAX_PROJECT_IMPORT_DIALOGUE_FILES) {
+					throw new Error('Project archive contains too many dialogue files');
+				}
 
 				for (const { path, file } of dialogueFiles) {
 					try {
+						if (String(path || '').startsWith('/') || String(path || '').includes('..')) {
+							throw new Error('Unsafe dialogue archive path');
+						}
 						const dialogueBlob = await file.async('blob');
 						const dialogueFile = new File([dialogueBlob], path);
 						await dialogueStore.importDialogue(newProjectId, dialogueFile);

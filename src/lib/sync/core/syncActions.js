@@ -15,6 +15,32 @@ import {
 import { getSyncProject, upsertSyncProject } from '@/lib/sync/syncStorage';
 import { getActiveProfileId } from '@/lib/profile/activeProfile';
 
+const MAX_SYNC_PAYLOAD_BYTES = 20 * 1024 * 1024;
+
+function parseEncryptedPayloadJson(encryptedText, contextLabel = 'sync payload') {
+	if (typeof encryptedText !== 'string') {
+		throw new Error(`Invalid ${contextLabel}: expected text payload`);
+	}
+
+	const payloadBytes = new TextEncoder().encode(encryptedText).length;
+	if (payloadBytes > MAX_SYNC_PAYLOAD_BYTES) {
+		throw new Error(`Refusing oversized ${contextLabel}`);
+	}
+
+	let payload;
+	try {
+		payload = JSON.parse(encryptedText);
+	} catch (error) {
+		throw new Error(`Invalid ${contextLabel}: malformed JSON`);
+	}
+
+	if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+		throw new Error(`Invalid ${contextLabel}: expected object`);
+	}
+
+	return payload;
+}
+
 function summarizeSnapshot(snapshot) {
 	const project = snapshot?.project || {};
 	const dialogues = snapshot?.dialogues || [];
@@ -45,7 +71,7 @@ export async function previewPullFromFile({
 	const { storage } = getSyncContext({ provider });
 	console.log('[sync] Preview pull', { projectId, fileId, revision });
 	const encryptedText = await storage.downloadFile(fileId);
-	const payload = JSON.parse(encryptedText);
+	const payload = parseEncryptedPayloadJson(encryptedText, 'remote sync payload');
 	const snapshot = await decryptPayload(passphrase, payload);
 	return {
 		projectId,
@@ -74,7 +100,7 @@ export async function pullProjectFromFile({
 	const { providerId, storage } = getSyncContext({ provider });
 	console.log('[sync] Pulling project from file', { projectId, fileId, revision });
 	const encryptedText = await storage.downloadFile(fileId);
-	const payload = JSON.parse(encryptedText);
+	const payload = parseEncryptedPayloadJson(encryptedText, 'remote sync payload');
 	const snapshot = await decryptPayload(passphrase, payload);
 
 	await applyProjectSnapshot(snapshot);
@@ -106,7 +132,7 @@ export async function pullProject({
 
 	onProgress?.('downloading', 45);
 	const encryptedText = await storage.downloadFile(remoteFile.id);
-	const payload = JSON.parse(encryptedText);
+	const payload = parseEncryptedPayloadJson(encryptedText, 'remote sync payload');
 	onProgress?.('decrypting', 70);
 	const snapshot = await decryptPayload(passphrase, payload);
 
@@ -142,7 +168,7 @@ export async function pullProjectAsNew({
 
 	onProgress?.('downloading', 45);
 	const encryptedText = await storage.downloadFile(remoteFile.id);
-	const payload = JSON.parse(encryptedText);
+	const payload = parseEncryptedPayloadJson(encryptedText, 'remote sync payload');
 	onProgress?.('decrypting', 70);
 	const snapshot = await decryptPayload(passphrase, payload);
 
@@ -282,3 +308,5 @@ export async function syncAllProjects({
 	console.log('[sync] Sync all projects complete');
 	return { remoteCount: remoteProjects.length, localCount: localProjects.length };
 }
+
+
