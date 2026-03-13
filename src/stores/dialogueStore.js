@@ -1214,8 +1214,6 @@ export const useDialogueStore = create((set, get) => ({
 						await db.localizedStrings.bulkPut(preparedImport.entries);
 					}
 				});
-				localizedEntriesToUpsert = preparedImport.entries;
-
 			// Step 9: Process audio files from dialogueRows
 			// Note: Audio files in the export are stored as blobs in the ZIP
 			// We'll need to extract them if they exist

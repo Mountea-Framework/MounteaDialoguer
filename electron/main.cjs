@@ -12,7 +12,6 @@ const {
 	setRichPresence: setSteamRichPresence,
 	unlockAchievement: unlockSteamAchievement,
 	getSteamCloudStatus,
-	listSteamCloudFileNames,
 	steamCloudFileExists,
 	readSteamCloudFile,
 	writeSteamCloudFile,
@@ -342,14 +341,6 @@ async function ensureSteamSyncDirectoriesForRuntime(runtimeState = steamRuntimeS
 	});
 }
 
-function getSteamSyncFilePath(profileId, fileId) {
-	const safeFileId = sanitizeSteamSyncSegment(fileId, 'entry');
-	return path.join(
-		getSteamSyncProfileDirectory(profileId),
-		`${safeFileId}${STEAM_SYNC_FILE_EXTENSION}`
-	);
-}
-
 function getSteamSyncBundleCachePath(profileId) {
 	return path.join(
 		getSteamSyncProfileDirectory(profileId),
@@ -360,28 +351,6 @@ function getSteamSyncBundleCachePath(profileId) {
 function getSteamSyncBundleCloudFileName(profileId) {
 	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
 	return `${STEAM_SYNC_CLOUD_FILE_PREFIX}${safeProfileId}__${STEAM_SYNC_BUNDLE_FILE_BASENAME}${STEAM_SYNC_FILE_EXTENSION}`;
-}
-
-function buildSteamSyncCloudFileName(profileId, fileId) {
-	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
-	const safeFileId = sanitizeSteamSyncSegment(fileId, 'entry');
-	return `${STEAM_SYNC_CLOUD_FILE_PREFIX}${safeProfileId}__${safeFileId}${STEAM_SYNC_FILE_EXTENSION}`;
-}
-
-function parseSteamSyncCloudFileName(storageName) {
-	const name = String(storageName || '').trim();
-	if (!name.startsWith(STEAM_SYNC_CLOUD_FILE_PREFIX)) return null;
-	if (!name.endsWith(STEAM_SYNC_FILE_EXTENSION)) return null;
-
-	const withoutPrefix = name.slice(STEAM_SYNC_CLOUD_FILE_PREFIX.length);
-	const withoutSuffix = withoutPrefix.slice(0, -STEAM_SYNC_FILE_EXTENSION.length);
-	const separatorIndex = withoutSuffix.indexOf('__');
-	if (separatorIndex < 0) return null;
-
-	const profileId = sanitizeSteamSyncSegment(withoutSuffix.slice(0, separatorIndex), 'local');
-	const fileId = sanitizeSteamSyncSegment(withoutSuffix.slice(separatorIndex + 2), '');
-	if (!fileId) return null;
-	return { profileId, fileId };
 }
 
 function getSteamCloudRuntimeStatus() {
@@ -610,16 +579,6 @@ function toSteamSyncFileMetadata(entry) {
 		modifiedTime: entry.modifiedTime,
 		appProperties: entry.appProperties,
 	};
-}
-
-async function readSteamSyncEntry(filePath, fallbackId = '') {
-	const content = await fs.promises.readFile(filePath, 'utf8');
-	const parsed = JSON.parse(content);
-	const entry = normalizeSteamSyncEntry(parsed, fallbackId);
-	if (!entry.name) {
-		throw new Error('Invalid Steam sync entry: missing name');
-	}
-	return entry;
 }
 
 async function listSteamSyncEntries(profileId) {
