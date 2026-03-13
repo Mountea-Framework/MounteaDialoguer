@@ -46,3 +46,7 @@ dist-ssr
 .private
 *.png~
 /DocumentationSource/qa
+/DocumentationSource/orchestration
+/DocumentationSource/security
+/Feedback
+/tmp

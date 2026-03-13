@@ -70,7 +70,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
-import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
+import { toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import {
 	ContextMenu,
@@ -287,7 +287,6 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 	const dagreGraph = new dagre.graphlib.Graph();
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-	const isHorizontal = direction === 'LR';
 	dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 100 });
 
 	nodes.forEach((node) => {
@@ -323,7 +322,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 		? {
 				x: START_NODE_ANCHOR_POSITION.x - layoutedStartNode.position.x,
 				y: START_NODE_ANCHOR_POSITION.y - layoutedStartNode.position.y,
-		  }
+		}
 		: { x: 0, y: 0 };
 
 	const layoutedNodes = rawLayoutedNodes.map((node) => ({
@@ -385,7 +384,6 @@ function DialogueEditorPage() {
 	const [selectedNode, setSelectedNode] = useState(null);
 	const [selectedEdge, setSelectedEdge] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const [saveSuccess, setSaveSuccess] = useState(false);
 	const [saveStatus, setSaveStatus] = useState('saved');
 	const [lastSaved, setLastSaved] = useState(null);
 	const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
@@ -398,7 +396,6 @@ function DialogueEditorPage() {
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
-	const { dismiss } = useToast();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const openCommandPalette = useCommandPaletteStore((state) => state.openWithActions);
 
@@ -1113,7 +1110,7 @@ function DialogueEditorPage() {
 									...(edge.data || {}),
 									...newData,
 								},
-						  }
+						}
 						: edge
 				);
 				saveToHistory(nodes, updatedEdges);
@@ -1443,7 +1440,7 @@ function DialogueEditorPage() {
 						? t(reasonKey, {
 								count: validationResult.details?.count || 0,
 								max: validationResult.details?.maxNodes || 100,
-						  })
+						})
 						: t(reasonKey),
 			});
 			return;
@@ -1459,7 +1456,6 @@ function DialogueEditorPage() {
 	// Handle save
 	const handleSave = useCallback(async () => {
 		setIsSaving(true);
-		setSaveSuccess(false);
 		setSaveStatus('saving');
 		try {
 			clearToasts();
@@ -1476,12 +1472,10 @@ function DialogueEditorPage() {
 			});
 			const now = new Date();
 			setLastSaved(now);
-			setSaveSuccess(true);
 			setSaveStatus('saved');
 			setHasUnsavedChanges(false);
 			hasPendingNodeDataEditsRef.current = false;
 			celebrateSuccess();
-			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (error) {
 			console.error('Failed to save dialogue:', error);
 			setSaveStatus('error');
@@ -1501,7 +1495,6 @@ function DialogueEditorPage() {
 		showValidationToasts,
 		clearToasts,
 		setIsSaving,
-		setSaveSuccess,
 		setSaveStatus,
 		setHasUnsavedChanges,
 		setLastSaved,
@@ -1525,7 +1518,7 @@ function DialogueEditorPage() {
 								}
 								didChange = true;
 								return { ...node, data: { ...currentData, ...newData } };
-						  })()
+						})()
 						: node
 				)
 			);
@@ -1589,7 +1582,7 @@ function DialogueEditorPage() {
 										(_, idx) => idx !== decoratorIndex
 									),
 								},
-						  }
+						}
 						: node
 				);
 				saveToHistory(updatedNodes, edges);
@@ -2341,7 +2334,7 @@ function DialogueEditorPage() {
 																		shortcut: '',
 																		onSelect: handleStartPreview,
 																	},
-															  ]
+																]
 															: []),
 													],
 												},
@@ -2390,7 +2383,7 @@ function DialogueEditorPage() {
 																			</div>
 																		),
 																	},
-															  ]
+																]
 															: []),
 														{
 															key: 'language-selector',
@@ -2435,7 +2428,7 @@ function DialogueEditorPage() {
 																		shortcut: '',
 																		onSelect: resetTour,
 																	},
-															  ]
+																]
 															: []),
 													],
 												},

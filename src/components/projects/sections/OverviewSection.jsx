@@ -32,7 +32,6 @@ export function OverviewSection({
 	decorators = [],
 	conditions = [],
 	onExport,
-	onImport,
 	onDelete,
 	onSectionChange,
 	fileInputRef,
