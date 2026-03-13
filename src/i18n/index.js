@@ -7,6 +7,7 @@ import deTranslations from './locales/de.json';
 import frTranslations from './locales/fr.json';
 import esTranslations from './locales/es.json';
 import plTranslations from './locales/pl.json';
+import { APP_LANGUAGE_CODES } from '@/lib/localization/appLanguages';
 
 /**
  * i18next configuration for Mountea Dialoguer
@@ -24,7 +25,7 @@ i18n
 			es: { translation: esTranslations },
 			pl: { translation: plTranslations },
 		},
-		supportedLngs: ['en', 'cs', 'de', 'fr', 'es', 'pl'],
+		supportedLngs: APP_LANGUAGE_CODES,
 		nonExplicitSupportedLngs: true,
 		fallbackLng: 'en',
 		interpolation: {

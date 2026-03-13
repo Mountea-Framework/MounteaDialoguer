@@ -50,14 +50,7 @@ const DEFAULT_MENU_CONTEXT = Object.freeze({
 	supportedContentLocales: [],
 });
 let menuContext = { ...DEFAULT_MENU_CONTEXT };
-const SUPPORTED_LANGUAGES = [
-	{ code: 'en', label: 'English' },
-	{ code: 'cs', label: 'Czech' },
-	{ code: 'de', label: 'German' },
-	{ code: 'fr', label: 'French' },
-	{ code: 'es', label: 'Spanish' },
-	{ code: 'pl', label: 'Polish' },
-];
+const SUPPORTED_LANGUAGES = require('./shared/app-languages.json');
 const USER_DATA_DIR_ARG_PREFIX = '--user-data-dir=';
 const USER_DATA_REROUTE_FLAG = '--mountea-user-data-reroute';
 
@@ -1021,6 +1014,7 @@ function createAppMenu(context = menuContext) {
 	const canUndoRedoDialogue = isDialogue;
 	const canGraphNavigation = isDialogue;
 	const canSetContentLocale = (isDialogue || isDialogueSettings) && Boolean(normalizedContext.projectId);
+	const canOpenSettingsDialog = isProject || isDialogue || isDialogueSettings;
 	const canOpenSync = !isDialogue;
 	const canShowTour = isDashboard || isDialogue;
 	const contentLocaleMenuItems = normalizedContext.supportedContentLocales.map((localeCode) => ({
@@ -1217,11 +1211,15 @@ function createAppMenu(context = menuContext) {
 		submenu: languageMenuItems,
 	});
 	appendMenuSection(settingsMenuItems, [
-		{
-			label: settingsLabel,
-			accelerator: 'CmdOrCtrl+,',
-			click: () => sendMenuCommand('open-settings'),
-		},
+		...(canOpenSettingsDialog
+			? [
+					{
+						label: settingsLabel,
+						accelerator: 'CmdOrCtrl+,',
+						click: () => sendMenuCommand('open-settings'),
+					},
+			  ]
+			: []),
 		...(canOpenSync
 			? [
 					{

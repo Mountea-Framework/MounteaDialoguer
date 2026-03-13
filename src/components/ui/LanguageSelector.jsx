@@ -1,15 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Languages } from 'lucide-react';
 import { NativeSelect } from '@/components/ui/native-select';
-
-const LANGUAGES = [
-	{ code: 'en', name: 'English' },
-	{ code: 'cs', name: 'Czech' },
-	{ code: 'de', name: 'German' },
-	{ code: 'fr', name: 'French' },
-	{ code: 'es', name: 'Spanish' },
-	{ code: 'pl', name: 'Polish' },
-];
+import { APP_LANGUAGE_OPTIONS } from '@/lib/localization/appLanguages';
 
 /**
  * Language Selector Component
@@ -35,9 +27,9 @@ export function LanguageSelector({ variant = 'default' }) {
 					onChange={(e) => handleLanguageChange(e.target.value)}
 					className="w-[50px] px-2 text-transparent"
 				>
-					{LANGUAGES.map((language) => (
+					{APP_LANGUAGE_OPTIONS.map((language) => (
 						<option key={language.code} value={language.code}>
-							{language.name} ({language.code})
+							{language.label} ({language.code})
 						</option>
 					))}
 				</NativeSelect>
@@ -52,9 +44,9 @@ export function LanguageSelector({ variant = 'default' }) {
 			onChange={(e) => handleLanguageChange(e.target.value)}
 			className="w-[180px]"
 		>
-			{LANGUAGES.map((language) => (
+			{APP_LANGUAGE_OPTIONS.map((language) => (
 				<option key={language.code} value={language.code}>
-					{language.name} ({language.code})
+					{language.label} ({language.code})
 				</option>
 			))}
 		</NativeSelect>

@@ -1,0 +1,8 @@
+[
+	{ "code": "en", "label": "English" },
+	{ "code": "cs", "label": "Czech" },
+	{ "code": "de", "label": "German" },
+	{ "code": "fr", "label": "French" },
+	{ "code": "es", "label": "Spanish" },
+	{ "code": "pl", "label": "Polish" }
+]

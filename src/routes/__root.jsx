@@ -50,6 +50,7 @@ import {
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
 } from '@/lib/localization/stringTable';
+import { APP_LANGUAGE_CODES } from '@/lib/localization/appLanguages';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -568,7 +569,7 @@ function RootComponent() {
 				}
 				case 'set-language': {
 					const language = commandPayload.language;
-					if (['en', 'cs', 'de', 'fr', 'es', 'pl'].includes(language)) {
+					if (APP_LANGUAGE_CODES.includes(language)) {
 						runtimeI18n.changeLanguage(language);
 						window.localStorage.setItem('i18nextLng', language);
 					}
@@ -611,8 +612,6 @@ function RootComponent() {
 							context: { type: 'project', projectId: routeContext.projectId },
 							mode: 'detail',
 						});
-					} else {
-						openSettingsCommand({ mode: 'list' });
 					}
 					return;
 				}

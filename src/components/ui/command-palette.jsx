@@ -26,6 +26,7 @@ import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
 import { normalizeLocaleTag, normalizeProjectLocalizationConfig } from '@/lib/localization/stringTable';
+import { APP_LANGUAGE_OPTIONS, getAppLanguageLabel } from '@/lib/localization/appLanguages';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { formatShortcut, getPrimaryModifierKey } from '@/lib/keyboardShortcuts';
@@ -33,28 +34,20 @@ import { isMobileDevice } from '@/lib/deviceDetection';
 
 const SUPPORT_URL = 'https://discord.gg/hCjh8e3Y9r';
 const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues';
-const SUPPORTED_LANGUAGES = [
-	{ code: 'en', label: 'English' },
-	{ code: 'cs', label: 'Cestina' },
-	{ code: 'de', label: 'Deutsch' },
-	{ code: 'fr', label: 'Francais' },
-	{ code: 'es', label: 'Espanol' },
-	{ code: 'pl', label: 'Polski' },
-];
 
 function getLocaleMenuLabel(localeCode) {
 	const normalized = String(localeCode || '').trim();
 	if (!normalized) return '';
 
-	const exactMatch = SUPPORTED_LANGUAGES.find((item) => item.code === normalized);
-	if (exactMatch) {
-		return `${exactMatch.label} (${normalized})`;
+	const exactLabel = getAppLanguageLabel(normalized);
+	if (exactLabel) {
+		return `${exactLabel} (${normalized})`;
 	}
 
 	const base = normalized.split('-')[0];
-	const baseMatch = SUPPORTED_LANGUAGES.find((item) => item.code === base);
-	if (baseMatch) {
-		return `${baseMatch.label} (${normalized})`;
+	const baseLabel = getAppLanguageLabel(base);
+	if (baseLabel) {
+		return `${baseLabel} (${normalized})`;
 	}
 
 	try {
@@ -125,6 +118,11 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 	// Handle keyboard shortcut
 	useEffect(() => {
 		const down = (e) => {
+			if (e.key === 'Escape' && open) {
+				e.preventDefault();
+				onOpenChange(false);
+				return;
+			}
 			if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
 				onOpenChange(!open);
@@ -192,6 +190,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 		const canGraphNavigation = isDialogue;
 		const canSetContentLocale =
 			(isDialogue || isDialogueSettings) && Boolean(routeContext.projectId);
+		const canOpenSettingsDialog = isProject || isDialogue || isDialogueSettings;
 		const canOpenSync = !isDialogue;
 		const canShowTour = isDashboard || isDialogue;
 
@@ -340,7 +339,7 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 							dispatchMenuCommand('set-language', { language: event.target.value })
 						}
 					>
-						{SUPPORTED_LANGUAGES.map(({ code, label }) => (
+						{APP_LANGUAGE_OPTIONS.map(({ code, label }) => (
 							<option key={code} value={code}>
 								{label} ({code})
 							</option>
@@ -373,14 +372,14 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 				),
 			});
 		}
-		settingsItems.push(
-			{
+		if (canOpenSettingsDialog) {
+			settingsItems.push({
 				icon: Settings,
 				label: 'Open Settings',
 				shortcut: 'Ctrl+,',
 				onSelect: () => dispatchMenuCommand('open-settings'),
-			}
-		);
+			});
+		}
 		if (canOpenSync) {
 			settingsItems.push({
 				icon: Cloud,
