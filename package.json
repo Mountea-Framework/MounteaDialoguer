@@ -86,6 +86,7 @@
 		"@radix-ui/react-dropdown-menu": "^2.1.16",
 		"@radix-ui/react-select": "^2.2.6",
 		"@radix-ui/react-tooltip": "^1.2.8",
+		"@sentry/electron": "^7.10.0",
 		"@tanstack/react-router": "^1.87.0",
 		"@xyflow/react": "^12.10.0",
 		"canvas-confetti": "^1.9.4",
@@ -115,7 +116,6 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.58.2",
-		"@sentry/electron": "^7.10.0",
 		"@sentry/react": "^10.43.0",
 		"@tanstack/router-devtools": "^1.87.0",
 		"@tanstack/router-plugin": "^1.87.0",
