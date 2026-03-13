@@ -2,6 +2,18 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { buildLocalizedStringKey } from '@/lib/localization/stringTable';
 
+function stripLocalOnlyProjectFields(project = {}) {
+	const sanitized = { ...(project || {}) };
+	delete sanitized.lastExportPath;
+	return sanitized;
+}
+
+function stripLocalOnlyDialogueFields(dialogue = {}) {
+	const sanitized = { ...(dialogue || {}) };
+	delete sanitized.lastExportPath;
+	return sanitized;
+}
+
 export async function buildProjectSnapshot(projectId) {
 	const project = await db.projects.get(projectId);
 	if (!project) {
@@ -28,8 +40,8 @@ export async function buildProjectSnapshot(projectId) {
 
 	return {
 		version: 2,
-		project,
-		dialogues,
+		project: stripLocalOnlyProjectFields(project),
+		dialogues: dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue)),
 		participants,
 		categories,
 		decorators,
@@ -42,7 +54,7 @@ export async function buildProjectSnapshot(projectId) {
 
 export async function applyProjectSnapshot(snapshot) {
 	const {
-		project,
+		project: rawProject,
 		dialogues = [],
 		participants = [],
 		categories = [],
@@ -52,6 +64,8 @@ export async function applyProjectSnapshot(snapshot) {
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
+	const project = stripLocalOnlyProjectFields(rawProject);
+	const sanitizedDialogues = dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue));
 
 	if (!project?.id) {
 		throw new Error('Invalid snapshot');
@@ -88,7 +102,7 @@ export async function applyProjectSnapshot(snapshot) {
 
 			await db.projects.put(project);
 
-			if (dialogues.length > 0) await db.dialogues.bulkAdd(dialogues);
+			if (sanitizedDialogues.length > 0) await db.dialogues.bulkAdd(sanitizedDialogues);
 			if (participants.length > 0) await db.participants.bulkAdd(participants);
 			if (categories.length > 0) await db.categories.bulkAdd(categories);
 			if (decorators.length > 0) await db.decorators.bulkAdd(decorators);
@@ -102,7 +116,7 @@ export async function applyProjectSnapshot(snapshot) {
 
 export async function applyProjectSnapshotAsNew(snapshot) {
 	const {
-		project,
+		project: rawProject,
 		dialogues = [],
 		participants = [],
 		categories = [],
@@ -112,6 +126,8 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
+	const project = stripLocalOnlyProjectFields(rawProject);
+	const sanitizedDialogues = dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue));
 
 	if (!project?.id) {
 		throw new Error('Invalid snapshot');
@@ -128,7 +144,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 	};
 
 	const dialogueIdMap = new Map();
-	const newDialogues = dialogues.map((dialogue) => {
+	const newDialogues = sanitizedDialogues.map((dialogue) => {
 		const newId = uuidv4();
 		dialogueIdMap.set(dialogue.id, newId);
 		return {

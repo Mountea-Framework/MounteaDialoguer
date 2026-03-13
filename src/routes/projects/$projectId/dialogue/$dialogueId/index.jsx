@@ -105,6 +105,7 @@ import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOve
 import { getDeviceType } from '@/lib/deviceDetection';
 import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
 import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+import { openContainingFolder } from '@/lib/export/exportFile';
 import {
 	getNodeDefinition,
 	getNodeDefaultData,
@@ -2120,6 +2121,29 @@ function DialogueEditorPage() {
 		}
 	};
 
+	const handleOpenLastExportPath = useCallback(async () => {
+		const lastExportPath = String(dialogue?.lastExportPath || '').trim();
+		if (!lastExportPath) {
+			toastStandalone({
+				variant: 'warning',
+				title: 'No export path available',
+				description: 'Export this dialogue first to create a last export path.',
+			});
+			return;
+		}
+
+		const opened = await openContainingFolder(lastExportPath);
+		if (!opened) {
+			toastStandalone({
+				variant: 'error',
+				title: 'Unable to open export path',
+				description: isDesktopElectron
+					? 'The export folder could not be opened.'
+					: 'Open Last Export Path is available in the desktop app.',
+			});
+		}
+	}, [dialogue?.lastExportPath, isDesktopElectron]);
+
 	const handleContentLocaleChange = useCallback(
 		(nextValueOrEvent) => {
 			const rawNextValue =
@@ -2173,6 +2197,11 @@ function DialogueEditorPage() {
 			handleExport();
 		};
 
+		const handleCommandOpenLastExport = (event) => {
+			if (!matchesDialogue(event)) return;
+			void handleOpenLastExportPath();
+		};
+
 		const handleCommandUndo = (event) => {
 			if (!matchesDialogue(event)) return;
 			handleUndo();
@@ -2211,6 +2240,10 @@ function DialogueEditorPage() {
 
 		window.addEventListener('command:dialogue-save', handleCommandSave);
 		window.addEventListener('command:dialogue-export', handleCommandExport);
+		window.addEventListener(
+			'command:dialogue-open-last-export',
+			handleCommandOpenLastExport
+		);
 		window.addEventListener('command:dialogue-undo', handleCommandUndo);
 		window.addEventListener('command:dialogue-redo', handleCommandRedo);
 		window.addEventListener('command:dialogue-start-preview', handleCommandStartPreview);
@@ -2225,6 +2258,10 @@ function DialogueEditorPage() {
 		return () => {
 			window.removeEventListener('command:dialogue-save', handleCommandSave);
 			window.removeEventListener('command:dialogue-export', handleCommandExport);
+			window.removeEventListener(
+				'command:dialogue-open-last-export',
+				handleCommandOpenLastExport
+			);
 			window.removeEventListener('command:dialogue-undo', handleCommandUndo);
 			window.removeEventListener('command:dialogue-redo', handleCommandRedo);
 			window.removeEventListener('command:dialogue-start-preview', handleCommandStartPreview);
@@ -2240,6 +2277,7 @@ function DialogueEditorPage() {
 		dialogueId,
 		handleContentLocaleChange,
 		handleExport,
+		handleOpenLastExportPath,
 		handleFocusStartNode,
 		handleRecenterGraph,
 		handleRedo,

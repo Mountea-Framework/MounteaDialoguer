@@ -4,6 +4,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	isElectron: true,
 	startGoogleOAuth: (payload) => ipcRenderer.invoke('auth:start-google-oauth', payload),
 	openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+	openPath: (targetPath) => ipcRenderer.invoke('shell:open-path', targetPath),
+	openContainingFolder: (filePath) =>
+		ipcRenderer.invoke('shell:open-containing-folder', filePath),
+	saveFileDialog: (payload) => ipcRenderer.invoke('dialog:save-file', payload),
 	traceSyncEvent: (payload) => ipcRenderer.send('sync:trace', payload),
 	steamSyncFindFile: (payload) => ipcRenderer.invoke('steam-sync:find-file', payload),
 	steamSyncListFiles: (payload) => ipcRenderer.invoke('steam-sync:list-files', payload),

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { openContainingFolder, saveExportBlob } from '@/lib/export/exportFile';
 import { useSyncStore } from '@/stores/syncStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import {
@@ -1490,9 +1491,8 @@ export const useProjectStore = create((set, get) => ({
 	 */
 	exportProject: async (projectId) => {
 		try {
-			// Load JSZip and file-saver
+			// Load JSZip
 			const JSZip = (await import('jszip')).default;
-			const { saveAs } = await import('file-saver');
 
 			// Get project data
 			const project = await db.projects.get(projectId);
@@ -1607,12 +1607,46 @@ export const useProjectStore = create((set, get) => ({
 
 			// Generate the final ZIP
 			const blob = await projectZip.generateAsync({ type: 'blob' });
-			saveAs(blob, `${project.name}.mnteadlgproj`);
+			const defaultFileName = `${project.name}.mnteadlgproj`;
+			const saveResult = await saveExportBlob({
+				blob,
+				defaultFileName,
+				filters: [{ name: 'Project Export', extensions: ['mnteadlgproj'] }],
+			});
+			if (saveResult.canceled) {
+				return;
+			}
+
+			if (saveResult.filePath) {
+				await db.projects.update(projectId, {
+					lastExportPath: saveResult.filePath,
+				});
+				set((state) => ({
+					projects: state.projects.map((entry) =>
+						entry.id === projectId
+							? { ...entry, lastExportPath: saveResult.filePath }
+							: entry
+					),
+					currentProject:
+						state.currentProject?.id === projectId
+							? { ...state.currentProject, lastExportPath: saveResult.filePath }
+							: state.currentProject,
+				}));
+			}
 
 			toast({
 				variant: 'success',
 				title: 'Project Exported',
-				description: `${project.name}.mnteadlgproj has been exported`,
+				description: `${defaultFileName} has been exported`,
+				action: saveResult.filePath
+					? {
+						label: 'Open Folder',
+						onClick: () => {
+							void openContainingFolder(saveResult.filePath);
+						},
+					}
+					: undefined,
+				duration: saveResult.filePath ? 8000 : 3000,
 			});
 		} catch (error) {
 			console.error('Error exporting project:', error);

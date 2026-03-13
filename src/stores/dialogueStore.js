@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { openContainingFolder, saveExportBlob } from '@/lib/export/exportFile';
 import { useSyncStore } from '@/stores/syncStore';
 import {
 	DEFAULT_LOCALE,
@@ -588,8 +589,6 @@ export const useDialogueStore = create((set, get) => ({
 	 */
 	exportDialogue: async (dialogueId) => {
 		try {
-			const { saveAs } = await import('file-saver');
-
 			// Get dialogue name for the file
 			const dialogue = await db.dialogues.get(dialogueId);
 			if (!dialogue) {
@@ -598,15 +597,47 @@ export const useDialogueStore = create((set, get) => ({
 
 			// Use the shared blob export function
 			const blob = await get().exportDialogueAsBlob(dialogueId);
+			const defaultFileName = `${dialogue.name}.mnteadlg`;
 
-			// Download
-			saveAs(blob, `${dialogue.name}.mnteadlg`);
+			const saveResult = await saveExportBlob({
+				blob,
+				defaultFileName,
+				filters: [{ name: 'Dialogue Export', extensions: ['mnteadlg'] }],
+			});
+			if (saveResult.canceled) {
+				return;
+			}
 
+			if (saveResult.filePath) {
+				await db.dialogues.update(dialogueId, {
+					lastExportPath: saveResult.filePath,
+				});
+				set((state) => ({
+					dialogues: state.dialogues.map((entry) =>
+						entry.id === dialogueId
+							? { ...entry, lastExportPath: saveResult.filePath }
+							: entry
+					),
+					currentDialogue:
+						state.currentDialogue?.id === dialogueId
+							? { ...state.currentDialogue, lastExportPath: saveResult.filePath }
+							: state.currentDialogue,
+				}));
+			}
 
 			toast({
 				variant: 'success',
 				title: 'Dialogue Exported',
-				description: `${dialogue.name}.mnteadlg has been exported`,
+				description: `${defaultFileName} has been exported`,
+				action: saveResult.filePath
+					? {
+						label: 'Open Folder',
+						onClick: () => {
+							void openContainingFolder(saveResult.filePath);
+						},
+					}
+					: undefined,
+				duration: saveResult.filePath ? 8000 : 3000,
 			});
 		} catch (error) {
 			console.error('Error exporting dialogue:', error);

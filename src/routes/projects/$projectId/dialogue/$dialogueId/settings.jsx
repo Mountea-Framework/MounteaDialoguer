@@ -5,6 +5,7 @@ import {
 	ArrowLeft,
 	Save,
 	Download,
+	FolderOpen,
 	Trash2,
 	AlertTriangle,
 	Info,
@@ -37,12 +38,16 @@ import {
 	AlertDialogMedia,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { SimpleTooltip } from '@/components/ui/tooltip';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
 import { formatDate } from '@/lib/dateUtils';
 import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+import { toast } from '@/components/ui/toaster';
+import { openContainingFolder } from '@/lib/export/exportFile';
+import { copyToClipboardWithToast } from '@/lib/clipboard';
 import {
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
@@ -83,6 +88,11 @@ function DialogueSettingsPage() {
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
+	const lastExportPath = String(dialogue?.lastExportPath || '').trim();
+	const truncatedLastExportPath =
+		lastExportPath.length > 44
+			? `${lastExportPath.slice(0, 20)}...${lastExportPath.slice(-20)}`
+			: lastExportPath;
 	const projectLocalization = useMemo(
 		() => normalizeProjectLocalizationConfig(project?.localization || {}),
 		[project?.localization]
@@ -149,6 +159,28 @@ function DialogueSettingsPage() {
 		}
 	};
 
+	const handleOpenLastExportPath = useCallback(async () => {
+		if (!lastExportPath) {
+			toast({
+				variant: 'warning',
+				title: 'No export path available',
+				description: 'Export this dialogue first to create a last export path.',
+			});
+			return;
+		}
+
+		const opened = await openContainingFolder(lastExportPath);
+		if (!opened) {
+			toast({
+				variant: 'error',
+				title: 'Unable to open export path',
+				description: isDesktopElectron
+					? 'The export folder could not be opened.'
+					: 'Open Last Export Path is available in the desktop app.',
+			});
+		}
+	}, [isDesktopElectron, lastExportPath]);
+
 	const handleDelete = async () => {
 		try {
 			await deleteDialogue(dialogueId);
@@ -172,14 +204,28 @@ function DialogueSettingsPage() {
 			handleSave();
 		};
 
+		const handleCommandOpenLastExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			void handleOpenLastExportPath();
+		};
+
 		window.addEventListener('command:dialogue-export', handleCommandExport);
 		window.addEventListener('command:dialogue-save', handleCommandSave);
+		window.addEventListener(
+			'command:dialogue-open-last-export',
+			handleCommandOpenLastExport
+		);
 
 		return () => {
 			window.removeEventListener('command:dialogue-export', handleCommandExport);
 			window.removeEventListener('command:dialogue-save', handleCommandSave);
+			window.removeEventListener(
+				'command:dialogue-open-last-export',
+				handleCommandOpenLastExport
+			);
 		};
-	}, [dialogueId, handleExport, handleSave]);
+	}, [dialogueId, handleExport, handleOpenLastExportPath, handleSave]);
 
 	if (!dialogue || !project) {
 		return (
@@ -409,6 +455,72 @@ function DialogueSettingsPage() {
 									</span>
 								</div>
 								<Separator />
+								<div className="grid gap-2 py-2">
+									<span className="text-sm text-muted-foreground">
+										Last Export Path
+									</span>
+									<div className="flex items-center justify-between gap-2 rounded border border-border bg-muted/50 px-2 py-2">
+										{lastExportPath ? (
+											<SimpleTooltip content={lastExportPath} side="top">
+												<code className="text-xs font-mono min-w-0 truncate">
+													{truncatedLastExportPath}
+												</code>
+											</SimpleTooltip>
+										) : (
+											<code className="text-xs font-mono min-w-0 truncate">
+												Not exported yet
+											</code>
+										)}
+										<div className="flex items-center gap-1">
+											<SimpleTooltip content="Open Last Export Path" side="top">
+												<span className="inline-flex">
+													<button
+														type="button"
+														onClick={() => void handleOpenLastExportPath()}
+														disabled={!lastExportPath}
+														className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+														aria-label="Open Last Export Path"
+													>
+														<FolderOpen className="h-4 w-4" />
+													</button>
+												</span>
+											</SimpleTooltip>
+											{lastExportPath ? (
+												<SimpleTooltip content="Copy Last Export Path" side="top">
+													<button
+														type="button"
+														onClick={() =>
+															void copyToClipboardWithToast(lastExportPath, toast, {
+																successTitle: 'Copied',
+																successMessage:
+																	'Last export path copied to clipboard.',
+																errorTitle: 'Copy failed',
+																errorMessage:
+																	'Unable to copy last export path.',
+															})
+														}
+														className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors"
+														aria-label="Copy Last Export Path"
+													>
+														<svg
+															viewBox="0 0 24 24"
+															fill="none"
+															stroke="currentColor"
+															strokeWidth="2"
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															className="h-4 w-4"
+														>
+															<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+															<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+														</svg>
+													</button>
+												</SimpleTooltip>
+											) : null}
+										</div>
+									</div>
+								</div>
+								<Separator />
 								<div className="flex justify-between py-2">
 									<span className="text-sm text-muted-foreground">
 										{t('dialogues.nodes')}
@@ -430,14 +542,25 @@ function DialogueSettingsPage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Button
-								onClick={handleExport}
-								variant="outline"
-								className="w-full justify-start gap-2"
-							>
-								<Download className="h-4 w-4" />
-								Export Dialogue
-							</Button>
+							<div className="space-y-2">
+								<Button
+									onClick={handleExport}
+									variant="outline"
+									className="w-full justify-start gap-2"
+								>
+									<Download className="h-4 w-4" />
+									Export Dialogue
+								</Button>
+								<Button
+									onClick={() => void handleOpenLastExportPath()}
+									variant="outline"
+									disabled={!lastExportPath}
+									className="w-full justify-start gap-2"
+								>
+									<FolderOpen className="h-4 w-4" />
+									Open Last Export Path
+								</Button>
+							</div>
 						</CardContent>
 					</Card>
 

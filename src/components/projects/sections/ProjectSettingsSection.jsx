@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Download, Trash2, AlertTriangle, Info, Plus, X } from 'lucide-react';
+import { Save, Download, Trash2, AlertTriangle, Info, Plus, X, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { SimpleTooltip } from '@/components/ui/tooltip';
 import { useProjectStore } from '@/stores/projectStore';
 import { formatDate } from '@/lib/dateUtils';
+import { copyToClipboardWithToast } from '@/lib/clipboard';
+import { toast } from '@/components/ui/toaster';
 import {
 	DEFAULT_LOCALE,
 	isValidLocaleTag,
@@ -26,7 +29,13 @@ import {
  * Project Settings Section Component
  * Project settings and configuration
  */
-export function ProjectSettingsSection({ project, onExport, onDelete, showHeader = true }) {
+export function ProjectSettingsSection({
+	project,
+	onExport,
+	onOpenLastExportPath,
+	onDelete,
+	showHeader = true,
+}) {
 	const { t } = useTranslation();
 	const { updateProject, updateProjectLocalization } = useProjectStore();
 	const [isEditing, setIsEditing] = useState(false);
@@ -59,6 +68,11 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 		}
 		return availableLocaleOptions[0]?.code || '';
 	}, [availableLocaleOptions, selectedLocaleToAdd]);
+	const lastExportPath = String(project?.lastExportPath || '').trim();
+	const truncatedLastExportPath =
+		lastExportPath.length > 44
+			? `${lastExportPath.slice(0, 20)}...${lastExportPath.slice(-20)}`
+			: lastExportPath;
 
 	useEffect(() => {
 		setFormData({
@@ -459,6 +473,70 @@ export function ProjectSettingsSection({ project, onExport, onDelete, showHeader
 						<div className="flex justify-between py-2">
 							<span className="text-sm text-muted-foreground">{t('projects.modified')}</span>
 							<span className="text-sm font-medium">{formatDate(project.modifiedAt)}</span>
+						</div>
+						<Separator />
+						<div className="grid gap-2 py-2">
+							<span className="text-sm text-muted-foreground">Last Export Path</span>
+							<div className="flex items-center justify-between gap-2 rounded border border-border bg-muted/50 px-2 py-2">
+								{lastExportPath ? (
+									<SimpleTooltip content={lastExportPath} side="top">
+										<code className="text-xs font-mono min-w-0 truncate">
+											{truncatedLastExportPath}
+										</code>
+									</SimpleTooltip>
+								) : (
+									<code className="text-xs font-mono min-w-0 truncate">
+										Not exported yet
+									</code>
+								)}
+								<div className="flex items-center gap-1">
+									<SimpleTooltip content="Open Last Export Path" side="top">
+										<span className="inline-flex">
+											<button
+												type="button"
+												onClick={() => void onOpenLastExportPath?.()}
+												disabled={!lastExportPath}
+												className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+												aria-label="Open Last Export Path"
+											>
+												<FolderOpen className="h-4 w-4" />
+											</button>
+										</span>
+									</SimpleTooltip>
+									{lastExportPath ? (
+										<SimpleTooltip content="Copy Last Export Path" side="top">
+											<button
+												type="button"
+												onClick={() =>
+													void copyToClipboardWithToast(lastExportPath, toast, {
+														successTitle: 'Copied',
+														successMessage:
+															'Last export path copied to clipboard.',
+														errorTitle: 'Copy failed',
+														errorMessage:
+															'Unable to copy last export path.',
+													})
+												}
+												className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors"
+												aria-label="Copy Last Export Path"
+											>
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													className="h-4 w-4"
+												>
+													<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+													<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+												</svg>
+											</button>
+										</SimpleTooltip>
+									) : null}
+								</div>
+							</div>
 						</div>
 					</div>
 				</CardContent>

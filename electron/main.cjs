@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { URL, URLSearchParams } = require('node:url');
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const {
 	initializeSteamRuntime,
 	prepareSteamOverlayForElectron,
@@ -368,6 +368,95 @@ function shouldBlockNativeShortcut(input = {}) {
 	}
 
 	return false;
+}
+
+function sanitizeFileNameForSaveDialog(fileName, fallback = 'export.bin') {
+	const normalized = String(fileName || '')
+		.trim()
+		.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_');
+	return normalized || fallback;
+}
+
+function normalizeSaveDialogFilters(rawFilters = []) {
+	if (!Array.isArray(rawFilters)) return [];
+	return rawFilters
+		.map((item) => {
+			const name = String(item?.name || '').trim();
+			const extensions = Array.isArray(item?.extensions)
+				? item.extensions
+						.map((extension) => String(extension || '').trim().replace(/^\./, ''))
+						.filter(Boolean)
+				: [];
+			if (!name || extensions.length === 0) return null;
+			return { name, extensions };
+		})
+		.filter(Boolean);
+}
+
+async function openPathInShell(targetPath) {
+	const normalizedPath = String(targetPath || '').trim();
+	if (!normalizedPath) return false;
+	const openError = await shell.openPath(normalizedPath);
+	return !openError;
+}
+
+async function openContainingFolderInShell(targetFilePath) {
+	const normalizedFilePath = String(targetFilePath || '').trim();
+	if (!normalizedFilePath) return false;
+
+	try {
+		if (fs.existsSync(normalizedFilePath)) {
+			const stats = fs.statSync(normalizedFilePath);
+			if (stats.isDirectory()) {
+				return await openPathInShell(normalizedFilePath);
+			}
+			shell.showItemInFolder(normalizedFilePath);
+			return true;
+		}
+
+		const containingDirectory = path.dirname(normalizedFilePath);
+		if (
+			!containingDirectory ||
+			containingDirectory === '.' ||
+			containingDirectory === normalizedFilePath
+		) {
+			return false;
+		}
+		return await openPathInShell(containingDirectory);
+	} catch (error) {
+		console.warn('[shell] Failed to open containing folder:', error);
+		return false;
+	}
+}
+
+async function saveFileFromRenderer(payload = {}) {
+	const defaultFileName = sanitizeFileNameForSaveDialog(payload?.defaultFileName, 'export.bin');
+	const defaultDirectory = app.getPath('downloads');
+	const defaultPath = path.join(defaultDirectory, defaultFileName);
+	const filters = normalizeSaveDialogFilters(payload?.filters);
+
+	const saveResult = await dialog.showSaveDialog(mainWindow || undefined, {
+		title: 'Export File',
+		defaultPath,
+		filters: filters.length > 0 ? filters : [{ name: 'All Files', extensions: ['*'] }],
+		properties: ['createDirectory', 'showOverwriteConfirmation'],
+	});
+	if (saveResult.canceled || !saveResult.filePath) {
+		return { canceled: true, filePath: '' };
+	}
+
+	const fileBase64 = String(payload?.fileBase64 || '').trim();
+	if (!fileBase64) {
+		throw new Error('Missing export payload');
+	}
+
+	const fileBuffer = Buffer.from(fileBase64, 'base64');
+	await fs.promises.mkdir(path.dirname(saveResult.filePath), { recursive: true });
+	await fs.promises.writeFile(saveResult.filePath, fileBuffer);
+	return {
+		canceled: false,
+		filePath: saveResult.filePath,
+	};
 }
 
 function sanitizeSteamSyncSegment(value, fallback = 'local') {
@@ -928,9 +1017,11 @@ function createAppMenu(context = menuContext) {
 	const canImportExportProject = isProject;
 	const canSaveDialogue = isDialogue;
 	const canExportDialogue = isDialogue || isDialogueSettings;
+	const canOpenDialogueLastExport = canExportDialogue;
 	const canUndoRedoDialogue = isDialogue;
 	const canGraphNavigation = isDialogue;
 	const canSetContentLocale = (isDialogue || isDialogueSettings) && Boolean(normalizedContext.projectId);
+	const canOpenSync = !isDialogue;
 	const canShowTour = isDashboard || isDialogue;
 	const contentLocaleMenuItems = normalizedContext.supportedContentLocales.map((localeCode) => ({
 		label: getLocaleMenuLabel(localeCode),
@@ -955,6 +1046,220 @@ function createAppMenu(context = menuContext) {
 		: isDashboard
 			? 'Restart Dashboard Tour'
 			: 'Restart Tour';
+	const appendMenuSection = (menuItems, sectionItems = []) => {
+		if (!Array.isArray(sectionItems) || sectionItems.length === 0) return;
+		if (menuItems.length > 0 && menuItems[menuItems.length - 1]?.type !== 'separator') {
+			menuItems.push({ type: 'separator' });
+		}
+		menuItems.push(...sectionItems);
+	};
+
+	const fileTopItems = [];
+	if (canNavigateBack) {
+		fileTopItems.push({
+			label: 'Back',
+			accelerator: 'CmdOrCtrl+[',
+			click: () => sendMenuCommand('navigate-back'),
+		});
+	}
+	if (isDashboard) {
+		fileTopItems.push({
+			label: 'New Project',
+			accelerator: 'CmdOrCtrl+N',
+			click: () => sendMenuCommand('new-project'),
+		});
+	} else if (isProject) {
+		fileTopItems.push({
+			label: 'New Dialogue',
+			accelerator: 'CmdOrCtrl+N',
+			click: () => sendMenuCommand('new-dialogue'),
+		});
+	}
+	if (isDashboard) {
+		fileTopItems.push({
+			label: 'Find Projects',
+			accelerator: 'CmdOrCtrl+F',
+			click: () => sendMenuCommand('dashboard-focus-search'),
+		});
+	}
+	const fileMenuItems = [];
+	appendMenuSection(fileMenuItems, fileTopItems);
+
+	const projectFileItems = [];
+	if (canImportExportProject) {
+		projectFileItems.push(
+			{
+				label: 'Import Project',
+				accelerator: 'CmdOrCtrl+I',
+				enabled: true,
+				click: () => sendMenuCommand('project-import'),
+			},
+			{
+				label: 'Export Project',
+				accelerator: 'CmdOrCtrl+Shift+E',
+				enabled: true,
+				click: () => sendMenuCommand('project-export'),
+			},
+			{
+				label: 'Open Last Project Export Path',
+				enabled: true,
+				click: () => sendMenuCommand('project-open-last-export'),
+			}
+		);
+	}
+	if (projectFileItems.length > 0) {
+		appendMenuSection(fileMenuItems, projectFileItems);
+	}
+
+	const dialogueFileItems = [];
+	if (canSaveDialogue) {
+		dialogueFileItems.push({
+			label: 'Save Dialogue',
+			accelerator: 'CmdOrCtrl+S',
+			enabled: true,
+			click: () => sendMenuCommand('dialogue-save'),
+		});
+	}
+	if (canExportDialogue) {
+		dialogueFileItems.push({
+			label: 'Export Dialogue',
+			accelerator: 'CmdOrCtrl+E',
+			enabled: true,
+			click: () => sendMenuCommand('dialogue-export'),
+		});
+	}
+	if (canOpenDialogueLastExport) {
+		dialogueFileItems.push({
+			label: 'Open Last Dialogue Export Path',
+			enabled: true,
+			click: () => sendMenuCommand('dialogue-open-last-export'),
+		});
+	}
+	if (dialogueFileItems.length > 0) {
+		appendMenuSection(fileMenuItems, dialogueFileItems);
+	}
+
+	appendMenuSection(fileMenuItems, [isMac ? { role: 'close' } : { role: 'quit' }]);
+
+	const editMenuItems = [];
+	if (canUndoRedoDialogue) {
+		editMenuItems.push(
+			{
+				label: 'Undo',
+				accelerator: 'CmdOrCtrl+Z',
+				click: () => sendMenuCommand('dialogue-undo'),
+			},
+			{
+				label: 'Redo',
+				accelerator: isMac ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y',
+				click: () => sendMenuCommand('dialogue-redo'),
+			}
+		);
+	}
+
+	const viewMenuItems = [
+		{
+			label: 'Command Palette',
+			accelerator: 'CmdOrCtrl+K',
+			click: () => sendMenuCommand('open-command-palette'),
+		},
+	];
+	const viewDialogueItems = [];
+	if (isDialogue) {
+		viewDialogueItems.push({
+			label: 'Start Preview',
+			click: () => sendMenuCommand('dialogue-start-preview'),
+		});
+	}
+	if (canGraphNavigation) {
+		viewDialogueItems.push(
+			{
+				label: 'Recenter Graph',
+				click: () => sendMenuCommand('dialogue-recenter'),
+			},
+			{
+				label: 'Focus Start Node',
+				click: () => sendMenuCommand('dialogue-focus-start'),
+			}
+		);
+	}
+	appendMenuSection(viewMenuItems, viewDialogueItems);
+	appendMenuSection(viewMenuItems, [
+		{ role: 'resetZoom' },
+		{ role: 'zoomIn' },
+		{ role: 'zoomOut' },
+		{ role: 'togglefullscreen' },
+	]);
+
+	const settingsMenuItems = [
+		{
+			label: 'Theme',
+			submenu: [
+				{
+					label: 'Light',
+					click: () => sendMenuCommand('set-theme', { theme: 'light' }),
+				},
+				{
+					label: 'Dark',
+					click: () => sendMenuCommand('set-theme', { theme: 'dark' }),
+				},
+			],
+		},
+	];
+	if (canSetContentLocale && contentLocaleMenuItems.length > 0) {
+		settingsMenuItems.push({
+			label: 'Content Locale',
+			submenu: contentLocaleMenuItems,
+		});
+	}
+	settingsMenuItems.push({
+		label: 'Language',
+		submenu: languageMenuItems,
+	});
+	appendMenuSection(settingsMenuItems, [
+		{
+			label: settingsLabel,
+			accelerator: 'CmdOrCtrl+,',
+			click: () => sendMenuCommand('open-settings'),
+		},
+		...(canOpenSync
+			? [
+					{
+						label: 'Cloud Sync',
+						accelerator: 'CmdOrCtrl+Shift+S',
+						click: () => sendMenuCommand('open-sync'),
+					},
+			  ]
+			: []),
+	]);
+
+	const helpMenuItems = [];
+	if (canShowTour) {
+		helpMenuItems.push({
+			label: tourLabel,
+			click: () => sendMenuCommand('show-tour'),
+		});
+	}
+	appendMenuSection(helpMenuItems, [
+		{
+			label: 'Terms of Service',
+			click: () => sendMenuCommand('open-terms'),
+		},
+		{
+			label: 'Data Policy',
+			click: () => sendMenuCommand('open-data-policy'),
+		},
+	]);
+	appendMenuSection(helpMenuItems, [
+		{
+			label: 'Report Issue',
+			click: () => shell.openExternal(ISSUES_URL),
+		},
+		{
+			label: 'Community Discord',
+			click: () => shell.openExternal(SUPPORT_URL),
+		},
+	]);
 
 	const template = [
 		...(isMac
@@ -977,171 +1282,20 @@ function createAppMenu(context = menuContext) {
 			: []),
 		{
 			label: 'File',
-			submenu: [
-				{
-					label: 'Back',
-					accelerator: 'CmdOrCtrl+[',
-					enabled: canNavigateBack,
-					click: () => sendMenuCommand('navigate-back'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'New Project',
-					accelerator: 'CmdOrCtrl+N',
-					click: () => sendMenuCommand('new-project'),
-				},
-				{
-					label: 'Find Projects',
-					accelerator: 'CmdOrCtrl+F',
-					enabled: isDashboard,
-					click: () => sendMenuCommand('dashboard-focus-search'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Import Project',
-					accelerator: 'CmdOrCtrl+I',
-					enabled: canImportExportProject,
-					click: () => sendMenuCommand('project-import'),
-				},
-				{
-					label: 'Export Project',
-					accelerator: 'CmdOrCtrl+Shift+E',
-					enabled: canImportExportProject,
-					click: () => sendMenuCommand('project-export'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Save Dialogue',
-					accelerator: 'CmdOrCtrl+S',
-					enabled: canSaveDialogue,
-					click: () => sendMenuCommand('dialogue-save'),
-				},
-				{
-					label: 'Export Dialogue',
-					accelerator: 'CmdOrCtrl+E',
-					enabled: canExportDialogue,
-					click: () => sendMenuCommand('dialogue-export'),
-				},
-				{ type: 'separator' },
-				isMac ? { role: 'close' } : { role: 'quit' },
-			],
+			submenu: fileMenuItems,
 		},
-		{
-			label: 'Edit',
-			submenu: [
-				{
-					label: 'Undo',
-					accelerator: 'CmdOrCtrl+Z',
-					enabled: canUndoRedoDialogue,
-					click: () => sendMenuCommand('dialogue-undo'),
-				},
-				{
-					label: 'Redo',
-					accelerator: isMac ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y',
-					enabled: canUndoRedoDialogue,
-					click: () => sendMenuCommand('dialogue-redo'),
-				},
-			],
-		},
+		...(editMenuItems.length > 0 ? [{ label: 'Edit', submenu: editMenuItems }] : []),
 		{
 			label: 'View',
-			submenu: [
-				{
-					label: 'Command Palette',
-					accelerator: 'CmdOrCtrl+K',
-					click: () => sendMenuCommand('open-command-palette'),
-				},
-				{
-					label: 'Start Preview',
-					enabled: isDialogue,
-					click: () => sendMenuCommand('dialogue-start-preview'),
-				},
-				{
-					label: 'Recenter Graph',
-					enabled: canGraphNavigation,
-					click: () => sendMenuCommand('dialogue-recenter'),
-				},
-				{
-					label: 'Focus Start Node',
-					enabled: canGraphNavigation,
-					click: () => sendMenuCommand('dialogue-focus-start'),
-				},
-				{ type: 'separator' },
-				{ role: 'resetZoom' },
-				{ role: 'zoomIn' },
-				{ role: 'zoomOut' },
-				{ type: 'separator' },
-				{ role: 'togglefullscreen' },
-			],
+			submenu: viewMenuItems,
 		},
 		{
 			label: 'Settings',
-			submenu: [
-				{
-					label: 'Theme',
-					submenu: [
-						{
-							label: 'Light',
-							click: () => sendMenuCommand('set-theme', { theme: 'light' }),
-						},
-						{
-							label: 'Dark',
-							click: () => sendMenuCommand('set-theme', { theme: 'dark' }),
-						},
-					],
-				},
-				{
-					label: 'Content Locale',
-					enabled: canSetContentLocale,
-					submenu:
-						contentLocaleMenuItems.length > 0
-							? contentLocaleMenuItems
-							: [{ label: 'No locales available', enabled: false }],
-				},
-				{
-					label: 'Language',
-					submenu: languageMenuItems,
-				},
-				{ type: 'separator' },
-				{
-					label: settingsLabel,
-					accelerator: 'CmdOrCtrl+,',
-					click: () => sendMenuCommand('open-settings'),
-				},
-				{
-					label: 'Cloud Sync',
-					accelerator: 'CmdOrCtrl+Shift+S',
-					click: () => sendMenuCommand('open-sync'),
-				},
-			],
+			submenu: settingsMenuItems,
 		},
 		{
 			label: 'Help',
-			submenu: [
-				{
-					label: tourLabel,
-					enabled: canShowTour,
-					click: () => sendMenuCommand('show-tour'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Terms of Service',
-					click: () => sendMenuCommand('open-terms'),
-				},
-				{
-					label: 'Data Policy',
-					click: () => sendMenuCommand('open-data-policy'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Report Issue',
-					click: () => shell.openExternal(ISSUES_URL),
-				},
-				{
-					label: 'Community Discord',
-					click: () => shell.openExternal(SUPPORT_URL),
-				},
-			],
+			submenu: helpMenuItems,
 		},
 	];
 
@@ -1691,6 +1845,9 @@ function registerIpcHandlers() {
 	ipcMain.removeAllListeners('menu:set-context');
 	ipcMain.removeAllListeners('sync:trace');
 	ipcMain.removeHandler('shell:open-external');
+	ipcMain.removeHandler('shell:open-path');
+	ipcMain.removeHandler('shell:open-containing-folder');
+	ipcMain.removeHandler('dialog:save-file');
 	ipcMain.removeHandler('auth:start-google-oauth');
 	ipcMain.removeHandler('steam:get-status');
 	ipcMain.removeHandler('steam:open-overlay');
@@ -1708,6 +1865,18 @@ function registerIpcHandlers() {
 		}
 		await shell.openExternal(rawUrl);
 		return true;
+	});
+
+	ipcMain.handle('shell:open-path', async (_event, rawPath) => {
+		return await openPathInShell(rawPath);
+	});
+
+	ipcMain.handle('shell:open-containing-folder', async (_event, rawFilePath) => {
+		return await openContainingFolderInShell(rawFilePath);
+	});
+
+	ipcMain.handle('dialog:save-file', async (_event, payload) => {
+		return await saveFileFromRenderer(payload || {});
 	});
 
 	ipcMain.handle('auth:start-google-oauth', async (_event, payload) => {

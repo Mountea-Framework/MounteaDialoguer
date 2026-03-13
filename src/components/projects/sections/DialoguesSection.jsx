@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Upload, MessageCircle, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DialogueCard } from "@/components/projects/DialogueCard";
-import { CreateDialogueDialog } from "@/components/dialogues/CreateDialogueDialog";
 import { useDialogueStore } from "@/stores/dialogueStore";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
@@ -18,10 +17,9 @@ import { isMobileDevice } from "@/lib/deviceDetection";
  * Dialogues Section Component
  * Manages dialogues within a project
  */
-export function DialoguesSection({ projectId, dialogues = [] }) {
+export function DialoguesSection({ projectId, dialogues = [], onCreateDialogue }) {
   const { t } = useTranslation();
   const { importDialogue } = useDialogueStore();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef(null);
   const isMobile = isMobileDevice();
@@ -45,12 +43,6 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
 
   return (
     <div>
-      <CreateDialogueDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        projectId={projectId}
-      />
-
       <div className="flex items-start justify-between mb-6">
         <h2 className="text-2xl font-bold">
           {t("dialogues.title")} ({dialogues.length})
@@ -83,7 +75,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
             </DropdownMenu>
             <Button
               size="icon"
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={() => onCreateDialogue?.()}
               className="gap-2 flex-1 rounded-full"
             >
               <Plus className="h-4 w-4" />
@@ -104,7 +96,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
             </Button>
             <Button
               size="sm"
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={() => onCreateDialogue?.()}
               className="gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -120,7 +112,7 @@ export function DialoguesSection({ projectId, dialogues = [] }) {
           title={t("dialogues.noDialogues")}
           description={t("dialogues.createFirst")}
           action={
-            <Button type="button" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button type="button" onClick={() => onCreateDialogue?.()}>
               <Plus className="h-4 w-4 mr-2" />
               {t("dialogues.createNew")}
             </Button>
