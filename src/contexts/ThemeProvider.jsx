@@ -54,6 +54,20 @@ export function ThemeProvider({
 		return () => mediaQuery.removeEventListener('change', handleChange);
 	}, [theme]);
 
+	useEffect(() => {
+		const handleThemeCommand = (event) => {
+			const nextTheme = event?.detail?.theme;
+			if (!['light', 'dark', 'system'].includes(nextTheme)) return;
+			localStorage.setItem(storageKey, nextTheme);
+			setTheme(nextTheme);
+		};
+
+		window.addEventListener('app:set-theme', handleThemeCommand);
+		return () => {
+			window.removeEventListener('app:set-theme', handleThemeCommand);
+		};
+	}, [storageKey]);
+
 	const value = {
 		theme,
 		resolvedTheme,

@@ -15,8 +15,10 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
+import { SaveIndicator } from '@/components/ui/save-indicator';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { isMobileDevice } from '@/lib/deviceDetection';
+import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -44,10 +46,11 @@ export const Route = createFileRoute('/projects/$projectId/')({
 
 function ProjectDetailsPage() {
 	const { t } = useTranslation();
-	const { theme, resolvedTheme, setTheme } = useTheme();
+	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId } = Route.useParams();
 	const searchParams = Route.useSearch();
 	const isMobile = isMobileDevice();
+	const isDesktopElectron = isDesktopElectronRuntime();
 	const { projects, loadProjects, deleteProject, exportProject, importProject } =
 		useProjectStore();
 	const { dialogues, loadDialogues } = useDialogueStore();
@@ -222,7 +225,6 @@ function ProjectDetailsPage() {
 
 	return (
 		<div className={`${isMobile ? 'h-[100dvh]' : 'h-screen'} flex flex-col overflow-hidden`}>
-			{/* Header */}
 			<AppHeader
 				className={isMobileSidebarOpen ? 'z-40' : undefined}
 				left={
@@ -248,36 +250,34 @@ function ProjectDetailsPage() {
 					</>
 				}
 				right={
-					<div
-						className="hidden md:flex items-center text-xs font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full"
-						data-header-mobile-hidden
-					>
-						<span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-						{t('editor.saveStatus.saved')}
-					</div>
+					<span className="hidden md:flex" data-header-mobile-hidden>
+						<SaveIndicator status="saved" className="hidden md:flex" />
+					</span>
 				}
 				menuItems={
-					<>
-						<LanguageSelector />
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							className="justify-start"
-						>
-							{resolvedTheme === 'dark' ? (
-								<>
-									<Sun className="h-4 w-4 mr-2" />
-									{t('settings.lightMode')}
-								</>
-							) : (
-								<>
-									<Moon className="h-4 w-4 mr-2" />
-									{t('settings.darkMode')}
-								</>
-							)}
-						</Button>
-					</>
+					isDesktopElectron ? null : (
+						<>
+							<LanguageSelector />
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+								className="justify-start"
+							>
+								{resolvedTheme === 'dark' ? (
+									<>
+										<Sun className="h-4 w-4 mr-2" />
+										{t('settings.lightMode')}
+									</>
+								) : (
+									<>
+										<Moon className="h-4 w-4 mr-2" />
+										{t('settings.darkMode')}
+									</>
+								)}
+							</Button>
+						</>
+					)
 				}
 			/>
 

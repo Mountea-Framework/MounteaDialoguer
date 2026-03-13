@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
+import { trackFirstCategoryCreated } from '@/lib/achievements/achievementTracker';
 
 export const useCategoryStore = create((set, get) => ({
 	categories: [],
@@ -167,6 +168,11 @@ export const useCategoryStore = create((set, get) => ({
 			};
 
 			await db.categories.add(newCategory);
+			try {
+				await trackFirstCategoryCreated(categoryData.projectId);
+			} catch (error) {
+				console.warn('[achievements] Failed to track first category:', error);
+			}
 			await get().loadCategories(categoryData.projectId);
 			useSyncStore.getState().schedulePush(categoryData.projectId);
 			toast({

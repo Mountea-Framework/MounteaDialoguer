@@ -335,8 +335,16 @@
 		"title": "Synchronizacja w chmurze",
 		"description": "Połącz Google Drive, aby synchronizować projekty między urządzeniami.",
 		"providers": {
+			"steam": "Steam",
 			"googleDrive": "Google Drive",
 			"none": "Brak połączenia"
+		},
+		"steam": {
+			"openOverlay": "Overlay",
+			"profile": "Profil Steam: {{account}}",
+			"overlayReady": "Nakładka jest gotowa. Możesz też użyć Shift+Tab.",
+			"overlayUnavailable": "Nakładka jest niedostępna w tej sesji.",
+			"overlayUnavailableHint": "Uruchom aplikację ze Steam, aby włączyć nakładkę."
 		},
 		"status": {
 			"connected": "Połączono",

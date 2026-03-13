@@ -79,6 +79,22 @@
 	background: hsl(var(--muted-foreground));
 }
 
+/* Hide scrollbars on desktop/non-mobile web while preserving scroll behavior. */
+html.hide-scrollbars,
+html.hide-scrollbars body,
+html.hide-scrollbars * {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+html.hide-scrollbars::-webkit-scrollbar,
+html.hide-scrollbars body::-webkit-scrollbar,
+html.hide-scrollbars *::-webkit-scrollbar {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
 /* Grid background pattern for canvas */
 .grid-bg {
 	background-size: 20px 20px;

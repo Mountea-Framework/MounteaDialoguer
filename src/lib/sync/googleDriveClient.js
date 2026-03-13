@@ -1,5 +1,6 @@
 import { getSyncAccount, upsertSyncAccount } from '@/lib/sync/syncStorage';
 import { refreshAccessToken } from '@/lib/sync/googleDriveAuth';
+import { getGoogleDriveSyncRoot } from '@/lib/sync/googleDriveConfig';
 
 const DRIVE_FILES_ENDPOINT = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_ENDPOINT = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -81,17 +82,59 @@ function buildMultipartBody(metadata, content, mimeType) {
 	return { body, boundary };
 }
 
+function buildFindFileQuery(fileName, syncRoot) {
+	const safeName = fileName.replace(/'/g, "\\'");
+	if (syncRoot.type === 'teamFolder') {
+		return [`name='${safeName}'`, `'${syncRoot.folderId}' in parents`, 'trashed=false'].join(
+			' and '
+		);
+	}
+
+	return [`name='${safeName}'`, "'appDataFolder' in parents"].join(' and ');
+}
+
+function buildListFilesQuery(namePrefix, syncRoot) {
+	const queryParts = [];
+	if (syncRoot.type === 'teamFolder') {
+		queryParts.push(`'${syncRoot.folderId}' in parents`);
+		queryParts.push('trashed=false');
+	} else {
+		queryParts.push("'appDataFolder' in parents");
+	}
+
+	if (namePrefix) {
+		const safePrefix = namePrefix.replace(/'/g, "\\'");
+		queryParts.push(`name contains '${safePrefix}'`);
+	}
+
+	return queryParts.join(' and ');
+}
+
+function appendScopeParams(params, syncRoot) {
+	if (syncRoot.type === 'teamFolder') {
+		params.set('supportsAllDrives', 'true');
+		params.set('includeItemsFromAllDrives', 'true');
+		return;
+	}
+
+	params.set('spaces', 'appDataFolder');
+}
+
+function appendFileAccessParams(params, syncRoot) {
+	if (syncRoot.type === 'teamFolder') {
+		params.set('supportsAllDrives', 'true');
+	}
+}
+
 export async function findAppDataFile(fileName) {
-	const query = [
-		`name='${fileName.replace(/'/g, "\\'")}'`,
-		"'appDataFolder' in parents",
-	].join(' and ');
+	const syncRoot = getGoogleDriveSyncRoot();
+	const query = buildFindFileQuery(fileName, syncRoot);
 
 	const params = new URLSearchParams({
 		q: query,
-		spaces: 'appDataFolder',
 		fields: 'files(id,name,modifiedTime,appProperties)',
 	});
+	appendScopeParams(params, syncRoot);
 
 	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, null, params);
 	const response = await driveRequest(url);
@@ -100,21 +143,18 @@ export async function findAppDataFile(fileName) {
 }
 
 export async function listAppDataFiles({ namePrefix } = {}) {
-	const queryParts = ["'appDataFolder' in parents"];
-	if (namePrefix) {
-		const safePrefix = namePrefix.replace(/'/g, "\\'");
-		queryParts.push(`name contains '${safePrefix}'`);
-	}
+	const syncRoot = getGoogleDriveSyncRoot();
+	const query = buildListFilesQuery(namePrefix, syncRoot);
 
 	const files = [];
 	let pageToken = null;
 
 	do {
 		const params = new URLSearchParams({
-			q: queryParts.join(' and '),
-			spaces: 'appDataFolder',
+			q: query,
 			fields: 'nextPageToken,files(id,name,modifiedTime,appProperties)',
 		});
+		appendScopeParams(params, syncRoot);
 
 		if (pageToken) {
 			params.set('pageToken', pageToken);
@@ -133,16 +173,19 @@ export async function listAppDataFiles({ namePrefix } = {}) {
 }
 
 export async function downloadAppDataFile(fileId) {
+	const syncRoot = getGoogleDriveSyncRoot();
 	const params = new URLSearchParams({ alt: 'media' });
+	appendFileAccessParams(params, syncRoot);
 	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, fileId, params);
 	const response = await driveRequest(url);
 	return await response.text();
 }
 
 export async function createAppDataFile({ name, content, mimeType, appProperties }) {
+	const syncRoot = getGoogleDriveSyncRoot();
 	const metadata = {
 		name,
-		parents: ['appDataFolder'],
+		parents: [syncRoot.type === 'teamFolder' ? syncRoot.folderId : 'appDataFolder'],
 		appProperties,
 	};
 	const { body, boundary } = buildMultipartBody(metadata, content, mimeType);
@@ -150,6 +193,7 @@ export async function createAppDataFile({ name, content, mimeType, appProperties
 		uploadType: 'multipart',
 		fields: 'id,modifiedTime,appProperties',
 	});
+	appendFileAccessParams(params, syncRoot);
 
 	const url = buildDriveUrl(DRIVE_UPLOAD_ENDPOINT, null, params);
 	const response = await driveRequest(url, {
@@ -164,6 +208,7 @@ export async function createAppDataFile({ name, content, mimeType, appProperties
 }
 
 export async function updateAppDataFile({ fileId, content, mimeType, appProperties }) {
+	const syncRoot = getGoogleDriveSyncRoot();
 	const metadata = {
 		appProperties,
 	};
@@ -172,6 +217,7 @@ export async function updateAppDataFile({ fileId, content, mimeType, appProperti
 		uploadType: 'multipart',
 		fields: 'id,modifiedTime,appProperties',
 	});
+	appendFileAccessParams(params, syncRoot);
 
 	const url = buildDriveUrl(DRIVE_UPLOAD_ENDPOINT, fileId, params);
 	const response = await driveRequest(url, {

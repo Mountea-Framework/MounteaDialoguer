@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
+import { trackFirstDecoratorCreated } from '@/lib/achievements/achievementTracker';
 
 export const useDecoratorStore = create((set, get) => ({
 	decorators: [],
@@ -41,6 +42,11 @@ export const useDecoratorStore = create((set, get) => ({
 			};
 
 			await db.decorators.add(newDecorator);
+			try {
+				await trackFirstDecoratorCreated(decoratorData.projectId);
+			} catch (error) {
+				console.warn('[achievements] Failed to track first decorator:', error);
+			}
 			await get().loadDecorators(decoratorData.projectId);
 			useSyncStore.getState().schedulePush(decoratorData.projectId);
 			toast({
@@ -162,7 +168,14 @@ export const useDecoratorStore = create((set, get) => ({
 				.toArray();
 
 			// Remove projectId and timestamps for clean export
-			return decorators.map(({ id, projectId, createdAt, modifiedAt, ...rest }) => rest);
+			return decorators.map((decorator) => {
+				const exported = { ...decorator };
+				delete exported.id;
+				delete exported.projectId;
+				delete exported.createdAt;
+				delete exported.modifiedAt;
+				return exported;
+			});
 		} catch (error) {
 			console.error('Error exporting decorators:', error);
 			toast({

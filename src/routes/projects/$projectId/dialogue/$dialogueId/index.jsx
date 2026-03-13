@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
@@ -43,6 +43,7 @@ import {
 	LocateFixed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ButtonGroup } from '@/components/ui/button-group';
 import {
 	AlertDialog,
@@ -60,6 +61,7 @@ import { Label } from '@/components/ui/label';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUIStore } from '@/stores/uiStore';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useConditionStore } from '@/stores/conditionStore';
@@ -68,8 +70,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
-import { useToast, toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
+import { toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuShortcut,
+	ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 // Custom Node Components
 import StartNode from '@/components/dialogue/nodes/StartNode';
@@ -95,10 +104,16 @@ import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionM
 import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
 import { getDeviceType } from '@/lib/deviceDetection';
 import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
+import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
 import {
 	getNodeDefinition,
 	getNodeDefaultData,
 } from '@/config/dialogueNodes';
+import {
+	normalizeLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import { getLocalizationLocaleLabel } from '@/lib/localization/localeCatalog';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -132,16 +147,81 @@ const getInitialNodes = (t) => [
 
 const initialEdges = [];
 
+const noop = () => {};
+
+const NodeContextMenuContext = createContext({
+	onDeleteNode: noop,
+});
+
+const useNodeContextMenu = () => useContext(NodeContextMenuContext);
+
+const NodeContextMenuProvider = ({ value, children }) => {
+	return (
+		<NodeContextMenuContext.Provider value={value || { onDeleteNode: noop }}>
+			{children}
+		</NodeContextMenuContext.Provider>
+	);
+};
+
+const withNodeContextMenu = (NodeComponent) => {
+	const WrappedNode = (props) => {
+		const { t } = useTranslation();
+		const { onDeleteNode } = useNodeContextMenu();
+		const isPlaceholder = props.type === 'placeholderNode';
+		const canDelete = !isPlaceholder && props.id !== START_NODE_ID;
+
+		if (isPlaceholder) {
+			return <NodeComponent {...props} />;
+		}
+
+		return (
+			<ContextMenu>
+				<ContextMenuTrigger asChild>
+					<div>
+						<NodeComponent {...props} />
+					</div>
+				</ContextMenuTrigger>
+				<ContextMenuContent className="w-40">
+					<ContextMenuItem
+						variant="destructive"
+						disabled={!canDelete}
+						onSelect={(event) => {
+							event.preventDefault();
+							if (!canDelete) return;
+							onDeleteNode?.(props.id);
+						}}
+					>
+						{t('common.delete')}
+						<ContextMenuShortcut>Del</ContextMenuShortcut>
+					</ContextMenuItem>
+				</ContextMenuContent>
+			</ContextMenu>
+		);
+	};
+
+	WrappedNode.displayName = `WithNodeContextMenu(${NodeComponent.displayName || NodeComponent.name || 'Node'})`;
+	return WrappedNode;
+};
+
+const StartNodeWithContextMenu = withNodeContextMenu(StartNode);
+const LeadNodeWithContextMenu = withNodeContextMenu(LeadNode);
+const AnswerNodeWithContextMenu = withNodeContextMenu(AnswerNode);
+const ReturnNodeWithContextMenu = withNodeContextMenu(ReturnNode);
+const OpenChildGraphNodeWithContextMenu = withNodeContextMenu(OpenChildGraphNode);
+const CompleteNodeWithContextMenu = withNodeContextMenu(CompleteNode);
+const DelayNodeWithContextMenu = withNodeContextMenu(DelayNode);
+const PlaceholderNodeWithContextMenu = withNodeContextMenu(PlaceholderNode);
+
 // Node type definitions
 const nodeTypes = {
-	startNode: StartNode,
-	leadNode: LeadNode,
-	answerNode: AnswerNode,
-	returnNode: ReturnNode,
-	openChildGraphNode: OpenChildGraphNode,
-	completeNode: CompleteNode,
-	delayNode: DelayNode,
-	placeholderNode: PlaceholderNode,
+	startNode: StartNodeWithContextMenu,
+	leadNode: LeadNodeWithContextMenu,
+	answerNode: AnswerNodeWithContextMenu,
+	returnNode: ReturnNodeWithContextMenu,
+	openChildGraphNode: OpenChildGraphNodeWithContextMenu,
+	completeNode: CompleteNodeWithContextMenu,
+	delayNode: DelayNodeWithContextMenu,
+	placeholderNode: PlaceholderNodeWithContextMenu,
 };
 const edgeTypes = {
 	conditionEdge: ConditionEdge,
@@ -160,6 +240,8 @@ const DEFAULT_NODE_SIZE_BY_TYPE = {
 const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
 const START_NODE_ANCHOR_POSITION = { x: 0, y: 0 };
 const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 };
+const FLOW_MIN_ZOOM = 0.1;
+const FLOW_MAX_ZOOM = 2;
 
 const parseSize = (value) => {
 	if (typeof value === 'number') return value;
@@ -205,7 +287,6 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 	const dagreGraph = new dagre.graphlib.Graph();
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-	const isHorizontal = direction === 'LR';
 	dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 100 });
 
 	nodes.forEach((node) => {
@@ -241,7 +322,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 		? {
 				x: START_NODE_ANCHOR_POSITION.x - layoutedStartNode.position.x,
 				y: START_NODE_ANCHOR_POSITION.y - layoutedStartNode.position.y,
-		  }
+		}
 		: { x: 0, y: 0 };
 
 	const layoutedNodes = rawLayoutedNodes.map((node) => ({
@@ -257,15 +338,35 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 function DialogueEditorPage() {
 	const { t } = useTranslation();
-	const { theme, resolvedTheme, setTheme } = useTheme();
+	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
 		useDialogueStore();
+	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
+	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 	const { participants, loadParticipants } = useParticipantStore();
 	const { decorators, loadDecorators } = useDecoratorStore();
 	const { conditions, loadConditions } = useConditionStore();
 	const { categories, loadCategories } = useCategoryStore();
+	const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
+	const dialogue = useMemo(() => dialogues.find((d) => d.id === dialogueId), [dialogues, dialogueId]);
+	const projectLocalization = useMemo(
+		() => normalizeProjectLocalizationConfig(project?.localization || {}),
+		[project?.localization]
+	);
+	const localizationEnabled = Boolean(projectLocalization.enabled);
+	const contentLocale = useMemo(() => {
+		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
+		if (
+			savedLocale &&
+			Array.isArray(projectLocalization.supportedLocales) &&
+			projectLocalization.supportedLocales.includes(savedLocale)
+		) {
+			return savedLocale;
+		}
+		return projectLocalization.defaultLocale;
+	}, [contentLocaleByProject, projectId, projectLocalization]);
 
 	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -283,7 +384,6 @@ function DialogueEditorPage() {
 	const [selectedNode, setSelectedNode] = useState(null);
 	const [selectedEdge, setSelectedEdge] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const [saveSuccess, setSaveSuccess] = useState(false);
 	const [saveStatus, setSaveStatus] = useState('saved');
 	const [lastSaved, setLastSaved] = useState(null);
 	const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
@@ -296,21 +396,25 @@ function DialogueEditorPage() {
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
-	const { dismiss } = useToast();
 	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const openCommandPalette = useCommandPaletteStore((state) => state.openWithActions);
 
 	// Device detection
 	const [deviceType, setDeviceType] = useState('desktop');
+	const isDesktopElectron = isDesktopElectronRuntime();
 	const [isNodeTypeModalOpen, setIsNodeTypeModalOpen] = useState(false);
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
+	const graphLoadKeyRef = useRef('');
+	const hasPendingNodeDataEditsRef = useRef(false);
 	const headerRef = useRef(null);
+	const bottomToolbarRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
 	const mobileLoaderStartedAtRef = useRef(null);
+	const [hideBottomToolbarMeta, setHideBottomToolbarMeta] = useState(false);
 
 	// Detect device type on mount and window resize
 	useEffect(() => {
@@ -340,6 +444,29 @@ function DialogueEditorPage() {
 			window.removeEventListener('resize', updateHeaderHeight);
 		};
 	}, []);
+
+	useLayoutEffect(() => {
+		if (deviceType === 'mobile') {
+			setHideBottomToolbarMeta(false);
+			return undefined;
+		}
+		if (!bottomToolbarRef.current) return undefined;
+
+		const updateBottomToolbarDensity = () => {
+			const width = bottomToolbarRef.current?.getBoundingClientRect().width || 0;
+			setHideBottomToolbarMeta(width < 1320);
+		};
+
+		updateBottomToolbarDensity();
+		const observer = new ResizeObserver(updateBottomToolbarDensity);
+		observer.observe(bottomToolbarRef.current);
+		window.addEventListener('resize', updateBottomToolbarDensity);
+
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', updateBottomToolbarDensity);
+		};
+	}, [deviceType]);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') {
@@ -403,6 +530,13 @@ function DialogueEditorPage() {
 	useEffect(() => {
 		const loadGraph = async () => {
 			if (dialogueId) {
+				const loadKey = `${dialogueId}:${contentLocale}`;
+				if (graphLoadKeyRef.current === loadKey) {
+					return;
+				}
+				graphLoadKeyRef.current = loadKey;
+				hasPendingNodeDataEditsRef.current = false;
+
 				setHasGraphInitialized(false);
 				setHasLoadedViewport(false);
 				setHasInitialLayout(false);
@@ -414,7 +548,9 @@ function DialogueEditorPage() {
 				setShowDesktopGraphLoader(getDeviceType() !== 'mobile');
 
 				try {
-					const result = await loadDialogueGraph(dialogueId);
+					const result = await loadDialogueGraph(dialogueId, {
+						activeLocale: contentLocale,
+					});
 					const { nodes: loadedNodes, edges: loadedEdges, viewport: loadedViewport } = result;
 
 					if (loadedNodes.length > 0 || loadedEdges.length > 0) {
@@ -432,6 +568,7 @@ function DialogueEditorPage() {
 						setHasLoadedViewport(true);
 					}
 				} catch (error) {
+					graphLoadKeyRef.current = '';
 					console.error('Failed to load dialogue graph:', error);
 				} finally {
 					setHasGraphInitialized(true);
@@ -439,11 +576,17 @@ function DialogueEditorPage() {
 			}
 		};
 		loadGraph();
-	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance]);
+	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance, contentLocale]);
 
 	const isMobileGraphLoading =
 		deviceType === 'mobile' &&
 		(!hasGraphInitialized || (!hasLoadedViewport && (!hasInitialLayout || !hasInitialFocus)));
+
+	useEffect(() => {
+		if (!dialogueId) {
+			graphLoadKeyRef.current = '';
+		}
+	}, [dialogueId]);
 
 	useEffect(() => {
 		if (deviceType !== 'mobile') {
@@ -632,18 +775,24 @@ function DialogueEditorPage() {
 	const prevSelectedNodeRef = useRef(selectedNode);
 	useEffect(() => {
 		const prevNode = prevSelectedNodeRef.current;
-		if (prevNode && prevNode !== selectedNode) {
-			// User switched to a different node or deselected, save current state
+		if (
+			prevNode &&
+			prevNode !== selectedNode &&
+			hasPendingNodeDataEditsRef.current
+		) {
+			// User left an edited node: create one undo checkpoint.
 			saveToHistory(nodes, edges);
-			markUnsaved();
+			hasPendingNodeDataEditsRef.current = false;
 		}
 		prevSelectedNodeRef.current = selectedNode;
-	}, [selectedNode, nodes, edges, saveToHistory, markUnsaved]);
+	}, [selectedNode, nodes, edges, saveToHistory]);
 
 	// Warn before leaving with unsaved changes
+	const shouldWarnOnLeave = hasUnsavedChanges && saveStatus !== 'saved';
+
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
-			if (hasUnsavedChanges) {
+			if (shouldWarnOnLeave) {
 				e.preventDefault();
 				e.returnValue = '';
 				return '';
@@ -652,11 +801,11 @@ function DialogueEditorPage() {
 
 		window.addEventListener('beforeunload', handleBeforeUnload);
 		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-	}, [hasUnsavedChanges]);
+	}, [shouldWarnOnLeave]);
 
 	const blocker = useBlocker({
-		shouldBlockFn: () => hasUnsavedChanges,
-		enableBeforeUnload: true,
+		shouldBlockFn: () => shouldWarnOnLeave,
+		enableBeforeUnload: false,
 		withResolver: true,
 	});
 
@@ -681,8 +830,6 @@ function DialogueEditorPage() {
 		};
 	}, []);
 
-	const project = projects.find((p) => p.id === projectId);
-	const dialogue = dialogues.find((d) => d.id === dialogueId);
 	const availableConditionDefinitions = conditions.filter((condition) => condition.projectId === projectId);
 	const selectedNodeDefinition = selectedNode
 		? getNodeDefinition(selectedNode.type)
@@ -694,12 +841,22 @@ function DialogueEditorPage() {
 
 		const label = field.labelKey ? t(field.labelKey) : field.label || '';
 		const requiredLabel = field.required ? `${label} *` : label;
+		const labelContent = (
+			<span className="inline-flex items-center gap-2">
+				<span>{requiredLabel}</span>
+				{field.localizable ? (
+					<Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+						{t('editor.localization.localizableBadge', { defaultValue: 'Localizable' })}
+					</Badge>
+				) : null}
+			</span>
+		);
 
 		switch (field.type) {
 			case 'text':
 				return (
 					<div className="grid gap-2" key={field.id}>
-						<Label htmlFor={field.id}>{requiredLabel}</Label>
+						<Label htmlFor={field.id}>{labelContent}</Label>
 						<Input
 							id={field.id}
 							value={selectedNode.data[field.id] || ''}
@@ -751,7 +908,7 @@ function DialogueEditorPage() {
 
 					return (
 						<div className="space-y-2" key={field.id}>
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
 								value={selectedNode.data[field.id] || ''}
@@ -799,7 +956,7 @@ function DialogueEditorPage() {
 
 					return (
 						<div className="space-y-2" key={field.id}>
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
 								value={selectedNode.data[field.id] || ''}
@@ -830,7 +987,7 @@ function DialogueEditorPage() {
 
 					return (
 						<div className="space-y-2" key={field.id}>
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
 								value={selectedNode.data[field.id] || ''}
@@ -851,18 +1008,19 @@ function DialogueEditorPage() {
 					);
 				}
 				return null;
-			case 'dialogueRows':
-				return (
-					<div className="space-y-2" key={field.id}>
-						<DialogueRowsPanel
-							dialogueRows={selectedNode.data.dialogueRows || []}
-							onChange={(newRows) =>
-								updateNodeData(selectedNode.id, { dialogueRows: newRows })
-							}
-							participants={participants}
-						/>
-					</div>
-				);
+				case 'dialogueRows':
+					return (
+						<div className="space-y-2" key={field.id}>
+							<DialogueRowsPanel
+								dialogueRows={selectedNode.data.dialogueRows || []}
+								onChange={(newRows) =>
+									updateNodeData(selectedNode.id, { dialogueRows: newRows })
+								}
+								participants={participants}
+								isLocalizable={Boolean(field.localizable)}
+							/>
+						</div>
+					);
 			case 'decorators':
 				return (
 					<DecoratorsPanel
@@ -891,7 +1049,7 @@ function DialogueEditorPage() {
 				return (
 					<div className="space-y-2" key={field.id}>
 						<div className="flex items-center justify-between">
-							<Label htmlFor={field.id}>{requiredLabel}</Label>
+							<Label htmlFor={field.id}>{labelContent}</Label>
 							<span className="text-xs text-muted-foreground">
 								{selectedNode.data[field.id] ?? field.min}
 								{field.unit ? ` ${field.unit}` : ''}
@@ -916,7 +1074,7 @@ function DialogueEditorPage() {
 				return (
 					<div key={field.id}>
 						<Label className="text-xs text-muted-foreground">
-							{requiredLabel}
+							{labelContent}
 						</Label>
 						<code className="text-xs font-mono bg-muted px-2 py-1 rounded block mt-1">
 							{selectedNode.id}
@@ -952,7 +1110,7 @@ function DialogueEditorPage() {
 									...(edge.data || {}),
 									...newData,
 								},
-						  }
+						}
 						: edge
 				);
 				saveToHistory(nodes, updatedEdges);
@@ -1038,40 +1196,46 @@ function DialogueEditorPage() {
 		setSelectedEdge(null);
 	}, []);
 
+	const deleteNodeById = useCallback((nodeId) => {
+		if (!nodeId || nodeId === START_NODE_ID) return;
+
+		setNodes((nds) => {
+			const placeholderIdsToRemove = nds
+				.filter(
+					(n) =>
+						n.type === 'placeholderNode' &&
+						n.data?.parentNodeId === nodeId
+				)
+				.map((n) => n.id);
+
+			const updatedNodes = nds.filter(
+				(n) => n.id !== nodeId && !placeholderIdsToRemove.includes(n.id)
+			);
+
+			// Also remove edges connected to this node or its placeholders.
+			setEdges((eds) => {
+				const updatedEdges = eds.filter(
+					(e) =>
+						e.source !== nodeId &&
+						e.target !== nodeId &&
+						!placeholderIdsToRemove.includes(e.source) &&
+						!placeholderIdsToRemove.includes(e.target)
+				);
+				saveToHistory(updatedNodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+			return updatedNodes;
+		});
+
+		setSelectedNode((current) => (current?.id === nodeId ? null : current));
+	}, [setNodes, setEdges, saveToHistory, markUnsaved]);
+
 	// Delete selected node
 	const deleteSelectedNode = useCallback(() => {
-		if (selectedNode && selectedNode.id !== '00000000-0000-0000-0000-000000000001') {
-			setNodes((nds) => {
-				const placeholderIdsToRemove = nds
-					.filter(
-						(n) =>
-							n.type === 'placeholderNode' &&
-							n.data?.parentNodeId === selectedNode.id
-					)
-					.map((n) => n.id);
-
-				const updatedNodes = nds.filter(
-					(n) => n.id !== selectedNode.id && !placeholderIdsToRemove.includes(n.id)
-				);
-
-				// Also remove edges connected to this node or its placeholders
-				setEdges((eds) => {
-					const updatedEdges = eds.filter(
-						(e) =>
-							e.source !== selectedNode.id &&
-							e.target !== selectedNode.id &&
-							!placeholderIdsToRemove.includes(e.source) &&
-							!placeholderIdsToRemove.includes(e.target)
-					);
-					saveToHistory(updatedNodes, updatedEdges);
-					markUnsaved();
-					return updatedEdges;
-				});
-				return updatedNodes;
-			});
-			setSelectedNode(null);
-		}
-	}, [selectedNode, setNodes, setEdges, saveToHistory, markUnsaved]);
+		if (!selectedNode) return;
+		deleteNodeById(selectedNode.id);
+	}, [selectedNode, deleteNodeById]);
 
 	const deleteSelectedNodeCascade = useCallback(() => {
 		if (!selectedNode || selectedNode.id === '00000000-0000-0000-0000-000000000001') {
@@ -1276,7 +1440,7 @@ function DialogueEditorPage() {
 						? t(reasonKey, {
 								count: validationResult.details?.count || 0,
 								max: validationResult.details?.maxNodes || 100,
-						  })
+						})
 						: t(reasonKey),
 			});
 			return;
@@ -1292,7 +1456,6 @@ function DialogueEditorPage() {
 	// Handle save
 	const handleSave = useCallback(async () => {
 		setIsSaving(true);
-		setSaveSuccess(false);
 		setSaveStatus('saving');
 		try {
 			clearToasts();
@@ -1304,14 +1467,15 @@ function DialogueEditorPage() {
 			logMissingRequiredNodes();
 			showValidationToasts(missingRequiredNodes);
 
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
+				activeLocale: contentLocale,
+			});
 			const now = new Date();
 			setLastSaved(now);
-			setSaveSuccess(true);
 			setSaveStatus('saved');
 			setHasUnsavedChanges(false);
+			hasPendingNodeDataEditsRef.current = false;
 			celebrateSuccess();
-			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (error) {
 			console.error('Failed to save dialogue:', error);
 			setSaveStatus('error');
@@ -1325,12 +1489,12 @@ function DialogueEditorPage() {
 		viewport,
 		dialogueId,
 		saveDialogueGraph,
+		contentLocale,
 		getMissingRequiredNodes,
 		logMissingRequiredNodes,
 		showValidationToasts,
 		clearToasts,
 		setIsSaving,
-		setSaveSuccess,
 		setSaveStatus,
 		setHasUnsavedChanges,
 		setLastSaved,
@@ -1340,15 +1504,30 @@ function DialogueEditorPage() {
 	// Update node data (without saving to history on every keystroke)
 	const updateNodeData = useCallback(
 		(nodeId, newData) => {
+			let didChange = false;
 			setNodes((nds) =>
 				nds.map((node) =>
 					node.id === nodeId
-						? { ...node, data: { ...node.data, ...newData } }
+						? (() => {
+								const currentData = node.data || {};
+								const hasValueChange = Object.entries(newData || {}).some(
+									([key, value]) => currentData[key] !== value
+								);
+								if (!hasValueChange) {
+									return node;
+								}
+								didChange = true;
+								return { ...node, data: { ...currentData, ...newData } };
+						})()
 						: node
 				)
 			);
+			if (didChange) {
+				hasPendingNodeDataEditsRef.current = true;
+				markUnsaved();
+			}
 		},
-		[setNodes]
+		[setNodes, markUnsaved]
 	);
 
 	// Add decorator to node
@@ -1403,7 +1582,7 @@ function DialogueEditorPage() {
 										(_, idx) => idx !== decoratorIndex
 									),
 								},
-						  }
+						}
 						: node
 				);
 				saveToHistory(updatedNodes, edges);
@@ -1931,7 +2110,9 @@ function DialogueEditorPage() {
 			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
 
 			// Save first to ensure we export the latest version
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport);
+			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
+				activeLocale: contentLocale,
+			});
 			// Then export
 			await exportDialogue(dialogueId);
 		} catch (error) {
@@ -1939,27 +2120,141 @@ function DialogueEditorPage() {
 		}
 	};
 
+	const handleContentLocaleChange = useCallback(
+		(nextValueOrEvent) => {
+			const rawNextValue =
+				typeof nextValueOrEvent === 'string'
+					? nextValueOrEvent
+					: nextValueOrEvent?.target?.value;
+			const nextLocale = normalizeLocaleTag(
+				rawNextValue,
+				projectLocalization.defaultLocale
+			);
+			if (!localizationEnabled || !projectId) return;
+			if (nextLocale === contentLocale) return;
+			if (hasUnsavedChanges) {
+				toastStandalone({
+					variant: 'error',
+					title: t('editor.localization.unsavedSwitchTitle', {
+						defaultValue: 'Save Required',
+					}),
+					description: t('editor.localization.unsavedSwitchDescription', {
+						defaultValue: 'Save your changes before switching content locale.',
+					}),
+				});
+				return;
+			}
+			setProjectContentLocale(projectId, nextLocale);
+		},
+		[
+			contentLocale,
+			hasUnsavedChanges,
+			localizationEnabled,
+			projectId,
+			projectLocalization.defaultLocale,
+			setProjectContentLocale,
+			t,
+		]
+	);
+
 	useEffect(() => {
-		const handleCommandSave = (event) => {
+		const matchesDialogue = (event) => {
 			const detail = event?.detail;
-			if (!detail || detail.dialogueId !== dialogueId) return;
+			return Boolean(detail && detail.dialogueId === dialogueId);
+		};
+
+		const handleCommandSave = (event) => {
+			if (!matchesDialogue(event)) return;
 			handleSave();
 		};
 
 		const handleCommandExport = (event) => {
-			const detail = event?.detail;
-			if (!detail || detail.dialogueId !== dialogueId) return;
+			if (!matchesDialogue(event)) return;
 			handleExport();
+		};
+
+		const handleCommandUndo = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleUndo();
+		};
+
+		const handleCommandRedo = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleRedo();
+		};
+
+		const handleCommandStartPreview = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleStartPreview();
+		};
+
+		const handleCommandRecenter = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleRecenterGraph();
+		};
+
+		const handleCommandFocusStart = (event) => {
+			if (!matchesDialogue(event)) return;
+			handleFocusStartNode();
+		};
+
+		const handleCommandShowTour = (event) => {
+			if (!matchesDialogue(event)) return;
+			resetTour();
+		};
+		const handleCommandSetContentLocale = (event) => {
+			if (!matchesDialogue(event)) return;
+			const locale = String(event?.detail?.locale || '').trim();
+			if (!locale) return;
+			handleContentLocaleChange(locale);
 		};
 
 		window.addEventListener('command:dialogue-save', handleCommandSave);
 		window.addEventListener('command:dialogue-export', handleCommandExport);
+		window.addEventListener('command:dialogue-undo', handleCommandUndo);
+		window.addEventListener('command:dialogue-redo', handleCommandRedo);
+		window.addEventListener('command:dialogue-start-preview', handleCommandStartPreview);
+		window.addEventListener('command:dialogue-recenter', handleCommandRecenter);
+		window.addEventListener('command:dialogue-focus-start', handleCommandFocusStart);
+		window.addEventListener('command:dialogue-show-tour', handleCommandShowTour);
+		window.addEventListener(
+			'command:dialogue-set-content-locale',
+			handleCommandSetContentLocale
+		);
 
 		return () => {
 			window.removeEventListener('command:dialogue-save', handleCommandSave);
 			window.removeEventListener('command:dialogue-export', handleCommandExport);
+			window.removeEventListener('command:dialogue-undo', handleCommandUndo);
+			window.removeEventListener('command:dialogue-redo', handleCommandRedo);
+			window.removeEventListener('command:dialogue-start-preview', handleCommandStartPreview);
+			window.removeEventListener('command:dialogue-recenter', handleCommandRecenter);
+			window.removeEventListener('command:dialogue-focus-start', handleCommandFocusStart);
+			window.removeEventListener('command:dialogue-show-tour', handleCommandShowTour);
+			window.removeEventListener(
+				'command:dialogue-set-content-locale',
+				handleCommandSetContentLocale
+			);
 		};
-	}, [dialogueId, handleSave, handleExport]);
+	}, [
+		dialogueId,
+		handleContentLocaleChange,
+		handleExport,
+		handleFocusStartNode,
+		handleRecenterGraph,
+		handleRedo,
+		handleSave,
+		handleStartPreview,
+		handleUndo,
+		resetTour,
+	]);
+
+	const nodeContextMenuValue = useMemo(
+		() => ({
+			onDeleteNode: deleteNodeById,
+		}),
+		[deleteNodeById]
+	);
 
 	if (!dialogue || !project) {
 		return (
@@ -1980,176 +2275,203 @@ function DialogueEditorPage() {
 				/>
 			)}
 
-			{/* Header */}
 			<AppHeader
-				ref={headerRef}
-				data-tour="editor-header"
-				left={
-					<>
-						<Link to="/projects/$projectId" params={{ projectId }}>
-							<Button variant="ghost" size="icon" className="rounded-full shrink-0">
-								<ArrowLeft className="h-5 w-5" />
-							</Button>
-						</Link>
-						<div className="min-w-0 flex flex-row items-baseline gap-2" data-header-title>
-							<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
-							<p className="hidden md:flex text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
-						</div>
-					</>
-				}
-				right={
-					<>
-						<span className="hidden md:flex" data-header-mobile-hidden>
-							<SaveIndicator
-								status={saveStatus}
-								lastSaved={lastSaved}
-								className="hidden md:flex"
-							/>
-						</span>
+					ref={headerRef}
+					data-tour="editor-header"
+					left={
+						<>
+							<Link to="/projects/$projectId" params={{ projectId }}>
+								<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+									<ArrowLeft className="h-5 w-5" />
+								</Button>
+							</Link>
+							<div className="min-w-0 flex flex-row items-baseline gap-2" data-header-title>
+								<h1 className="text-sm md:text-2xl font-bold tracking-tight truncate">{dialogue.name}</h1>
+								<p className="hidden md:flex text-xs md:text-sm text-muted-foreground truncate">{project.name}</p>
+							</div>
+						</>
+					}
+					right={
+						<>
+							<span className="hidden md:flex" data-header-mobile-hidden>
+								<SaveIndicator
+									status={saveStatus}
+									lastSaved={lastSaved}
+									className="hidden md:flex"
+								/>
+							</span>
 
-						{/* Command Palette Trigger */}
-						<Button
-							variant="outline"
-							size="icon"
-							className="rounded-full"
-							data-tour="save-button"
-							onClick={() =>
-								openCommandPalette({
-									placeholder: t('common.search'),
-									actions: [
-										{
-											group: t('editor.menu.file'),
-											items: [
+							{!isDesktopElectron && (
+								<Button
+									variant="outline"
+									size="icon"
+									className="rounded-full"
+									data-tour="save-button"
+									onClick={() =>
+										openCommandPalette({
+											placeholder: t('common.search'),
+											actions: [
 												{
-													icon: Save,
-													label: isSaving ? t('common.saving') : t('common.save'),
-													shortcut: 'Ctrl+S',
-													onSelect: handleSave,
+													group: t('editor.menu.file'),
+													items: [
+														{
+															icon: Save,
+															label: isSaving ? t('common.saving') : t('common.save'),
+															shortcut: 'Ctrl+S',
+															onSelect: handleSave,
+														},
+														{
+															icon: Download,
+															label: t('common.export'),
+															shortcut: 'Ctrl+E',
+															onSelect: handleExport,
+														},
+														...(deviceType !== 'mobile'
+															? [
+																	{
+																		icon: PlayCircle,
+																		label: t('editor.preview.start'),
+																		shortcut: '',
+																		onSelect: handleStartPreview,
+																	},
+																]
+															: []),
+													],
 												},
 												{
-													icon: Download,
-													label: t('common.export'),
-													shortcut: 'Ctrl+E',
-													onSelect: handleExport,
+													group: t('editor.menu.edit'),
+													items: [
+														{
+															icon: Undo2,
+															label: t('editor.menu.undo'),
+															shortcut: 'Ctrl+Z',
+															onSelect: handleUndo,
+														},
+														{
+															icon: Redo2,
+															label: t('editor.menu.redo'),
+															shortcut: 'Ctrl+Y',
+															onSelect: handleRedo,
+														},
+													],
 												},
-												...(deviceType !== 'mobile'
-													? [
-															{
-																icon: PlayCircle,
-																label: t('editor.preview.start'),
-																shortcut: '',
-																onSelect: handleStartPreview,
-															},
-													  ]
-													: []),
+												{
+													group: t('editor.menu.view'),
+													items: [
+														...(localizationEnabled
+															? [
+																	{
+																		key: 'content-locale-selector',
+																		render: () => (
+																			<div className="flex items-center gap-3">
+																				<span className="text-xs font-medium text-muted-foreground">
+																					{t('editor.localization.contentLocale', {
+																						defaultValue: 'Content locale',
+																					})}
+																				</span>
+																				<NativeSelect
+																					value={contentLocale}
+																					onChange={handleContentLocaleChange}
+																					className="h-9 min-w-[11rem]"
+																				>
+																					{projectLocalization.supportedLocales.map((locale) => (
+																						<option key={locale} value={locale}>
+																							{getLocalizationLocaleLabel(locale)} ({locale})
+																						</option>
+																					))}
+																				</NativeSelect>
+																			</div>
+																		),
+																	},
+																]
+															: []),
+														{
+															key: 'language-selector',
+															render: () => (
+																<div className="flex items-center gap-3">
+																	<span className="text-xs font-medium text-muted-foreground">
+																		{t('settings.language')}
+																	</span>
+																	<LanguageSelector />
+																</div>
+															),
+														},
+														{
+															icon: resolvedTheme === 'dark' ? Sun : Moon,
+															label:
+																resolvedTheme === 'dark'
+																	? t('settings.lightMode')
+																	: t('settings.darkMode'),
+															shortcut: '',
+															onSelect: () =>
+																setTheme(
+																	resolvedTheme === 'dark' ? 'light' : 'dark'
+																),
+														},
+														{
+															icon: Crosshair,
+															label: t('editor.nodeToolbar.recenter'),
+															shortcut: '',
+															onSelect: handleRecenterGraph,
+														},
+														{
+															icon: LocateFixed,
+															label: t('editor.nodeToolbar.backToStart'),
+															shortcut: '',
+															onSelect: handleFocusStartNode,
+														},
+														...(deviceType !== 'mobile'
+															? [
+																	{
+																		icon: HelpCircle,
+																		label: t('editor.menu.showTour'),
+																		shortcut: '',
+																		onSelect: resetTour,
+																	},
+																]
+															: []),
+													],
+												},
+												{
+													group: t('settings.title'),
+													items: [
+														{
+															icon: Settings,
+															label: t('settings.title'),
+															shortcut: '',
+															onSelect: () =>
+																openSettingsCommand({
+																	context: {
+																		type: 'dialogue',
+																		name: dialogue.name,
+																		projectId,
+																		dialogueId,
+																	},
+																	mode: 'detail',
+																}),
+														},
+														{
+															icon: Heart,
+															label: t('editor.menu.support'),
+															shortcut: '',
+															onSelect: () =>
+																window.open(
+																	'https://github.com/sponsors/Mountea-Framework',
+																	'_blank'
+																),
+														},
+													],
+												},
 											],
-										},
-										{
-											group: t('editor.menu.edit'),
-											items: [
-												{
-													icon: Undo2,
-													label: t('editor.menu.undo'),
-													shortcut: 'Ctrl+Z',
-													onSelect: handleUndo,
-												},
-												{
-													icon: Redo2,
-													label: t('editor.menu.redo'),
-													shortcut: 'Ctrl+Y',
-													onSelect: handleRedo,
-												},
-											],
-										},
-										{
-											group: t('editor.menu.view'),
-											items: [
-												{
-													key: 'language-selector',
-													render: () => (
-														<div className="flex items-center gap-3">
-															<span className="text-xs font-medium text-muted-foreground">
-																{t('settings.language')}
-															</span>
-															<LanguageSelector />
-														</div>
-													),
-												},
-												{
-													icon: resolvedTheme === 'dark' ? Sun : Moon,
-													label:
-														resolvedTheme === 'dark'
-															? t('settings.lightMode')
-															: t('settings.darkMode'),
-													shortcut: '',
-													onSelect: () =>
-														setTheme(
-															resolvedTheme === 'dark' ? 'light' : 'dark'
-														),
-												},
-												{
-													icon: Crosshair,
-													label: t('editor.nodeToolbar.recenter'),
-													shortcut: '',
-													onSelect: handleRecenterGraph,
-												},
-												{
-													icon: LocateFixed,
-													label: t('editor.nodeToolbar.backToStart'),
-													shortcut: '',
-													onSelect: handleFocusStartNode,
-												},
-												...(deviceType !== 'mobile'
-													? [
-															{
-																icon: HelpCircle,
-																label: t('editor.menu.showTour'),
-																shortcut: '',
-																onSelect: resetTour,
-															},
-													  ]
-													: []),
-											],
-										},
-										{
-											group: t('settings.title'),
-											items: [
-												{
-													icon: Settings,
-													label: t('settings.title'),
-													shortcut: '',
-													onSelect: () =>
-														openSettingsCommand({
-															context: {
-																type: 'dialogue',
-																name: dialogue.name,
-																projectId,
-																dialogueId,
-															},
-															mode: 'detail',
-														}),
-												},
-												{
-													icon: Heart,
-													label: t('editor.menu.support'),
-													shortcut: '',
-													onSelect: () =>
-														window.open(
-															'https://github.com/sponsors/Mountea-Framework',
-															'_blank'
-														),
-												},
-											],
-										},
-									],
-								})
-							}
-						>
-							<MoreVertical className="h-4 w-4" />
-						</Button>
-					</>
-				}
-			/>
+										})
+									}
+								>
+									<MoreVertical className="h-4 w-4" />
+								</Button>
+							)}
+						</>
+					}
+				/>
 
 			{/* Main Content */}
 			<div className="flex-1 flex overflow-hidden">
@@ -2160,70 +2482,76 @@ function DialogueEditorPage() {
 					onDragOver={deviceType !== 'mobile' ? onDragOver : undefined}
 					data-tour="canvas"
 				>
-					<ReactFlow
-						nodes={previewDisplayNodes}
-						edges={previewDisplayEdges}
-						onNodesChange={onNodesChange}
-						onEdgesChange={onEdgesChange}
-						onConnect={onConnect}
-						onNodeClick={onNodeClick}
-						onEdgeClick={onEdgeClick}
-						onPaneClick={onPaneClick}
-						onMove={onMove}
-						onInit={setReactFlowInstance}
-				isValidConnection={isConnectionAllowed}
-				nodeTypes={nodeTypes}
-				edgeTypes={edgeTypes}
-				className="bg-grid"
-				proOptions={{ hideAttribution: true }}
-				// Mobile: Disable node dragging but allow manual panning via drag
-				nodesDraggable={deviceType !== 'mobile'}
-				panOnDrag={true}
-				panOnScroll={false}
-				zoomOnScroll={false}
-				zoomOnPinch={false}
-				zoomOnDoubleClick={false}
-				nodesConnectable={deviceType !== 'mobile'}
-				elementsSelectable={true}
-				minZoom={0.5}
-				maxZoom={2}
-			>
-				<Background />
-				<Panel position="bottom-left" className="mb-2">
-					<div className="bg-card border border-border rounded-full shadow-lg px-2 py-2 absolute bottom-6 flex flex-col items-center gap-1">
-						<SimpleTooltip content={t('editor.nodeToolbar.recenterTooltip')} side="top">
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={handleRecenterGraph}
-							>
-								<Crosshair className="h-4 w-4" />
-							</Button>
-						</SimpleTooltip>
-						<SimpleTooltip content={t('editor.nodeToolbar.startFocusTooltip')} side="top">
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={handleFocusStartNode}
-							>
-								<LocateFixed className="h-4 w-4" />
-							</Button>
-						</SimpleTooltip>
-						<div className="w-6 h-px bg-border my-1" />
-						<ZoomSlider className="!p-0 !bg-transparent !border-0 !shadow-none " />
-					</div>
-				</Panel>
-				{deviceType !== 'mobile' && (
-					<MiniMap
-						nodeColor={getMinimapColor}
-						className="!bg-card !border !border-border !rounded-lg !shadow-lg"
-						maskColor="rgb(0, 0, 0, 0.1)"
-						data-tour="minimap"
-					/>
-				)}
-			</ReactFlow>
+					<NodeContextMenuProvider value={nodeContextMenuValue}>
+						<ReactFlow
+							nodes={previewDisplayNodes}
+							edges={previewDisplayEdges}
+							onNodesChange={onNodesChange}
+							onEdgesChange={onEdgesChange}
+							onConnect={onConnect}
+							onNodeClick={onNodeClick}
+							onEdgeClick={onEdgeClick}
+							onPaneClick={onPaneClick}
+							onMove={onMove}
+							onInit={setReactFlowInstance}
+					isValidConnection={isConnectionAllowed}
+					nodeTypes={nodeTypes}
+					edgeTypes={edgeTypes}
+					className="bg-grid"
+					proOptions={{ hideAttribution: true }}
+					// Mobile: Disable node dragging but allow manual panning via drag
+					nodesDraggable={deviceType !== 'mobile'}
+					panOnDrag={true}
+					panOnScroll={false}
+					zoomOnScroll={deviceType !== 'mobile'}
+					zoomOnPinch={false}
+					zoomOnDoubleClick={false}
+					nodesConnectable={deviceType !== 'mobile'}
+					elementsSelectable={true}
+					minZoom={FLOW_MIN_ZOOM}
+					maxZoom={FLOW_MAX_ZOOM}
+				>
+					<Background />
+					<Panel position="bottom-left" className="mb-2">
+						<div className="bg-card border border-border rounded-full shadow-lg px-2 py-2 absolute bottom-6 flex flex-col items-center gap-1">
+							<SimpleTooltip content={t('editor.nodeToolbar.recenterTooltip')} side="top">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={handleRecenterGraph}
+								>
+									<Crosshair className="h-4 w-4" />
+								</Button>
+							</SimpleTooltip>
+							<SimpleTooltip content={t('editor.nodeToolbar.startFocusTooltip')} side="top">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={handleFocusStartNode}
+								>
+									<LocateFixed className="h-4 w-4" />
+								</Button>
+							</SimpleTooltip>
+							<div className="w-6 h-px bg-border my-1" />
+							<ZoomSlider
+								className="!p-0 !bg-transparent !border-0 !shadow-none "
+								minZoom={FLOW_MIN_ZOOM}
+								maxZoom={FLOW_MAX_ZOOM}
+							/>
+						</div>
+					</Panel>
+					{deviceType !== 'mobile' && (
+						<MiniMap
+							nodeColor={getMinimapColor}
+							className="!bg-card !border !border-border !rounded-lg !shadow-lg"
+							maskColor="rgb(0, 0, 0, 0.1)"
+							data-tour="minimap"
+						/>
+					)}
+				</ReactFlow>
+					</NodeContextMenuProvider>
 
 					{deviceType !== 'mobile' && (
 						<DialoguePreviewOverlay
@@ -2430,12 +2758,13 @@ function DialogueEditorPage() {
 			{/* Bottom Toolbar - Hidden on mobile */}
 			{deviceType !== 'mobile' && (
 			<div
-				className={`border-t bg-card px-6 py-3 flex items-center justify-between transition-opacity ${
+				ref={bottomToolbarRef}
+				className={`border-t bg-card px-6 py-3 flex items-center gap-4 transition-opacity ${
 					isPreviewOpen ? 'pointer-events-none opacity-40 select-none' : ''
 				}`}
 				data-tour="node-toolbar"
 			>
-				<div className="flex items-center gap-2">
+				<div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					<SimpleTooltip content={t('editor.nodeToolbar.autoLayoutTooltip')} side="top">
 						<Button
 							variant="outline"
@@ -2452,6 +2781,7 @@ function DialogueEditorPage() {
 							variant="outline"
 							size="sm"
 							className="gap-2"
+							data-tour="preview-button"
 							onClick={handleStartPreview}
 						>
 							<PlayCircle className="h-4 w-4" />
@@ -2541,13 +2871,19 @@ function DialogueEditorPage() {
 						</Button>
 					</SimpleTooltip>
 				</div>
-				<div className="flex items-center gap-4 text-sm text-muted-foreground">
-					<span>
-						{nodes.length} {t('dialogues.nodes')} • {edges.length}{' '}
-						{t('dialogues.edges')}
-					</span>
-					<span className="text-xs hidden md:block">
-						{t('editor.nodeToolbar.poweredBy')}{' '}
+				<div className="shrink-0 whitespace-nowrap flex items-center gap-4 text-sm text-muted-foreground">
+					{!hideBottomToolbarMeta && (
+						<span>
+							{nodes.length} {t('dialogues.nodes')} • {edges.length}{' '}
+							{t('dialogues.edges')}
+						</span>
+					)}
+					<span className="text-xs">
+						{!hideBottomToolbarMeta && (
+							<>
+								{t('editor.nodeToolbar.poweredBy')}{' '}
+							</>
+						)}
 						<a
 							href="https://reactflow.dev"
 							target="_blank"

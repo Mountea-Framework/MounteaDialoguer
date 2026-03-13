@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Trash2, Plus, Volume2, Play, Pause, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,12 @@ import {
  * Displays and manages multiple dialogue rows for a node
  * Uses collapsible design similar to decorators
  */
-export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = [] }) {
+export function DialogueRowsPanel({
+	dialogueRows = [],
+	onChange,
+	participants = [],
+	isLocalizable = false,
+}) {
 	const { toast } = useToast();
 	const [expandedRows, setExpandedRows] = useState(new Set([0])); // First row expanded by default
 	const [playingAudio, setPlayingAudio] = useState(null); // Track which row ID is playing audio
@@ -373,7 +379,14 @@ export function DialogueRowsPanel({ dialogueRows = [], onChange, participants = 
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center justify-between">
-				<Label className="text-sm font-bold">Dialogue Rows</Label>
+				<div className="inline-flex items-center gap-2">
+					<Label className="text-sm font-bold">Dialogue Rows</Label>
+					{isLocalizable ? (
+						<Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+							Localizable
+						</Badge>
+					) : null}
+				</div>
 				<span className="text-xs text-muted-foreground">
 					{dialogueRows.length} {dialogueRows.length === 1 ? 'row' : 'rows'}
 				</span>

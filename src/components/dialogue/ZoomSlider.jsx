@@ -7,7 +7,7 @@ import { Minus, Plus } from 'lucide-react';
  */
 export function ZoomSlider({
 	className = '',
-	minZoom = 0.5,
+	minZoom = 0.1,
 	maxZoom = 2,
 	step = 0.1,
 }) {

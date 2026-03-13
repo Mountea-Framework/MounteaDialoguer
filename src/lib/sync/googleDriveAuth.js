@@ -1,16 +1,11 @@
+import { getGoogleDriveScopes } from '@/lib/sync/googleDriveConfig';
+
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const CLIENT_ID_STORAGE_KEY = 'mountea-google-client-id';
 
 const STORAGE_KEY = 'mountea-dialoguer-auth-state';
-
-const SCOPES = [
-	'https://www.googleapis.com/auth/drive.appdata',
-	'openid',
-	'email',
-	'profile',
-];
 
 export function getStoredClientId() {
 	if (typeof window === 'undefined') return '';
@@ -27,9 +22,31 @@ export function setStoredClientId(value) {
 	window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, trimmed);
 }
 
+function getElectronApi() {
+	if (typeof window === 'undefined') return null;
+	if (typeof window.electronAPI !== 'object' || !window.electronAPI) return null;
+	return window.electronAPI;
+}
+
+function resolveEnvClientId() {
+	const electronApi = getElectronApi();
+	if (electronApi?.isElectron) {
+		return import.meta.env.VITE_GOOGLE_CLIENT_ID_DESKTOP || import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+	}
+	return import.meta.env.VITE_GOOGLE_CLIENT_ID_WEB || import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+}
+
 export function getConfiguredClientId() {
 	const stored = getStoredClientId();
-	return stored || import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+	const envClientId = resolveEnvClientId();
+	const electronApi = getElectronApi();
+
+	// In Electron prefer env-configured desktop client ID over stale persisted values.
+	if (electronApi?.isElectron) {
+		return envClientId || stored;
+	}
+
+	return stored || envClientId;
 }
 
 function getClientId() {
@@ -90,6 +107,34 @@ function waitForAuthResult(expectedState) {
 
 export async function startGoogleDriveAuth() {
 	const clientId = getClientId();
+	const scopes = getGoogleDriveScopes();
+	const electronApi = getElectronApi();
+	if (electronApi?.isElectron && typeof electronApi.startGoogleOAuth === 'function') {
+		const desktopClientSecret =
+			import.meta.env.VITE_GOOGLE_CLIENT_SECRET_DESKTOP ||
+			import.meta.env.VITE_GOOGLE_CLIENT_SECRET ||
+			'';
+		const result = await electronApi.startGoogleOAuth({
+			clientId,
+			clientSecret: desktopClientSecret,
+			scopes,
+		});
+
+		if (!result?.accessToken) {
+			throw new Error('Missing access token');
+		}
+
+		return {
+			accessToken: result.accessToken,
+			refreshToken: result.refreshToken || '',
+			expiresIn: result.expiresIn,
+			tokenType: result.tokenType,
+			scope: result.scope,
+			redirectUri: result.redirectUri || '',
+			clientId: result.clientId || clientId,
+		};
+	}
+
 	const redirectUri = getRedirectUri();
 	const state = randomString(16);
 	storeAuthState(state);
@@ -98,7 +143,7 @@ export async function startGoogleDriveAuth() {
 		client_id: clientId,
 		redirect_uri: redirectUri,
 		response_type: 'token',
-		scope: SCOPES.join(' '),
+		scope: scopes.join(' '),
 		state,
 		prompt: 'consent',
 	});
@@ -109,8 +154,12 @@ export async function startGoogleDriveAuth() {
 		throw new Error('Popup blocked');
 	}
 
-	const result = await waitForAuthResult(state);
-	clearAuthState();
+	let result;
+	try {
+		result = await waitForAuthResult(state);
+	} finally {
+		clearAuthState();
+	}
 
 	if (!result?.accessToken) {
 		throw new Error('Missing access token');
@@ -118,6 +167,7 @@ export async function startGoogleDriveAuth() {
 
 	return {
 		accessToken: result.accessToken,
+		refreshToken: '',
 		expiresIn: result.expiresIn,
 		tokenType: result.tokenType,
 		scope: result.scope,

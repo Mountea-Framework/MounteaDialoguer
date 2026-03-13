@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import {
 	startGoogleDriveAuth,
 	fetchUserInfo,
@@ -19,40 +19,229 @@ import {
 	syncAllProjects as syncAllProjectsEngine,
 } from '@/lib/sync/syncEngine';
 import { getSyncAccount, upsertSyncAccount, clearSyncAccount } from '@/lib/sync/syncStorage';
+import {
+	SYNC_PROVIDER_IDS,
+	getSyncProviderConfig,
+	normalizeSyncProviderId,
+	supportsCloudSync,
+} from '@/lib/sync/providers/providerRegistry';
+import { buildProfileScopedKey, getActiveProfileId } from '@/lib/profile/activeProfile';
 
 const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
+const DEFAULT_PROVIDER_INPUT = Object.freeze({
+	accountLabel: '',
+	passphrase: '',
+	rememberPassphrase: true,
+});
+const DEFAULT_PULL_STATE = Object.freeze({
+	active: false,
+	step: 'checking',
+	progress: 0,
+	projectId: null,
+	mode: 'project',
+	current: 0,
+	total: 0,
+});
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
+
+const NOOP_PROFILE_STORAGE = Object.freeze({
+	getItem: () => null,
+	setItem: () => {},
+	removeItem: () => {},
+});
+
+const profileScopedSyncStorage = createJSONStorage(() => {
+	if (typeof window === 'undefined' || !window.localStorage) {
+		return NOOP_PROFILE_STORAGE;
+	}
+
+	return {
+		getItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			return window.localStorage.getItem(key);
+		},
+		setItem: (name, value) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.setItem(key, value);
+		},
+		removeItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.removeItem(key);
+		},
+	};
+});
+
+function traceSyncEvent(event, details = {}) {
+	const eventName = String(event || 'event');
+	const safeDetails = details && typeof details === 'object' ? details : {};
+	const stampedDetails = {
+		...safeDetails,
+		atIso: new Date().toISOString(),
+		atMs: Date.now(),
+	};
+	console.log(`[sync] ${eventName}`, stampedDetails);
+	if (typeof window === 'undefined') return;
+	const electronApi = window.electronAPI;
+	if (typeof electronApi?.traceSyncEvent !== 'function') return;
+	electronApi.traceSyncEvent({
+		event: eventName,
+		details: stampedDetails,
+	});
+}
+
+function normalizeProviderId(value) {
+	return normalizeSyncProviderId(value);
+}
+
+function createProviderInput(input = {}) {
+	return {
+		accountLabel: String(input?.accountLabel || ''),
+		passphrase: String(input?.passphrase || ''),
+		rememberPassphrase:
+			input?.rememberPassphrase === undefined ? true : Boolean(input.rememberPassphrase),
+	};
+}
+
+function createProviderInputs(seed = {}) {
+	const inputs = {};
+	for (const providerId of SYNC_PROVIDER_IDS) {
+		inputs[providerId] = createProviderInput(seed?.[providerId]);
+	}
+	return inputs;
+}
+
+function withProviderInput(state, providerId, patch = {}) {
+	const id = normalizeProviderId(providerId);
+	if (!id || !SYNC_PROVIDER_IDS.includes(id)) {
+		return createProviderInputs(state.providerInputs);
+	}
+
+	const currentInputs = createProviderInputs(state.providerInputs);
+	currentInputs[id] = {
+		...currentInputs[id],
+		...patch,
+	};
+	return currentInputs;
+}
+
+function getProviderInputFromState(state, providerId) {
+	const id = normalizeProviderId(providerId);
+	if (!id) return { ...DEFAULT_PROVIDER_INPUT };
+	const value = state?.providerInputs?.[id];
+	return createProviderInput(value);
+}
+
+function getProviderPassphraseFromState(state, providerId) {
+	const input = getProviderInputFromState(state, providerId);
+	return String(input.passphrase || '');
+}
+
+function resolveSyncPassphrase(state, providerId) {
+	const explicitPassphrase = getProviderPassphraseFromState(state, providerId);
+	if (explicitPassphrase && explicitPassphrase.trim()) {
+		return explicitPassphrase;
+	}
+
+	const providerConfig = getSyncProviderConfig(providerId);
+	if (providerConfig?.requiresPassphrase === false) {
+		const profileId = getActiveProfileId();
+		return `auto:${providerId}:${profileId}:v1`;
+	}
+
+	return '';
+}
+
+function createResetPullState(mode = 'project') {
+	return {
+		...DEFAULT_PULL_STATE,
+		mode,
+	};
+}
+
+function createPersistedProviderInputs(providerInputs) {
+	const normalized = createProviderInputs(providerInputs);
+	const persisted = {};
+	for (const providerId of SYNC_PROVIDER_IDS) {
+		const input = normalized[providerId];
+		persisted[providerId] = {
+			...input,
+			passphrase: input.rememberPassphrase ? input.passphrase : '',
+		};
+	}
+	return persisted;
+}
+
+function resolveCloudProviderId(state) {
+	const providerId = normalizeProviderId(state?.provider);
+	if (!providerId) return '';
+	if (!canUseCloudSyncProvider(providerId)) return '';
+	return providerId;
+}
+
+function canUseCloudSyncProvider(providerId) {
+	return Boolean(providerId) && supportsCloudSync(providerId);
+}
+
+function canRunSyncForStatus(providerId, status) {
+	const normalizedProvider = normalizeProviderId(providerId);
+	if (normalizedProvider === 'steam') {
+		// Steam provider should remain usable even if Google auth set a global error.
+		return status !== 'syncing';
+	}
+	return status === 'connected';
+}
 
 export const useSyncStore = create(
 	persist(
 		(set, get) => ({
 			provider: null,
 			status: 'disconnected',
-			accountLabel: '',
+			providerInputs: createProviderInputs(),
 			lastSyncedAt: null,
 			error: null,
-			passphrase: '',
 			clientId: getStoredClientId(),
-			rememberPassphrase: true,
 			hideLoginPrompt: false,
 			loginDialogOpen: false,
 			syncMode: 'pull',
 			hasHydrated: false,
-			pullState: {
-				active: false,
-				step: 'checking',
-				progress: 0,
-				projectId: null,
-				mode: 'project',
-				current: 0,
-				total: 0,
+			pullState: createResetPullState('project'),
+
+			getProviderInput: (providerId) => {
+				return getProviderInputFromState(get(), providerId);
+			},
+			getProviderPassphrase: (providerId = null) => {
+				const currentState = get();
+				const activeProvider = providerId || currentState.provider;
+				return getProviderPassphraseFromState(currentState, activeProvider);
+			},
+			setProviderInput: (providerId, patch = {}) => {
+				set((state) => ({
+					providerInputs: withProviderInput(state, providerId, patch),
+				}));
+			},
+			setProviderPassphrase: (providerId, value) => {
+				get().setProviderInput(providerId, { passphrase: String(value || '') });
+			},
+			setProviderAccountLabel: (providerId, value) => {
+				get().setProviderInput(providerId, { accountLabel: String(value || '') });
+			},
+			setProviderRememberPassphrase: (providerId, value) => {
+				get().setProviderInput(providerId, { rememberPassphrase: Boolean(value) });
 			},
 
-			setPassphrase: (value) => set({ passphrase: value }),
-			setAccountLabel: (value) => set({ accountLabel: value }),
-			setRememberPassphrase: (value) => set({ rememberPassphrase: value }),
+			// Backward-compatible aliases (Google provider only).
+			setPassphrase: (value) => {
+				get().setProviderPassphrase('googleDrive', value);
+			},
+			setAccountLabel: (value) => {
+				get().setProviderAccountLabel('googleDrive', value);
+			},
+			setRememberPassphrase: (value) => {
+				get().setProviderRememberPassphrase('googleDrive', value);
+			},
+
 			setClientId: (value) => {
 				setStoredClientId(value);
 				set({ clientId: value });
@@ -63,23 +252,103 @@ export const useSyncStore = create(
 			setLoginDialogOpen: (value) => set({ loginDialogOpen: value }),
 			setSyncMode: (value) => set({ syncMode: value }),
 
-			loadAccount: async () => {
+			loadAccount: async (options = {}) => {
+				const steamStatus = options?.steamStatus || null;
+				const preferredProvider = normalizeProviderId(get().provider);
+				const steamAvailable = Boolean(steamStatus?.available);
+				const steamChannel =
+					String(steamStatus?.channel || '').trim().toLowerCase() === 'steam';
+				const steamIdentity = String(
+					steamStatus?.personaName || steamStatus?.steamId || ''
+				);
 				const account = await getSyncAccount('googleDrive');
-				if (!account) return;
-				set({
-					provider: 'googleDrive',
-					status: 'connected',
-					accountLabel: account.email || account.accountId || '',
-					clientId: getConfiguredClientId(),
+				const shouldPreferSteam =
+					steamAvailable && (steamChannel || preferredProvider === 'steam');
+
+				if (shouldPreferSteam) {
+					set((state) => ({
+						provider: 'steam',
+						status: 'connected',
+						clientId: getConfiguredClientId(),
+						error: null,
+						providerInputs: withProviderInput(state, 'steam', {
+							accountLabel: steamIdentity,
+						}),
+					}));
+					traceSyncEvent('AUTH_CONNECTED', {
+						provider: 'steam',
+						account: steamIdentity,
+						available: true,
+						source: 'auto-load',
+					});
+					return;
+				}
+
+				if (account) {
+					set((state) => ({
+						provider: 'googleDrive',
+						status: 'connected',
+						clientId: getConfiguredClientId(),
+						providerInputs: withProviderInput(state, 'googleDrive', {
+							accountLabel: account.email || account.accountId || '',
+						}),
+					}));
+					return;
+				}
+
+				if (steamAvailable) {
+					set((state) => ({
+						provider: 'steam',
+						status: 'connected',
+						error: null,
+						providerInputs: withProviderInput(state, 'steam', {
+							accountLabel: steamIdentity,
+						}),
+					}));
+					return;
+				}
+
+				set({ provider: null, status: 'disconnected' });
+			},
+
+			connectSteamProvider: async (steamStatus) => {
+				const isAvailable = Boolean(steamStatus?.available);
+				const identity = String(steamStatus?.personaName || steamStatus?.steamId || '');
+				set((state) => ({
+					provider: 'steam',
+					status: isAvailable ? 'connected' : 'disconnected',
+					error: null,
+					providerInputs: withProviderInput(state, 'steam', {
+						accountLabel: identity,
+					}),
+				}));
+				traceSyncEvent('AUTH_CONNECTED', {
+					provider: 'steam',
+					account: identity,
+					available: isAvailable,
 				});
+				if (isAvailable) {
+					await get().syncAllProjects({
+						mode: 'full',
+						trigger: 'steam-connect',
+					});
+				}
+				return isAvailable;
 			},
 
 			connectGoogleDrive: async () => {
-				const { passphrase } = get();
+				const stateBeforeAuth = get();
+				const passphrase = getProviderPassphraseFromState(get(), 'googleDrive');
 				try {
 					getGoogleClientId();
 				} catch (error) {
-					set({ error: 'missingClientId', status: 'error' });
+					set((state) => ({
+						error: 'missingClientId',
+						status:
+							normalizeProviderId(state.provider) === 'steam'
+								? state.status || 'connected'
+								: 'error',
+					}));
 					return false;
 				}
 
@@ -90,7 +359,7 @@ export const useSyncStore = create(
 
 				set({ status: 'connecting', error: null });
 				try {
-					console.log('[sync] Starting Google auth');
+					traceSyncEvent('AUTH_START', { provider: 'googleDrive' });
 					const authResult = await startGoogleDriveAuth();
 					const accessToken = authResult.accessToken;
 					const expiresIn = Number(authResult.expiresIn || 3600);
@@ -103,19 +372,24 @@ export const useSyncStore = create(
 						accountId: userInfo.sub || userInfo.id || '',
 						email: userInfo.email || '',
 						accessToken,
-						refreshToken: existing?.refreshToken || '',
+						refreshToken: authResult.refreshToken || existing?.refreshToken || '',
 						expiresAt,
 						scope: authResult.scope,
 						tokenType: authResult.tokenType,
 					});
 
-					set({
+					set((state) => ({
 						provider: 'googleDrive',
 						status: 'connected',
-						accountLabel: userInfo.email || userInfo.name || '',
 						error: null,
+						providerInputs: withProviderInput(state, 'googleDrive', {
+							accountLabel: userInfo.email || userInfo.name || '',
+						}),
+					}));
+					traceSyncEvent('AUTH_CONNECTED', {
+						provider: 'googleDrive',
+						account: userInfo.email || userInfo.name || '',
 					});
-					console.log('[sync] Google auth complete');
 					return true;
 				} catch (error) {
 					console.error('Google Drive connect failed:', error);
@@ -124,62 +398,109 @@ export const useSyncStore = create(
 					if (message.includes('popup')) errorCode = 'popupBlocked';
 					if (message.includes('redirect_uri_mismatch')) errorCode = 'redirectUriMismatch';
 					if (message.includes('invalid_grant')) errorCode = 'invalidGrant';
-					set({ status: 'error', error: errorCode });
+					if (message.includes('missing google client id')) errorCode = 'missingClientId';
+					set((state) => {
+						const currentProvider = normalizeProviderId(state.provider);
+						const shouldPreserveSteamStatus =
+							currentProvider === 'steam' ||
+							normalizeProviderId(stateBeforeAuth.provider) === 'steam';
+						return {
+							status: shouldPreserveSteamStatus ? 'connected' : 'error',
+							error: errorCode,
+						};
+					});
 					return false;
 				}
 			},
 
 			disconnect: async () => {
-				await clearSyncAccount('googleDrive');
-				set({
+				const providerId = normalizeProviderId(get().provider);
+				if (providerId) {
+					await clearSyncAccount(providerId);
+				}
+				set((state) => ({
 					provider: null,
 					status: 'disconnected',
-					accountLabel: '',
 					lastSyncedAt: null,
 					error: null,
-					passphrase: '',
-					pullState: {
-						active: false,
-						step: 'checking',
-						progress: 0,
-						projectId: null,
-						mode: 'project',
-						current: 0,
-						total: 0,
-					},
-				});
+					pullState: createResetPullState('project'),
+					providerInputs: withProviderInput(state, providerId || 'googleDrive', {
+						accountLabel: '',
+						passphrase: '',
+					}),
+				}));
 			},
 
 			syncAllProjects: async (options = {}) => {
-				const { status, provider, passphrase, pullState, syncMode } = get();
-				if (!provider) return;
-				if (status === 'syncing') return;
-				if (status !== 'connected') return;
-				if (!passphrase || !passphrase.trim()) return;
-				if (pullState?.active && pullState?.mode === 'project') return;
-				const { mode = syncMode || 'full' } = options;
+				const syncStartedAt = Date.now();
+				const currentState = get();
+				const { status, provider, pullState, syncMode } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
+				const passphrase = resolveSyncPassphrase(currentState, provider);
+				const providerConfig = getSyncProviderConfig(provider);
+				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
+				if (!provider) {
+					traceSyncEvent('SKIP', { reason: 'missing-provider' });
+					return;
+				}
+				if (!cloudProviderId) {
+					traceSyncEvent('SKIP', {
+						reason: 'provider-not-cloud-capable',
+						provider,
+					});
+					return;
+				}
+				if (status === 'syncing') {
+					traceSyncEvent('SKIP', {
+						reason: 'already-syncing',
+						provider: cloudProviderId,
+					});
+					return;
+				}
+				if (!canRunSyncForStatus(cloudProviderId, status)) {
+					traceSyncEvent('SKIP', {
+						reason: 'provider-not-connected',
+						provider: cloudProviderId,
+						status,
+					});
+					return;
+				}
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
+					traceSyncEvent('SKIP', {
+						reason: 'missing-passphrase',
+						provider: cloudProviderId,
+					});
+					return;
+				}
+				if (pullState?.active && pullState?.mode === 'project') {
+					traceSyncEvent('SKIP', {
+						reason: 'project-pull-active',
+						provider: cloudProviderId,
+					});
+					return;
+				}
+				const { mode = syncMode || 'full', trigger = 'unknown' } = options;
+				traceSyncEvent('START', {
+					mode,
+					trigger,
+					provider: cloudProviderId,
+				});
 
 				set({ status: 'syncing' });
-				const resetPullState = {
-					active: false,
-					step: 'checking',
-					progress: 0,
-					projectId: null,
-					mode: 'bulk',
-					current: 0,
-					total: 0,
-				};
+				const resetPullState = createResetPullState('bulk');
 				let shouldShow = false;
 				let total = 0;
 				try {
 					if (mode === 'list') {
 						console.log('[sync] Listing remote projects (debug)');
-						const diff = await diffRemoteLocalEngine();
+						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
 						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
-						const duplicateInfo = Array.from(diff.duplicates.entries()).map(([projectId, items]) => ({
-							projectId,
-							count: items.length,
-						}));
+						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
+							([projectId, items]) => ({
+								projectId,
+								count: items.length,
+							})
+						);
 						if (duplicateInfo.length > 0) {
 							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
 						}
@@ -196,6 +517,7 @@ export const useSyncStore = create(
 										fileId: item.remote.fileId,
 										revision: item.remote.revision,
 										passphrase,
+										provider: cloudProviderId,
 									});
 									previewPulls.push(preview);
 								} catch (error) {
@@ -230,12 +552,23 @@ export const useSyncStore = create(
 
 					if (mode === 'push') {
 						console.log('[sync] Push-only sync start');
-						const diff = await diffRemoteLocalEngine();
+						const diffStartedAt = Date.now();
+						traceSyncEvent('PUSH_DIFF_START', { provider: cloudProviderId });
+						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
+						traceSyncEvent('PUSH_DIFF_DONE', {
+							elapsedMs: Date.now() - diffStartedAt,
+							toPull: diff.actions.toPull.length,
+							toPush: diff.actions.toPush.length,
+							remoteOnly: diff.actions.remoteOnly.length,
+							localOnly: diff.actions.localOnly.length,
+						});
 						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
-						const duplicateInfo = Array.from(diff.duplicates.entries()).map(([projectId, items]) => ({
-							projectId,
-							count: items.length,
-						}));
+						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
+							([projectId, items]) => ({
+								projectId,
+								count: items.length,
+							})
+						);
 						if (duplicateInfo.length > 0) {
 							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
 						}
@@ -244,6 +577,11 @@ export const useSyncStore = create(
 						}
 						if (diff.actions.toPush.length === 0) {
 							console.log('[sync] No projects to push');
+							traceSyncEvent('NOOP', {
+								mode: 'push',
+								reason: 'nothing-to-push',
+								elapsedMs: Date.now() - syncStartedAt,
+							});
 							set({ status: 'connected', pullState: resetPullState });
 							return;
 						}
@@ -251,34 +589,70 @@ export const useSyncStore = create(
 						for (const projectId of diff.actions.toPush) {
 							try {
 								console.log('[sync] Pushing project', projectId);
-								await pushProjectToRemote({ projectId, passphrase });
+								traceSyncEvent('PUSH_PROJECT_START', { projectId });
+								await pushProjectToRemote({
+									projectId,
+									passphrase,
+									provider: cloudProviderId,
+								});
+								traceSyncEvent('PUSH_PROJECT_DONE', { projectId });
 							} catch (error) {
 								console.error('[sync] Push failed', projectId, error);
+								traceSyncEvent('PUSH_PROJECT_ERROR', {
+									projectId,
+									message: String(error?.message || error),
+								});
 							}
 						}
 						console.log('[sync] Push-only sync complete');
-						set({ status: 'connected', lastSyncedAt: new Date().toISOString(), pullState: resetPullState });
+						traceSyncEvent('COMPLETE', {
+							mode: 'push',
+							elapsedMs: Date.now() - syncStartedAt,
+						});
+						set({
+							status: 'connected',
+							lastSyncedAt: new Date().toISOString(),
+							pullState: resetPullState,
+						});
 						return;
 					}
 
 					if (mode === 'pull') {
 						console.log('[sync] Pull-only sync start');
-						const diff = await diffRemoteLocalEngine();
-						const duplicateInfo = Array.from(diff.duplicates.entries()).map(([projectId, items]) => ({
-							projectId,
-							count: items.length,
-						}));
+						const diffStartedAt = Date.now();
+						traceSyncEvent('PULL_DIFF_START', { provider: cloudProviderId });
+						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
+						traceSyncEvent('PULL_DIFF_DONE', {
+							elapsedMs: Date.now() - diffStartedAt,
+							toPull: diff.actions.toPull.length,
+							toPush: diff.actions.toPush.length,
+							remoteOnly: diff.actions.remoteOnly.length,
+							localOnly: diff.actions.localOnly.length,
+						});
+						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
+							([projectId, items]) => ({
+								projectId,
+								count: items.length,
+							})
+						);
 						if (duplicateInfo.length > 0) {
 							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
 						}
 
 						if (diff.actions.toPull.length === 0) {
 							console.log('[sync] No projects to pull');
+							traceSyncEvent('NOOP', {
+								mode: 'pull',
+								reason: 'nothing-to-pull',
+								elapsedMs: Date.now() - syncStartedAt,
+							});
 							set({ status: 'connected', pullState: resetPullState });
 							return;
 						}
 
-						const comparisonMap = new Map(diff.comparisons.map((item) => [item.projectId, item]));
+						const comparisonMap = new Map(
+							diff.comparisons.map((item) => [item.projectId, item])
+						);
 						const startedAt = Date.now();
 						const total = diff.actions.toPull.length;
 						let index = 0;
@@ -299,6 +673,12 @@ export const useSyncStore = create(
 							index += 1;
 							const comparison = comparisonMap.get(projectId);
 							const remote = comparison?.remote;
+							const pullProjectStartedAt = Date.now();
+							traceSyncEvent('PULL_PROJECT_START', {
+								projectId,
+								index,
+								total,
+							});
 
 							set({
 								pullState: {
@@ -323,10 +703,24 @@ export const useSyncStore = create(
 									fileId: remote.fileId,
 									revision: remote.revision,
 									passphrase,
+									provider: cloudProviderId,
 								});
 								console.log('[sync] Pulled project', result);
+								traceSyncEvent('PULL_PROJECT_DONE', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - pullProjectStartedAt,
+								});
 							} catch (error) {
 								console.error('[sync] Pull failed', projectId, error);
+								traceSyncEvent('PULL_PROJECT_ERROR', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - pullProjectStartedAt,
+									message: String(error?.message || error),
+								});
 							}
 						}
 
@@ -341,14 +735,26 @@ export const useSyncStore = create(
 							pullState: resetPullState,
 						});
 						console.log('[sync] Pull-only sync complete');
+						traceSyncEvent('COMPLETE', {
+							mode: 'pull',
+							elapsedMs: Date.now() - syncStartedAt,
+						});
 						return;
 					}
 
+					traceSyncEvent('FULL_SYNC_ENGINE_START', { provider: cloudProviderId });
 					await syncAllProjectsEngine({
 						passphrase,
+						provider: cloudProviderId,
 						onProgress: (info) => {
 							if (info?.phase === 'start') {
 								total = info.total || 0;
+								traceSyncEvent('FULL_SYNC_ENGINE_PROGRESS', {
+									phase: 'start',
+									total: info.total || 0,
+									remoteCount: info.remoteCount || 0,
+									localCount: info.localCount || 0,
+								});
 								if (info.remoteCount > 0) {
 									shouldShow = true;
 									set({
@@ -368,6 +774,13 @@ export const useSyncStore = create(
 
 							if (!shouldShow || !total) return;
 							const progress = Math.min(100, Math.round((info.index / total) * 100));
+							traceSyncEvent('FULL_SYNC_ENGINE_PROGRESS', {
+								phase: info.phase || 'sync',
+								index: info.index || 0,
+								total,
+								projectId: info.projectId || null,
+								progress,
+							});
 							set({
 								pullState: {
 									active: true,
@@ -381,10 +794,22 @@ export const useSyncStore = create(
 							});
 						},
 					});
+					traceSyncEvent('FULL_SYNC_ENGINE_DONE', {
+						elapsedMs: Date.now() - syncStartedAt,
+					});
 					set({ status: 'connected', lastSyncedAt: new Date().toISOString() });
 					set({ pullState: resetPullState });
+					traceSyncEvent('COMPLETE', {
+						mode,
+						elapsedMs: Date.now() - syncStartedAt,
+					});
 				} catch (error) {
 					console.error('Sync all failed:', error);
+					traceSyncEvent('ERROR', {
+						mode,
+						elapsedMs: Date.now() - syncStartedAt,
+						message: String(error?.message || error),
+					});
 					const message = (error?.message || '').toLowerCase();
 					if (message.includes('tokenexpired')) {
 						set({ status: 'error', error: 'tokenExpired' });
@@ -396,8 +821,12 @@ export const useSyncStore = create(
 			},
 
 			schedulePush: (projectId) => {
-				const { status, provider, syncMode } = get();
-				if (status !== 'connected' || !provider) return;
+				const state = get();
+				const { status, provider, syncMode } = state;
+				const cloudProviderId = resolveCloudProviderId(state);
+				if (!provider) return;
+				if (!canRunSyncForStatus(cloudProviderId, status)) return;
+				if (!cloudProviderId) return;
 				if (!projectId) return;
 				if (syncMode === 'list') {
 					console.log('[sync] Skip auto-push (list mode)');
@@ -418,11 +847,14 @@ export const useSyncStore = create(
 			},
 
 			checkRemoteDiff: async (projectId) => {
-				const { status, provider } = get();
+				const currentState = get();
+				const { status, provider } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
 				if (status !== 'connected' || !provider) return false;
+				if (!cloudProviderId) return false;
 
 				try {
-					return await checkRemoteDiffEngine(projectId);
+					return await checkRemoteDiffEngine(projectId, { provider: cloudProviderId });
 				} catch (error) {
 					console.error('Remote diff check failed:', error);
 					const message = (error?.message || '').toLowerCase();
@@ -437,12 +869,18 @@ export const useSyncStore = create(
 
 			startPull: async (projectId, options = {}) => {
 				const { simulate = false } = options;
-				const { passphrase, syncMode } = get();
+				const currentState = get();
+				const { syncMode, provider } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
+				const passphrase = resolveSyncPassphrase(currentState, provider);
+				const providerConfig = getSyncProviderConfig(provider);
+				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
 				if (syncMode !== 'full') {
 					console.log('[sync] Skip pull (non-full mode)');
 					return;
 				}
-				if (!passphrase || !passphrase.trim()) {
+				if (!cloudProviderId) return;
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
 					set({ error: 'passphraseRequired', status: 'error' });
 					return;
 				}
@@ -490,6 +928,7 @@ export const useSyncStore = create(
 					await pullProject({
 						projectId,
 						passphrase,
+						provider: cloudProviderId,
 						onProgress: (step, progress) =>
 							set({
 								pullState: {
@@ -518,43 +957,33 @@ export const useSyncStore = create(
 					set({
 						status: 'connected',
 						lastSyncedAt: new Date().toISOString(),
-						pullState: {
-							active: false,
-							step: 'checking',
-							progress: 0,
-							projectId: null,
-							mode: 'project',
-							current: 0,
-							total: 0,
-						},
+						pullState: createResetPullState('project'),
 					});
 				} else {
 					set({
-						pullState: {
-							active: false,
-							step: 'checking',
-							progress: 0,
-							projectId: null,
-							mode: 'project',
-							current: 0,
-							total: 0,
-						},
+						pullState: createResetPullState('project'),
 					});
 				}
 			},
 
 			pushProject: async (projectId) => {
-				const { passphrase, syncMode } = get();
+				const currentState = get();
+				const { syncMode, provider } = currentState;
+				const cloudProviderId = resolveCloudProviderId(currentState);
+				const passphrase = resolveSyncPassphrase(currentState, provider);
+				const providerConfig = getSyncProviderConfig(provider);
+				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
 				if (syncMode === 'list') {
 					console.log('[sync] Skip push (list mode)');
 					return;
 				}
-				if (!passphrase || !passphrase.trim()) {
+				if (!cloudProviderId) return;
+				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
 					set({ error: 'passphraseRequired' });
 					return;
 				}
 				try {
-					await pushProjectToRemote({ projectId, passphrase });
+					await pushProjectToRemote({ projectId, passphrase, provider: cloudProviderId });
 				} catch (error) {
 					console.error('Push failed:', error);
 					set({ error: 'syncFailed' });
@@ -563,23 +992,51 @@ export const useSyncStore = create(
 		}),
 		{
 			name: SYNC_STORAGE_KEY,
+			storage: profileScopedSyncStorage,
 			partialize: (state) => ({
 				provider: state.provider,
-				accountLabel: state.accountLabel,
+				providerInputs: createPersistedProviderInputs(state.providerInputs),
 				lastSyncedAt: state.lastSyncedAt,
-				rememberPassphrase: state.rememberPassphrase,
-				passphrase: state.rememberPassphrase ? state.passphrase : '',
 				clientId: state.clientId,
 				hideLoginPrompt: state.hideLoginPrompt,
 			}),
 			onRehydrateStorage: () => (state) => {
 				if (!state) return;
+
+				const legacyRemember =
+					state.rememberPassphrase === undefined
+						? true
+						: Boolean(state.rememberPassphrase);
+				const legacyGoogleInput = {
+					accountLabel: String(state.accountLabel || ''),
+					passphrase: legacyRemember ? String(state.passphrase || '') : '',
+					rememberPassphrase: legacyRemember,
+				};
+
+				const rememberedGooglePassphrase =
+					state?.providerInputs?.googleDrive?.rememberPassphrase;
+				const existingProviderInputs = createProviderInputs(state.providerInputs);
+				state.providerInputs = createProviderInputs({
+					...existingProviderInputs,
+					googleDrive: {
+						...existingProviderInputs.googleDrive,
+						accountLabel:
+							existingProviderInputs.googleDrive.accountLabel ||
+							legacyGoogleInput.accountLabel,
+						passphrase:
+							existingProviderInputs.googleDrive.passphrase ||
+							legacyGoogleInput.passphrase,
+						rememberPassphrase:
+							rememberedGooglePassphrase === undefined
+								? legacyGoogleInput.rememberPassphrase
+								: Boolean(rememberedGooglePassphrase),
+					},
+				});
+
 				state.status = state.provider ? 'connected' : 'disconnected';
+				state.pullState = createResetPullState('project');
 				state.clientId = getStoredClientId();
 				state.hasHydrated = true;
-				if (state.rememberPassphrase === undefined) {
-					state.rememberPassphrase = true;
-				}
 				if (state.hideLoginPrompt === undefined) {
 					state.hideLoginPrompt = false;
 				}

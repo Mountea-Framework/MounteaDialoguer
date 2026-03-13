@@ -303,8 +303,16 @@
 		"title": "Cloud-Sync",
 		"description": "Verbinde Google Drive, um Projekte geräteübergreifend zu synchronisieren.",
 		"providers": {
+			"steam": "Steam",
 			"googleDrive": "Google Drive",
 			"none": "Nicht verbunden"
+		},
+		"steam": {
+			"openOverlay": "Overlay",
+			"profile": "Steam-Profil: {{account}}",
+			"overlayReady": "Das Overlay ist bereit. Du kannst auch Shift+Tab nutzen.",
+			"overlayUnavailable": "Das Overlay ist in dieser Sitzung nicht verfügbar.",
+			"overlayUnavailableHint": "Starte die App über Steam, um das Overlay zu aktivieren."
 		},
 		"status": {
 			"connected": "Verbunden",

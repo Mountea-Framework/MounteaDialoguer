@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
 	ArrowLeft,
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
 	Card,
 	CardContent,
@@ -39,7 +40,14 @@ import {
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUIStore } from '@/stores/uiStore';
 import { formatDate } from '@/lib/dateUtils';
+import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+import {
+	normalizeLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import { getLocalizationLocaleLabel } from '@/lib/localization/localeCatalog';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/settings'
@@ -49,12 +57,15 @@ export const Route = createFileRoute(
 
 function DialogueSettingsPage() {
 	const { t } = useTranslation();
-	const { theme, resolvedTheme, setTheme } = useTheme();
+	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const navigate = useNavigate();
+	const isDesktopElectron = isDesktopElectronRuntime();
 	const { projects, loadProjects } = useProjectStore();
 	const { dialogues, loadDialogues, updateDialogue, deleteDialogue, exportDialogue } =
 		useDialogueStore();
+	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
+	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
@@ -72,6 +83,28 @@ function DialogueSettingsPage() {
 
 	const project = projects.find((p) => p.id === projectId);
 	const dialogue = dialogues.find((d) => d.id === dialogueId);
+	const projectLocalization = useMemo(
+		() => normalizeProjectLocalizationConfig(project?.localization || {}),
+		[project?.localization]
+	);
+	const contentLocale = useMemo(() => {
+		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
+		if (savedLocale && projectLocalization.supportedLocales.includes(savedLocale)) {
+			return savedLocale;
+		}
+		return projectLocalization.defaultLocale;
+	}, [contentLocaleByProject, projectId, projectLocalization]);
+	const handleContentLocaleChange = useCallback(
+		(event) => {
+			if (!projectId) return;
+			const nextLocale = normalizeLocaleTag(
+				event?.target?.value,
+				projectLocalization.defaultLocale
+			);
+			setProjectContentLocale(projectId, nextLocale);
+		},
+		[projectId, projectLocalization.defaultLocale, setProjectContentLocale]
+	);
 
 	// Update form when dialogue loads
 	useEffect(() => {
@@ -116,15 +149,37 @@ function DialogueSettingsPage() {
 		}
 	};
 
-		const handleDelete = async () => {
-			try {
-				await deleteDialogue(dialogueId);
-				setShowDeleteDialog(false);
-				navigate({ to: '/projects/$projectId', params: { projectId } });
-			} catch (error) {
-				console.error('Failed to delete dialogue:', error);
-			}
+	const handleDelete = async () => {
+		try {
+			await deleteDialogue(dialogueId);
+			setShowDeleteDialog(false);
+			navigate({ to: '/projects/$projectId', params: { projectId } });
+		} catch (error) {
+			console.error('Failed to delete dialogue:', error);
+		}
+	};
+
+	useEffect(() => {
+		const handleCommandExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleExport();
 		};
+
+		const handleCommandSave = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.dialogueId !== dialogueId) return;
+			handleSave();
+		};
+
+		window.addEventListener('command:dialogue-export', handleCommandExport);
+		window.addEventListener('command:dialogue-save', handleCommandSave);
+
+		return () => {
+			window.removeEventListener('command:dialogue-export', handleCommandExport);
+			window.removeEventListener('command:dialogue-save', handleCommandSave);
+		};
+	}, [dialogueId, handleExport, handleSave]);
 
 	if (!dialogue || !project) {
 		return (
@@ -136,52 +191,71 @@ function DialogueSettingsPage() {
 
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
-			{/* Header */}
-			<AppHeader
-				left={
-					<>
-						<Link
-							to="/projects/$projectId/dialogue/$dialogueId"
-							params={{ projectId, dialogueId }}
-						>
-							<Button variant="ghost" size="icon" className="rounded-full">
-								<ArrowLeft className="h-5 w-5" />
-							</Button>
-						</Link>
-						<div className="flex items-center gap-4">
-							<div>
-								<h1 className="text-2xl font-bold tracking-tight">
-									{t('dialogues.dialogueSettings')}
-								</h1>
-								<p className="text-sm text-muted-foreground">{dialogue.name}</p>
+			{!isDesktopElectron && (
+				<AppHeader
+					left={
+						<>
+							<Link
+								to="/projects/$projectId/dialogue/$dialogueId"
+								params={{ projectId, dialogueId }}
+							>
+								<Button variant="ghost" size="icon" className="rounded-full">
+									<ArrowLeft className="h-5 w-5" />
+								</Button>
+							</Link>
+							<div className="flex items-center gap-4">
+								<div>
+									<h1 className="text-2xl font-bold tracking-tight">
+										{t('dialogues.dialogueSettings')}
+									</h1>
+									<p className="text-sm text-muted-foreground">{dialogue.name}</p>
+								</div>
 							</div>
-						</div>
-					</>
-				}
-				menuItems={
-					<>
-						<LanguageSelector />
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-							className="justify-start"
-						>
-							{resolvedTheme === 'dark' ? (
-								<>
-									<Sun className="h-4 w-4 mr-2" />
-									{t('settings.lightMode')}
-								</>
-							) : (
-								<>
-									<Moon className="h-4 w-4 mr-2" />
-									{t('settings.darkMode')}
-								</>
-							)}
-						</Button>
-					</>
-				}
-			/>
+						</>
+					}
+					menuItems={
+						<>
+							<div className="flex items-center gap-3">
+								<span className="text-xs font-medium text-muted-foreground">
+									{t('editor.localization.contentLocale', {
+										defaultValue: 'Content locale',
+									})}
+								</span>
+								<NativeSelect
+									value={contentLocale}
+									onChange={handleContentLocaleChange}
+									className="h-9 min-w-[11rem]"
+								>
+									{projectLocalization.supportedLocales.map((locale) => (
+										<option key={locale} value={locale}>
+											{getLocalizationLocaleLabel(locale)} ({locale})
+										</option>
+									))}
+								</NativeSelect>
+							</div>
+							<LanguageSelector />
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+								className="justify-start"
+							>
+								{resolvedTheme === 'dark' ? (
+									<>
+										<Sun className="h-4 w-4 mr-2" />
+										{t('settings.lightMode')}
+									</>
+								) : (
+									<>
+										<Moon className="h-4 w-4 mr-2" />
+										{t('settings.darkMode')}
+									</>
+								)}
+							</Button>
+						</>
+					}
+				/>
+			)}
 
 			{/* Content */}
 			<main className="flex-1 overflow-y-auto">
@@ -193,6 +267,41 @@ function DialogueSettingsPage() {
 							Configure dialogue properties and behavior
 						</p>
 					</div>
+
+					<Card>
+						<CardHeader>
+							<CardTitle>
+								{t('editor.localization.contentLocale', {
+									defaultValue: 'Content locale',
+								})}
+							</CardTitle>
+							<CardDescription>
+								{t('editor.localization.localeSelectorHint', {
+									defaultValue:
+										'Select which localized dialogue content is displayed while editing this project.',
+								})}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							<Label htmlFor="settings-content-locale">
+								{t('editor.localization.contentLocale', {
+									defaultValue: 'Content locale',
+								})}
+							</Label>
+							<NativeSelect
+								id="settings-content-locale"
+								value={contentLocale}
+								onChange={handleContentLocaleChange}
+								className="h-10 max-w-sm"
+							>
+								{projectLocalization.supportedLocales.map((locale) => (
+									<option key={locale} value={locale}>
+										{getLocalizationLocaleLabel(locale)} ({locale})
+									</option>
+								))}
+							</NativeSelect>
+						</CardContent>
+					</Card>
 
 					{/* Dialogue Information */}
 					<Card>
@@ -366,7 +475,7 @@ function DialogueSettingsPage() {
 						</AlertDialogMedia>
 						<AlertDialogTitle>Delete Dialogue</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete "{dialogue.name}"? This action cannot
+							Are you sure you want to delete &quot;{dialogue.name}&quot;? This action cannot
 							be undone and will delete all nodes and connections.
 						</AlertDialogDescription>
 					</AlertDialogHeader>

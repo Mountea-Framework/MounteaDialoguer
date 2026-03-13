@@ -7,6 +7,8 @@ import {
   Search,
   FolderOpen,
   MessageCircle,
+  Download,
+  Trash2,
   HardDrive,
   Calendar,
   Cloud,
@@ -19,6 +21,14 @@ import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   Table,
   TableBody,
@@ -39,6 +49,7 @@ import { calculateDiskUsage } from "@/lib/storageUtils";
 import { OnboardingTour, useOnboarding } from "@/components/ui/onboarding-tour";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
+import { isDesktopElectronRuntime } from "@/lib/electronRuntime";
 import { useSyncStore } from "@/stores/syncStore";
 
 export const Route = createFileRoute("/")({
@@ -289,6 +300,7 @@ function MetricsCards({ projectCount, dialogueCount, diskUsage }) {
 // Project Card Component
 function ProjectCard({ project }) {
   const { t } = useTranslation();
+  const { deleteProject, exportProject } = useProjectStore();
   const { dialogues } = useDialogueStore();
   const projectDialogues = dialogues.filter((d) => d.projectId === project.id);
 
@@ -311,59 +323,106 @@ function ProjectCard({ project }) {
   const colorIndex =
     parseInt(project.id.substring(0, 8), 16) % gradients.length;
 
+  const handleExport = async () => {
+    try {
+      await exportProject(project.id);
+    } catch (error) {
+      console.error("Failed to export project:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(t("projects.deleteConfirm"));
+    if (!confirmed) return;
+
+    try {
+      await deleteProject(project.id);
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+    }
+  };
+
   return (
-    <Link to="/projects/$projectId" params={{ projectId: project.id }}>
-      <Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full min-h-[280px] flex flex-col overflow-hidden rounded-lg">
-        <div
-          className={`h-32 bg-gradient-to-br ${gradients[colorIndex]} flex items-center justify-center relative overflow-hidden rounded-t-lg`}
-        >
-          <div
-            className="absolute inset-0 opacity-30 dark:opacity-20 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] [background-size:16px_16px]"
-            style={{ color: patternColors[colorIndex] }}
-          />
-          <FolderOpen
-            className={`h-12 w-12 ${iconColors[colorIndex]} opacity-80 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 relative z-10`}
-          />
-          <div className="absolute top-3 right-3 text-xs text-muted-foreground flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full">
-            <Calendar className="h-3 w-3" />
-            {formatDate(project.createdAt)}
-          </div>
-        </div>
-
-        <CardContent className="p-4 flex-1 flex flex-col">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-bold text-base group-hover:text-primary transition-colors line-clamp-1">
-              {project.name}
-            </h3>
-            {project.version && (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                v{project.version}
-              </span>
-            )}
-          </div>
-
-          {project.description && (
-            <p className="text-xs text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
-              {project.description}
-            </p>
-          )}
-
-          <div className="mt-auto pt-3 border-t flex items-center justify-center text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <MessageCircle
-                className={`h-3.5 w-3.5 group-hover:${iconColors[colorIndex].replace("text-", "text-")} transition-colors`}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <Link to="/projects/$projectId" params={{ projectId: project.id }}>
+          <Card className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full min-h-[280px] flex flex-col overflow-hidden rounded-lg">
+            <div
+              className={`h-32 bg-gradient-to-br ${gradients[colorIndex]} flex items-center justify-center relative overflow-hidden rounded-t-lg`}
+            >
+              <div
+                className="absolute inset-0 opacity-30 dark:opacity-20 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] [background-size:16px_16px]"
+                style={{ color: patternColors[colorIndex] }}
               />
-              <span className="font-medium">
-                {projectDialogues.length}{" "}
-                {projectDialogues.length === 1
-                  ? t("dialogues.title").slice(0, -1)
-                  : t("dialogues.title")}
-              </span>
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+              <FolderOpen
+                className={`h-12 w-12 ${iconColors[colorIndex]} opacity-80 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 relative z-10`}
+              />
+              <div className="absolute top-3 right-3 text-xs text-muted-foreground flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full">
+                <Calendar className="h-3 w-3" />
+                {formatDate(project.createdAt)}
+              </div>
+            </div>
+
+            <CardContent className="p-4 flex-1 flex flex-col">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-base group-hover:text-primary transition-colors line-clamp-1">
+                  {project.name}
+                </h3>
+                {project.version && (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    v{project.version}
+                  </span>
+                )}
+              </div>
+
+              {project.description && (
+                <p className="text-xs text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
+                  {project.description}
+                </p>
+              )}
+
+              <div className="mt-auto pt-3 border-t flex items-center justify-center text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <MessageCircle
+                    className={`h-3.5 w-3.5 group-hover:${iconColors[colorIndex].replace("text-", "text-")} transition-colors`}
+                  />
+                  <span className="font-medium">
+                    {projectDialogues.length}{" "}
+                    {projectDialogues.length === 1
+                      ? t("dialogues.title").slice(0, -1)
+                      : t("dialogues.title")}
+                  </span>
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            void handleExport();
+          }}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {t("common.export")}
+          <ContextMenuShortcut>Ctrl+E</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          onSelect={(event) => {
+            event.preventDefault();
+            void handleDelete();
+          }}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          {t("common.delete")}
+          <ContextMenuShortcut>Del</ContextMenuShortcut>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -428,6 +487,7 @@ function MobileProjectsTable({
 function ProjectsDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isDesktopElectron = isDesktopElectronRuntime();
   const { projects, loadProjects, isLoading, createOnboardingExampleProject } =
     useProjectStore();
   const { dialogues, loadDialogues } = useDialogueStore();
@@ -437,11 +497,34 @@ function ProjectsDashboard() {
   const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
   const { runTour, finishTour, resetTour } = useOnboarding("dashboard");
+  const desktopSearchInputRef = useRef(null);
 
   useEffect(() => {
     loadProjects();
     loadDialogues();
   }, [loadProjects, loadDialogues]);
+
+  useEffect(() => {
+    const handleDesktopNewProject = () => {
+      setIsCreateDialogOpen(true);
+    };
+    const handleFocusSearch = () => {
+      desktopSearchInputRef.current?.focus();
+      desktopSearchInputRef.current?.select();
+    };
+    const handleShowTour = () => {
+      resetTour();
+    };
+
+    window.addEventListener("menu:new-project", handleDesktopNewProject);
+    window.addEventListener("command:dashboard-focus-search", handleFocusSearch);
+    window.addEventListener("command:dashboard-show-tour", handleShowTour);
+    return () => {
+      window.removeEventListener("menu:new-project", handleDesktopNewProject);
+      window.removeEventListener("command:dashboard-focus-search", handleFocusSearch);
+      window.removeEventListener("command:dashboard-show-tour", handleShowTour);
+    };
+  }, [resetTour]);
 
   useEffect(() => {
     if (!lastSyncedAt) return;
@@ -510,21 +593,51 @@ function ProjectsDashboard() {
         onOpenChange={setIsCreateDialogOpen}
       />
 
-      <DashboardHeader
-        onNewProject={handleNewProject}
-        onSearch={setSearchQuery}
-        searchQuery={searchQuery}
-        onShowTour={resetTour}
-      />
+      {!isDesktopElectron && (
+        <DashboardHeader
+          onNewProject={handleNewProject}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
+          onShowTour={resetTour}
+        />
+      )}
 
       <main className="flex-1 p-6 md:p-12 max-w-7xl mx-auto w-full">
-        <MetricsCards
-          projectCount={projects.length}
-          dialogueCount={totalDialogues}
-          diskUsage={diskUsage}
-        />
+        {isDesktopElectron && (
+          <div className="mb-8 flex items-center gap-3">
+            <div className="relative w-full max-w-md" data-tour="search">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={desktopSearchInputRef}
+                type="text"
+                placeholder={t("common.search")}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <Button
+              onClick={handleNewProject}
+              size="sm"
+              className="gap-1 whitespace-nowrap"
+              data-tour="create-project"
+              aria-label={t("projects.createNew")}
+            >
+              <Plus className="h-4 w-4" />
+              {t("projects.createNew")}
+            </Button>
+          </div>
+        )}
 
-        <div className="mt-10">
+        <div data-tour="dashboard-metrics">
+          <MetricsCards
+            projectCount={projects.length}
+            dialogueCount={totalDialogues}
+            diskUsage={diskUsage}
+          />
+        </div>
+
+        <div className="mt-10" data-tour="workspace-section">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold tracking-tight">
               {t("projects.recentProjects")}
@@ -551,6 +664,7 @@ function ProjectsDashboard() {
                       variant="outline"
                       onClick={handleCreateExampleProject}
                       disabled={isCreatingExampleProject}
+                      data-tour="example-project"
                     >
                       <Sparkles className="h-4 w-4" />
                       {isCreatingExampleProject

@@ -1,5 +1,33 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { buildProfileScopedKey } from '@/lib/profile/activeProfile';
+
+const NOOP_PROFILE_STORAGE = Object.freeze({
+	getItem: () => null,
+	setItem: () => {},
+	removeItem: () => {},
+});
+
+const profileScopedUiStorage = createJSONStorage(() => {
+	if (typeof window === 'undefined' || !window.localStorage) {
+		return NOOP_PROFILE_STORAGE;
+	}
+
+	return {
+		getItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			return window.localStorage.getItem(key);
+		},
+		setItem: (name, value) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.setItem(key, value);
+		},
+		removeItem: (name) => {
+			const key = buildProfileScopedKey(name);
+			window.localStorage.removeItem(key);
+		},
+	};
+});
 
 /**
  * UI Store
@@ -12,6 +40,7 @@ export const useUIStore = create(
 			viewMode: 'grid',
 			sortBy: 'modifiedAt',
 			sortOrder: 'desc',
+			contentLocaleByProject: {},
 
 			/**
 			 * Toggle sidebar visibility
@@ -34,9 +63,23 @@ export const useUIStore = create(
 			 */
 			setSortBy: (sortBy) => set({ sortBy }),
 			setSortOrder: (sortOrder) => set({ sortOrder }),
+			setProjectContentLocale: (projectId, locale) =>
+				set((state) => ({
+					contentLocaleByProject: {
+						...state.contentLocaleByProject,
+						[String(projectId || '')]: String(locale || ''),
+					},
+				})),
+			clearProjectContentLocale: (projectId) =>
+				set((state) => {
+					const next = { ...state.contentLocaleByProject };
+					delete next[String(projectId || '')];
+					return { contentLocaleByProject: next };
+				}),
 		}),
 		{
 			name: 'mountea-dialoguer-ui',
+			storage: profileScopedUiStorage,
 		}
 	)
 );

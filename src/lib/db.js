@@ -1,12 +1,13 @@
 import Dexie from 'dexie';
+import { getActiveProfileId } from '@/lib/profile/activeProfile';
 
 /**
  * Mountea Dialoguer IndexedDB Database
  * Manages local storage for projects, dialogues, participants, and categories
  */
 export class MounteaDialoguerDB extends Dexie {
-	constructor() {
-		super('MounteaDialoguerDB');
+	constructor(databaseName = 'MounteaDialoguerDB') {
+		super(databaseName);
 
 		// Version 1 - Auto-increment IDs (deprecated)
 		this.version(1).stores({
@@ -99,6 +100,22 @@ export class MounteaDialoguerDB extends Dexie {
 			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
 		});
 
+		// Version 7 - Add localized strings StringTable
+		this.version(7).stores({
+			projects: 'id, name, createdAt, modifiedAt',
+			dialogues: 'id, projectId, name, createdAt, modifiedAt',
+			participants: 'id, projectId, name, category',
+			categories: 'id, projectId, name, parentCategoryId',
+			decorators: 'id, projectId, name, type',
+			conditions: 'id, projectId, name, type',
+			nodes: '[dialogueId+id], dialogueId, type',
+			edges: '[dialogueId+id], dialogueId, source, target',
+			syncAccounts: 'provider, accountId, email, expiresAt',
+			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
+			localizedStrings:
+				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
+		});
+
 		this.projects = this.table('projects');
 		this.dialogues = this.table('dialogues');
 		this.participants = this.table('participants');
@@ -109,7 +126,70 @@ export class MounteaDialoguerDB extends Dexie {
 		this.edges = this.table('edges');
 		this.syncAccounts = this.table('syncAccounts');
 		this.syncProjects = this.table('syncProjects');
+		this.localizedStrings = this.table('localizedStrings');
 	}
 }
 
-export const db = new MounteaDialoguerDB();
+function sanitizeProfileIdForDb(rawValue) {
+	const value = String(rawValue || '').trim();
+	if (!value) return 'local';
+	return value.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+function getDatabaseNameForProfile(profileId) {
+	const normalizedProfileId = sanitizeProfileIdForDb(profileId);
+	if (normalizedProfileId === 'local') {
+		return 'MounteaDialoguerDB';
+	}
+	return `MounteaDialoguerDB__${normalizedProfileId}`;
+}
+
+function resolveActiveProfileId() {
+	try {
+		return sanitizeProfileIdForDb(getActiveProfileId());
+	} catch (error) {
+		return 'local';
+	}
+}
+
+let activeDbInstance = null;
+let activeDbProfileId = '';
+
+function ensureDbInstance() {
+	const profileId = resolveActiveProfileId();
+	if (!activeDbInstance || activeDbProfileId !== profileId) {
+		if (activeDbInstance) {
+			try {
+				activeDbInstance.close();
+			} catch (error) {
+				// Swallow close errors; switching profile should be best-effort.
+			}
+		}
+		activeDbInstance = new MounteaDialoguerDB(getDatabaseNameForProfile(profileId));
+		activeDbProfileId = profileId;
+	}
+	return activeDbInstance;
+}
+
+export const db = new Proxy(
+	{},
+	{
+		get(_target, property) {
+			const instance = ensureDbInstance();
+			const value = instance[property];
+			if (typeof value === 'function') {
+				return value.bind(instance);
+			}
+			return value;
+		},
+		set(_target, property, value) {
+			const instance = ensureDbInstance();
+			instance[property] = value;
+			return true;
+		},
+	}
+);
+
+export function getProfileScopedDbName() {
+	return ensureDbInstance().name;
+}

@@ -7,10 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useSyncStore } from '@/stores/syncStore';
+import { useSteamStore } from '@/stores/steamStore';
 import { cn } from '@/lib/utils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { GoogleDriveIcon } from '@/components/sync/GoogleDriveIcon';
+import { SteamIcon } from '@/components/sync/SteamIcon';
+import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
+import { isElectronRuntime } from '@/lib/electronRuntime';
 
 export function SyncLoginDialog({
 	open,
@@ -23,24 +33,70 @@ export function SyncLoginDialog({
 	const {
 		provider,
 		status,
-		accountLabel,
-		passphrase,
-		rememberPassphrase,
 		error,
-		setPassphrase,
-		setAccountLabel,
-		setRememberPassphrase,
 		clearError,
 		connectGoogleDrive,
+		connectSteamProvider,
 		syncAllProjects,
 		disconnect,
+		getProviderInput,
+		setProviderPassphrase,
+		setProviderAccountLabel,
+		setProviderRememberPassphrase,
 	} = useSyncStore();
+	const steamStatus = useSteamStore((state) => state.status);
+	const openSteamOverlay = useSteamStore((state) => state.openOverlay);
+	const googleSyncEnabled = isGoogleSyncEnabled();
+	const steamChannel = isSteamChannel();
+	const runtimeSteamChannel = String(steamStatus?.channel || '').toLowerCase() === 'steam';
+	const showSteamProvider = isElectronRuntime() && (steamChannel || runtimeSteamChannel);
+	const [activeProvider, setActiveProvider] = useState(
+		googleSyncEnabled ? 'googleDrive' : showSteamProvider ? 'steam' : ''
+	);
 
-	const isConnected = status === 'connected' && provider === 'googleDrive';
-	const isConnecting = status === 'connecting';
-	const isSyncing = status === 'syncing';
-	const canConnect = passphrase.trim().length > 0 && !isConnecting;
+	const googleInput = getProviderInput('googleDrive');
+	const googleAccountLabel = googleInput.accountLabel || '';
+	const googlePassphrase = googleInput.passphrase || '';
+	const googleRememberPassphrase = Boolean(googleInput.rememberPassphrase);
+	const steamIdentity = steamStatus?.personaName || steamStatus?.steamId || '';
+	const isSteamProviderSelected = provider === 'steam';
+	const isSteamProviderConnected = provider === 'steam' && status === 'connected';
+	const isSteamSyncing = status === 'syncing' && provider === 'steam';
+
+	const isGoogleConnected = status === 'connected' && provider === 'googleDrive';
+	const isGoogleConnecting = status === 'connecting';
+	const isGoogleSyncing = status === 'syncing' && provider === 'googleDrive';
+	const isGoogleBusy = isGoogleConnecting || isGoogleSyncing;
+	const showGoogleError = Boolean(error);
+	const canConnectGoogle =
+		googleSyncEnabled && googlePassphrase.trim().length > 0 && !isGoogleBusy;
 	const [isDesktop, setIsDesktop] = useState(!isMobileDevice());
+
+	useEffect(() => {
+		if (!open) return;
+		setActiveProvider((current) => {
+			if (current === 'googleDrive' && !googleSyncEnabled) {
+				return showSteamProvider ? 'steam' : '';
+			}
+			if (current === 'steam' && !showSteamProvider) {
+				return googleSyncEnabled ? 'googleDrive' : '';
+			}
+			if (current) return current;
+			if (googleSyncEnabled) return 'googleDrive';
+			if (showSteamProvider) return 'steam';
+			return '';
+		});
+	}, [open, googleSyncEnabled, showSteamProvider]);
+
+	useEffect(() => {
+		if (provider === 'steam' && showSteamProvider) {
+			setActiveProvider('steam');
+			return;
+		}
+		if (provider === 'googleDrive' && googleSyncEnabled) {
+			setActiveProvider('googleDrive');
+		}
+	}, [googleSyncEnabled, provider, showSteamProvider]);
 
 	useEffect(() => {
 		const updateViewportType = () => setIsDesktop(!isMobileDevice());
@@ -55,25 +111,88 @@ export function SyncLoginDialog({
 		};
 	}, []);
 
-	const handleConnect = async () => {
+	useEffect(() => {
+		if (!open) return;
+		if (!showSteamProvider || !steamStatus?.available) return;
+		if (provider === 'steam' && (status === 'connected' || status === 'syncing')) return;
+		if (provider === 'googleDrive' && status === 'connected') return;
+
+		connectSteamProvider(steamStatus).catch((error) => {
+			console.warn('[sync] Failed to auto-connect Steam provider:', error);
+		});
+	}, [
+		connectSteamProvider,
+		open,
+		provider,
+		showSteamProvider,
+		status,
+		steamStatus,
+	]);
+
+	const handleConnectGoogle = async () => {
+		if (!googleSyncEnabled) return;
 		const success = await connectGoogleDrive();
 		if (success) {
 			onOpenChange(false);
 		}
 	};
-	const isMobile = !isDesktop;
 
-	const handleManualSync = async () => {
-		await syncAllProjects({ mode: 'full' });
+	const handleManualSyncGoogle = async () => {
+		await syncAllProjects({ mode: 'full', trigger: 'manual-google-sync' });
 	};
 
-	const statusLabel = useMemo(() => {
-		if (status === 'connected') return t('sync.status.connected');
+	const handleManualSyncSteam = async () => {
+		await syncAllProjects({ mode: 'full', trigger: 'manual-steam-sync' });
+	};
+
+	const googleStatusLabel = useMemo(() => {
+		if (status === 'connected' && provider === 'googleDrive') return t('sync.status.connected');
 		if (status === 'connecting') return t('sync.status.connecting');
-		if (status === 'syncing') return t('sync.status.syncing');
+		if (status === 'syncing' && provider === 'googleDrive') return t('sync.status.syncing');
 		if (status === 'error') return t('sync.status.error');
 		return t('sync.status.disconnected');
-	}, [status, t]);
+	}, [provider, status, t]);
+
+	const steamStatusLabel = useMemo(() => {
+		if (!steamStatus?.available) return t('sync.status.disconnected');
+		if (isSteamSyncing) return t('sync.status.syncing');
+		if (isSteamProviderConnected) return t('sync.status.connected');
+		return t('sync.status.disconnected');
+	}, [isSteamProviderConnected, isSteamSyncing, steamStatus?.available, t]);
+
+	const steamHeaderSubtitle = useMemo(() => {
+		if (steamStatus?.available && steamIdentity) {
+			return t('sync.steam.profile', { account: steamIdentity });
+		}
+		if (steamStatus?.available) return t('sync.status.connected');
+		if (steamStatus?.error) return String(steamStatus.error);
+		return t('sync.providers.none');
+	}, [steamIdentity, steamStatus?.available, steamStatus?.error, t]);
+
+	const steamDetailLines = useMemo(() => {
+		const lines = [];
+
+		if (steamStatus?.available && steamStatus?.launchedViaSteam && steamStatus?.overlayEnabled) {
+			lines.push(t('sync.steam.overlayReady'));
+		}
+
+		if (steamStatus?.available && !steamStatus?.launchedViaSteam) {
+			lines.push(t('sync.steam.overlayUnavailable'));
+			lines.push(t('sync.steam.overlayUnavailableHint'));
+		}
+
+		if (!steamStatus?.available && steamStatus?.error) {
+			lines.push(String(steamStatus.error));
+		}
+
+		return lines;
+	}, [
+		steamStatus?.available,
+		steamStatus?.launchedViaSteam,
+		steamStatus?.overlayEnabled,
+		steamStatus?.error,
+		t,
+	]);
 
 	const errorMessage = useMemo(() => {
 		if (!error) return '';
@@ -90,6 +209,9 @@ export function SyncLoginDialog({
 		return map[error] || t('common.error');
 	}, [error, t]);
 
+	const syncInputClassName =
+		'focus-visible:ring-1 focus-visible:ring-border/70 focus-visible:ring-offset-0 focus-visible:border-border';
+
 	const syncFormContent = (
 		<>
 			<div
@@ -99,150 +221,234 @@ export function SyncLoginDialog({
 				)}
 			>
 				<div className="space-y-4 pb-2">
-					<div
-						className={`flex md:flex-row gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3 sm:flex-row sm:items-center ${isMobile ? 'flex-row' : 'flex-col'}`}>
-						<div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center border border-border shadow-sm">
-							<GoogleDriveIcon className="h-6 w-6" />
-						</div>
-						<div className="flex-1 min-w-0">
-							<p className="text-sm font-semibold">{t('sync.providers.googleDrive')}</p>
-							{isConnected && accountLabel ? (
-								<p className="text-xs text-muted-foreground truncate">
-									{t('sync.connectedAs', { account: accountLabel })}
-								</p>
-							) : null}
-						</div>
-						<div className="text-xs font-medium text-muted-foreground">{statusLabel}</div>
-					</div>
+					<Accordion
+						type="single"
+						collapsible
+						value={activeProvider}
+						onValueChange={setActiveProvider}
+						className="space-y-3"
+					>
+						{showSteamProvider ? (
+							<AccordionItem
+								value="steam"
+								className="overflow-hidden rounded-lg border border-border bg-muted/40 px-3 border-b"
+							>
+								<AccordionTrigger className="py-3 hover:no-underline">
+									<div className="flex min-w-0 flex-1 items-center gap-3">
+										<div className="h-10 w-12 overflow-hidden rounded-lg border border-border bg-background flex items-center justify-center px-1 shadow-sm">
+											<SteamIcon className="h-5 w-full object-contain" />
+										</div>
+										<div className="min-w-0 flex-1 text-left">
+											<p className="text-sm font-semibold">{t('sync.providers.steam')}</p>
+											<p className="text-xs text-muted-foreground truncate">{steamHeaderSubtitle}</p>
+										</div>
+										<div className="text-xs font-medium text-muted-foreground">
+											{steamStatusLabel}
+										</div>
+									</div>
+								</AccordionTrigger>
+								<AccordionContent className="space-y-3">
+									{steamStatus?.available && steamStatus?.launchedViaSteam ? (
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											onClick={() => openSteamOverlay('Friends')}
+										>
+											{t('sync.steam.openOverlay')}
+										</Button>
+									) : null}
 
-					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="sync-account">{t('sync.accountLabel')}</Label>
-							<Input
-								id="sync-account"
-								value={accountLabel}
-								onChange={(e) => {
-									setAccountLabel(e.target.value);
-									clearError?.();
-								}}
-								placeholder={t('sync.accountPlaceholder')}
-								disabled={isConnected}
-							/>
-						</div>
+									{steamStatus?.available ? (
+										<div className="flex flex-wrap gap-2">
+											{!isSteamProviderConnected ? (
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													disabled={isSteamSyncing}
+													onClick={() => connectSteamProvider(steamStatus)}
+												>
+													{t('sync.steam.connectCta', { defaultValue: 'Use Steam Sync' })}
+												</Button>
+											) : null}
+											{isSteamProviderSelected ? (
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													disabled={isSteamSyncing}
+													onClick={handleManualSyncSteam}
+												>
+													{isSteamSyncing
+														? t('sync.status.syncing')
+														: t('sync.syncNow')}
+												</Button>
+											) : null}
+										</div>
+									) : null}
 
-						<div className="grid gap-2">
-							<Label htmlFor="sync-passphrase" className="flex items-center gap-2">
-								<Shield className="h-4 w-4 text-primary" />
-								{t('sync.passphrase')}
-							</Label>
-							<Input
-								id="sync-passphrase"
-								type="password"
-								value={passphrase}
-								onChange={(e) => {
-									setPassphrase(e.target.value);
-									clearError?.();
-								}}
-								placeholder={t('sync.passphrasePlaceholder')}
-								disabled={isConnected}
-							/>
-							<p className="text-xs text-muted-foreground">
-								{t('sync.passphraseHint')}
-							</p>
-						</div>
+									{steamDetailLines.length > 0 ? (
+										<div className="rounded-md border border-border/70 bg-background/60 p-3">
+											<div className="grid gap-1.5 text-xs">
+												{steamDetailLines.map((line, index) => (
+													<p key={`${line}-${index}`} className="text-muted-foreground">
+														{line}
+													</p>
+												))}
+											</div>
+										</div>
+									) : null}
+								</AccordionContent>
+							</AccordionItem>
+						) : null}
 
+						{googleSyncEnabled ? (
+							<AccordionItem
+								value="googleDrive"
+								className="overflow-hidden rounded-lg border border-border bg-muted/40 px-3 border-b"
+							>
+								<AccordionTrigger className="py-3 hover:no-underline">
+									<div className="flex min-w-0 flex-1 items-center gap-3">
+										<div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center border border-border shadow-sm">
+											<GoogleDriveIcon className="h-6 w-6" />
+										</div>
+										<div className="min-w-0 flex-1 text-left">
+											<p className="text-sm font-semibold">{t('sync.providers.googleDrive')}</p>
+											{isGoogleConnected && googleAccountLabel ? (
+												<p className="text-xs text-muted-foreground truncate">
+													{t('sync.connectedAs', { account: googleAccountLabel })}
+												</p>
+											) : (
+												<p className="text-xs text-muted-foreground truncate">
+													{t('sync.providers.none')}
+												</p>
+											)}
+										</div>
+										<div className="text-xs font-medium text-muted-foreground">
+											{googleStatusLabel}
+										</div>
+									</div>
+								</AccordionTrigger>
+								<AccordionContent>
+									<div className="grid gap-4">
+										<div className="grid gap-2">
+											<Label htmlFor="sync-google-account">{t('sync.accountLabel')}</Label>
+											<Input
+												id="sync-google-account"
+												value={googleAccountLabel}
+												onChange={(e) => {
+													setProviderAccountLabel('googleDrive', e.target.value);
+													clearError?.();
+												}}
+												placeholder={t('sync.accountPlaceholder')}
+												disabled={isGoogleConnected || isGoogleBusy}
+												className={syncInputClassName}
+											/>
+										</div>
+
+										<div className="grid gap-2">
+											<Label htmlFor="sync-google-passphrase" className="flex items-center gap-2">
+												<Shield className="h-4 w-4 text-primary" />
+												{t('sync.passphrase')}
+											</Label>
+											<Input
+												id="sync-google-passphrase"
+												type="password"
+												value={googlePassphrase}
+												onChange={(e) => {
+													setProviderPassphrase('googleDrive', e.target.value);
+													clearError?.();
+												}}
+												placeholder={t('sync.passphrasePlaceholder')}
+												disabled={isGoogleConnected || isGoogleBusy}
+												className={syncInputClassName}
+											/>
+											<p className="text-xs text-muted-foreground">{t('sync.passphraseHint')}</p>
+										</div>
+
+										<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+											<div>
+												<p className="text-sm font-medium">{t('sync.remember')}</p>
+												<p className="text-xs text-muted-foreground">{t('sync.rememberHint')}</p>
+											</div>
+											<Switch
+												checked={googleRememberPassphrase}
+												onCheckedChange={(value) =>
+													setProviderRememberPassphrase('googleDrive', value)
+												}
+												disabled={isGoogleConnected || isGoogleBusy}
+											/>
+										</div>
+
+										{showGoogleError ? (
+											<p className="text-xs text-destructive">{errorMessage}</p>
+										) : null}
+
+										<div className="flex flex-wrap gap-2">
+											{isGoogleConnected ? (
+												<>
+													<Button
+														variant="outline"
+														onClick={handleManualSyncGoogle}
+														className="gap-2"
+														disabled={isGoogleSyncing}
+													>
+														{isGoogleSyncing
+															? t('sync.status.syncing')
+															: t('sync.syncNow')}
+													</Button>
+													<Button
+														variant="destructive"
+														onClick={disconnect}
+														className="gap-2"
+													>
+														<LogOut className="h-4 w-4" />
+														{t('sync.disconnect')}
+													</Button>
+												</>
+											) : (
+												<Button
+													onClick={handleConnectGoogle}
+													disabled={!canConnectGoogle}
+													className={cn('gap-2', isGoogleConnecting && 'opacity-80')}
+												>
+													{isGoogleConnecting
+														? t('sync.connecting')
+														: t('sync.connect')}
+												</Button>
+											)}
+										</div>
+									</div>
+								</AccordionContent>
+							</AccordionItem>
+						) : (
+							<div className="rounded-lg border border-border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+								{t('sync.googleDisabled')}
+							</div>
+						)}
+					</Accordion>
+
+					{showPromptControls ? (
 						<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
 							<div>
-								<p className="text-sm font-medium">{t('sync.remember')}</p>
-								<p className="text-xs text-muted-foreground">{t('sync.rememberHint')}</p>
+								<p className="text-sm font-medium">{t('sync.promptDontShow')}</p>
+								<p className="text-xs text-muted-foreground">{t('sync.promptDontShowHint')}</p>
 							</div>
-							<Switch
-								checked={rememberPassphrase}
-								onCheckedChange={setRememberPassphrase}
-								disabled={isConnected}
-							/>
+							<Switch checked={hideLoginPrompt} onCheckedChange={onHideLoginPromptChange} />
 						</div>
-
-						{showPromptControls && (
-							<div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-								<div>
-									<p className="text-sm font-medium">{t('sync.promptDontShow')}</p>
-									<p className="text-xs text-muted-foreground">
-										{t('sync.promptDontShowHint')}
-									</p>
-								</div>
-								<Switch
-									checked={hideLoginPrompt}
-									onCheckedChange={onHideLoginPromptChange}
-								/>
-							</div>
-						)}
-
-						{error && (
-							<p className="text-xs text-destructive">
-								{errorMessage}
-							</p>
-						)}
-					</div>
+					) : null}
 				</div>
 			</div>
 
 			{isDesktop ? (
 				<DialogFooter>
-					{isConnected ? (
-						<>
-							<Button
-								variant="outline"
-								onClick={handleManualSync}
-								className="gap-2 w-full sm:w-auto"
-								disabled={isSyncing}
-							>
-								{isSyncing ? t('sync.status.syncing') : t('sync.syncNow')}
-							</Button>
-							<Button variant="destructive" onClick={disconnect} className="gap-2 w-full sm:w-auto">
-								<LogOut className="h-4 w-4" />
-								{t('sync.disconnect')}
-							</Button>
-						</>
-					) : (
-						<Button
-							onClick={handleConnect}
-							disabled={!canConnect}
-							className={cn('gap-2 w-full sm:w-auto', isConnecting && 'opacity-80')}
-						>
-							{isConnecting ? t('sync.connecting') : t('sync.connect')}
-						</Button>
-					)}
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
 						{t('common.close')}
 					</Button>
 				</DialogFooter>
 			) : (
 				<DrawerFooter className="border-t border-border/60 bg-background">
-					{isConnected ? (
-						<>
-							<Button
-								variant="outline"
-								onClick={handleManualSync}
-								className="gap-2 w-full"
-								disabled={isSyncing}
-							>
-								{isSyncing ? t('sync.status.syncing') : t('sync.syncNow')}
-							</Button>
-							<Button variant="destructive" onClick={disconnect} className="gap-2 w-full">
-								<LogOut className="h-4 w-4" />
-								{t('sync.disconnect')}
-							</Button>
-						</>
-					) : (
-						<Button
-							onClick={handleConnect}
-							disabled={!canConnect}
-							className={cn('gap-2 w-full', isConnecting && 'opacity-80')}
-						>
-							{isConnecting ? t('sync.connecting') : t('sync.connect')}
-						</Button>
-					)}
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="w-full">
 						{t('common.close')}
 					</Button>

@@ -4,6 +4,211 @@ import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
+import {
+	DEFAULT_LOCALE,
+	LOCALIZED_STRING_FIELDS,
+	buildLocalizedEntriesFromNodes,
+	ensureDialogueLocalizationSlug,
+	isValidLocaleTag,
+	normalizeProjectLocalizationConfig,
+} from '@/lib/localization/stringTable';
+import {
+	trackExampleProjectCreated,
+	trackFirstNonExampleProjectCreated,
+} from '@/lib/achievements/achievementTracker';
+
+const MAX_PROJECT_IMPORT_ARCHIVE_BYTES = 25 * 1024 * 1024;
+const MAX_PROJECT_IMPORT_ENTRY_COUNT = 1000;
+const MAX_PROJECT_IMPORT_TEXT_BYTES = 5 * 1024 * 1024;
+const MAX_PROJECT_IMPORT_DIALOGUE_FILES = 250;
+
+function parseImportedJsonText({ label, value }) {
+	if (!value) return null;
+	const byteLength = new TextEncoder().encode(String(value)).length;
+	if (byteLength > MAX_PROJECT_IMPORT_TEXT_BYTES) {
+		throw new Error(`${label} exceeds import size limit`);
+	}
+	try {
+		return JSON.parse(value);
+	} catch (error) {
+		throw new Error(`Invalid JSON in ${label}`);
+	}
+}
+
+async function seedProjectLocalizationDefaultLocale(projectId, defaultLocale) {
+	const dialogues = await db.dialogues.where('projectId').equals(projectId).toArray();
+	const allExisting = await db.localizedStrings.where('projectId').equals(projectId).toArray();
+	const existingByDialogue = new Map();
+
+	for (const entry of allExisting) {
+		const key = String(entry?.dialogueId || '').trim();
+		if (!key) continue;
+		if (!existingByDialogue.has(key)) {
+			existingByDialogue.set(key, []);
+		}
+		existingByDialogue.get(key).push(entry);
+	}
+
+	const toUpsert = [];
+	for (const dialogue of dialogues) {
+		const nodes = await db.nodes.where('dialogueId').equals(dialogue.id).toArray();
+		const entries = buildLocalizedEntriesFromNodes({
+			projectId,
+			dialogueId: dialogue.id,
+			dialogueSlug: dialogue.localizationSlug || '',
+			nodes,
+			locale: defaultLocale,
+			existingEntries: existingByDialogue.get(dialogue.id) || [],
+		});
+		toUpsert.push(...entries);
+	}
+
+	if (toUpsert.length > 0) {
+		await db.localizedStrings.bulkPut(toUpsert);
+	}
+}
+
+const EXAMPLE_PROJECT_DEFAULT_LOCALE = DEFAULT_LOCALE;
+const EXAMPLE_PROJECT_SUPPORTED_LOCALES = [DEFAULT_LOCALE, 'de'];
+
+const EXAMPLE_GERMAN_ROW_TRANSLATIONS = Object.freeze({
+	'Welcome, traveler. How can I help today?': 'Willkommen, Reisender. Wie kann ich heute helfen?',
+	'I can trade, buy your wares, or share local news.':
+		'Ich kann handeln, eure Waren kaufen oder lokale Neuigkeiten teilen.',
+	'Show me what you have in stock.': 'Zeig mir, was du auf Lager hast.',
+	'What have you heard lately?': 'Was hast du in letzter Zeit gehoert?',
+	'Got any tasks that pay?': 'Hast du bezahlte Auftraege?',
+	'I have a few things to sell.': 'Ich habe ein paar Dinge zu verkaufen.',
+	'I should get moving.': 'Ich sollte weiterziehen.',
+	'Right, one moment while I check the crate list.':
+		'Gut, einen Moment, waehrend ich die Kistenliste pruefe.',
+	'I can offer a basic travel bundle or the premium pack.':
+		'Ich kann ein einfaches Reisepaket oder das Premiumpaket anbieten.',
+	'The standard bundle is enough.': 'Das Standardpaket reicht.',
+	'I want the premium pack.': 'Ich nehme das Premiumpaket.',
+	'Let us pause the trade for now.': 'Lassen wir den Handel vorerst ruhen.',
+	'Done. Safe roads and fair weather.': 'Erledigt. Sichere Wege und gutes Wetter.',
+	'A wise choice. You are fully provisioned now.':
+		'Eine weise Wahl. Du bist jetzt bestens ausgeruestet.',
+	'Keep this between us. Which story do you want first?':
+		'Das bleibt unter uns. Welche Geschichte willst du zuerst hoeren?',
+	'What is happening on the roads?': 'Was ist auf den Strassen los?',
+	'Anything about the old ruins?': 'Gibt es etwas ueber die alten Ruinen?',
+	'That is enough gossip for now.': 'Das reicht fuer jetzt mit den Geruechten.',
+	'Scouts saw raiders near the northern toll bridge.':
+		'Spaeher haben Pluenderer nahe der noerdlichen Zollbruecke gesehen.',
+	'Strange lights were seen there after dusk. Best avoid it.':
+		'Dort wurden nach Einbruch der Daemmerung seltsame Lichter gesehen. Besser meiden.',
+	'Actually yes. A crate is overdue at the mill road checkpoint.':
+		'Tatsaechlich ja. Eine Kiste ist am Kontrollpunkt an der Muehlenstrasse ueberfaellig.',
+	'I can handle that delivery.': 'Ich kann diese Lieferung uebernehmen.',
+	'Not right now, sorry.': 'Gerade nicht, tut mir leid.',
+	'Excellent. Take this token and report back before dusk.':
+		'Ausgezeichnet. Nimm diese Marke und melde dich vor Einbruch der Daemmerung zurueck.',
+	'Set it on the counter. What are you offering?':
+		'Leg es auf den Tresen. Was bietest du an?',
+	'A sack of orchard apples.': 'Ein Sack Obstgarten-Aepfel.',
+	'I found this old relic in a ruined watchtower.':
+		'Ich habe dieses alte Relikt in einem verfallenen Wachturm gefunden.',
+	'Fair produce. I can pay ten silver.': 'Gute Ware. Ich kann zehn Silber zahlen.',
+	'Interesting craftsmanship. I will pay fifty silver.':
+		'Interessante Handwerkskunst. Ich zahle fuenfzig Silber.',
+	'Safe travels. My stall stays open till moonrise.':
+		'Gute Reise. Mein Stand bleibt bis Mondaufgang geoeffnet.',
+	'If you visit the ruins, light a lantern first and avoid the lower vault.':
+		'Wenn du die Ruinen besuchst, zuende zuerst eine Laterne an und meide das untere Gewoelbe.',
+	'That is all I know. Return safely.': 'Das ist alles, was ich weiss. Komm sicher zurueck.',
+});
+
+const EXAMPLE_GERMAN_DISPLAY_NAME_TRANSLATIONS = Object.freeze({
+	'Start Node': 'Startknoten',
+	'Waldermar Greeting': 'Waldermar Begruessung',
+	'Buy Supplies': 'Vorraete kaufen',
+	'Ask Rumors': 'Nach Geruechten fragen',
+	'Ask for Work': 'Nach Arbeit fragen',
+	'Sell Goods': 'Waren verkaufen',
+	Leave: 'Verlassen',
+	'Waldermar Stock Check': 'Waldermar prueft Bestand',
+	'Check Inventory': 'Bestand pruefen',
+	'Waldermar Offer': 'Waldermars Angebot',
+	'Take Standard Bundle': 'Standardpaket nehmen',
+	'Take Premium Bundle': 'Premiumpaket nehmen',
+	'Maybe Later': 'Vielleicht spaeter',
+	'Trade Complete': 'Handel abgeschlossen',
+	'Premium Trade Complete': 'Premium-Handel abgeschlossen',
+	'Return To Greeting': 'Zur Begruessung zurueck',
+	'Waldermar Lowers Voice': 'Waldermar senkt die Stimme',
+	'Ask About Roads': 'Nach den Strassen fragen',
+	'Ask About Ruins': 'Nach den Ruinen fragen',
+	'Return to Main Topics': 'Zu den Hauptthemen zurueck',
+	'Road Warning': 'Warnung vor den Strassen',
+	'Ruins Warning': 'Warnung vor den Ruinen',
+	'Open Ruins Follow-up': 'Ruinen-Folgegespraech oeffnen',
+	'Waldermar Needs Help': 'Waldermar braucht Hilfe',
+	'Think About Offer': 'Ueber Angebot nachdenken',
+	'Accept Delivery Job': 'Lieferauftrag annehmen',
+	'Decline Delivery Job': 'Lieferauftrag ablehnen',
+	'Quest Accepted': 'Auftrag angenommen',
+	'Waldermar Appraises Goods': 'Waldermar schaetzt Waren',
+	'Sell Apples': 'Aepfel verkaufen',
+	'Sell Old Relic': 'Altes Relikt verkaufen',
+	'Sale Complete': 'Verkauf abgeschlossen',
+	'Inspect Relic': 'Relikt begutachten',
+	'Relic Sale Complete': 'Reliktverkauf abgeschlossen',
+	'Farewell Complete': 'Abschied abgeschlossen',
+	'Waldermar Ruins Follow-up': 'Waldermar Ruinen-Folgegespraech',
+	'Ruins Follow-up Complete': 'Ruinen-Folgegespraech abgeschlossen',
+});
+
+const EXAMPLE_GERMAN_SELECTION_TITLE_TRANSLATIONS = Object.freeze({
+	'Show me your supplies.': 'Zeig mir deine Vorratswaren.',
+	'Any rumors worth hearing?': 'Gibt es Geruechte, die sich lohnen?',
+	'Need help with anything?': 'Brauchst du bei etwas Hilfe?',
+	'I want to sell items.': 'Ich moechte Gegenstaende verkaufen.',
+	'Not today. Goodbye.': 'Heute nicht. Auf Wiedersehen.',
+	'I will take the standard bundle.': 'Ich nehme das Standardpaket.',
+	'I will take the premium pack.': 'Ich nehme das Premiumpaket.',
+	'Actually, maybe later.': 'Eigentlich vielleicht spaeter.',
+	'Tell me about the roads.': 'Erzaehl mir von den Strassen.',
+	'What about the old ruins?': 'Was ist mit den alten Ruinen?',
+	'Let us talk about something else.': 'Lass uns ueber etwas anderes sprechen.',
+	'I can deliver it.': 'Ich kann es liefern.',
+	'I cannot right now.': 'Ich kann gerade nicht.',
+	'Fresh apples.': 'Frische Aepfel.',
+	'An old relic.': 'Ein altes Relikt.',
+});
+
+async function applyExampleGermanTranslations(projectId) {
+	const entries = await db.localizedStrings.where('projectId').equals(projectId).toArray();
+	const now = new Date().toISOString();
+	const updates = [];
+	const fieldTranslationMap = {
+		[LOCALIZED_STRING_FIELDS.rowText]: EXAMPLE_GERMAN_ROW_TRANSLATIONS,
+		[LOCALIZED_STRING_FIELDS.displayName]: EXAMPLE_GERMAN_DISPLAY_NAME_TRANSLATIONS,
+		[LOCALIZED_STRING_FIELDS.selectionTitle]: EXAMPLE_GERMAN_SELECTION_TITLE_TRANSLATIONS,
+	};
+
+	for (const entry of entries) {
+		const translationMap = fieldTranslationMap[entry?.field];
+		if (!translationMap) continue;
+		const values = entry?.values && typeof entry.values === 'object' ? { ...entry.values } : {};
+		const sourceText = String(values.en || values[DEFAULT_LOCALE] || '').trim();
+		const germanText = translationMap[sourceText];
+		if (!germanText || values.de === germanText) continue;
+		updates.push({
+			...entry,
+			values: {
+				...values,
+				de: germanText,
+			},
+			modifiedAt: now,
+		});
+	}
+
+	if (updates.length > 0) {
+		await db.localizedStrings.bulkPut(updates);
+	}
+}
 
 /**
  * Project Store
@@ -22,6 +227,15 @@ export const useProjectStore = create((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const projects = await db.projects.toArray();
+			const exampleProjectsWithGerman = projects.filter((project) => {
+				if (!project?.isExample) return false;
+				const localization = normalizeProjectLocalizationConfig(project?.localization || {});
+				return localization.supportedLocales.includes('de');
+			});
+
+			for (const exampleProject of exampleProjectsWithGerman) {
+				await applyExampleGermanTranslations(exampleProject.id);
+			}
 
 			// Load dialogue counts for each project
 			const projectsWithCounts = await Promise.all(
@@ -30,7 +244,11 @@ export const useProjectStore = create((set, get) => ({
 						.where('projectId')
 						.equals(project.id)
 						.count();
-					return { ...project, dialogueCount };
+					return {
+						...project,
+						localization: normalizeProjectLocalizationConfig(project?.localization || {}),
+						dialogueCount,
+					};
 				})
 			);
 
@@ -57,10 +275,23 @@ export const useProjectStore = create((set, get) => ({
 			const newProject = {
 				id,
 				...projectData,
+				localization: normalizeProjectLocalizationConfig(
+					projectData?.localization || {
+						enabled: false,
+						defaultLocale: DEFAULT_LOCALE,
+						supportedLocales: [DEFAULT_LOCALE],
+					}
+				),
+				isExample: false,
 				createdAt: now,
 				modifiedAt: now,
 			};
 			await db.projects.add(newProject);
+			try {
+				await trackFirstNonExampleProjectCreated();
+			} catch (error) {
+				console.warn('[achievements] Failed to track first project:', error);
+			}
 			await get().loadProjects();
 			useSyncStore.getState().schedulePush(newProject.id);
 			toast({
@@ -106,6 +337,12 @@ export const useProjectStore = create((set, get) => ({
 				name: 'OnboardingExample',
 				description: 'Example branching dialogue project created from onboarding',
 				version: '1.0.0',
+				localization: normalizeProjectLocalizationConfig({
+					enabled: true,
+					defaultLocale: EXAMPLE_PROJECT_DEFAULT_LOCALE,
+					supportedLocales: EXAMPLE_PROJECT_SUPPORTED_LOCALES,
+				}),
+				isExample: true,
 				createdAt: now,
 				modifiedAt: now,
 			};
@@ -162,6 +399,10 @@ export const useProjectStore = create((set, get) => ({
 				projectId,
 				name: 'MerchantBranchingExample',
 				description: 'Branching example that demonstrates all node types',
+				localizationSlug: ensureDialogueLocalizationSlug({
+					name: 'MerchantBranchingExample',
+				}),
+				localizationVersion: 2,
 				createdAt: now,
 				modifiedAt: now,
 				viewport: { x: 0, y: 0, zoom: 1 },
@@ -171,6 +412,10 @@ export const useProjectStore = create((set, get) => ({
 				projectId,
 				name: 'RuinsFollowupExample',
 				description: 'Small child dialogue opened from the rumors branch',
+				localizationSlug: ensureDialogueLocalizationSlug({
+					name: 'RuinsFollowupExample',
+				}),
+				localizationVersion: 2,
 				createdAt: now,
 				modifiedAt: now,
 				viewport: { x: 0, y: 0, zoom: 1 },
@@ -1033,6 +1278,19 @@ export const useProjectStore = create((set, get) => ({
 				}
 			);
 
+			await seedProjectLocalizationDefaultLocale(projectId, newProject.localization.defaultLocale);
+			for (const locale of newProject.localization.supportedLocales || []) {
+				if (locale === newProject.localization.defaultLocale) continue;
+				await seedProjectLocalizationDefaultLocale(projectId, locale);
+			}
+			await applyExampleGermanTranslations(projectId);
+
+			try {
+				await trackExampleProjectCreated();
+			} catch (error) {
+				console.warn('[achievements] Failed to track example project:', error);
+			}
+
 			await get().loadProjects();
 			useSyncStore.getState().schedulePush(projectId);
 			toast({
@@ -1060,11 +1318,34 @@ export const useProjectStore = create((set, get) => ({
 	updateProject: async (id, updates) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.projects.update(id, {
+			const existingProject = await db.projects.get(id);
+			if (!existingProject) {
+				throw new Error('Project not found');
+			}
+
+			const previousLocalization = normalizeProjectLocalizationConfig(
+				existingProject.localization || {}
+			);
+			const nextLocalization =
+				updates && Object.prototype.hasOwnProperty.call(updates, 'localization')
+					? normalizeProjectLocalizationConfig(updates.localization || {})
+					: previousLocalization;
+
+			const nextPayload = {
 				...updates,
 				modifiedAt: new Date().toISOString(),
-			});
-			await get().loadProjects();
+			};
+
+			if (Object.prototype.hasOwnProperty.call(nextPayload, 'localization')) {
+				nextPayload.localization = nextLocalization;
+			}
+
+				await db.projects.update(id, nextPayload);
+
+				if (previousLocalization.defaultLocale !== nextLocalization.defaultLocale) {
+					await seedProjectLocalizationDefaultLocale(id, nextLocalization.defaultLocale);
+				}
+				await get().loadProjects();
 			useSyncStore.getState().schedulePush(id);
 			toast({
 				variant: 'success',
@@ -1083,13 +1364,56 @@ export const useProjectStore = create((set, get) => ({
 		}
 	},
 
+	updateProjectLocalization: async (id, localizationUpdates = {}) => {
+		set({ isLoading: true, error: null });
+		try {
+			const project = await db.projects.get(id);
+			if (!project) {
+				throw new Error('Project not found');
+			}
+
+			const rawSupported = Array.isArray(localizationUpdates?.supportedLocales)
+				? localizationUpdates.supportedLocales
+				: [];
+			const invalidLocale = rawSupported.find((locale) => !isValidLocaleTag(locale));
+			if (invalidLocale) {
+				throw new Error(`Invalid locale tag: ${invalidLocale}`);
+			}
+
+			const rawDefault = String(localizationUpdates?.defaultLocale || '').trim();
+			if (rawDefault && !isValidLocaleTag(rawDefault)) {
+				throw new Error(`Invalid locale tag: ${rawDefault}`);
+			}
+
+			const nextLocalization = normalizeProjectLocalizationConfig({
+				...(project.localization || {}),
+				...localizationUpdates,
+			});
+
+			await get().updateProject(id, {
+				localization: nextLocalization,
+			});
+
+			return nextLocalization;
+		} catch (error) {
+			console.error('Error updating project localization:', error);
+			toast({
+				variant: 'error',
+				title: 'Failed to Update Localization',
+				description: error.message || 'An unexpected error occurred',
+			});
+			set({ error: error.message, isLoading: false });
+			throw error;
+		}
+	},
+
 	/**
 	 * Delete a project and all its related data
 	 */
 	deleteProject: async (id) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.nodes, db.edges], async () => {
+			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.localizedStrings, db.nodes, db.edges], async () => {
 				const projectDialogues = await db.dialogues.where('projectId').equals(id).toArray();
 				const dialogueIds = projectDialogues.map((dialogue) => dialogue.id);
 
@@ -1104,6 +1428,7 @@ export const useProjectStore = create((set, get) => ({
 				await db.categories.where('projectId').equals(id).delete();
 				await db.decorators.where('projectId').equals(id).delete();
 				await db.conditions.where('projectId').equals(id).delete();
+				await db.localizedStrings.where('projectId').equals(id).delete();
 			});
 			await get().loadProjects();
 			await useDialogueStore.getState().loadDialogues();
@@ -1132,7 +1457,15 @@ export const useProjectStore = create((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const project = await db.projects.get(id);
-			set({ currentProject: project, isLoading: false });
+			set({
+				currentProject: project
+					? {
+						...project,
+						localization: normalizeProjectLocalizationConfig(project.localization || {}),
+					}
+					: null,
+				isLoading: false,
+			});
 		} catch (error) {
 			console.error('Error setting current project:', error);
 			toast({
@@ -1207,6 +1540,7 @@ export const useProjectStore = create((set, get) => ({
 				projectName: project.name,
 				projectDescription: project.description || '',
 				version: project.version || '1.0.0',
+				localization: normalizeProjectLocalizationConfig(project.localization || {}),
 				createdAt: project.createdAt,
 				modifiedAt: project.modifiedAt || new Date().toISOString(),
 			};
@@ -1252,9 +1586,6 @@ export const useProjectStore = create((set, get) => ({
 			const { useDialogueStore } = await import('./dialogueStore');
 			const dialogueStore = useDialogueStore.getState();
 
-			let successCount = 0;
-			let errorCount = 0;
-
 			for (const dialogue of dialogues) {
 				try {
 					console.log(`Exporting dialogue: ${dialogue.name} (${dialogue.id})`);
@@ -1265,23 +1596,14 @@ export const useProjectStore = create((set, get) => ({
 					// Add to dialogues folder with sanitized name
 					const sanitizedName = dialogue.name.replace(/[^a-z0-9]/gi, '_');
 					dialoguesFolder.file(`${sanitizedName}.mnteadlg`, dialogueBlob);
-
-					successCount++;
 					console.log(`Successfully exported dialogue: ${dialogue.name}`);
 				} catch (error) {
-					errorCount++;
 					console.error(`Failed to export dialogue ${dialogue.name}:`, error);
-
-					// Show error for this dialogue
-					toast({
-						variant: 'error',
-						title: `Failed to Export Dialogue: ${dialogue.name}`,
-						description: error.message,
-					});
+					throw new Error(
+						`Failed to export dialogue "${dialogue.name}": ${error.message || 'Unknown error'}`
+					);
 				}
 			}
-
-			console.log(`Exported ${successCount} dialogues, ${errorCount} failed`);
 
 			// Generate the final ZIP
 			const blob = await projectZip.generateAsync({ type: 'blob' });
@@ -1305,8 +1627,30 @@ export const useProjectStore = create((set, get) => ({
 
 	importProject: async (file) => {
 		try {
+			if (!file) {
+				throw new Error('Missing import file');
+			}
+			if (file.size > MAX_PROJECT_IMPORT_ARCHIVE_BYTES) {
+				throw new Error(
+					`Project archive is too large (max ${Math.floor(
+						MAX_PROJECT_IMPORT_ARCHIVE_BYTES / (1024 * 1024)
+					)} MB)`
+				);
+			}
+
 			const JSZip = (await import('jszip')).default;
 			const zip = await JSZip.loadAsync(file);
+			const allZipEntries = Object.values(zip.files || {});
+			const fileEntries = allZipEntries.filter((entry) => entry && !entry.dir);
+			if (fileEntries.length > MAX_PROJECT_IMPORT_ENTRY_COUNT) {
+				throw new Error('Project archive contains too many files');
+			}
+			for (const entry of fileEntries) {
+				const safePath = String(entry?.name || '');
+				if (safePath.startsWith('/') || safePath.includes('..')) {
+					throw new Error(`Unsafe path in project archive: ${safePath}`);
+				}
+			}
 
 			const projectDataStr = await zip.file('projectData.json')?.async('text');
 			const participantsStr = await zip.file('participants.json')?.async('text');
@@ -1318,11 +1662,41 @@ export const useProjectStore = create((set, get) => ({
 				throw new Error('Invalid project file: missing projectData.json');
 			}
 
-			const projectData = JSON.parse(projectDataStr);
-			const participants = participantsStr ? JSON.parse(participantsStr) : [];
-			const categories = categoriesStr ? JSON.parse(categoriesStr) : [];
-			const decorators = decoratorsStr ? JSON.parse(decoratorsStr) : [];
-			const conditions = conditionsStr ? JSON.parse(conditionsStr) : [];
+			const projectData = parseImportedJsonText({
+				label: 'projectData.json',
+				value: projectDataStr,
+			});
+			if (!projectData || typeof projectData !== 'object' || Array.isArray(projectData)) {
+				throw new Error('Invalid project metadata in projectData.json');
+			}
+			const participants =
+				parseImportedJsonText({
+					label: 'participants.json',
+					value: participantsStr,
+				}) || [];
+			const categories =
+				parseImportedJsonText({
+					label: 'categories.json',
+					value: categoriesStr,
+				}) || [];
+			const decorators =
+				parseImportedJsonText({
+					label: 'decorators.json',
+					value: decoratorsStr,
+				}) || [];
+			const conditions =
+				parseImportedJsonText({
+					label: 'conditions.json',
+					value: conditionsStr,
+				}) || [];
+			if (
+				!Array.isArray(participants) ||
+				!Array.isArray(categories) ||
+				!Array.isArray(decorators) ||
+				!Array.isArray(conditions)
+			) {
+				throw new Error('Imported project metadata must contain arrays');
+			}
 
 			const { v4: uuidv4 } = await import('uuid');
 			const newProjectId = uuidv4();
@@ -1331,7 +1705,10 @@ export const useProjectStore = create((set, get) => ({
 			const newProject = {
 				id: newProjectId,
 				name: projectData.projectName,
-				description: projectData.description || '',
+				description: projectData.projectDescription || projectData.description || '',
+				version: projectData.version || '1.0.0',
+				localization: normalizeProjectLocalizationConfig(projectData.localization || {}),
+				isExample: false,
 				createdAt: now,
 				modifiedAt: now,
 			};
@@ -1339,7 +1716,6 @@ export const useProjectStore = create((set, get) => ({
 			await db.projects.add(newProject);
 
 			const categoryIdMap = new Map();
-			const { useCategoryStore } = await import('./categoryStore');
 
 			for (const cat of categories) {
 				const newCatId = uuidv4();
@@ -1414,9 +1790,15 @@ export const useProjectStore = create((set, get) => ({
 						dialogueFiles.push({ path: relativePath, file });
 					}
 				});
+				if (dialogueFiles.length > MAX_PROJECT_IMPORT_DIALOGUE_FILES) {
+					throw new Error('Project archive contains too many dialogue files');
+				}
 
 				for (const { path, file } of dialogueFiles) {
 					try {
+						if (String(path || '').startsWith('/') || String(path || '').includes('..')) {
+							throw new Error('Unsafe dialogue archive path');
+						}
 						const dialogueBlob = await file.async('blob');
 						const dialogueFile = new File([dialogueBlob], path);
 						await dialogueStore.importDialogue(newProjectId, dialogueFile);

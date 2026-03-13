@@ -65,7 +65,7 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 			childrenByParent.get(parentId).push(cat.id);
 		});
 
-		const getMaxSubtreeDepth = (categoryId) => {
+		const getMaxSubtreeDepth = () => {
 			const visited = new Set();
 			const dfs = (nodeId) => {
 				if (visited.has(nodeId)) return 0;
@@ -102,7 +102,7 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 			const parentDepth = formData.parentCategoryId
 				? getDepthToRoot(formData.parentCategoryId)
 				: 0;
-			const subtreeDepth = getMaxSubtreeDepth(category.id);
+			const subtreeDepth = getMaxSubtreeDepth();
 			const totalDepth = parentDepth + subtreeDepth;
 
 			if (!Number.isFinite(parentDepth) || totalDepth > maxDepth) {

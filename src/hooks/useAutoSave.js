@@ -29,7 +29,7 @@ const saveProjectToIndexedDB = async (newData) => {
 		const removeNonSerializable = (obj) => {
 			const newObj = {};
 			for (let key in obj) {
-				if (obj.hasOwnProperty(key)) {
+				if (Object.prototype.hasOwnProperty.call(obj, key)) {
 					if (typeof obj[key] !== "function" && typeof obj[key] !== "symbol") {
 						if (Array.isArray(obj[key])) {
 							newObj[key] = obj[key].map((item) =>
