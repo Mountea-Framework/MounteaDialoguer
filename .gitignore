@@ -45,3 +45,4 @@ dist-ssr
 /.rider
 .private
 *.png~
+/DocumentationSource/qa
