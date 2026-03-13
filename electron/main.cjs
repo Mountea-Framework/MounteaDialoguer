@@ -18,6 +18,10 @@ const {
 	writeSteamCloudFile,
 	shutdownSteamRuntime,
 } = require('./steam.cjs');
+const {
+	initMainProcessSentry,
+	captureMainProcessException,
+} = require('./sentry.cjs');
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -57,6 +61,16 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 app.setName(APP_DISPLAY_NAME);
+initMainProcessSentry();
+
+function reportMainProcessError(error, context = {}) {
+	const safeContext = context && typeof context === 'object' ? context : {};
+	console.error('[main] runtime error', {
+		message: error?.message || String(error),
+		...safeContext,
+	});
+	captureMainProcessException(error, safeContext);
+}
 
 let steamRuntimeState = {
 	initialized: false,
@@ -187,7 +201,33 @@ function getDistIndexPath() {
 function isAllowedExternalUrl(rawUrl) {
 	try {
 		const parsed = new URL(rawUrl);
-		return ['http:', 'https:', 'mailto:'].includes(parsed.protocol);
+		const protocol = String(parsed.protocol || '').toLowerCase();
+		if (protocol === 'mailto:') {
+			return true;
+		}
+		if (protocol !== 'https:') {
+			return false;
+		}
+
+		const hostname = String(parsed.hostname || '').toLowerCase();
+		if (!hostname) return false;
+
+		if (
+			hostname === 'localhost' ||
+			hostname === '127.0.0.1' ||
+			hostname === '::1' ||
+			hostname.endsWith('.local')
+		) {
+			return false;
+		}
+
+		if (/^10\./.test(hostname)) return false;
+		if (/^127\./.test(hostname)) return false;
+		if (/^192\.168\./.test(hostname)) return false;
+		if (/^169\.254\./.test(hostname)) return false;
+		if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)) return false;
+
+		return true;
 	} catch (error) {
 		return false;
 	}
@@ -1551,6 +1591,20 @@ function createMainWindow() {
 		}
 	});
 
+	mainWindow.webContents.on('render-process-gone', (_event, details) => {
+		reportMainProcessError(new Error('Renderer process terminated unexpectedly'), {
+			event: 'render-process-gone',
+			reason: details?.reason || 'unknown',
+			exitCode: details?.exitCode ?? null,
+		});
+	});
+
+	mainWindow.webContents.on('unresponsive', () => {
+		reportMainProcessError(new Error('Renderer became unresponsive'), {
+			event: 'renderer-unresponsive',
+		});
+	});
+
 	mainWindow.once('ready-to-show', () => {
 		mainWindow.show();
 	});
@@ -1659,6 +1713,14 @@ function registerIpcHandlers() {
 }
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+process.on('uncaughtException', (error) => {
+	reportMainProcessError(error, { event: 'uncaughtException' });
+});
+
+process.on('unhandledRejection', (reason) => {
+	reportMainProcessError(reason, { event: 'unhandledRejection' });
+});
 
 if (!gotSingleInstanceLock) {
 	app.quit();
