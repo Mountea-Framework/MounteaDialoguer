@@ -22,6 +22,11 @@
 		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
 		"electron:dist:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"lint": "eslint src --ext js,jsx",
+		"lint:ci": "eslint src/App.test.js src/components/dialogs/EditCategoryDialog.jsx src/components/projects/sections/OverviewSection.jsx src/components/ui/command.jsx src/hooks/useAutoSave.js src/indexedDB.js src/routes/projects/*/dialogue/*/index.jsx src/main.jsx src/lib/monitoring/sentry.js src/components/ui/AppErrorBoundary.jsx src/stores/projectStore.js src/lib/sync/core/syncActions.js tests/e2e/smoke.spec.js tests/e2e/evidence.spec.js tests/e2e/helpers/appHarness.js",
+		"test:e2e": "playwright test",
+		"test:e2e:smoke": "playwright test tests/e2e/smoke.spec.js",
+		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
+		"validate:skills": "npm run lint:ci && npm run build && npm run test:e2e:smoke",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist"
 	},
@@ -109,6 +114,9 @@
 		"zustand": "^5.0.2"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.58.2",
+		"@sentry/electron": "^7.10.0",
+		"@sentry/react": "^10.43.0",
 		"@tanstack/router-devtools": "^1.87.0",
 		"@tanstack/router-plugin": "^1.87.0",
 		"@types/react": "^18.3.18",
