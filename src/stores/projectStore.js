@@ -1437,6 +1437,13 @@ export const useProjectStore = create((set, get) => ({
 	deleteProject: async (id) => {
 		set({ isLoading: true, error: null });
 		try {
+			const syncedProviders = Array.from(
+				new Set(
+					(await db.syncProjects.where('projectId').equals(id).toArray())
+						.map((entry) => String(entry?.provider || '').trim())
+						.filter(Boolean)
+				)
+			);
 			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.localizedStrings, db.nodes, db.edges], async () => {
 				const projectDialogues = await db.dialogues.where('projectId').equals(id).toArray();
 				const dialogueIds = projectDialogues.map((dialogue) => dialogue.id);
@@ -1456,7 +1463,9 @@ export const useProjectStore = create((set, get) => ({
 			});
 			await get().loadProjects();
 			await useDialogueStore.getState().loadDialogues();
-			useSyncStore.getState().schedulePush(id);
+			await useSyncStore.getState().scheduleProjectDeletion(id, {
+				providers: syncedProviders,
+			});
 			toast({
 				variant: 'success',
 				title: 'Project Deleted',

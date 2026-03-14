@@ -12,7 +12,7 @@ import {
 	applyProjectSnapshotAsNew,
 	buildProjectSnapshot,
 } from '@/lib/sync/snapshot';
-import { getSyncProject, upsertSyncProject } from '@/lib/sync/syncStorage';
+import { clearSyncProject, getSyncProject, upsertSyncProject } from '@/lib/sync/syncStorage';
 import { getActiveProfileId } from '@/lib/profile/activeProfile';
 
 const MAX_SYNC_PAYLOAD_BYTES = 20 * 1024 * 1024;
@@ -229,6 +229,27 @@ export async function pushProject({
 	return { pushed: true, revision: nextRevision };
 }
 
+export async function deleteRemoteProject({
+	projectId,
+	provider,
+}) {
+	const { providerId, storage } = getSyncContext({ provider });
+	if (typeof storage.deleteFile !== 'function') {
+		throw new Error(`Sync provider "${providerId}" does not support remote deletion`);
+	}
+
+	const fileName = buildFileName(projectId);
+	const remoteFile = await storage.findFileByName(fileName);
+	if (!remoteFile?.id) {
+		await clearSyncProject(projectId, providerId);
+		return { deleted: false, reason: 'missing' };
+	}
+
+	await storage.deleteFile(remoteFile.id);
+	await clearSyncProject(projectId, providerId);
+	return { deleted: true, fileId: remoteFile.id };
+}
+
 export async function syncAllProjects({
 	passphrase,
 	onProgress,
@@ -308,5 +329,4 @@ export async function syncAllProjects({
 	console.log('[sync] Sync all projects complete');
 	return { remoteCount: remoteProjects.length, localCount: localProjects.length };
 }
-
 

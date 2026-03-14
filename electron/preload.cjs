@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	steamSyncDownloadFile: (payload) => ipcRenderer.invoke('steam-sync:download-file', payload),
 	steamSyncCreateFile: (payload) => ipcRenderer.invoke('steam-sync:create-file', payload),
 	steamSyncUpdateFile: (payload) => ipcRenderer.invoke('steam-sync:update-file', payload),
+	steamSyncDeleteFile: (payload) => ipcRenderer.invoke('steam-sync:delete-file', payload),
 	getSteamStatus: () => ipcRenderer.invoke('steam:get-status'),
 	openSteamOverlay: (payload) => ipcRenderer.invoke('steam:open-overlay', payload),
 	setSteamRichPresence: (payload) => ipcRenderer.invoke('steam:set-rich-presence', payload),

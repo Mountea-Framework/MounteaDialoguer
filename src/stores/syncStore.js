@@ -10,6 +10,7 @@ import {
 } from '@/lib/sync/googleDriveAuth';
 import {
 	checkRemoteDiff as checkRemoteDiffEngine,
+	deleteRemoteProject as deleteRemoteProjectEngine,
 	diffRemoteLocal as diffRemoteLocalEngine,
 	previewPullFromFile,
 	previewPushProject,
@@ -18,7 +19,14 @@ import {
 	pushProject as pushProjectToRemote,
 	syncAllProjects as syncAllProjectsEngine,
 } from '@/lib/sync/syncEngine';
-import { getSyncAccount, upsertSyncAccount, clearSyncAccount } from '@/lib/sync/syncStorage';
+import {
+	getSyncAccount,
+	upsertSyncAccount,
+	clearSyncAccount,
+	upsertSyncDeletion,
+	listSyncDeletions,
+	clearSyncDeletion,
+} from '@/lib/sync/syncStorage';
 import {
 	SYNC_PROVIDER_IDS,
 	getSyncProviderConfig,
@@ -431,6 +439,104 @@ export const useSyncStore = create(
 				}));
 			},
 
+			processPendingDeletions: async (providerId = null) => {
+				const state = get();
+				const resolvedProviderId = normalizeProviderId(
+					providerId || resolveCloudProviderId(state)
+				);
+				if (!resolvedProviderId || !canUseCloudSyncProvider(resolvedProviderId)) {
+					return { processed: 0, pending: 0 };
+				}
+
+				const pending = await listSyncDeletions(resolvedProviderId);
+				if (!pending.length) {
+					return { processed: 0, pending: 0 };
+				}
+
+				traceSyncEvent('DELETE_SWEEP_START', {
+					provider: resolvedProviderId,
+					count: pending.length,
+				});
+
+				let processed = 0;
+				for (const entry of pending) {
+					const projectId = String(entry?.projectId || '').trim();
+					if (!projectId) continue;
+					try {
+						await deleteRemoteProjectEngine({
+							projectId,
+							provider: resolvedProviderId,
+						});
+						await clearSyncDeletion(projectId, resolvedProviderId);
+						processed += 1;
+						traceSyncEvent('DELETE_SWEEP_ITEM_DONE', {
+							provider: resolvedProviderId,
+							projectId,
+						});
+					} catch (error) {
+						traceSyncEvent('DELETE_SWEEP_ITEM_ERROR', {
+							provider: resolvedProviderId,
+							projectId,
+							message: String(error?.message || error),
+						});
+					}
+				}
+
+				traceSyncEvent('DELETE_SWEEP_DONE', {
+					provider: resolvedProviderId,
+					processed,
+					pending: pending.length - processed,
+				});
+				return { processed, pending: pending.length - processed };
+			},
+
+			scheduleProjectDeletion: async (projectId, options = {}) => {
+				const normalizedProjectId = String(projectId || '').trim();
+				if (!normalizedProjectId) return;
+
+				const currentState = get();
+				const explicitProviders = Array.isArray(options?.providers)
+					? options.providers.map((id) => normalizeProviderId(id)).filter(Boolean)
+					: [];
+				const activeCloudProviderId = resolveCloudProviderId(currentState);
+				const providers = Array.from(
+					new Set([
+						...explicitProviders,
+						...(activeCloudProviderId ? [activeCloudProviderId] : []),
+					])
+				).filter((id) => canUseCloudSyncProvider(id));
+
+				if (!providers.length) {
+					traceSyncEvent('DELETE_QUEUE_SKIP', {
+						projectId: normalizedProjectId,
+						reason: 'no-provider',
+					});
+					return;
+				}
+
+				const deletedAt = new Date().toISOString();
+				for (const providerId of providers) {
+					await upsertSyncDeletion(normalizedProjectId, providerId, {
+						deletedAt,
+					});
+					traceSyncEvent('DELETE_QUEUED', {
+						projectId: normalizedProjectId,
+						provider: providerId,
+					});
+				}
+
+				if (
+					activeCloudProviderId &&
+					providers.includes(activeCloudProviderId) &&
+					canRunSyncForStatus(activeCloudProviderId, currentState.status)
+				) {
+					await get().syncAllProjects({
+						mode: 'full',
+						trigger: 'project-delete',
+					});
+				}
+			},
+
 			syncAllProjects: async (options = {}) => {
 				const syncStartedAt = Date.now();
 				const currentState = get();
@@ -491,6 +597,8 @@ export const useSyncStore = create(
 				let shouldShow = false;
 				let total = 0;
 				try {
+					await get().processPendingDeletions(cloudProviderId);
+
 					if (mode === 'list') {
 						console.log('[sync] Listing remote projects (debug)');
 						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });

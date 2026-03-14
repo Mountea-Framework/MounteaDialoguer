@@ -18,6 +18,7 @@ function assertSteamSyncApi() {
 		'steamSyncDownloadFile',
 		'steamSyncCreateFile',
 		'steamSyncUpdateFile',
+		'steamSyncDeleteFile',
 	];
 	for (const method of required) {
 		if (typeof electronApi[method] !== 'function') {
@@ -110,5 +111,14 @@ export async function updateSteamCloudFile(payload) {
 	return await electronApi.steamSyncUpdateFile({
 		profileId,
 		...payload,
+	});
+}
+
+export async function deleteSteamCloudFile(fileId) {
+	const electronApi = assertSteamSyncApi();
+	const profileId = await resolveSteamSyncProfileId(electronApi);
+	return await electronApi.steamSyncDeleteFile({
+		profileId,
+		fileId,
 	});
 }

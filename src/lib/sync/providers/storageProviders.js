@@ -4,6 +4,7 @@ import {
 	downloadAppDataFile as downloadGoogleAppDataFile,
 	createAppDataFile as createGoogleAppDataFile,
 	updateAppDataFile as updateGoogleAppDataFile,
+	deleteAppDataFile as deleteGoogleAppDataFile,
 } from '@/lib/sync/googleDriveClient';
 import {
 	findSteamCloudFile,
@@ -11,6 +12,7 @@ import {
 	downloadSteamCloudFile,
 	createSteamCloudFile,
 	updateSteamCloudFile,
+	deleteSteamCloudFile,
 } from '@/lib/sync/steamCloudClient';
 import {
 	DEFAULT_SYNC_PROVIDER_ID,
@@ -30,6 +32,7 @@ const googleDriveStorageProvider = Object.freeze({
 	downloadFile: async (fileId) => await downloadGoogleAppDataFile(fileId),
 	createFile: async (payload) => await createGoogleAppDataFile(payload),
 	updateFile: async (payload) => await updateGoogleAppDataFile(payload),
+	deleteFile: async (fileId) => await deleteGoogleAppDataFile(fileId),
 });
 
 const steamStorageProvider = Object.freeze({
@@ -40,6 +43,7 @@ const steamStorageProvider = Object.freeze({
 	downloadFile: async (fileId) => await downloadSteamCloudFile(fileId),
 	createFile: async (payload) => await createSteamCloudFile(payload),
 	updateFile: async (payload) => await updateSteamCloudFile(payload),
+	deleteFile: async (fileId) => await deleteSteamCloudFile(fileId),
 });
 
 const STORAGE_PROVIDERS = Object.freeze({

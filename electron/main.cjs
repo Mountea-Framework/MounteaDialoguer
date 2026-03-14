@@ -933,6 +933,48 @@ async function steamSyncUpdateFile(payload = {}) {
 	return toSteamSyncFileMetadata(updated);
 }
 
+async function steamSyncDeleteFile(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
+	if (!fileId) {
+		throw new Error('Missing Steam sync file id');
+	}
+
+	const { bundle } = await readSteamSyncBundle(profileId);
+	const existing = (bundle?.entries || []).find((item) => item.id === fileId);
+	if (!existing) {
+		return { id: fileId, deleted: false };
+	}
+
+	const nextEntries = (bundle?.entries || []).filter((item) => item.id !== fileId);
+	const nextBundle = normalizeSteamSyncBundle(
+		{
+			...bundle,
+			profileId,
+			modifiedTime: new Date().toISOString(),
+			entries: nextEntries,
+		},
+		profileId
+	);
+	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
+	if (!cloudWritten) {
+		logSteamSyncEvent('DELETE_CLOUD_SKIPPED', {
+			profileId,
+			fileId: existing.id,
+			name: existing.name,
+			cloud: getSteamCloudRuntimeStatus(),
+		});
+	}
+	logSteamSyncEvent('DELETE', {
+		profileId,
+		fileId: existing.id,
+		name: existing.name,
+		bundlePath: getSteamSyncBundleCachePath(profileId),
+		cloudWritten,
+	});
+	return { id: fileId, deleted: true };
+}
+
 function sendMenuCommand(command, payload = {}) {
 	const targetWindow = BrowserWindow.getFocusedWindow() || mainWindow;
 	if (!targetWindow || targetWindow.isDestroyed()) return;
@@ -1856,6 +1898,7 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('steam-sync:download-file');
 	ipcMain.removeHandler('steam-sync:create-file');
 	ipcMain.removeHandler('steam-sync:update-file');
+	ipcMain.removeHandler('steam-sync:delete-file');
 
 	ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
 		if (!isAllowedExternalUrl(rawUrl)) {
@@ -1919,6 +1962,10 @@ function registerIpcHandlers() {
 
 	ipcMain.handle('steam-sync:update-file', async (_event, payload) => {
 		return await steamSyncUpdateFile(payload || {});
+	});
+
+	ipcMain.handle('steam-sync:delete-file', async (_event, payload) => {
+		return await steamSyncDeleteFile(payload || {});
 	});
 
 	ipcMain.on('menu:set-context', (_event, payload) => {
@@ -2012,4 +2059,3 @@ app.on('before-quit', () => {
 		// Best-effort cleanup.
 	}
 });
-

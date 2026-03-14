@@ -40,3 +40,32 @@ export async function clearSyncProject(projectId, provider) {
 	if (!projectId || !provider) return;
 	await db.syncProjects.delete([projectId, provider]);
 }
+
+export async function getSyncDeletion(projectId, provider) {
+	if (!projectId || !provider) return null;
+	return await db.syncDeletions.get([projectId, provider]);
+}
+
+export async function upsertSyncDeletion(projectId, provider, data = {}) {
+	if (!projectId || !provider) return null;
+	const payload = {
+		projectId,
+		provider,
+		...data,
+	};
+	await db.syncDeletions.put(payload);
+	return payload;
+}
+
+export async function listSyncDeletions(provider = '') {
+	const providerId = String(provider || '').trim();
+	if (!providerId) {
+		return await db.syncDeletions.toArray();
+	}
+	return await db.syncDeletions.where('provider').equals(providerId).toArray();
+}
+
+export async function clearSyncDeletion(projectId, provider) {
+	if (!projectId || !provider) return;
+	await db.syncDeletions.delete([projectId, provider]);
+}

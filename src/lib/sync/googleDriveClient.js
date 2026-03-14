@@ -230,3 +230,14 @@ export async function updateAppDataFile({ fileId, content, mimeType, appProperti
 
 	return await response.json();
 }
+
+export async function deleteAppDataFile(fileId) {
+	const syncRoot = getGoogleDriveSyncRoot();
+	const params = new URLSearchParams();
+	appendFileAccessParams(params, syncRoot);
+	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, fileId, params);
+	await driveRequest(url, {
+		method: 'DELETE',
+	});
+	return { id: fileId };
+}
