@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { encryptPayload, decryptPayload } from '@/lib/sync/crypto';
-import { MIME_TYPE } from '@/lib/sync/core/constants';
+import { MIME_TYPE, MAX_SYNC_PAYLOAD_BYTES } from '@/lib/sync/core/constants';
 import { getSyncContext } from '@/lib/sync/core/providerGateway';
 import {
 	buildFileName,
@@ -15,7 +15,52 @@ import {
 import { clearSyncProject, getSyncProject, upsertSyncProject } from '@/lib/sync/syncStorage';
 import { getActiveProfileId } from '@/lib/profile/activeProfile';
 
-const MAX_SYNC_PAYLOAD_BYTES = 20 * 1024 * 1024;
+
+async function deleteLocalProjectRecords(projectId, providerId) {
+	const normalizedProjectId = String(projectId || '').trim();
+	if (!normalizedProjectId) {
+		return { deleted: false, reason: 'invalid-project-id' };
+	}
+
+	let deleted = false;
+	await db.transaction(
+		'rw',
+		[
+			db.projects,
+			db.dialogues,
+			db.participants,
+			db.categories,
+			db.decorators,
+			db.conditions,
+			db.localizedStrings,
+			db.nodes,
+			db.edges,
+			db.syncProjects,
+		],
+		async () => {
+			const existingProject = await db.projects.get(normalizedProjectId);
+			deleted = Boolean(existingProject);
+			const projectDialogues = await db.dialogues.where('projectId').equals(normalizedProjectId).toArray();
+			const dialogueIds = projectDialogues.map((dialogue) => dialogue.id);
+
+			if (dialogueIds.length > 0) {
+				await db.nodes.where('dialogueId').anyOf(dialogueIds).delete();
+				await db.edges.where('dialogueId').anyOf(dialogueIds).delete();
+			}
+
+			await db.projects.delete(normalizedProjectId);
+			await db.dialogues.where('projectId').equals(normalizedProjectId).delete();
+			await db.participants.where('projectId').equals(normalizedProjectId).delete();
+			await db.categories.where('projectId').equals(normalizedProjectId).delete();
+			await db.decorators.where('projectId').equals(normalizedProjectId).delete();
+			await db.conditions.where('projectId').equals(normalizedProjectId).delete();
+			await db.localizedStrings.where('projectId').equals(normalizedProjectId).delete();
+			await db.syncProjects.delete([normalizedProjectId, providerId]);
+		}
+	);
+
+	return { deleted, projectId: normalizedProjectId };
+}
 
 function parseEncryptedPayloadJson(encryptedText, contextLabel = 'sync payload') {
 	if (typeof encryptedText !== 'string') {
@@ -126,6 +171,11 @@ export async function pullProject({
 	onProgress?.('checking', 20);
 	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
 	if (!remoteFile) {
+		const localMeta = await getSyncProject(projectId, providerId);
+		if (localMeta) {
+			await deleteLocalProjectRecords(projectId, providerId);
+			return { pulled: false, deletedLocal: true, reason: 'remote-missing' };
+		}
 		return { pulled: false, reason: 'missing' };
 	}
 
@@ -248,6 +298,14 @@ export async function deleteRemoteProject({
 	return { deleted: true, fileId: remoteFile.fileId };
 }
 
+export async function deleteLocalProject({
+	projectId,
+	provider,
+}) {
+	const { providerId } = getSyncContext({ provider });
+	return await deleteLocalProjectRecords(projectId, providerId);
+}
+
 export async function syncAllProjects({
 	passphrase,
 	onProgress,
@@ -285,12 +343,16 @@ export async function syncAllProjects({
 		onProgress?.({ phase: 'sync', projectId: project.id, index, total });
 
 		const remote = remoteMap.get(project.id);
+		const localMeta = await getSyncProject(project.id, providerId);
 		if (!remote) {
+			if (localMeta) {
+				await deleteLocalProjectRecords(project.id, providerId);
+				continue;
+			}
 			await pushProject({ projectId: project.id, passphrase, provider: providerId });
 			continue;
 		}
 
-		const localMeta = await getSyncProject(project.id, providerId);
 		if (!localMeta) {
 			const remoteUpdated = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
 			const localUpdated = project.modifiedAt ? Date.parse(project.modifiedAt) : 0;

@@ -16,6 +16,7 @@ import {
 	previewPushProject,
 	pullProjectFromFile,
 	pullProject,
+	deleteLocalProject as deleteLocalProjectEngine,
 	pushProject as pushProjectToRemote,
 	syncAllProjects as syncAllProjectsEngine,
 } from '@/lib/sync/syncEngine';
@@ -730,10 +731,14 @@ export const useSyncStore = create(
 						const diffStartedAt = Date.now();
 						traceSyncEvent('PULL_DIFF_START', { provider: cloudProviderId });
 						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
+						const localDeletes = Array.isArray(diff.actions.toDeleteLocal)
+							? diff.actions.toDeleteLocal
+							: [];
 						traceSyncEvent('PULL_DIFF_DONE', {
 							elapsedMs: Date.now() - diffStartedAt,
 							toPull: diff.actions.toPull.length,
 							toPush: diff.actions.toPush.length,
+							toDeleteLocal: localDeletes.length,
 							remoteOnly: diff.actions.remoteOnly.length,
 							localOnly: diff.actions.localOnly.length,
 						});
@@ -747,8 +752,8 @@ export const useSyncStore = create(
 							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
 						}
 
-						if (diff.actions.toPull.length === 0) {
-							console.log('[sync] No projects to pull');
+						if (diff.actions.toPull.length === 0 && localDeletes.length === 0) {
+							console.log('[sync] No projects to pull or prune locally');
 							traceSyncEvent('NOOP', {
 								mode: 'pull',
 								reason: 'nothing-to-pull',
@@ -762,7 +767,7 @@ export const useSyncStore = create(
 							diff.comparisons.map((item) => [item.projectId, item])
 						);
 						const startedAt = Date.now();
-						const total = diff.actions.toPull.length;
+						const total = diff.actions.toPull.length + localDeletes.length;
 						let index = 0;
 
 						set({
@@ -776,6 +781,51 @@ export const useSyncStore = create(
 								total,
 							},
 						});
+
+						for (const projectId of localDeletes) {
+							index += 1;
+							const deleteStartedAt = Date.now();
+							traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_START', {
+								projectId,
+								index,
+								total,
+							});
+
+							set({
+								pullState: {
+									active: true,
+									step: 'applying',
+									progress: Math.min(95, Math.round((index / total) * 90)),
+									projectId,
+									mode: 'bulk',
+									current: index,
+									total,
+								},
+							});
+
+							try {
+								const result = await deleteLocalProjectEngine({
+									projectId,
+									provider: cloudProviderId,
+								});
+								console.log('[sync] Pruned local project missing remotely', result);
+								traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_DONE', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - deleteStartedAt,
+								});
+							} catch (error) {
+								console.error('[sync] Local prune failed', projectId, error);
+								traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_ERROR', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - deleteStartedAt,
+									message: String(error?.message || error),
+								});
+							}
+						}
 
 						for (const projectId of diff.actions.toPull) {
 							index += 1;

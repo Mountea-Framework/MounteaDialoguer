@@ -35,11 +35,14 @@ export function getRevisionFromFile(file) {
 
 export async function checkRemoteDiff(projectId, options = {}) {
 	const { providerId } = getSyncContext(options);
+	const local = await getSyncProject(projectId, providerId);
 	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
-	if (!remoteFile) return false;
+	if (!remoteFile) {
+		// Remote missing + local sync metadata means project was likely deleted on another device.
+		return Boolean(local);
+	}
 
 	const remoteRevision = Number(remoteFile?.revision || 0);
-	const local = await getSyncProject(projectId, providerId);
 	const localRevision = local?.revision ? Number(local.revision) : 0;
 
 	return remoteRevision > localRevision;

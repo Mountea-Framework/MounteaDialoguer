@@ -16,5 +16,6 @@ export {
 	pullProjectFromFile,
 	pushProject,
 	deleteRemoteProject,
+	deleteLocalProject,
 	syncAllProjects,
 } from '@/lib/sync/core/syncActions';

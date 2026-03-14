@@ -58,6 +58,7 @@ export async function diffRemoteLocal(options = {}) {
 	const actions = {
 		toPull: [],
 		toPush: [],
+		toDeleteLocal: [],
 		unchanged: [],
 		remoteOnly: [],
 		localOnly: [],
@@ -77,8 +78,12 @@ export async function diffRemoteLocal(options = {}) {
 			decision = 'pull';
 			actions.remoteOnly.push(projectId);
 		} else if (!remote && local) {
-			decision = 'push';
-			actions.localOnly.push(projectId);
+			if (meta) {
+				decision = 'delete-local';
+			} else {
+				decision = 'push';
+				actions.localOnly.push(projectId);
+			}
 		} else if (remote && local) {
 			if (meta) {
 				if (remoteRevision > localRevision) decision = 'pull';
@@ -91,6 +96,7 @@ export async function diffRemoteLocal(options = {}) {
 
 		if (decision === 'pull') actions.toPull.push(projectId);
 		else if (decision === 'push') actions.toPush.push(projectId);
+		else if (decision === 'delete-local') actions.toDeleteLocal.push(projectId);
 		else actions.unchanged.push(projectId);
 
 		comparisons.push({
@@ -107,6 +113,7 @@ export async function diffRemoteLocal(options = {}) {
 				? {
 						modifiedAt: local.modifiedAt,
 						metaRevision: localRevision || null,
+						hasSyncMeta: Boolean(meta),
 					}
 				: null,
 		});
