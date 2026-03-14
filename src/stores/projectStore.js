@@ -17,6 +17,11 @@ import {
 	trackExampleProjectCreated,
 	trackFirstNonExampleProjectCreated,
 } from '@/lib/achievements/achievementTracker';
+import {
+	blobToStoredParticipantThumbnail,
+	buildParticipantImageId,
+	storedParticipantThumbnailToBlob,
+} from '@/lib/participantThumbnails';
 
 const MAX_PROJECT_IMPORT_ARCHIVE_BYTES = 25 * 1024 * 1024;
 const MAX_PROJECT_IMPORT_ENTRY_COUNT = 1000;
@@ -1587,6 +1592,12 @@ export const useProjectStore = create((set, get) => ({
 			const participantsExport = participants.map((p) => ({
 				name: p.name,
 				fullPath: categoryPathMap.get(p.category) || p.category,
+				participantImage: p.thumbnail
+					? buildParticipantImageId({
+						participantName: p.name,
+						categoryPath: categoryPathMap.get(p.category) || p.category,
+					})
+					: null,
 			}));
 
 			// Export decorators (definitions only)
@@ -1610,6 +1621,21 @@ export const useProjectStore = create((set, get) => ({
 			projectZip.file('participants.json', JSON.stringify(participantsExport, null, 2));
 			projectZip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
 			projectZip.file('conditions.json', JSON.stringify(conditionsExport, null, 2));
+			const thumbnailsFolder = projectZip.folder('Thumbnails');
+			participantsExport.forEach((entry, index) => {
+				const participantImageId = String(entry?.participantImage || '').trim();
+				if (!participantImageId) return;
+				const participant = participants[index];
+				try {
+					const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
+					if (!thumbnailBlob) return;
+					thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
+				} catch (error) {
+					console.warn(
+						`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
+					);
+				}
+			});
 
 			// Create dialogues folder
 			const dialoguesFolder = projectZip.folder('dialogues');
@@ -1782,19 +1808,28 @@ export const useProjectStore = create((set, get) => ({
 			await db.projects.add(newProject);
 
 			const categoryIdMap = new Map();
+			const importedCategoryPathToName = new Map();
 
 			for (const cat of categories) {
+				const fullPath = String(cat?.fullPath || '').trim();
+				const categoryName =
+					String(cat?.name || '').trim() || (fullPath ? fullPath.split('.').pop() : 'Unknown');
 				const newCatId = uuidv4();
 				const newCat = {
 					id: newCatId,
-					name: cat.name,
+					name: categoryName,
 					parentCategoryId: null,
 					projectId: newProjectId,
 					createdAt: now,
 					modifiedAt: now,
 				};
 				await db.categories.add(newCat);
-				categoryIdMap.set(cat.id, newCatId);
+				if (cat?.id) {
+					categoryIdMap.set(cat.id, newCatId);
+				}
+				if (fullPath) {
+					importedCategoryPathToName.set(fullPath, categoryName);
+				}
 			}
 
 			for (const cat of categories) {
@@ -1808,11 +1843,36 @@ export const useProjectStore = create((set, get) => ({
 			}
 
 			for (const part of participants) {
+				const participantImageId = String(part?.participantImage || '').trim();
+				let thumbnail = null;
+				if (participantImageId) {
+					const thumbnailEntry =
+						zip.file(`Thumbnails/${participantImageId}.png`) ||
+						zip.file(`thumbnails/${participantImageId}.png`);
+					if (thumbnailEntry) {
+						try {
+							const thumbnailBlob = await thumbnailEntry.async('blob');
+							thumbnail = await blobToStoredParticipantThumbnail(thumbnailBlob);
+						} catch (error) {
+							console.warn(
+								`Skipping invalid participant thumbnail in project import (${participantImageId})`
+							);
+						}
+					}
+				}
+
+				const fullPath = String(part?.fullPath || '').trim();
+				const categoryName =
+					importedCategoryPathToName.get(fullPath) ||
+					String(part?.category || '').trim() ||
+					(fullPath ? fullPath.split('.').pop() : 'Unknown');
+
 				const newPartId = uuidv4();
 				await db.participants.add({
 					id: newPartId,
 					name: part.name,
-					category: part.category,
+					category: categoryName || 'Unknown',
+					thumbnail,
 					projectId: newProjectId,
 					createdAt: now,
 					modifiedAt: now,

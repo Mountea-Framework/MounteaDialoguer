@@ -33,6 +33,7 @@ import {
 	upsertSyncProject,
 	upsertSyncTombstone,
 } from '@/lib/sync/syncStorage';
+import { formatBytesToMib, getUtf8ByteLength } from '@/lib/sync/payloadBudget';
 
 function parseEncryptedPayloadJson(encryptedText, contextLabel = 'sync payload') {
 	if (typeof encryptedText !== 'string') {
@@ -373,6 +374,10 @@ export async function pushProject({ projectId, passphrase, provider, mergedTombs
 
 	const encryptedPayload = await encryptPayload(passphrase, snapshot);
 	const content = JSON.stringify(encryptedPayload);
+	const contentBytes = getUtf8ByteLength(content);
+	if (contentBytes > MAX_SYNC_PAYLOAD_BYTES) {
+		throw new Error(`Sync payload is too large (${formatBytesToMib(contentBytes)} MiB > ${(MAX_SYNC_PAYLOAD_BYTES / (1024 * 1024)).toFixed(0)} MiB limit).`);
+	}
 	const fileName = buildFileName(normalizedProjectId);
 	const remoteFile = await findRemoteProjectById(normalizedProjectId, { provider: providerId });
 	const localMeta = await getSyncProject(normalizedProjectId, providerId);
@@ -764,4 +769,7 @@ export async function syncAllProjects({
 		pendingTombstones: (await listSyncTombstones({ pendingOnly: true, includeExpired: false })).length,
 	};
 }
+
+
+
 

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trash2, Edit3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useParticipantStore } from '@/stores/participantStore';
 import { EditParticipantDialog } from '@/components/dialogs/EditParticipantDialog';
+import { resolveParticipantThumbnailDataUrl } from '@/lib/participantThumbnails';
 
 export function ParticipantCard({ participant }) {
 	const { t } = useTranslation();
@@ -24,6 +26,10 @@ export function ParticipantCard({ participant }) {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const thumbnailUrl = useMemo(
+		() => resolveParticipantThumbnailDataUrl(participant.thumbnail),
+		[participant.thumbnail]
+	);
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -43,9 +49,15 @@ export function ParticipantCard({ participant }) {
 				<CardContent className="p-4">
 					<div className="flex items-start justify-between">
 						<div className="flex items-center gap-3 flex-1">
-							<div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-								{participant.name.charAt(0).toUpperCase()}
-							</div>
+							<Avatar className="h-12 w-12">
+								{thumbnailUrl ? (
+									<AvatarImage src={thumbnailUrl} alt={`${participant.name} thumbnail`} />
+								) : (
+									<AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold text-lg">
+										{participant.name.charAt(0).toUpperCase()}
+									</AvatarFallback>
+								)}
+							</Avatar>
 							<div className="flex-1">
 								<h3 className="font-medium text-sm">{participant.name}</h3>
 								{participant.category && (

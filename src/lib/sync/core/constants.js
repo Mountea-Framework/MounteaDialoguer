@@ -15,6 +15,17 @@ export const SYNC_TOMBSTONE_TTL_MS = SYNC_TOMBSTONE_TTL_DAYS * 24 * 60 * 60 * 10
 export const STEAM_REMOTE_LIST_RETRY_COUNT = 8;
 export const STEAM_REMOTE_LIST_RETRY_DELAY_MS = 3000;
 
+export const PARTICIPANT_THUMBNAIL_MAX_INPUT_BYTES = 10 * 1024 * 1024; // 10 MiB
+export const PARTICIPANT_THUMBNAIL_MAX_DIMENSION = 512;
+export const PARTICIPANT_THUMBNAIL_MIN_DIMENSION = 64;
+export const PARTICIPANT_THUMBNAIL_MAX_BYTES = 1024 * 1024; // 1 MiB
+export const PARTICIPANT_THUMBNAIL_ALLOWED_TYPES = new Set([
+	'image/png',
+	'image/jpeg',
+	'image/webp',
+]);
+export const PARTICIPANT_THUMBNAIL_INPUT_ACCEPT = '.png,.jpg,.jpeg,.webp';
+
 export function wait(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }

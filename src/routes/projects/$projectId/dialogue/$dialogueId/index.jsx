@@ -2596,6 +2596,7 @@ function DialogueEditorPage() {
 							open={isPreviewOpen}
 							nodes={nodes}
 							edges={edges}
+							participants={participants}
 							onStop={handlePreviewStop}
 							onNodeFocus={handlePreviewNodeFocus}
 							onNodeChange={setPreviewActiveNodeId}

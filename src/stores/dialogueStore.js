@@ -17,6 +17,11 @@ import {
 	remapLocalizedEntriesForImportedDialogue,
 	validateLocalizedEntriesForDialogue,
 } from '@/lib/localization/stringTable';
+import {
+	blobToStoredParticipantThumbnail,
+	buildParticipantImageId,
+	storedParticipantThumbnailToBlob,
+} from '@/lib/participantThumbnails';
 
 const normalizeDialogueRow = (row = {}) => ({
 	...row,
@@ -861,6 +866,12 @@ export const useDialogueStore = create((set, get) => ({
 			const participantsExport = usedParticipants.map((p) => ({
 				name: p.name,
 				fullPath: categoryPathMap.get(p.category) || p.category,
+				participantImage: p.thumbnail
+					? buildParticipantImageId({
+						participantName: p.name,
+						categoryPath: categoryPathMap.get(p.category) || p.category,
+					})
+					: null,
 			}));
 
 				// Create ZIP file
@@ -920,6 +931,23 @@ export const useDialogueStore = create((set, get) => ({
 					}
 				}
 			}
+
+			// Add participant thumbnail files
+			const thumbnailsFolder = zip.folder('Thumbnails');
+			participantsExport.forEach((entry, index) => {
+				const participantImageId = String(entry?.participantImage || '').trim();
+				if (!participantImageId) return;
+				const participant = usedParticipants[index];
+				try {
+					const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
+					if (!thumbnailBlob) return;
+					thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
+				} catch (error) {
+					console.warn(
+						`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
+					);
+				}
+			});
 
 			// Generate and return blob
 			const blob = await zip.generateAsync({ type: 'blob' });
@@ -1021,15 +1049,42 @@ export const useDialogueStore = create((set, get) => ({
 			}
 
 			// Step 2: Import participants with deduplication
+			const participantThumbnailById = new Map();
+			for (const partData of participants) {
+				const participantImageId = String(partData?.participantImage || '').trim();
+				if (!participantImageId) continue;
+				const thumbnailEntry =
+					zip.file(`Thumbnails/${participantImageId}.png`) ||
+					zip.file(`thumbnails/${participantImageId}.png`);
+				if (!thumbnailEntry) continue;
+				try {
+					const thumbnailBlob = await thumbnailEntry.async('blob');
+					const thumbnail = await blobToStoredParticipantThumbnail(thumbnailBlob);
+					participantThumbnailById.set(participantImageId, thumbnail);
+				} catch (error) {
+					console.warn(
+						`Skipping invalid participant thumbnail in dialogue import (${participantImageId})`
+					);
+				}
+			}
+
 			const existingParticipants = await db.participants
 				.where('projectId')
 				.equals(projectId)
 				.toArray();
 
+			const existingParticipantsByName = new Map(
+				existingParticipants.map((participant) => [participant.name, participant])
+			);
 			const existingParticipantNames = new Set(existingParticipants.map((p) => p.name));
 			const participantMapping = new Map(); // old name -> new name
 
 			for (const partData of participants) {
+				const participantImageId = String(partData?.participantImage || '').trim();
+				const importedThumbnail = participantImageId
+					? participantThumbnailById.get(participantImageId) || null
+					: null;
+
 				if (!existingParticipantNames.has(partData.name)) {
 					// Find the category by fullPath
 					const categoryName = categoryMapping.get(partData.fullPath) ||
@@ -1044,12 +1099,27 @@ export const useDialogueStore = create((set, get) => ({
 						id: uuidv4(),
 						name: partData.name,
 						category: categoryName,
+						thumbnail: importedThumbnail,
 						projectId,
 						createdAt: now,
 						modifiedAt: now,
 					};
 					await db.participants.add(newParticipant);
 					existingParticipantNames.add(partData.name);
+					existingParticipantsByName.set(partData.name, newParticipant);
+				} else if (importedThumbnail) {
+					const existingParticipant = existingParticipantsByName.get(partData.name);
+					if (existingParticipant && !existingParticipant.thumbnail) {
+						await db.participants.update(existingParticipant.id, {
+							thumbnail: importedThumbnail,
+							modifiedAt: now,
+						});
+						existingParticipantsByName.set(partData.name, {
+							...existingParticipant,
+							thumbnail: importedThumbnail,
+							modifiedAt: now,
+						});
+					}
 				}
 				participantMapping.set(partData.name, partData.name);
 			}

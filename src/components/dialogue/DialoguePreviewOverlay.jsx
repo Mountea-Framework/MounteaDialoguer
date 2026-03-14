@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
 	getDialogueRowsForPreview,
 	getSpeakerForPreview,
@@ -14,6 +15,7 @@ import {
 	evaluatePreviewEdgeConditions,
 	resolvePreviewAudioSource,
 } from '@/lib/dialoguePreviewEngine';
+import { resolveParticipantThumbnailDataUrl } from '@/lib/participantThumbnails';
 
 const CLOSE_ANIMATION_MS = 260;
 const MAX_PREVIEW_STEPS = 600;
@@ -23,6 +25,7 @@ export function DialoguePreviewOverlay({
 	open,
 	nodes = [],
 	edges = [],
+	participants = [],
 	onStop,
 	onNodeFocus,
 	onNodeChange,
@@ -151,6 +154,25 @@ export function DialoguePreviewOverlay({
 		if (selectedRouteNodeIds.length === 0) return 0;
 		return Math.min(100, Math.round((visitedPlayableCount / selectedRouteNodeIds.length) * 100));
 	}, [visitedPlayableCount, selectedRouteNodeIds]);
+
+	const participantThumbnailByName = useMemo(() => {
+		const map = new Map();
+		participants.forEach((participant) => {
+			const name = String(participant?.name || '').trim();
+			if (!name || map.has(name)) return;
+			const thumbnailUrl = resolveParticipantThumbnailDataUrl(participant?.thumbnail);
+			if (thumbnailUrl) {
+				map.set(name, thumbnailUrl);
+			}
+		});
+		return map;
+	}, [participants]);
+
+	const speakerThumbnailUrl = useMemo(() => {
+		const speakerName = String(speaker || '').trim();
+		if (!speakerName) return '';
+		return participantThumbnailByName.get(speakerName) || '';
+	}, [participantThumbnailByName, speaker]);
 
 	const clearTimer = useCallback(() => {
 		if (runtimeRef.current.timer) {
@@ -596,7 +618,20 @@ export function DialoguePreviewOverlay({
 						<p className="text-xs uppercase tracking-wide text-muted-foreground">
 							{t('editor.preview.title')}
 						</p>
-						<p className="text-sm font-semibold">{speaker || t('editor.preview.waiting')}</p>
+						<div className="mt-1 flex items-center gap-2 min-w-0">
+							<Avatar className="h-8 w-8 shrink-0">
+								{speakerThumbnailUrl ? (
+									<AvatarImage src={speakerThumbnailUrl} alt={speaker || 'Speaker'} />
+								) : (
+									<AvatarFallback className="text-xs">
+										{(speaker || '?').charAt(0).toUpperCase()}
+									</AvatarFallback>
+								)}
+							</Avatar>
+							<p className="text-sm font-semibold truncate">
+								{speaker || t('editor.preview.waiting')}
+							</p>
+						</div>
 						<div className="mt-2 flex items-center gap-3">
 							<Progress value={previewProgressPercent} className="h-1.5" />
 							<span className="text-[11px] text-muted-foreground whitespace-nowrap">

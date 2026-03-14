@@ -14,15 +14,22 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { useParticipantStore } from '@/stores/participantStore';
 import { useCategoryStore } from '@/stores/categoryStore';
+import {
+	processParticipantThumbnailFile,
+	resolveParticipantThumbnailDataUrl,
+} from '@/lib/participantThumbnails';
+import { PARTICIPANT_THUMBNAIL_INPUT_ACCEPT } from '@/lib/sync/core/constants';
 
 export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 	const { t } = useTranslation();
 	const { createParticipant, participants } = useParticipantStore();
 	const { categories, loadCategories } = useCategoryStore();
 	const [isCreating, setIsCreating] = useState(false);
+	const [isProcessingThumbnail, setIsProcessingThumbnail] = useState(false);
 	const [formData, setFormData] = useState({
 		name: '',
 		category: '',
+		thumbnail: null,
 	});
 	const [errors, setErrors] = useState({});
 
@@ -36,10 +43,10 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 	// Build hierarchical category display
 	const getCategoryPath = (categoryId) => {
 		const path = [];
-		let current = categories.find((c) => c.id === categoryId);
+		let current = categories.find((category) => category.id === categoryId);
 		while (current) {
 			path.unshift(current.name);
-			current = categories.find((c) => c.id === current.parentCategoryId);
+			current = categories.find((category) => category.id === current.parentCategoryId);
 		}
 		return path.join(' > ');
 	};
@@ -85,14 +92,14 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 
 		if (!newErrors.name && formData.category) {
 			const name = formData.name.trim();
-			const categoryMatches = categories.filter((c) => c.name === formData.category);
+			const categoryMatches = categories.filter((category) => category.name === formData.category);
 			const getRootId = (categoryId) => {
 				let currentId = categoryId;
 				const visited = new Set();
 				while (currentId) {
 					if (visited.has(currentId)) return null;
 					visited.add(currentId);
-					const current = categories.find((c) => c.id === currentId);
+					const current = categories.find((category) => category.id === currentId);
 					if (!current) return null;
 					if (!current.parentCategoryId) return current.id;
 					currentId = current.parentCategoryId;
@@ -100,14 +107,12 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 				return null;
 			};
 
-			const rootIds = categoryMatches
-				.map((cat) => getRootId(cat.id))
-				.filter(Boolean);
+			const rootIds = categoryMatches.map((category) => getRootId(category.id)).filter(Boolean);
 
-			const projectParticipants = participants.filter((p) => p.projectId === projectId);
-			const isDuplicate = projectParticipants.some((p) => {
-				if (p.name !== name) return false;
-				const matchCategory = categories.find((c) => c.name === p.category);
+			const projectParticipants = participants.filter((participant) => participant.projectId === projectId);
+			const isDuplicate = projectParticipants.some((participant) => {
+				if (participant.name !== name) return false;
+				const matchCategory = categories.find((category) => category.name === participant.category);
 				if (!matchCategory) return false;
 				const rootId = getRootId(matchCategory.id);
 				return rootId && rootIds.includes(rootId);
@@ -122,8 +127,28 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 		return Object.keys(newErrors).length === 0;
 	};
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+	const handleThumbnailChange = async (event) => {
+		const file = event.target.files?.[0];
+		event.target.value = '';
+		if (!file) return;
+
+		setIsProcessingThumbnail(true);
+		try {
+			const thumbnail = await processParticipantThumbnailFile(file);
+			setFormData((prev) => ({ ...prev, thumbnail }));
+			setErrors((prev) => ({ ...prev, thumbnail: null }));
+		} catch (error) {
+			setErrors((prev) => ({
+				...prev,
+				thumbnail: error.message || 'Failed to process thumbnail',
+			}));
+		} finally {
+			setIsProcessingThumbnail(false);
+		}
+	};
+
+	const handleSubmit = async (event) => {
+		event.preventDefault();
 		if (!validate()) return;
 
 		setIsCreating(true);
@@ -132,7 +157,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 				...formData,
 				projectId,
 			});
-			setFormData({ name: '', category: '' });
+			setFormData({ name: '', category: '', thumbnail: null });
 			setErrors({});
 			onOpenChange(false);
 		} catch (error) {
@@ -142,14 +167,14 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 		}
 	};
 
+	const thumbnailUrl = resolveParticipantThumbnailDataUrl(formData.thumbnail);
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
 				<DialogHeader>
 					<DialogTitle>{t('participants.addNew')}</DialogTitle>
-					<DialogDescription>
-						{t('participants.createDescription')}
-					</DialogDescription>
+					<DialogDescription>{t('participants.createDescription')}</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit}>
 					<div className="grid gap-4 py-4">
@@ -160,18 +185,58 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 							<Input
 								id="name"
 								value={formData.name}
-								onChange={(e) => {
-									setFormData({ ...formData, name: e.target.value });
+								onChange={(event) => {
+									setFormData({ ...formData, name: event.target.value });
 									if (errors.name) setErrors({ ...errors, name: null });
 								}}
 								placeholder={t('participants.namePlaceholder')}
 								className={errors.name ? 'border-destructive' : ''}
 								required
 							/>
-							{errors.name && (
-								<p className="text-xs text-destructive">{errors.name}</p>
+							{errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+						</div>
+
+						<div className="grid gap-2">
+							<Label htmlFor="thumbnail">Participant Thumbnail</Label>
+							<div className="flex items-center gap-3">
+								<div className="w-14 h-14 rounded-full overflow-hidden border border-border shrink-0 bg-muted">
+									{thumbnailUrl ? (
+										<img
+											src={thumbnailUrl}
+											alt="Participant Thumbnail"
+											className="w-full h-full object-cover"
+										/>
+									) : (
+										<div className="w-full h-full flex items-center justify-center text-sm font-semibold text-muted-foreground">
+											{(formData.name || '?').charAt(0).toUpperCase()}
+										</div>
+									)}
+								</div>
+								<div className="flex-1 space-y-2">
+									<Input
+										id="thumbnail"
+										type="file"
+										accept={PARTICIPANT_THUMBNAIL_INPUT_ACCEPT}
+										onChange={handleThumbnailChange}
+										disabled={isProcessingThumbnail}
+									/>
+									{formData.thumbnail && (
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => setFormData((prev) => ({ ...prev, thumbnail: null }))}
+										>
+											Remove Thumbnail
+										</Button>
+									)}
+								</div>
+							</div>
+							{errors.thumbnail && (
+								<p className="text-xs text-destructive">{errors.thumbnail}</p>
 							)}
 						</div>
+
 						<div className="grid gap-2">
 							<Label htmlFor="category">
 								{t('participants.category')} <span className="text-destructive">*</span>
@@ -179,8 +244,8 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 							<NativeSelect
 								id="category"
 								value={formData.category}
-								onChange={(e) => {
-									setFormData({ ...formData, category: e.target.value });
+								onChange={(event) => {
+									setFormData({ ...formData, category: event.target.value });
 									if (errors.category) setErrors({ ...errors, category: null });
 								}}
 								className={errors.category ? 'border-destructive' : ''}
@@ -205,9 +270,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 									))
 								)}
 							</NativeSelect>
-							{errors.category && (
-								<p className="text-xs text-destructive">{errors.category}</p>
-							)}
+							{errors.category && <p className="text-xs text-destructive">{errors.category}</p>}
 						</div>
 					</div>
 					<DialogFooter>
@@ -215,13 +278,18 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 							type="button"
 							variant="outline"
 							onClick={() => onOpenChange(false)}
-							disabled={isCreating}
+							disabled={isCreating || isProcessingThumbnail}
 						>
 							{t('common.cancel')}
 						</Button>
 						<Button
 							type="submit"
-							disabled={isCreating || !formData.name.trim() || !formData.category}
+							disabled={
+								isCreating ||
+								isProcessingThumbnail ||
+								!formData.name.trim() ||
+								!formData.category
+							}
 						>
 							{isCreating ? t('common.creating') : t('common.create')}
 						</Button>
