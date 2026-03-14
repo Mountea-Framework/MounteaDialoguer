@@ -4,7 +4,7 @@ import { MIME_TYPE } from '@/lib/sync/core/constants';
 import { getSyncContext } from '@/lib/sync/core/providerGateway';
 import {
 	buildFileName,
-	getRevisionFromFile,
+	findRemoteProjectById,
 	listRemoteProjectsWithSteamRetry,
 } from '@/lib/sync/core/remoteCatalog';
 import {
@@ -123,15 +123,14 @@ export async function pullProject({
 }) {
 	const { providerId, storage } = getSyncContext({ provider });
 	console.log('[sync] Pulling project', { projectId });
-	const fileName = buildFileName(projectId);
 	onProgress?.('checking', 20);
-	const remoteFile = await storage.findFileByName(fileName);
+	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
 	if (!remoteFile) {
 		return { pulled: false, reason: 'missing' };
 	}
 
 	onProgress?.('downloading', 45);
-	const encryptedText = await storage.downloadFile(remoteFile.id);
+	const encryptedText = await storage.downloadFile(remoteFile.fileId);
 	const payload = parseEncryptedPayloadJson(encryptedText, 'remote sync payload');
 	onProgress?.('decrypting', 70);
 	const snapshot = await decryptPayload(passphrase, payload);
@@ -139,10 +138,10 @@ export async function pullProject({
 	onProgress?.('applying', 90);
 	await applyProjectSnapshot(snapshot);
 
-	const remoteRevision = getRevisionFromFile(remoteFile);
+	const remoteRevision = Number(remoteFile.revision || 0);
 	await upsertSyncProject(projectId, providerId, {
 		revision: remoteRevision,
-		remoteFileId: remoteFile.id,
+		remoteFileId: remoteFile.fileId,
 		lastSyncedAt: new Date().toISOString(),
 	});
 
@@ -190,7 +189,7 @@ export async function pushProject({
 	const content = JSON.stringify(encryptedPayload);
 
 	const fileName = buildFileName(projectId);
-	const remoteFile = await storage.findFileByName(fileName);
+	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
 	const local = await getSyncProject(projectId, providerId);
 	const localRevision = local?.revision ? Number(local.revision) : 0;
 	const nextRevision = localRevision + 1;
@@ -204,9 +203,9 @@ export async function pushProject({
 	};
 
 	let result;
-	if (remoteFile?.id) {
+	if (remoteFile?.fileId) {
 		result = await storage.updateFile({
-			fileId: remoteFile.id,
+			fileId: remoteFile.fileId,
 			content,
 			mimeType: MIME_TYPE,
 			appProperties,
@@ -222,7 +221,7 @@ export async function pushProject({
 
 	await upsertSyncProject(projectId, providerId, {
 		revision: nextRevision,
-		remoteFileId: result.id || remoteFile?.id || null,
+		remoteFileId: result.id || remoteFile?.fileId || null,
 		lastSyncedAt: new Date().toISOString(),
 	});
 
@@ -238,16 +237,15 @@ export async function deleteRemoteProject({
 		throw new Error(`Sync provider "${providerId}" does not support remote deletion`);
 	}
 
-	const fileName = buildFileName(projectId);
-	const remoteFile = await storage.findFileByName(fileName);
-	if (!remoteFile?.id) {
+	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
+	if (!remoteFile?.fileId) {
 		await clearSyncProject(projectId, providerId);
 		return { deleted: false, reason: 'missing' };
 	}
 
-	await storage.deleteFile(remoteFile.id);
+	await storage.deleteFile(remoteFile.fileId);
 	await clearSyncProject(projectId, providerId);
-	return { deleted: true, fileId: remoteFile.id };
+	return { deleted: true, fileId: remoteFile.fileId };
 }
 
 export async function syncAllProjects({
@@ -329,4 +327,3 @@ export async function syncAllProjects({
 	console.log('[sync] Sync all projects complete');
 	return { remoteCount: remoteProjects.length, localCount: localProjects.length };
 }
-

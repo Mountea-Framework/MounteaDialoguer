@@ -2,6 +2,7 @@ import { getSyncProject } from '@/lib/sync/syncStorage';
 import {
 	FILE_PREFIX,
 	FILE_SUFFIX,
+	LEGACY_FILE_SUFFIXES,
 	STEAM_REMOTE_LIST_RETRY_COUNT,
 	STEAM_REMOTE_LIST_RETRY_DELAY_MS,
 	wait,
@@ -17,10 +18,13 @@ export function extractProjectId(file) {
 		return file.appProperties.projectId;
 	}
 	if (!file?.name) return '';
-	if (!file.name.startsWith(FILE_PREFIX) || !file.name.endsWith(FILE_SUFFIX)) {
+	if (!file.name.startsWith(FILE_PREFIX)) {
 		return '';
 	}
-	return file.name.slice(FILE_PREFIX.length, file.name.length - FILE_SUFFIX.length);
+	const suffixes = [FILE_SUFFIX, ...LEGACY_FILE_SUFFIXES];
+	const matchingSuffix = suffixes.find((suffix) => file.name.endsWith(suffix));
+	if (!matchingSuffix) return '';
+	return file.name.slice(FILE_PREFIX.length, file.name.length - matchingSuffix.length);
 }
 
 export function getRevisionFromFile(file) {
@@ -30,16 +34,34 @@ export function getRevisionFromFile(file) {
 }
 
 export async function checkRemoteDiff(projectId, options = {}) {
-	const { providerId, storage } = getSyncContext(options);
-	const fileName = buildFileName(projectId);
-	const remoteFile = await storage.findFileByName(fileName);
+	const { providerId } = getSyncContext(options);
+	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
 	if (!remoteFile) return false;
 
-	const remoteRevision = getRevisionFromFile(remoteFile);
+	const remoteRevision = Number(remoteFile?.revision || 0);
 	const local = await getSyncProject(projectId, providerId);
 	const localRevision = local?.revision ? Number(local.revision) : 0;
 
 	return remoteRevision > localRevision;
+}
+
+export async function findRemoteProjectById(projectId, options = {}) {
+	const targetId = String(projectId || '').trim();
+	if (!targetId) return null;
+
+	const remoteProjects = await listRemoteProjects(options);
+	const matches = remoteProjects.filter((entry) => entry.projectId === targetId);
+	if (!matches.length) return null;
+
+	matches.sort((a, b) => {
+		const byRevision = Number(b.revision || 0) - Number(a.revision || 0);
+		if (byRevision !== 0) return byRevision;
+		const aTime = a?.updatedAt ? Date.parse(a.updatedAt) : 0;
+		const bTime = b?.updatedAt ? Date.parse(b.updatedAt) : 0;
+		return bTime - aTime;
+	});
+
+	return matches[0] || null;
 }
 
 export async function listRemoteProjects(options = {}) {
