@@ -233,6 +233,16 @@ export const useDialogueStore = create((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const dialogue = await db.dialogues.get(id);
+			if (!dialogue) {
+				throw new Error('Dialogue not found');
+			}
+			const syncedProviders = Array.from(
+				new Set(
+					(await db.syncProjects.where('projectId').equals(dialogue.projectId).toArray())
+						.map((entry) => String(entry?.provider || '').trim())
+						.filter(Boolean)
+				)
+			);
 			await db.transaction('rw', [db.dialogues, db.nodes, db.edges, db.localizedStrings], async () => {
 				await db.dialogues.delete(id);
 				await db.nodes.where('dialogueId').equals(id).delete();
@@ -240,6 +250,9 @@ export const useDialogueStore = create((set, get) => ({
 				await db.localizedStrings.where('dialogueId').equals(id).delete();
 			});
 			await get().loadDialogues(dialogue.projectId);
+			await useSyncStore.getState().scheduleDialogueDeletion(id, dialogue.projectId, {
+				providers: syncedProviders,
+			});
 			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
 				variant: 'success',

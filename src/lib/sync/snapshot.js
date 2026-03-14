@@ -5,12 +5,14 @@ import { buildLocalizedStringKey } from '@/lib/localization/stringTable';
 function stripLocalOnlyProjectFields(project = {}) {
 	const sanitized = { ...(project || {}) };
 	delete sanitized.lastExportPath;
+	delete sanitized.syncTimestamp;
 	return sanitized;
 }
 
 function stripLocalOnlyDialogueFields(dialogue = {}) {
 	const sanitized = { ...(dialogue || {}) };
 	delete sanitized.lastExportPath;
+	delete sanitized.syncTimestamp;
 	return sanitized;
 }
 
@@ -115,6 +117,13 @@ export async function applyProjectSnapshot(snapshot) {
 		throw new Error('Invalid snapshot');
 	}
 
+	const syncTimestamp = new Date().toISOString();
+	const syncedProject = { ...project, syncTimestamp };
+	const syncedDialogues = sanitizedDialogues.map((dialogue) => ({
+		...dialogue,
+		syncTimestamp,
+	}));
+
 	await db.transaction(
 		'rw',
 		[
@@ -144,9 +153,9 @@ export async function applyProjectSnapshot(snapshot) {
 			await db.conditions.where('projectId').equals(project.id).delete();
 			await db.localizedStrings.where('projectId').equals(project.id).delete();
 
-			await db.projects.put(project);
+			await db.projects.put(syncedProject);
 
-			if (sanitizedDialogues.length > 0) await db.dialogues.bulkPut(sanitizedDialogues);
+			if (syncedDialogues.length > 0) await db.dialogues.bulkPut(syncedDialogues);
 			if (sanitizedParticipants.length > 0) await db.participants.bulkPut(sanitizedParticipants);
 			if (sanitizedCategories.length > 0) await db.categories.bulkPut(sanitizedCategories);
 			if (sanitizedDecorators.length > 0) await db.decorators.bulkPut(sanitizedDecorators);
@@ -300,3 +309,6 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 
 	return newProjectId;
 }
+
+
+

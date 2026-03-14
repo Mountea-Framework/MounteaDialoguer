@@ -7,6 +7,7 @@ import {
 	STEAM_REMOTE_LIST_RETRY_DELAY_MS,
 	wait,
 } from '@/lib/sync/core/constants';
+import { readProviderCatalog } from '@/lib/sync/core/providerCatalog';
 import { getSyncContext } from '@/lib/sync/core/providerGateway';
 
 export function buildFileName(projectId) {
@@ -18,9 +19,7 @@ export function extractProjectId(file) {
 		return file.appProperties.projectId;
 	}
 	if (!file?.name) return '';
-	if (!file.name.startsWith(FILE_PREFIX)) {
-		return '';
-	}
+	if (!file.name.startsWith(FILE_PREFIX)) return '';
 	const suffixes = [FILE_SUFFIX, ...LEGACY_FILE_SUFFIXES];
 	const matchingSuffix = suffixes.find((suffix) => file.name.endsWith(suffix));
 	if (!matchingSuffix) return '';
@@ -36,15 +35,29 @@ export function getRevisionFromFile(file) {
 export async function checkRemoteDiff(projectId, options = {}) {
 	const { providerId } = getSyncContext(options);
 	const local = await getSyncProject(projectId, providerId);
-	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
-	if (!remoteFile) {
-		// Remote missing + local sync metadata means project was likely deleted on another device.
-		return Boolean(local);
-	}
-
-	const remoteRevision = Number(remoteFile?.revision || 0);
 	const localRevision = local?.revision ? Number(local.revision) : 0;
 
+	const catalogRead = await readProviderCatalog(providerId);
+	if (catalogRead?.readable) {
+		const catalog = catalogRead.catalog || {};
+		const projectEntry = (catalog?.objects?.projects || []).find(
+			(entry) => String(entry?.projectId || '').trim() === String(projectId || '').trim()
+		);
+		const activeProjectTombstone = (catalog?.tombstones || []).find((entry) => {
+			if (String(entry?.entityType || '').trim() !== 'project') return false;
+			if (String(entry?.entityId || '').trim() !== String(projectId || '').trim()) return false;
+			const expiresAtMs = entry?.expiresAt ? Date.parse(entry.expiresAt) : 0;
+			return !(expiresAtMs && expiresAtMs <= Date.now());
+		});
+		if (activeProjectTombstone) return true;
+		if (!projectEntry) return false;
+		const remoteRevision = Number(projectEntry?.snapshotRevision || 0);
+		return remoteRevision > localRevision;
+	}
+
+	const remoteFile = await findRemoteProjectById(projectId, { provider: providerId });
+	if (!remoteFile) return false;
+	const remoteRevision = Number(remoteFile?.revision || 0);
 	return remoteRevision > localRevision;
 }
 
@@ -52,11 +65,8 @@ export async function findRemoteProjectById(projectId, options = {}) {
 	const targetId = String(projectId || '').trim();
 	if (!targetId) return null;
 
-    const { providerId } = getSyncContext(options);
-    const remoteProjects = await listRemoteProjectsWithSteamRetry(
-        providerId,
-        `find-project:${targetId}`
-    );
+	const { providerId } = getSyncContext(options);
+	const remoteProjects = await listRemoteProjectsWithSteamRetry(providerId, `find-project:${targetId}`);
 	const matches = remoteProjects.filter((entry) => entry.projectId === targetId);
 	if (!matches.length) return null;
 
@@ -73,7 +83,6 @@ export async function findRemoteProjectById(projectId, options = {}) {
 
 export async function listRemoteProjects(options = {}) {
 	const { storage } = getSyncContext(options);
-	console.log('[sync] Listing remote projects');
 	const files = await storage.listFiles({ namePrefix: FILE_PREFIX });
 	return files
 		.map((file) => ({
