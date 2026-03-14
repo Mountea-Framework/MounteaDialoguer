@@ -53,6 +53,9 @@ const DEFAULT_PULL_STATE = Object.freeze({
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
+const STEAM_CONNECT_SYNC_COOLDOWN_MS = 5000;
+let steamConnectSyncInFlight = false;
+let lastSteamConnectSyncAt = 0;
 
 const NOOP_PROFILE_STORAGE = Object.freeze({
 	getItem: () => null,
@@ -352,10 +355,30 @@ export const useSyncStore = create(
 					available: isAvailable,
 				});
 				if (isAvailable && !alreadyConnected) {
-					await get().syncAllProjects({
-						mode: 'full',
-						trigger: 'steam-connect',
-					});
+					const nowMs = Date.now();
+					if (steamConnectSyncInFlight) {
+						traceSyncEvent('SKIP', {
+							reason: 'steam-connect-sync-in-flight',
+							provider: 'steam',
+						});
+					} else if (nowMs - lastSteamConnectSyncAt < STEAM_CONNECT_SYNC_COOLDOWN_MS) {
+						traceSyncEvent('SKIP', {
+							reason: 'steam-connect-sync-cooldown',
+							provider: 'steam',
+							cooldownMs: STEAM_CONNECT_SYNC_COOLDOWN_MS,
+						});
+					} else {
+						steamConnectSyncInFlight = true;
+						lastSteamConnectSyncAt = nowMs;
+						try {
+							await get().syncAllProjects({
+								mode: 'full',
+								trigger: 'steam-connect',
+							});
+						} finally {
+							steamConnectSyncInFlight = false;
+						}
+					}
 				}
 				return isAvailable;
 			},

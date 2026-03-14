@@ -123,6 +123,9 @@ export async function applyProjectSnapshot(snapshot) {
 		...dialogue,
 		syncTimestamp,
 	}));
+	const incomingDialogueIds = syncedDialogues
+		.map((dialogue) => String(dialogue?.id || '').trim())
+		.filter(Boolean);
 
 	await db.transaction(
 		'rw',
@@ -138,6 +141,22 @@ export async function applyProjectSnapshot(snapshot) {
 			db.edges,
 		],
 		async () => {
+			if (incomingDialogueIds.length > 0) {
+				const conflictingDialogues = await db.dialogues
+					.where('id')
+					.anyOf(incomingDialogueIds)
+					.toArray();
+				const conflictingDialogueIds = conflictingDialogues
+					.map((dialogue) => String(dialogue?.id || '').trim())
+					.filter(Boolean);
+				if (conflictingDialogueIds.length > 0) {
+					await db.nodes.where('dialogueId').anyOf(conflictingDialogueIds).delete();
+					await db.edges.where('dialogueId').anyOf(conflictingDialogueIds).delete();
+					await db.localizedStrings.where('dialogueId').anyOf(conflictingDialogueIds).delete();
+					await db.dialogues.bulkDelete(conflictingDialogueIds);
+				}
+			}
+
 			const existingDialogues = await db.dialogues.where('projectId').equals(project.id).toArray();
 			const existingDialogueIds = existingDialogues.map((dialogue) => dialogue.id);
 			if (existingDialogueIds.length > 0) {

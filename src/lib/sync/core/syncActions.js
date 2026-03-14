@@ -644,7 +644,20 @@ export async function syncAllProjects({
 	const localMap = new Map(localProjects.map((entry) => [entry.id, entry]));
 	const allSyncMeta = await db.syncProjects.toArray();
 	const metaMap = new Map(allSyncMeta.map((entry) => [`${entry.projectId}::${entry.provider}`, entry]));
-
+	const localProjectTombstones = await listSyncTombstones({
+		entityType: 'project',
+		includeExpired: false,
+	});
+	const localProjectTombstoneProviders = new Map();
+	for (const entry of localProjectTombstones) {
+		const projectId = String(entry?.entityId || '').trim();
+		const providerId = String(entry?.provider || '').trim();
+		if (!projectId || !providerId) continue;
+		if (!localProjectTombstoneProviders.has(projectId)) {
+			localProjectTombstoneProviders.set(projectId, new Set());
+		}
+		localProjectTombstoneProviders.get(projectId).add(providerId);
+	}
 	const toPull = [];
 	const toPush = [];
 	for (const remote of remoteProjects) {
@@ -652,6 +665,10 @@ export async function syncAllProjects({
 		const projectId = String(remote?.projectId || '').trim();
 		const sourceProvider = String(remote?.sourceProvider || '').trim();
 		if (!projectId || !sourceProvider) continue;
+		const localTombstoneProviders = localProjectTombstoneProviders.get(projectId);
+		if (localTombstoneProviders?.has(sourceProvider)) {
+			continue;
+		}
 		const local = localMap.get(projectId);
 		const meta = metaMap.get(`${projectId}::${sourceProvider}`) || null;
 		const localRevision = toRevision(meta?.revision);
