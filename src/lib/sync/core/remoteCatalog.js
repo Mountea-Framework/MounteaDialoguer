@@ -52,7 +52,11 @@ export async function findRemoteProjectById(projectId, options = {}) {
 	const targetId = String(projectId || '').trim();
 	if (!targetId) return null;
 
-	const remoteProjects = await listRemoteProjects(options);
+    const { providerId } = getSyncContext(options);
+    const remoteProjects = await listRemoteProjectsWithSteamRetry(
+        providerId,
+        `find-project:${targetId}`
+    );
 	const matches = remoteProjects.filter((entry) => entry.projectId === targetId);
 	if (!matches.length) return null;
 
