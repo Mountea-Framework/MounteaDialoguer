@@ -322,6 +322,22 @@ export const useSyncStore = create(
 			connectSteamProvider: async (steamStatus) => {
 				const isAvailable = Boolean(steamStatus?.available);
 				const identity = String(steamStatus?.personaName || steamStatus?.steamId || '');
+				const currentState = get();
+				const alreadyConnected =
+					currentState.provider === 'steam' &&
+					(currentState.status === 'connected' || currentState.status === 'syncing');
+
+				if (alreadyConnected && isAvailable) {
+					if (identity) {
+						set((state) => ({
+							providerInputs: withProviderInput(state, 'steam', {
+								accountLabel: identity,
+							}),
+						}));
+					}
+					return true;
+				}
+
 				set((state) => ({
 					provider: 'steam',
 					status: isAvailable ? 'connected' : 'disconnected',
@@ -335,7 +351,7 @@ export const useSyncStore = create(
 					account: identity,
 					available: isAvailable,
 				});
-				if (isAvailable) {
+				if (isAvailable && !alreadyConnected) {
 					await get().syncAllProjects({
 						mode: 'full',
 						trigger: 'steam-connect',
@@ -537,6 +553,19 @@ export const useSyncStore = create(
 					});
 				}
 
+				for (const providerId of providers) {
+					try {
+						await get().processPendingTombstones(providerId);
+					} catch (error) {
+						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
+							provider: providerId,
+							entityType: 'project',
+							entityId: normalizedProjectId,
+							message: String(error?.message || error),
+						});
+					}
+				}
+
 				if (
 					activeCloudProviderId &&
 					providers.includes(activeCloudProviderId) &&
@@ -590,6 +619,19 @@ export const useSyncStore = create(
 						entityId: normalizedDialogueId,
 						provider: providerId,
 					});
+				}
+
+				for (const providerId of providers) {
+					try {
+						await get().processPendingTombstones(providerId);
+					} catch (error) {
+						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
+							provider: providerId,
+							entityType: 'dialogue',
+							entityId: normalizedDialogueId,
+							message: String(error?.message || error),
+						});
+					}
 				}
 
 				if (
@@ -663,10 +705,10 @@ export const useSyncStore = create(
 				const resetPullState = createResetPullState('bulk');
 				let shouldShow = false;
 				let total = 0;
-				const providerPassphrases = Object.fromEntries(
-					SYNC_PROVIDER_IDS.map((id) => [id, resolveSyncPassphrase(currentState, id)])
-				);
-				const engineProviders = SYNC_PROVIDER_IDS.filter((id) => canUseCloudSyncProvider(id));
+				const providerPassphrases = cloudProviderId
+					? { [cloudProviderId]: resolveSyncPassphrase(currentState, cloudProviderId) }
+					: {};
+				const engineProviders = cloudProviderId ? [cloudProviderId] : [];
 				try {
 					await get().processPendingTombstones(cloudProviderId);
 
@@ -1275,6 +1317,9 @@ export const useSyncStore = create(
 		}
 	)
 );
+
+
+
 
 
 

@@ -867,6 +867,11 @@ async function steamSyncCreateFile(payload = {}) {
 			name: entry.name,
 			cloud: getSteamCloudRuntimeStatus(),
 		});
+		const cloud = getSteamCloudRuntimeStatus();
+		const cloudError = String(cloud?.error || '').trim();
+		throw new Error(
+			`Steam Cloud write skipped during create: ${cloudError || 'cloud unavailable'}`
+		);
 	}
 
 	logSteamSyncEvent('CREATE', {
@@ -876,7 +881,10 @@ async function steamSyncCreateFile(payload = {}) {
 		bundlePath: getSteamSyncBundleCachePath(profileId),
 		cloudWritten,
 	});
-	return toSteamSyncFileMetadata(entry);
+	return {
+		...toSteamSyncFileMetadata(entry),
+		cloudWritten,
+	};
 }
 
 async function steamSyncUpdateFile(payload = {}) {
@@ -922,6 +930,11 @@ async function steamSyncUpdateFile(payload = {}) {
 			name: updated.name,
 			cloud: getSteamCloudRuntimeStatus(),
 		});
+		const cloud = getSteamCloudRuntimeStatus();
+		const cloudError = String(cloud?.error || '').trim();
+		throw new Error(
+			`Steam Cloud write skipped during update: ${cloudError || 'cloud unavailable'}`
+		);
 	}
 	logSteamSyncEvent('UPDATE', {
 		profileId,
@@ -930,7 +943,10 @@ async function steamSyncUpdateFile(payload = {}) {
 		bundlePath: getSteamSyncBundleCachePath(profileId),
 		cloudWritten,
 	});
-	return toSteamSyncFileMetadata(updated);
+	return {
+		...toSteamSyncFileMetadata(updated),
+		cloudWritten,
+	};
 }
 
 async function steamSyncDeleteFile(payload = {}) {
@@ -964,6 +980,11 @@ async function steamSyncDeleteFile(payload = {}) {
 			name: existing.name,
 			cloud: getSteamCloudRuntimeStatus(),
 		});
+		const cloud = getSteamCloudRuntimeStatus();
+		const cloudError = String(cloud?.error || '').trim();
+		throw new Error(
+			`Steam Cloud write skipped during delete: ${cloudError || 'cloud unavailable'}`
+		);
 	}
 	logSteamSyncEvent('DELETE', {
 		profileId,
@@ -972,7 +993,7 @@ async function steamSyncDeleteFile(payload = {}) {
 		bundlePath: getSteamSyncBundleCachePath(profileId),
 		cloudWritten,
 	});
-	return { id: fileId, deleted: true };
+	return { id: fileId, deleted: true, cloudWritten };
 }
 
 function sendMenuCommand(command, payload = {}) {
