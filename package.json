@@ -21,6 +21,7 @@
 		"electron:pack:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --dir --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
 		"electron:dist:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
+		"steam:upload:mac": "./steam_build_upload_mac.sh",
 		"lint": "eslint src --ext js,jsx",
 		"lint:ci": "eslint src/App.test.js src/components/dialogs/EditCategoryDialog.jsx src/components/projects/sections/OverviewSection.jsx src/components/ui/command.jsx src/hooks/useAutoSave.js src/indexedDB.js src/routes/projects/*/dialogue/*/index.jsx src/main.jsx src/lib/monitoring/sentry.js src/components/ui/AppErrorBoundary.jsx src/stores/projectStore.js src/lib/sync/core/syncActions.js tests/e2e/smoke.spec.js tests/e2e/evidence.spec.js tests/e2e/helpers/appHarness.js",
 		"test:e2e": "playwright test",

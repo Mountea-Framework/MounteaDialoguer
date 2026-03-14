@@ -330,7 +330,30 @@ export const useProjectStore = create((set, get) => ({
 				db.dialogues.get(childDialogueId),
 			]);
 			if (existingDialogue || existingChildDialogue) {
-				throw new Error('Example graph already exists. Delete the previous example project first.');
+				const candidateProjectIds = Array.from(
+					new Set(
+						[
+							String(existingDialogue?.projectId || '').trim(),
+							String(existingChildDialogue?.projectId || '').trim(),
+						].filter(Boolean)
+					)
+				);
+				const candidateProjects = await Promise.all(
+					candidateProjectIds.map(async (id) => await db.projects.get(id))
+				);
+				const existingExampleProject = candidateProjects.find(Boolean);
+				if (existingExampleProject) {
+					throw new Error('Example graph already exists. Delete the previous example project first.');
+				}
+
+				// Recover from orphaned example dialogues left without a parent project.
+				await db.transaction('rw', [db.dialogues, db.nodes, db.edges, db.localizedStrings], async () => {
+					await db.dialogues.delete(dialogueId);
+					await db.dialogues.delete(childDialogueId);
+					await db.nodes.where('dialogueId').anyOf([dialogueId, childDialogueId]).delete();
+					await db.edges.where('dialogueId').anyOf([dialogueId, childDialogueId]).delete();
+					await db.localizedStrings.where('dialogueId').anyOf([dialogueId, childDialogueId]).delete();
+				});
 			}
 
 			const newProject = {

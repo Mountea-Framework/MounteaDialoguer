@@ -114,7 +114,9 @@ export function SyncLoginDialog({
 	useEffect(() => {
 		if (!open) return;
 		if (!showSteamProvider || !steamStatus?.available) return;
-		if (provider === 'steam' && (status === 'connected' || status === 'syncing')) return;
+		// Prevent reconnect loops when a Steam sync error occurs while the dialog is open.
+		// Manual "Sync now" remains available for explicit retry.
+		if (provider === 'steam') return;
 		if (provider === 'googleDrive' && status === 'connected') return;
 
 		connectSteamProvider(steamStatus).catch((error) => {

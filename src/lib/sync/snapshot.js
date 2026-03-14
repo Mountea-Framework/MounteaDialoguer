@@ -14,6 +14,16 @@ function stripLocalOnlyDialogueFields(dialogue = {}) {
 	return sanitized;
 }
 
+function dedupeBy(items = [], keySelector) {
+	const latestByKey = new Map();
+	for (const item of items) {
+		const key = String(keySelector(item) || '').trim();
+		if (!key) continue;
+		latestByKey.set(key, item);
+	}
+	return Array.from(latestByKey.values());
+}
+
 export async function buildProjectSnapshot(projectId) {
 	const project = await db.projects.get(projectId);
 	if (!project) {
@@ -65,7 +75,41 @@ export async function applyProjectSnapshot(snapshot) {
 		edges = [],
 	} = snapshot || {};
 	const project = stripLocalOnlyProjectFields(rawProject);
-	const sanitizedDialogues = dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue));
+	const sanitizedDialogues = dedupeBy(
+		dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue)),
+		(dialogue) => dialogue?.id
+	);
+	const sanitizedParticipants = dedupeBy(participants, (participant) => participant?.id);
+	const sanitizedCategories = dedupeBy(categories, (category) => category?.id);
+	const sanitizedDecorators = dedupeBy(decorators, (decorator) => decorator?.id);
+	const sanitizedConditions = dedupeBy(conditions, (condition) => condition?.id);
+	const normalizedLocalizedStrings = localizedStrings.map((entry) => {
+		const key =
+			entry?.key ||
+			buildLocalizedStringKey({
+				dialogueId: entry?.dialogueId,
+				nodeId: entry?.nodeId,
+				rowId: entry?.rowId,
+				field: entry?.field,
+			});
+		return {
+			...entry,
+			projectId: project.id,
+			key,
+		};
+	});
+	const sanitizedLocalizedStrings = dedupeBy(
+		normalizedLocalizedStrings,
+		(entry) => `${project.id}::${entry?.key || ''}`
+	);
+	const sanitizedNodes = dedupeBy(
+		nodes,
+		(node) => `${node?.dialogueId || ''}::${node?.id || ''}`
+	);
+	const sanitizedEdges = dedupeBy(
+		edges,
+		(edge) => `${edge?.dialogueId || ''}::${edge?.id || ''}`
+	);
 
 	if (!project?.id) {
 		throw new Error('Invalid snapshot');
@@ -102,14 +146,15 @@ export async function applyProjectSnapshot(snapshot) {
 
 			await db.projects.put(project);
 
-			if (sanitizedDialogues.length > 0) await db.dialogues.bulkAdd(sanitizedDialogues);
-			if (participants.length > 0) await db.participants.bulkAdd(participants);
-			if (categories.length > 0) await db.categories.bulkAdd(categories);
-			if (decorators.length > 0) await db.decorators.bulkAdd(decorators);
-			if (conditions.length > 0) await db.conditions.bulkAdd(conditions);
-			if (localizedStrings.length > 0) await db.localizedStrings.bulkAdd(localizedStrings);
-			if (nodes.length > 0) await db.nodes.bulkAdd(nodes);
-			if (edges.length > 0) await db.edges.bulkAdd(edges);
+			if (sanitizedDialogues.length > 0) await db.dialogues.bulkPut(sanitizedDialogues);
+			if (sanitizedParticipants.length > 0) await db.participants.bulkPut(sanitizedParticipants);
+			if (sanitizedCategories.length > 0) await db.categories.bulkPut(sanitizedCategories);
+			if (sanitizedDecorators.length > 0) await db.decorators.bulkPut(sanitizedDecorators);
+			if (sanitizedConditions.length > 0) await db.conditions.bulkPut(sanitizedConditions);
+			if (sanitizedLocalizedStrings.length > 0)
+				await db.localizedStrings.bulkPut(sanitizedLocalizedStrings);
+			if (sanitizedNodes.length > 0) await db.nodes.bulkPut(sanitizedNodes);
+			if (sanitizedEdges.length > 0) await db.edges.bulkPut(sanitizedEdges);
 		}
 	);
 }
