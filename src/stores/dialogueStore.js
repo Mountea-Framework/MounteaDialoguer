@@ -595,6 +595,71 @@ export const useDialogueStore = create((set, get) => ({
 		}
 	},
 
+		/**
+		 * Read-only graph loader for preview runtime (does not mutate store state).
+		 */
+		loadDialogueGraphForPreview: async (dialogueId, options = {}) => {
+			try {
+				const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
+
+				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
+				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+				const dialogue = await db.dialogues.get(dialogueId);
+				if (!dialogue) {
+					return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
+				}
+
+				const project = dialogue.projectId ? await db.projects.get(dialogue.projectId) : null;
+				const localizationState = getProjectLocalizationState(project);
+				const activeLocale = normalizeLocaleTag(
+					options?.activeLocale,
+					localizationState.defaultLocale
+				);
+				const defaultLocale = localizationState.defaultLocale;
+				const entries = dialogue.projectId
+					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
+					: [];
+
+				let nodes = loadedNodes.map((node) => {
+					if (!node.data?.dialogueRows) return node;
+					const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
+						if (row.audioFile?.base64) {
+							return {
+								...row,
+								audioFile: restoreAudioFromStorage(row.audioFile),
+							};
+						}
+						return row;
+					});
+					return {
+						...node,
+						data: {
+							...node.data,
+							dialogueRows: restoredRows,
+						},
+					};
+				});
+
+				nodes = materializeLocalizedNodes({
+					nodes,
+					dialogueId,
+					dialogueSlug: dialogue.localizationSlug,
+					locale: activeLocale,
+					defaultLocale,
+					stringEntries: entries,
+				});
+
+				return {
+					nodes,
+					edges,
+					viewport: dialogue.viewport || { x: 0, y: 0, zoom: 1 },
+				};
+			} catch (error) {
+				console.error('Error loading dialogue graph for preview:', error);
+				throw error;
+			}
+		},
+
 	/**
 	 * Clear current dialogue
 	 */

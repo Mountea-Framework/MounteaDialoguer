@@ -342,8 +342,14 @@ function DialogueEditorPage() {
 	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
-	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
-		useDialogueStore();
+	const {
+		dialogues,
+		loadDialogues,
+		saveDialogueGraph,
+		loadDialogueGraph,
+		loadDialogueGraphForPreview: loadDialogueGraphForPreviewFromStore,
+		exportDialogue,
+	} = useDialogueStore();
 	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
 	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 	const { participants, loadParticipants } = useParticipantStore();
@@ -368,6 +374,13 @@ function DialogueEditorPage() {
 		}
 		return projectLocalization.defaultLocale;
 	}, [contentLocaleByProject, projectId, projectLocalization]);
+	const loadDialogueGraphForPreview = useCallback(
+		(targetDialogueId) =>
+			loadDialogueGraphForPreviewFromStore(targetDialogueId, {
+				activeLocale: contentLocale,
+			}),
+		[loadDialogueGraphForPreviewFromStore, contentLocale]
+	);
 
 	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -408,7 +421,8 @@ function DialogueEditorPage() {
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
+	const [previewActiveNodeRef, setPreviewActiveNodeRef] = useState(null);
+	const previewOriginRef = useRef(null);
 	const graphLoadKeyRef = useRef('');
 	const hasPendingNodeDataEditsRef = useRef(false);
 	const headerRef = useRef(null);
@@ -1374,11 +1388,23 @@ function DialogueEditorPage() {
 
 	const handlePreviewStop = useCallback(() => {
 		setIsPreviewOpen(false);
-		setPreviewActiveNodeId(null);
-	}, []);
+		setPreviewActiveNodeRef(null);
+		const origin = previewOriginRef.current;
+		if (!origin || origin.dialogueId === dialogueId) {
+			window.setTimeout(() => {
+				focusStartNode();
+			}, 0);
+		}
+	}, [dialogueId, focusStartNode]);
 
-	const handlePreviewNodeFocus = useCallback((nodeId) => {
+	const handlePreviewNodeFocus = useCallback((nodeRef) => {
+		const nodeId = String(nodeRef?.nodeId || '').trim();
+		const previewDialogueId = String(nodeRef?.dialogueId || '').trim();
 		if (!reactFlowInstance || !nodeId) return;
+		if (previewDialogueId !== dialogueId) {
+			setPreviewActiveNodeRef(null);
+			return;
+		}
 
 		try {
 			reactFlowInstance.fitView({
@@ -1398,7 +1424,16 @@ function DialogueEditorPage() {
 				{ zoom: 1, duration: 280 }
 			);
 		}
-	}, [reactFlowInstance, nodes]);
+	}, [dialogueId, reactFlowInstance, nodes]);
+
+	const handlePreviewNodeChange = useCallback((nodeRef) => {
+		const previewDialogueId = String(nodeRef?.dialogueId || '').trim();
+		if (!nodeRef || previewDialogueId !== dialogueId) {
+			setPreviewActiveNodeRef(null);
+			return;
+		}
+		setPreviewActiveNodeRef(nodeRef);
+	}, [dialogueId]);
 
 	const handleStartPreview = useCallback(() => {
 		if (deviceType === 'mobile') return;
@@ -1450,9 +1485,13 @@ function DialogueEditorPage() {
 		setSelectedNode(null);
 		setSelectedEdge(null);
 		setIsMobilePanelOpen(false);
-		setPreviewActiveNodeId(null);
+		setPreviewActiveNodeRef(null);
+		previewOriginRef.current = {
+			dialogueId,
+			nodeId: START_NODE_ID,
+		};
 		setIsPreviewOpen(true);
-	}, [deviceType, getMissingRequiredNodes, nodes, edges, t]);
+	}, [deviceType, dialogueId, getMissingRequiredNodes, nodes, edges, t]);
 
 	// Handle save
 	const handleSave = useCallback(async () => {
@@ -2039,6 +2078,14 @@ function DialogueEditorPage() {
 	const getMinimapColor = useCallback((node) => {
 		return getNodeDefinition(node.type)?.minimapColor || '#6b7280';
 	}, []);
+	const previewActiveNodeId = useMemo(() => {
+		const previewDialogueId = String(previewActiveNodeRef?.dialogueId || '').trim();
+		const previewNodeId = String(previewActiveNodeRef?.nodeId || '').trim();
+		if (!previewDialogueId || previewDialogueId !== dialogueId || !previewNodeId) {
+			return null;
+		}
+		return previewNodeId;
+	}, [dialogueId, previewActiveNodeRef]);
 
 	const previewDisplayNodes = useMemo(
 		() =>
@@ -2597,9 +2644,11 @@ function DialogueEditorPage() {
 							nodes={nodes}
 							edges={edges}
 							participants={participants}
+							rootDialogueId={dialogueId}
+							loadDialogueGraphForPreview={loadDialogueGraphForPreview}
 							onStop={handlePreviewStop}
 							onNodeFocus={handlePreviewNodeFocus}
-							onNodeChange={setPreviewActiveNodeId}
+							onNodeChange={handlePreviewNodeChange}
 						/>
 					)}
 
