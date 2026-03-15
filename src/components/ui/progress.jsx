@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-const Progress = React.forwardRef(({ className, value = 0, ...props }, ref) => (
+const Progress = React.forwardRef(
+	({ className, indicatorClassName, value = 0, ...props }, ref) => (
 	<div
 		ref={ref}
 		role="progressbar"
@@ -12,11 +13,15 @@ const Progress = React.forwardRef(({ className, value = 0, ...props }, ref) => (
 		{...props}
 	>
 		<div
-			className="h-full w-full flex-1 bg-primary transition-all duration-300"
+			className={cn(
+				'h-full w-full flex-1 bg-primary transition-all duration-300',
+				indicatorClassName
+			)}
 			style={{ transform: `translateX(-${100 - Math.max(0, Math.min(100, value))}%)` }}
 		/>
 	</div>
-));
+)
+);
 
 Progress.displayName = 'Progress';
 

@@ -22,6 +22,7 @@ import { resolveParticipantThumbnailDataUrl } from '@/lib/participantThumbnails'
 const CLOSE_ANIMATION_MS = 260;
 const MAX_PREVIEW_STEPS = 600;
 const NODE_TRANSITION_DELAY_MS = 220;
+const ROW_COMPLETION_HOLD_MS = 48;
 
 const buildPreviewGraphRuntime = (nodes = [], edges = []) => {
 	const { regularNodes, regularEdges } = getPreviewNodesAndEdges(nodes, edges);
@@ -107,6 +108,7 @@ export function DialoguePreviewOverlay({
 	const runtimeRef = useRef({
 		timer: null,
 		rowProgressTimer: null,
+		rowProgressToken: 0,
 		stepCount: 0,
 		audio: null,
 		audioObjectUrl: null,
@@ -257,6 +259,41 @@ export function DialoguePreviewOverlay({
 			window.clearTimeout(runtimeRef.current.timer);
 			runtimeRef.current.timer = null;
 		}
+		runtimeRef.current.rowProgressToken += 1;
+		if (runtimeRef.current.rowProgressTimer) {
+			window.clearInterval(runtimeRef.current.rowProgressTimer);
+			runtimeRef.current.rowProgressTimer = null;
+		}
+	}, []);
+
+	const startRowProgress = useCallback((durationMs) => {
+		runtimeRef.current.rowProgressToken += 1;
+		const token = runtimeRef.current.rowProgressToken;
+
+		if (runtimeRef.current.rowProgressTimer) {
+			window.clearInterval(runtimeRef.current.rowProgressTimer);
+			runtimeRef.current.rowProgressTimer = null;
+		}
+
+		setCurrentRowProgressPercent(0);
+		const startedAt = Date.now();
+		runtimeRef.current.rowProgressTimer = window.setInterval(() => {
+			if (token !== runtimeRef.current.rowProgressToken) return;
+			const elapsed = Date.now() - startedAt;
+			const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
+			setCurrentRowProgressPercent(pct);
+			if (pct >= 100 && runtimeRef.current.rowProgressTimer) {
+				window.clearInterval(runtimeRef.current.rowProgressTimer);
+				runtimeRef.current.rowProgressTimer = null;
+			}
+		}, 16);
+
+		return token;
+	}, []);
+
+	const finishRowProgress = useCallback((token) => {
+		if (token !== runtimeRef.current.rowProgressToken) return;
+		setCurrentRowProgressPercent(100);
 		if (runtimeRef.current.rowProgressTimer) {
 			window.clearInterval(runtimeRef.current.rowProgressTimer);
 			runtimeRef.current.rowProgressTimer = null;
@@ -525,34 +562,24 @@ export function DialoguePreviewOverlay({
 				setCurrentRowIndex(1);
 				setCurrentRowProgressPercent(0);
 
-				const delayStart = Date.now();
-				if (runtimeRef.current.rowProgressTimer) {
-					window.clearInterval(runtimeRef.current.rowProgressTimer);
-				}
-				runtimeRef.current.rowProgressTimer = window.setInterval(() => {
-					const elapsed = Date.now() - delayStart;
-					const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
-					setCurrentRowProgressPercent(pct);
-					if (pct >= 100 && runtimeRef.current.rowProgressTimer) {
-						window.clearInterval(runtimeRef.current.rowProgressTimer);
-						runtimeRef.current.rowProgressTimer = null;
-					}
-				}, 50);
+				const progressToken = startRowProgress(durationMs);
 
 				runtimeRef.current.timer = window.setTimeout(() => {
-					setCurrentRowProgressPercent(0);
-					if (nextNodeRefs.length === 0) {
-						closePreview({ withAnimation: true });
-						return;
-					}
-					if (branchOptions.length > 1) {
-						setActiveBranchNodeRef(activeNodeRef);
-						setChoiceOptions(branchOptions);
-						return;
-					}
-					window.setTimeout(() => {
-						goToNode(nextNodeRefs[0]);
-					}, NODE_TRANSITION_DELAY_MS);
+					finishRowProgress(progressToken);
+					runtimeRef.current.timer = window.setTimeout(() => {
+						if (nextNodeRefs.length === 0) {
+							closePreview({ withAnimation: true });
+							return;
+						}
+						if (branchOptions.length > 1) {
+							setActiveBranchNodeRef(activeNodeRef);
+							setChoiceOptions(branchOptions);
+							return;
+						}
+						window.requestAnimationFrame(() => {
+							goToNode(nextNodeRefs[0]);
+						});
+					}, ROW_COMPLETION_HOLD_MS);
 				}, durationMs);
 				return;
 			}
@@ -625,23 +652,15 @@ export function DialoguePreviewOverlay({
 				}
 
 				const durationMs = Math.max(200, (Number(row.duration) || 0.1) * 1000);
-				const rowStart = Date.now();
-				setCurrentRowProgressPercent(0);
-				if (runtimeRef.current.rowProgressTimer) {
-					window.clearInterval(runtimeRef.current.rowProgressTimer);
-				}
-				runtimeRef.current.rowProgressTimer = window.setInterval(() => {
-					const elapsed = Date.now() - rowStart;
-					const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
-					setCurrentRowProgressPercent(pct);
-					if (pct >= 100 && runtimeRef.current.rowProgressTimer) {
-						window.clearInterval(runtimeRef.current.rowProgressTimer);
-						runtimeRef.current.rowProgressTimer = null;
-					}
-				}, 50);
+				const progressToken = startRowProgress(durationMs);
 
 				index += 1;
-				runtimeRef.current.timer = window.setTimeout(renderNextRow, durationMs);
+				runtimeRef.current.timer = window.setTimeout(() => {
+					finishRowProgress(progressToken);
+					runtimeRef.current.timer = window.setTimeout(() => {
+						window.requestAnimationFrame(renderNextRow);
+					}, ROW_COMPLETION_HOLD_MS);
+				}, durationMs);
 			};
 
 			renderNextRow();
@@ -658,6 +677,8 @@ export function DialoguePreviewOverlay({
 			t,
 			volume,
 			ensureGraphLoaded,
+			startRowProgress,
+			finishRowProgress,
 		]
 	);
 
@@ -992,7 +1013,11 @@ export function DialoguePreviewOverlay({
 											</span>
 											<span>{currentRowProgressPercent}%</span>
 										</div>
-										<Progress value={currentRowProgressPercent} className="h-1.5" />
+										<Progress
+											value={currentRowProgressPercent}
+											className="h-1.5"
+											indicatorClassName="transition-none"
+										/>
 									</div>
 								)}
 							</div>
