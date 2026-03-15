@@ -9,14 +9,44 @@ const PORT_SCAN_LIMIT = 50;
 const CONNECT_TIMEOUT_MS = 500;
 const BOOT_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 200;
+const DEFAULT_CHOKIDAR_INTERVAL_MS = 300;
+const LINUX_ELECTRON_SAFE_ARGS = Object.freeze([
+	"--disable-gpu",
+	"--disable-software-rasterizer",
+	"--disable-gpu-sandbox",
+	"--in-process-gpu",
+	"--use-gl=swiftshader",
+	"--no-sandbox",
+	"--disable-setuid-sandbox",
+	"--ozone-platform-hint=x11",
+]);
 
 function spawnTool(tool, args, options = {}) {
 	const isWindows = process.platform === "win32";
-	const command = isWindows ? "cmd.exe" : "npx";
-	const commandArgs = isWindows
-		? ["/d", "/s", "/c", "npx", tool, ...args]
-		: [tool, ...args];
+	if (tool === "electron") {
+		const electronBinary = isWindows
+			? path.join(process.cwd(), "node_modules", "electron", "dist", "electron.exe")
+			: path.join(process.cwd(), "node_modules", "electron", "dist", "electron");
+		if (fs.existsSync(electronBinary)) {
+			return spawn(electronBinary, args, options);
+		}
+	}
 
+	const localBin = path.join(
+		process.cwd(),
+		"node_modules",
+		".bin",
+		isWindows ? `${tool}.cmd` : tool
+	);
+	if (fs.existsSync(localBin)) {
+		if (isWindows) {
+			return spawn("cmd.exe", ["/d", "/s", "/c", localBin, ...args], options);
+		}
+		return spawn(localBin, args, options);
+	}
+
+	const command = isWindows ? "cmd.exe" : "npx";
+	const commandArgs = isWindows ? ["/d", "/s", "/c", "npx", tool, ...args] : [tool, ...args];
 	return spawn(command, commandArgs, options);
 }
 
@@ -145,9 +175,24 @@ async function main() {
 
 	console.log(`[dev:electron] Using Vite dev server: ${url}`);
 
+	const shouldUsePolling =
+		process.env.CHOKIDAR_USEPOLLING === "1" ||
+		(process.platform === "linux" && process.env.CHOKIDAR_USEPOLLING !== "0");
+	const viteEnv = {
+		...process.env,
+		CHOKIDAR_USEPOLLING: shouldUsePolling ? "1" : process.env.CHOKIDAR_USEPOLLING,
+		CHOKIDAR_INTERVAL:
+			process.env.CHOKIDAR_INTERVAL || String(DEFAULT_CHOKIDAR_INTERVAL_MS),
+	};
+	if (shouldUsePolling) {
+		console.log(
+			`[dev:electron] Using polling file watcher (CHOKIDAR_INTERVAL=${viteEnv.CHOKIDAR_INTERVAL}ms)`
+		);
+	}
+
 	const vite = spawnTool("vite", ["--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
 		stdio: "inherit",
-		env: process.env,
+		env: viteEnv,
 	});
 
 	let electron = null;
@@ -180,20 +225,66 @@ async function main() {
 
 	const electronEnv = { ...process.env };
 	delete electronEnv.ELECTRON_RUN_AS_NODE;
+	if (!electronEnv.MOUNTEA_USER_DATA_DIR) {
+		electronEnv.MOUNTEA_USER_DATA_DIR = path.join(process.cwd(), ".mountea-user-data");
+	}
+	if (process.platform === "linux" && !electronEnv.ELECTRON_OZONE_PLATFORM_HINT) {
+		electronEnv.ELECTRON_OZONE_PLATFORM_HINT = "x11";
+	}
 
-	electron = spawnTool("electron", ["."], {
-		stdio: "inherit",
-		env: {
-			...electronEnv,
-			VITE_DEV_SERVER_URL: url,
-		},
-	});
+	const shouldUseLinuxSafeMode =
+		process.platform === "linux" &&
+		String(electronEnv.MOUNTEA_ELECTRON_SAFE_MODE || "1").trim() !== "0";
+	const electronBaseArgs = [
+		".",
+		`--user-data-dir=${electronEnv.MOUNTEA_USER_DATA_DIR}`,
+		"--mountea-user-data-reroute",
+	];
 
-	electron.once("exit", (code) => {
-		if (!shuttingDown) {
-			shutdown(code ?? 0);
-		}
-	});
+	let retriedAfterSegfault = false;
+	const launchElectron = (extraArgs = []) =>
+		spawnTool("electron", [...electronBaseArgs, ...extraArgs], {
+			stdio: "inherit",
+			env: {
+				...electronEnv,
+				VITE_DEV_SERVER_URL: url,
+			},
+		});
+
+	const bindElectronExit = () => {
+		if (!electron) return;
+		electron.once("exit", (code, signal) => {
+			if (shuttingDown) return;
+
+			const exitCode = code ?? 0;
+			const exitSignal = signal ?? null;
+
+			if (
+				process.platform === "linux" &&
+				exitSignal === "SIGSEGV" &&
+				!retriedAfterSegfault
+			) {
+				retriedAfterSegfault = true;
+				console.error(
+					"[dev:electron] Electron crashed with SIGSEGV. Retrying once in Linux safe mode."
+				);
+				electron = launchElectron(LINUX_ELECTRON_SAFE_ARGS);
+				bindElectronExit();
+				return;
+			}
+
+			if (exitSignal) {
+				console.error(
+					`[dev:electron] Electron exited via signal ${exitSignal} (code=${exitCode})`
+				);
+			}
+
+			shutdown(exitCode);
+		});
+	};
+
+	electron = launchElectron(shouldUseLinuxSafeMode ? LINUX_ELECTRON_SAFE_ARGS : []);
+	bindElectronExit();
 }
 
 main().catch((error) => {

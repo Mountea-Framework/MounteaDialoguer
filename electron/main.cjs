@@ -54,6 +54,23 @@ const SUPPORTED_LANGUAGES = require('./shared/app-languages.json');
 const USER_DATA_DIR_ARG_PREFIX = '--user-data-dir=';
 const USER_DATA_REROUTE_FLAG = '--mountea-user-data-reroute';
 
+function configureLinuxRuntimeStability() {
+	if (process.platform !== 'linux') return;
+
+	const linuxSafeMode = String(process.env.MOUNTEA_ELECTRON_SAFE_MODE || '1').trim() !== '0';
+	if (linuxSafeMode) {
+		app.disableHardwareAcceleration();
+		app.commandLine.appendSwitch('disable-gpu');
+		app.commandLine.appendSwitch('disable-software-rasterizer');
+	}
+
+	const ozoneHint = String(process.env.ELECTRON_OZONE_PLATFORM_HINT || '').trim();
+	if (!ozoneHint) {
+		process.env.ELECTRON_OZONE_PLATFORM_HINT = 'x11';
+		app.commandLine.appendSwitch('ozone-platform-hint', 'x11');
+	}
+}
+
 function canUseUserDataPath(targetPath) {
 	const resolvedPath = String(targetPath || '').trim();
 	if (!resolvedPath) return false;
@@ -61,14 +78,10 @@ function canUseUserDataPath(targetPath) {
 		fs.mkdirSync(resolvedPath, { recursive: true });
 		fs.accessSync(resolvedPath, fs.constants.R_OK | fs.constants.W_OK);
 
-		// Chromium startup requires creating a singleton lock file in userData.
-		const singletonLockProbe = path.join(resolvedPath, 'SingletonLock');
-		if (fs.existsSync(singletonLockProbe)) {
-			fs.accessSync(singletonLockProbe, fs.constants.R_OK | fs.constants.W_OK);
-		} else {
-			fs.writeFileSync(singletonLockProbe, 'probe', { encoding: 'utf8', flag: 'wx' });
-			fs.unlinkSync(singletonLockProbe);
-		}
+		// Use a dedicated probe file. Chromium's SingletonLock can be a dangling symlink.
+		const writeProbePath = path.join(resolvedPath, '.mountea_write_probe');
+		fs.writeFileSync(writeProbePath, 'probe', { encoding: 'utf8', flag: 'w' });
+		fs.unlinkSync(writeProbePath);
 
 		return true;
 	} catch {
@@ -158,6 +171,7 @@ function ensureWritableUserDataPath() {
 }
 
 app.setName(APP_DISPLAY_NAME);
+configureLinuxRuntimeStability();
 ensureWritableUserDataPath();
 initMainProcessSentry();
 
@@ -1831,6 +1845,9 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
 
 function createMainWindow() {
 	const iconPath = getIconPath();
+	const disableLinuxWindowIcon =
+		process.platform === 'linux' &&
+		String(process.env.MOUNTEA_DISABLE_LINUX_WINDOW_ICON || '1').trim() !== '0';
 	mainWindow = new BrowserWindow({
 		width: 1440,
 		height: 920,
@@ -1839,7 +1856,7 @@ function createMainWindow() {
 		show: false,
 		autoHideMenuBar: false,
 		title: APP_DISPLAY_NAME,
-		icon: iconPath,
+		icon: disableLinuxWindowIcon ? undefined : iconPath,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.cjs'),
 			contextIsolation: true,
