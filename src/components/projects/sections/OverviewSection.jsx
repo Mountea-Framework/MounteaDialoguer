@@ -17,6 +17,7 @@ import { formatDate, formatDistanceToNow, formatFileSize } from '@/lib/dateUtils
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { copyToClipboardWithToast } from '@/lib/clipboard';
 import { toast } from '@/components/ui/toaster';
+import { SimpleTooltip } from '@/components/ui/tooltip';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { calculateProjectSize } from '@/lib/storageUtils';
 
@@ -32,6 +33,7 @@ export function OverviewSection({
 	decorators = [],
 	conditions = [],
 	onExport,
+	onOpenLastExportPath,
 	onDelete,
 	onSectionChange,
 	fileInputRef,
@@ -70,6 +72,11 @@ export function OverviewSection({
 	const recentDialogues = [...dialogues]
 		.sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt))
 		.slice(0, 5);
+	const lastExportPath = String(project?.lastExportPath || '').trim();
+	const truncatedLastExportPath =
+		lastExportPath.length > 36
+			? `${lastExportPath.slice(0, 16)}...${lastExportPath.slice(-16)}`
+			: lastExportPath;
 
 	useEffect(() => {
 		if (!isMobile) {
@@ -181,21 +188,22 @@ export function OverviewSection({
 				<div className="group flex-1 min-w-0">
 					<div className="flex items-center gap-3 min-w-0">
 						<h1 className="text-xl md:text-4xl font-bold tracking-tight truncate">{project.name}</h1>
-						<button
-							onClick={() =>
-								openSettingsCommand({
-									context: { type: 'project', projectId: project?.id },
-									onOpenSettings: onSectionChange
-										? () => onSectionChange('settings')
-										: null,
-									mode: 'detail',
-								})
-							}
-							className="hidden md:flex opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
-							title="Project Settings"
-						>
-							<Edit3 className="h-5 w-5" />
-						</button>
+						<SimpleTooltip content="Project Settings" side="top">
+							<button
+								onClick={() =>
+									openSettingsCommand({
+										context: { type: 'project', projectId: project?.id },
+										onOpenSettings: onSectionChange
+											? () => onSectionChange('settings')
+											: null,
+										mode: 'detail',
+									})
+								}
+								className="hidden md:flex opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-all"
+							>
+								<Edit3 className="h-5 w-5" />
+							</button>
+						</SimpleTooltip>
 					</div>
 					{project.description && (
 						<p className="mt-3 leading-relaxed max-w-2xl text-muted-foreground text-sm md:text-lg">
@@ -404,6 +412,67 @@ export function OverviewSection({
 												<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 											</svg>
 										</button>
+									</div>
+								</div>
+								<div>
+									<p className="text-xs text-muted-foreground mb-1">Last Export Path</p>
+									<div className="flex items-center justify-between bg-muted/50 p-2 rounded-lg border border-border gap-2">
+										{lastExportPath ? (
+											<SimpleTooltip content={lastExportPath} side="top">
+												<code className="text-xs font-mono min-w-0 truncate">
+													{truncatedLastExportPath}
+												</code>
+											</SimpleTooltip>
+										) : (
+											<code className="text-xs font-mono min-w-0 truncate">
+												Not exported yet
+											</code>
+										)}
+										<div className="flex items-center gap-1">
+											<SimpleTooltip content="Open Last Export Path" side="top">
+												<span className="inline-flex">
+													<button
+														type="button"
+														onClick={() => void onOpenLastExportPath?.()}
+														disabled={!lastExportPath}
+														className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+														aria-label="Open Last Export Path"
+													>
+														<FolderOpen className="h-4 w-4" />
+													</button>
+												</span>
+											</SimpleTooltip>
+											{lastExportPath ? (
+												<SimpleTooltip content="Copy Last Export Path" side="top">
+													<button
+														type="button"
+														onClick={() =>
+															void copyToClipboardWithToast(lastExportPath, toast, {
+																successTitle: 'Copied',
+																successMessage: 'Last export path copied to clipboard.',
+																errorTitle: 'Copy failed',
+																errorMessage: 'Unable to copy last export path.',
+															})
+														}
+														className="text-muted-foreground hover:text-primary p-1 rounded-md hover:bg-accent transition-colors"
+														aria-label="Copy Last Export Path"
+													>
+														<svg
+															viewBox="0 0 24 24"
+															fill="none"
+															stroke="currentColor"
+															strokeWidth="2"
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															className="h-4 w-4"
+														>
+															<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+															<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+														</svg>
+													</button>
+												</SimpleTooltip>
+											) : null}
+										</div>
 									</div>
 								</div>
 								<div className="pt-2 border-t border-border">

@@ -21,6 +21,7 @@
 		"electron:pack:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --dir --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
 		"electron:dist:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
+		"steam:upload:mac": "./steam_build_upload_mac.sh",
 		"lint": "eslint src --ext js,jsx",
 		"lint:ci": "eslint src/App.test.js src/components/dialogs/EditCategoryDialog.jsx src/components/projects/sections/OverviewSection.jsx src/components/ui/command.jsx src/hooks/useAutoSave.js src/indexedDB.js src/routes/projects/*/dialogue/*/index.jsx src/main.jsx src/lib/monitoring/sentry.js src/components/ui/AppErrorBoundary.jsx src/stores/projectStore.js src/lib/sync/core/syncActions.js tests/e2e/smoke.spec.js tests/e2e/evidence.spec.js tests/e2e/helpers/appHarness.js",
 		"test:e2e": "playwright test",
@@ -28,7 +29,8 @@
 		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
 		"validate:skills": "npm run lint:ci && npm run build && npm run test:e2e:smoke",
 		"predeploy": "npm run build",
-		"deploy": "gh-pages -d dist"
+		"deploy": "gh-pages -d dist",
+		"steam:upload:linux": "./steam_build_upload_linux.sh"
 	},
 	"build": {
 		"appId": "com.mountea.dialoguer",
@@ -86,6 +88,7 @@
 		"@radix-ui/react-dropdown-menu": "^2.1.16",
 		"@radix-ui/react-select": "^2.2.6",
 		"@radix-ui/react-tooltip": "^1.2.8",
+		"@sentry/electron": "^7.10.0",
 		"@tanstack/react-router": "^1.87.0",
 		"@xyflow/react": "^12.10.0",
 		"canvas-confetti": "^1.9.4",
@@ -115,7 +118,6 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.58.2",
-		"@sentry/electron": "^7.10.0",
 		"@sentry/react": "^10.43.0",
 		"@tanstack/router-devtools": "^1.87.0",
 		"@tanstack/router-plugin": "^1.87.0",
@@ -125,8 +127,8 @@
 		"autoprefixer": "^10.4.20",
 		"concurrently": "^9.2.1",
 		"cross-env": "^10.1.0",
-		"electron": "^38.3.0",
-		"electron-builder": "^26.0.12",
+		"electron": "^37.4.0",
+		"electron-builder": "26.0.12",
 		"eslint": "^8.57.1",
 		"eslint-plugin-react": "^7.37.2",
 		"eslint-plugin-react-hooks": "^4.6.2",

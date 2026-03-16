@@ -15,5 +15,16 @@ export {
 	pullProjectAsNew,
 	pullProjectFromFile,
 	pushProject,
+	publishTombstone,
+	applyMergedTombstones,
+	gcExpiredTombstones,
+	deleteRemoteProject,
+	deleteLocalProject,
 	syncAllProjects,
 } from '@/lib/sync/core/syncActions';
+
+export {
+	readProviderCatalog,
+	writeProviderCatalog,
+	mergeProviderCatalogs,
+} from '@/lib/sync/core/providerCatalog';

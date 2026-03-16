@@ -5,6 +5,62 @@ import { toast } from '@/components/ui/toaster';
 import { useCategoryStore } from './categoryStore';
 import { useSyncStore } from '@/stores/syncStore';
 import { trackFirstParticipantCreated } from '@/lib/achievements/achievementTracker';
+import {
+	blobToStoredParticipantThumbnail,
+	buildParticipantImageId,
+	resolveParticipantThumbnailDataUrl,
+	storedParticipantThumbnailToBlob,
+} from '@/lib/participantThumbnails';
+import { PARTICIPANT_THUMBNAIL_MAX_BYTES } from '@/lib/sync/core/constants';
+import { buildProjectSnapshot } from '@/lib/sync/snapshot';
+import { assertEstimatedSyncPayloadWithinBudget } from '@/lib/sync/payloadBudget';
+
+function getRootIdByCategoryName(categoryName, categories = []) {
+	const match = categories.find((category) => category.name === categoryName);
+	if (!match) return null;
+	return useCategoryStore.getState().getRootCategoryId(match.id, categories);
+}
+
+function getImportedThumbnailById(thumbnailById, participantImageId) {
+	if (!participantImageId || !thumbnailById) return null;
+	if (thumbnailById instanceof Map) {
+		return thumbnailById.get(participantImageId) || null;
+	}
+	if (typeof thumbnailById === 'object') {
+		return thumbnailById[participantImageId] || null;
+	}
+	return null;
+}
+
+function normalizeStoredThumbnail(thumbnail) {
+	if (!thumbnail || typeof thumbnail !== 'object') return null;
+	const base64 = resolveParticipantThumbnailDataUrl(thumbnail);
+	if (!base64) {
+		throw new Error('Invalid participant thumbnail payload');
+	}
+
+	const reportedSize = Number(thumbnail.sizeBytes || 0);
+	const estimatedSize = Math.max(0, Math.floor((base64.length * 3) / 4));
+	const sizeBytes = reportedSize > 0 ? reportedSize : estimatedSize;
+	if (sizeBytes > PARTICIPANT_THUMBNAIL_MAX_BYTES) {
+		throw new Error('Participant thumbnail must be 1 MB or smaller');
+	}
+
+	return {
+		base64,
+		mimeType: 'image/png',
+		sizeBytes,
+		width: Number(thumbnail.width || 0),
+		height: Number(thumbnail.height || 0),
+		updatedAt: String(thumbnail.updatedAt || new Date().toISOString()),
+	};
+}
+
+async function assertParticipantMutationSyncBudget(projectId, nextParticipants) {
+	const snapshot = await buildProjectSnapshot(projectId);
+	snapshot.participants = nextParticipants;
+	assertEstimatedSyncPayloadWithinBudget(snapshot, 'Project sync payload');
+}
 
 export const useParticipantStore = create((set, get) => ({
 	participants: [],
@@ -15,10 +71,7 @@ export const useParticipantStore = create((set, get) => ({
 	loadParticipants: async (projectId) => {
 		set({ isLoading: true });
 		try {
-			const participants = await db.participants
-				.where('projectId')
-				.equals(projectId)
-				.toArray();
+			const participants = await db.participants.where('projectId').equals(projectId).toArray();
 			set({ participants, isLoading: false });
 		} catch (error) {
 			console.error('Failed to load participants:', error);
@@ -42,7 +95,9 @@ export const useParticipantStore = create((set, get) => ({
 				throw new Error('Participant name must contain only letters and numbers');
 			}
 			if (name.length > get().maxParticipantNameLength) {
-				throw new Error(`Participant name must be ${get().maxParticipantNameLength} characters or fewer`);
+				throw new Error(
+					`Participant name must be ${get().maxParticipantNameLength} characters or fewer`
+				);
 			}
 			if (!participantData.category) {
 				throw new Error('Participant category is required');
@@ -57,18 +112,12 @@ export const useParticipantStore = create((set, get) => ({
 				.equals(participantData.projectId)
 				.toArray();
 
-			const getRootIdByCategoryName = (categoryName) => {
-				const match = categories.find((c) => c.name === categoryName);
-				if (!match) return null;
-				return useCategoryStore.getState().getRootCategoryId(match.id, categories);
-			};
-
-			const rootId = getRootIdByCategoryName(participantData.category);
+			const rootId = getRootIdByCategoryName(participantData.category, categories);
 			if (rootId) {
-				const isDuplicate = participants.some((p) => {
-					if (p.name !== name) return false;
-					const pRootId = getRootIdByCategoryName(p.category);
-					return pRootId === rootId;
+				const isDuplicate = participants.some((participant) => {
+					if (participant.name !== name) return false;
+					const participantRootId = getRootIdByCategoryName(participant.category, categories);
+					return participantRootId === rootId;
 				});
 				if (isDuplicate) {
 					throw new Error('Participant name must be unique within its category tree');
@@ -77,12 +126,20 @@ export const useParticipantStore = create((set, get) => ({
 
 			const now = new Date().toISOString();
 			const id = uuidv4();
+			const thumbnail = normalizeStoredThumbnail(participantData.thumbnail || null);
 			const newParticipant = {
 				id,
 				...participantData,
+				name,
+				thumbnail,
 				createdAt: now,
 				modifiedAt: now,
 			};
+
+			await assertParticipantMutationSyncBudget(participantData.projectId, [
+				...participants,
+				newParticipant,
+			]);
 
 			await db.participants.add(newParticipant);
 			try {
@@ -125,7 +182,9 @@ export const useParticipantStore = create((set, get) => ({
 				throw new Error('Participant name must contain only letters and numbers');
 			}
 			if (name.length > get().maxParticipantNameLength) {
-				throw new Error(`Participant name must be ${get().maxParticipantNameLength} characters or fewer`);
+				throw new Error(
+					`Participant name must be ${get().maxParticipantNameLength} characters or fewer`
+				);
 			}
 			const categoryName = updates.category ?? participant.category;
 			if (!categoryName) {
@@ -141,19 +200,13 @@ export const useParticipantStore = create((set, get) => ({
 				.equals(participant.projectId)
 				.toArray();
 
-			const getRootIdByCategoryName = (catName) => {
-				const match = categories.find((c) => c.name === catName);
-				if (!match) return null;
-				return useCategoryStore.getState().getRootCategoryId(match.id, categories);
-			};
-
-			const rootId = getRootIdByCategoryName(categoryName);
+			const rootId = getRootIdByCategoryName(categoryName, categories);
 			if (rootId) {
-				const isDuplicate = participants.some((p) => {
-					if (p.id === participant.id) return false;
-					if (p.name !== name) return false;
-					const pRootId = getRootIdByCategoryName(p.category);
-					return pRootId === rootId;
+				const isDuplicate = participants.some((entry) => {
+					if (entry.id === participant.id) return false;
+					if (entry.name !== name) return false;
+					const participantRootId = getRootIdByCategoryName(entry.category, categories);
+					return participantRootId === rootId;
 				});
 				if (isDuplicate) {
 					throw new Error('Participant name must be unique within its category tree');
@@ -163,8 +216,20 @@ export const useParticipantStore = create((set, get) => ({
 			const updatedParticipant = {
 				...participant,
 				...updates,
+				name,
+				category: categoryName,
+				thumbnail: normalizeStoredThumbnail(
+					Object.prototype.hasOwnProperty.call(updates, 'thumbnail')
+						? updates.thumbnail
+						: participant.thumbnail
+				),
 				modifiedAt: new Date().toISOString(),
 			};
+
+			const projectedParticipants = participants.map((entry) =>
+				entry.id === participant.id ? updatedParticipant : entry
+			);
+			await assertParticipantMutationSyncBudget(participant.projectId, projectedParticipants);
 
 			await db.participants.update(id, updatedParticipant);
 			await get().loadParticipants(participant.projectId);
@@ -213,16 +278,59 @@ export const useParticipantStore = create((set, get) => ({
 		}
 	},
 
+	importParticipantsFromFile: async (projectId, file) => {
+		if (!file) {
+			throw new Error('Missing import file');
+		}
+
+		const lowerName = String(file.name || '').toLowerCase();
+		const isZip = lowerName.endsWith('.zip') || lowerName.endsWith('.mnteapart');
+		if (!isZip) {
+			const text = await file.text();
+			const parsed = JSON.parse(text);
+			const participantsData = Array.isArray(parsed) ? parsed : [parsed];
+			return await get().importParticipants(projectId, participantsData);
+		}
+
+		const JSZip = (await import('jszip')).default;
+		const zip = await JSZip.loadAsync(file);
+		const participantsJson = await zip.file('participants.json')?.async('text');
+		if (!participantsJson) {
+			throw new Error('Invalid participants archive: missing participants.json');
+		}
+		const parsedParticipants = JSON.parse(participantsJson);
+		const participantsData = Array.isArray(parsedParticipants)
+			? parsedParticipants
+			: [parsedParticipants];
+
+		const thumbnailById = new Map();
+		for (const participant of participantsData) {
+			const participantImageId = String(participant?.participantImage || '').trim();
+			if (!participantImageId) continue;
+			const entry =
+				zip.file(`Thumbnails/${participantImageId}.png`) ||
+				zip.file(`thumbnails/${participantImageId}.png`);
+			if (!entry) continue;
+			const blob = await entry.async('blob');
+			const thumbnail = await blobToStoredParticipantThumbnail(blob);
+			thumbnailById.set(participantImageId, thumbnail);
+		}
+
+		return await get().importParticipants(projectId, participantsData, {
+			thumbnailById,
+		});
+	},
+
 	// Import participants from JSON with category creation
-	importParticipants: async (projectId, participantsData) => {
+	importParticipants: async (projectId, participantsData, options = {}) => {
 		try {
 			const now = new Date().toISOString();
 
 			// First, collect all unique category paths from participants
 			const categoryPaths = new Set();
-			participantsData.forEach((p) => {
-				if (p.fullPath) {
-					categoryPaths.add(p.fullPath);
+			participantsData.forEach((participant) => {
+				if (participant.fullPath) {
+					categoryPaths.add(participant.fullPath);
 				}
 			});
 
@@ -240,24 +348,9 @@ export const useParticipantStore = create((set, get) => ({
 
 			// Build category path map
 			const categoryPathMap = new Map();
-			categories.forEach((cat) => {
-				const fullPath = useCategoryStore.getState().buildCategoryPath(cat.id, categories);
-				categoryPathMap.set(fullPath, cat.name);
-			});
-
-			// Create participants
-			const participantsToImport = participantsData.map((p) => {
-				// Find category name from fullPath
-				const categoryName = p.fullPath ? categoryPathMap.get(p.fullPath) : p.category;
-
-				return {
-					id: uuidv4(),
-					name: p.name,
-					category: categoryName || 'Unknown',
-					projectId,
-					createdAt: now,
-					modifiedAt: now,
-				};
+			categories.forEach((category) => {
+				const fullPath = useCategoryStore.getState().buildCategoryPath(category.id, categories);
+				categoryPathMap.set(fullPath, category.name);
 			});
 
 			const existingParticipants = await db.participants
@@ -265,24 +358,49 @@ export const useParticipantStore = create((set, get) => ({
 				.equals(projectId)
 				.toArray();
 
-			const getRootIdByCategoryName = (catName) => {
-				const match = categories.find((c) => c.name === catName);
-				if (!match) return null;
-				return useCategoryStore.getState().getRootCategoryId(match.id, categories);
+			const getCategoryNameForImport = (participantData) => {
+				const fullPath = String(participantData?.fullPath || '').trim();
+				if (fullPath) {
+					return (
+						categoryPathMap.get(fullPath) ||
+						fullPath.split('.').pop() ||
+						participantData.category ||
+						'Unknown'
+					);
+				}
+				return participantData.category || 'Unknown';
 			};
 
+			// Create participants
+			const participantsToImport = participantsData.map((participantData) => {
+				const participantImageId = String(participantData?.participantImage || '').trim();
+				const importedThumbnail = participantImageId
+					? getImportedThumbnailById(options.thumbnailById, participantImageId)
+					: null;
+
+				return {
+					id: uuidv4(),
+					name: participantData.name,
+					category: getCategoryNameForImport(participantData),
+					thumbnail: normalizeStoredThumbnail(importedThumbnail),
+					projectId,
+					createdAt: now,
+					modifiedAt: now,
+				};
+			});
+
 			const existingNamesByRoot = new Map();
-			existingParticipants.forEach((p) => {
-				const rootId = getRootIdByCategoryName(p.category);
+			existingParticipants.forEach((participant) => {
+				const rootId = getRootIdByCategoryName(participant.category, categories);
 				if (!rootId) return;
 				if (!existingNamesByRoot.has(rootId)) {
 					existingNamesByRoot.set(rootId, new Set());
 				}
-				existingNamesByRoot.get(rootId).add(p.name);
+				existingNamesByRoot.get(rootId).add(participant.name);
 			});
 
-			participantsToImport.forEach((p) => {
-				const name = p.name?.trim() || '';
+			participantsToImport.forEach((participant) => {
+				const name = participant.name?.trim() || '';
 				if (!name) {
 					throw new Error('Participant name is required');
 				}
@@ -290,9 +408,11 @@ export const useParticipantStore = create((set, get) => ({
 					throw new Error('Participant name must contain only letters and numbers');
 				}
 				if (name.length > get().maxParticipantNameLength) {
-					throw new Error(`Participant name must be ${get().maxParticipantNameLength} characters or fewer`);
+					throw new Error(
+						`Participant name must be ${get().maxParticipantNameLength} characters or fewer`
+					);
 				}
-				const rootId = getRootIdByCategoryName(p.category);
+				const rootId = getRootIdByCategoryName(participant.category, categories);
 				if (rootId) {
 					if (!existingNamesByRoot.has(rootId)) {
 						existingNamesByRoot.set(rootId, new Set());
@@ -304,6 +424,11 @@ export const useParticipantStore = create((set, get) => ({
 					rootSet.add(name);
 				}
 			});
+
+			await assertParticipantMutationSyncBudget(projectId, [
+				...existingParticipants,
+				...participantsToImport,
+			]);
 
 			await db.participants.bulkAdd(participantsToImport);
 			await get().loadParticipants(projectId);
@@ -328,27 +453,69 @@ export const useParticipantStore = create((set, get) => ({
 	// Export participants to JSON with category full paths
 	exportParticipants: async (projectId) => {
 		try {
-			const participants = await db.participants
-				.where('projectId')
-				.equals(projectId)
-				.toArray();
-
+			const participants = await db.participants.where('projectId').equals(projectId).toArray();
 			const categories = await db.categories.where('projectId').equals(projectId).toArray();
 
 			// Build category path map
 			const categoryPathMap = new Map();
-			categories.forEach((cat) => {
-				const fullPath = useCategoryStore.getState().buildCategoryPath(cat.id, categories);
-				categoryPathMap.set(cat.name, fullPath);
+			categories.forEach((category) => {
+				const fullPath = useCategoryStore.getState().buildCategoryPath(category.id, categories);
+				categoryPathMap.set(category.name, fullPath);
 			});
 
-			// Export participants with full category paths
-			return participants.map((participant) => ({
-				name: participant.name,
-				fullPath: categoryPathMap.get(participant.category) || participant.category,
-			}));
+			// Export participants with full category paths and image IDs
+			return participants.map((participant) => {
+				const fullPath = categoryPathMap.get(participant.category) || participant.category;
+				const hasThumbnail = Boolean(resolveParticipantThumbnailDataUrl(participant.thumbnail));
+				return {
+					name: participant.name,
+					fullPath,
+					participantImage: hasThumbnail
+						? buildParticipantImageId({
+							participantName: participant.name,
+							categoryPath: fullPath,
+						})
+						: null,
+				};
+			});
 		} catch (error) {
 			console.error('Error exporting participants:', error);
+			toast({
+				variant: 'error',
+				title: 'Failed to Export Participants',
+				description: error.message || 'An unexpected error occurred',
+			});
+			throw error;
+		}
+	},
+
+	exportParticipantsArchive: async (projectId) => {
+		try {
+			const JSZip = (await import('jszip')).default;
+			const participantsManifest = await get().exportParticipants(projectId);
+			const participants = await db.participants.where('projectId').equals(projectId).toArray();
+
+			const zip = new JSZip();
+			zip.file('participants.json', JSON.stringify(participantsManifest, null, 2));
+			const thumbnailsFolder = zip.folder('Thumbnails');
+			const manifestByName = new Map(participantsManifest.map((entry) => [entry.name, entry]));
+
+			for (const participant of participants) {
+				const manifest = manifestByName.get(participant.name);
+				const participantImage = String(manifest?.participantImage || '').trim();
+				if (!participantImage) continue;
+				const blob = storedParticipantThumbnailToBlob(participant.thumbnail);
+				if (!blob) continue;
+				thumbnailsFolder.file(`${participantImage}.png`, blob);
+			}
+
+			const blob = await zip.generateAsync({ type: 'blob' });
+			return {
+				blob,
+				defaultFileName: `participants-${new Date().toISOString().split('T')[0]}.zip`,
+			};
+		} catch (error) {
+			console.error('Error exporting participants archive:', error);
 			toast({
 				variant: 'error',
 				title: 'Failed to Export Participants',

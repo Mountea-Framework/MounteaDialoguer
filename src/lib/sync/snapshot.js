@@ -2,6 +2,30 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { buildLocalizedStringKey } from '@/lib/localization/stringTable';
 
+function stripLocalOnlyProjectFields(project = {}) {
+	const sanitized = { ...(project || {}) };
+	delete sanitized.lastExportPath;
+	delete sanitized.syncTimestamp;
+	return sanitized;
+}
+
+function stripLocalOnlyDialogueFields(dialogue = {}) {
+	const sanitized = { ...(dialogue || {}) };
+	delete sanitized.lastExportPath;
+	delete sanitized.syncTimestamp;
+	return sanitized;
+}
+
+function dedupeBy(items = [], keySelector) {
+	const latestByKey = new Map();
+	for (const item of items) {
+		const key = String(keySelector(item) || '').trim();
+		if (!key) continue;
+		latestByKey.set(key, item);
+	}
+	return Array.from(latestByKey.values());
+}
+
 export async function buildProjectSnapshot(projectId) {
 	const project = await db.projects.get(projectId);
 	if (!project) {
@@ -28,8 +52,8 @@ export async function buildProjectSnapshot(projectId) {
 
 	return {
 		version: 2,
-		project,
-		dialogues,
+		project: stripLocalOnlyProjectFields(project),
+		dialogues: dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue)),
 		participants,
 		categories,
 		decorators,
@@ -42,7 +66,7 @@ export async function buildProjectSnapshot(projectId) {
 
 export async function applyProjectSnapshot(snapshot) {
 	const {
-		project,
+		project: rawProject,
 		dialogues = [],
 		participants = [],
 		categories = [],
@@ -52,10 +76,56 @@ export async function applyProjectSnapshot(snapshot) {
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
+	const project = stripLocalOnlyProjectFields(rawProject);
+	const sanitizedDialogues = dedupeBy(
+		dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue)),
+		(dialogue) => dialogue?.id
+	);
+	const sanitizedParticipants = dedupeBy(participants, (participant) => participant?.id);
+	const sanitizedCategories = dedupeBy(categories, (category) => category?.id);
+	const sanitizedDecorators = dedupeBy(decorators, (decorator) => decorator?.id);
+	const sanitizedConditions = dedupeBy(conditions, (condition) => condition?.id);
+	const normalizedLocalizedStrings = localizedStrings.map((entry) => {
+		const key =
+			entry?.key ||
+			buildLocalizedStringKey({
+				dialogueId: entry?.dialogueId,
+				nodeId: entry?.nodeId,
+				rowId: entry?.rowId,
+				field: entry?.field,
+			});
+		return {
+			...entry,
+			projectId: project.id,
+			key,
+		};
+	});
+	const sanitizedLocalizedStrings = dedupeBy(
+		normalizedLocalizedStrings,
+		(entry) => `${project.id}::${entry?.key || ''}`
+	);
+	const sanitizedNodes = dedupeBy(
+		nodes,
+		(node) => `${node?.dialogueId || ''}::${node?.id || ''}`
+	);
+	const sanitizedEdges = dedupeBy(
+		edges,
+		(edge) => `${edge?.dialogueId || ''}::${edge?.id || ''}`
+	);
 
 	if (!project?.id) {
 		throw new Error('Invalid snapshot');
 	}
+
+	const syncTimestamp = new Date().toISOString();
+	const syncedProject = { ...project, syncTimestamp };
+	const syncedDialogues = sanitizedDialogues.map((dialogue) => ({
+		...dialogue,
+		syncTimestamp,
+	}));
+	const incomingDialogueIds = syncedDialogues
+		.map((dialogue) => String(dialogue?.id || '').trim())
+		.filter(Boolean);
 
 	await db.transaction(
 		'rw',
@@ -71,6 +141,22 @@ export async function applyProjectSnapshot(snapshot) {
 			db.edges,
 		],
 		async () => {
+			if (incomingDialogueIds.length > 0) {
+				const conflictingDialogues = await db.dialogues
+					.where('id')
+					.anyOf(incomingDialogueIds)
+					.toArray();
+				const conflictingDialogueIds = conflictingDialogues
+					.map((dialogue) => String(dialogue?.id || '').trim())
+					.filter(Boolean);
+				if (conflictingDialogueIds.length > 0) {
+					await db.nodes.where('dialogueId').anyOf(conflictingDialogueIds).delete();
+					await db.edges.where('dialogueId').anyOf(conflictingDialogueIds).delete();
+					await db.localizedStrings.where('dialogueId').anyOf(conflictingDialogueIds).delete();
+					await db.dialogues.bulkDelete(conflictingDialogueIds);
+				}
+			}
+
 			const existingDialogues = await db.dialogues.where('projectId').equals(project.id).toArray();
 			const existingDialogueIds = existingDialogues.map((dialogue) => dialogue.id);
 			if (existingDialogueIds.length > 0) {
@@ -86,23 +172,24 @@ export async function applyProjectSnapshot(snapshot) {
 			await db.conditions.where('projectId').equals(project.id).delete();
 			await db.localizedStrings.where('projectId').equals(project.id).delete();
 
-			await db.projects.put(project);
+			await db.projects.put(syncedProject);
 
-			if (dialogues.length > 0) await db.dialogues.bulkAdd(dialogues);
-			if (participants.length > 0) await db.participants.bulkAdd(participants);
-			if (categories.length > 0) await db.categories.bulkAdd(categories);
-			if (decorators.length > 0) await db.decorators.bulkAdd(decorators);
-			if (conditions.length > 0) await db.conditions.bulkAdd(conditions);
-			if (localizedStrings.length > 0) await db.localizedStrings.bulkAdd(localizedStrings);
-			if (nodes.length > 0) await db.nodes.bulkAdd(nodes);
-			if (edges.length > 0) await db.edges.bulkAdd(edges);
+			if (syncedDialogues.length > 0) await db.dialogues.bulkPut(syncedDialogues);
+			if (sanitizedParticipants.length > 0) await db.participants.bulkPut(sanitizedParticipants);
+			if (sanitizedCategories.length > 0) await db.categories.bulkPut(sanitizedCategories);
+			if (sanitizedDecorators.length > 0) await db.decorators.bulkPut(sanitizedDecorators);
+			if (sanitizedConditions.length > 0) await db.conditions.bulkPut(sanitizedConditions);
+			if (sanitizedLocalizedStrings.length > 0)
+				await db.localizedStrings.bulkPut(sanitizedLocalizedStrings);
+			if (sanitizedNodes.length > 0) await db.nodes.bulkPut(sanitizedNodes);
+			if (sanitizedEdges.length > 0) await db.edges.bulkPut(sanitizedEdges);
 		}
 	);
 }
 
 export async function applyProjectSnapshotAsNew(snapshot) {
 	const {
-		project,
+		project: rawProject,
 		dialogues = [],
 		participants = [],
 		categories = [],
@@ -112,6 +199,8 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 		nodes = [],
 		edges = [],
 	} = snapshot || {};
+	const project = stripLocalOnlyProjectFields(rawProject);
+	const sanitizedDialogues = dialogues.map((dialogue) => stripLocalOnlyDialogueFields(dialogue));
 
 	if (!project?.id) {
 		throw new Error('Invalid snapshot');
@@ -128,7 +217,7 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 	};
 
 	const dialogueIdMap = new Map();
-	const newDialogues = dialogues.map((dialogue) => {
+	const newDialogues = sanitizedDialogues.map((dialogue) => {
 		const newId = uuidv4();
 		dialogueIdMap.set(dialogue.id, newId);
 		return {
@@ -239,3 +328,6 @@ export async function applyProjectSnapshotAsNew(snapshot) {
 
 	return newProjectId;
 }
+
+
+

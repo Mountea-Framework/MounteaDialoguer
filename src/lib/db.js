@@ -116,6 +116,41 @@ export class MounteaDialoguerDB extends Dexie {
 				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
 		});
 
+		// Version 8 - Add sync deletions tombstone table
+		this.version(8).stores({
+			projects: 'id, name, createdAt, modifiedAt',
+			dialogues: 'id, projectId, name, createdAt, modifiedAt',
+			participants: 'id, projectId, name, category',
+			categories: 'id, projectId, name, parentCategoryId',
+			decorators: 'id, projectId, name, type',
+			conditions: 'id, projectId, name, type',
+			nodes: '[dialogueId+id], dialogueId, type',
+			edges: '[dialogueId+id], dialogueId, source, target',
+			syncAccounts: 'provider, accountId, email, expiresAt',
+			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
+			syncDeletions: '[projectId+provider], projectId, provider, deletedAt',
+			localizedStrings:
+				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
+		});
+
+		// Version 9 - Add sync catalog state and tombstone ledger tables
+		this.version(9).stores({
+			projects: 'id, name, createdAt, modifiedAt',
+			dialogues: 'id, projectId, name, createdAt, modifiedAt',
+			participants: 'id, projectId, name, category',
+			categories: 'id, projectId, name, parentCategoryId',
+			decorators: 'id, projectId, name, type',
+			conditions: 'id, projectId, name, type',
+			nodes: '[dialogueId+id], dialogueId, type',
+			edges: '[dialogueId+id], dialogueId, source, target',
+			syncAccounts: 'provider, accountId, email, expiresAt',
+			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
+			syncDeletions: '[projectId+provider], projectId, provider, deletedAt',
+			syncCatalogState: '[provider+profileId], provider, profileId, catalogRevision, fetchedAt, status',
+			syncTombstones: '[provider+entityType+entityId], provider, entityType, entityId, projectId, deletedAt, expiresAt, pending, acknowledgedAt',
+			localizedStrings:
+				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
+		});
 		this.projects = this.table('projects');
 		this.dialogues = this.table('dialogues');
 		this.participants = this.table('participants');
@@ -126,6 +161,9 @@ export class MounteaDialoguerDB extends Dexie {
 		this.edges = this.table('edges');
 		this.syncAccounts = this.table('syncAccounts');
 		this.syncProjects = this.table('syncProjects');
+		this.syncDeletions = this.table('syncDeletions');
+		this.syncCatalogState = this.table('syncCatalogState');
+		this.syncTombstones = this.table('syncTombstones');
 		this.localizedStrings = this.table('localizedStrings');
 	}
 }
@@ -193,3 +231,4 @@ export const db = new Proxy(
 export function getProfileScopedDbName() {
 	return ensureDbInstance().name;
 }
+

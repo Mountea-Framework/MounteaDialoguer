@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { URL, URLSearchParams } = require('node:url');
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const {
 	initializeSteamRuntime,
 	prepareSteamOverlayForElectron,
@@ -50,16 +50,129 @@ const DEFAULT_MENU_CONTEXT = Object.freeze({
 	supportedContentLocales: [],
 });
 let menuContext = { ...DEFAULT_MENU_CONTEXT };
-const SUPPORTED_LANGUAGES = [
-	{ code: 'en', label: 'English' },
-	{ code: 'cs', label: 'Czech' },
-	{ code: 'de', label: 'German' },
-	{ code: 'fr', label: 'French' },
-	{ code: 'es', label: 'Spanish' },
-	{ code: 'pl', label: 'Polish' },
-];
+const SUPPORTED_LANGUAGES = require('./shared/app-languages.json');
+const USER_DATA_DIR_ARG_PREFIX = '--user-data-dir=';
+const USER_DATA_REROUTE_FLAG = '--mountea-user-data-reroute';
+
+function configureLinuxRuntimeStability() {
+	if (process.platform !== 'linux') return;
+
+	const linuxSafeMode = String(process.env.MOUNTEA_ELECTRON_SAFE_MODE || '1').trim() !== '0';
+	if (linuxSafeMode) {
+		app.disableHardwareAcceleration();
+		app.commandLine.appendSwitch('disable-gpu');
+		app.commandLine.appendSwitch('disable-software-rasterizer');
+	}
+
+	const ozoneHint = String(process.env.ELECTRON_OZONE_PLATFORM_HINT || '').trim();
+	if (!ozoneHint) {
+		process.env.ELECTRON_OZONE_PLATFORM_HINT = 'x11';
+		app.commandLine.appendSwitch('ozone-platform-hint', 'x11');
+	}
+}
+
+function canUseUserDataPath(targetPath) {
+	const resolvedPath = String(targetPath || '').trim();
+	if (!resolvedPath) return false;
+	try {
+		fs.mkdirSync(resolvedPath, { recursive: true });
+		fs.accessSync(resolvedPath, fs.constants.R_OK | fs.constants.W_OK);
+
+		// Use a dedicated probe file. Chromium's SingletonLock can be a dangling symlink.
+		const writeProbePath = path.join(resolvedPath, '.mountea_write_probe');
+		fs.writeFileSync(writeProbePath, 'probe', { encoding: 'utf8', flag: 'w' });
+		fs.unlinkSync(writeProbePath);
+
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function getUserDataFallbackCandidates() {
+	const candidates = [];
+	const envOverride = String(process.env.MOUNTEA_USER_DATA_DIR || '').trim();
+	if (envOverride) {
+		candidates.push(envOverride);
+	}
+
+	const localAppData = String(process.env.LOCALAPPDATA || '').trim();
+	if (localAppData) {
+		candidates.push(path.join(localAppData, APP_DISPLAY_NAME));
+		candidates.push(path.join(localAppData, APP_DISPLAY_NAME, 'user-data'));
+	}
+
+	const tempPath = String(app.getPath('temp') || '').trim();
+	if (tempPath) {
+		candidates.push(path.join(tempPath, APP_DISPLAY_NAME, 'user-data'));
+	}
+
+	return [...new Set(candidates.filter(Boolean))];
+}
+
+function getUserDataDirFromProcessArgs() {
+	for (const rawArg of process.argv || []) {
+		const arg = String(rawArg || '');
+		if (!arg.startsWith(USER_DATA_DIR_ARG_PREFIX)) continue;
+		return arg.slice(USER_DATA_DIR_ARG_PREFIX.length).trim();
+	}
+	return '';
+}
+
+function ensureWritableUserDataPath() {
+	const userDataDirFromArgs = getUserDataDirFromProcessArgs();
+	if (userDataDirFromArgs && canUseUserDataPath(userDataDirFromArgs)) {
+		return userDataDirFromArgs;
+	}
+
+	let defaultUserDataPath = '';
+	try {
+		defaultUserDataPath = String(app.getPath('userData') || '').trim();
+	} catch {
+		defaultUserDataPath = '';
+	}
+
+	if (canUseUserDataPath(defaultUserDataPath)) {
+		return defaultUserDataPath;
+	}
+
+	for (const candidate of getUserDataFallbackCandidates()) {
+		if (!canUseUserDataPath(candidate)) continue;
+
+		if (!process.argv.includes(USER_DATA_REROUTE_FLAG)) {
+			const relaunchArgs = (process.argv || [])
+				.slice(1)
+				.filter(
+					(arg) =>
+						!String(arg || '').startsWith(USER_DATA_DIR_ARG_PREFIX) &&
+						String(arg || '') !== USER_DATA_REROUTE_FLAG
+				);
+			console.warn(
+				`[startup] userData fallback requires relaunch: "${candidate}" (default "${defaultUserDataPath}")`
+			);
+			app.relaunch({
+				args: [...relaunchArgs, `${USER_DATA_DIR_ARG_PREFIX}${candidate}`, USER_DATA_REROUTE_FLAG],
+			});
+			app.exit(0);
+			process.exit(0);
+		}
+
+		app.setPath('userData', candidate);
+		console.warn(
+			`[startup] userData fallback activated: "${candidate}" (default "${defaultUserDataPath}")`
+		);
+		return candidate;
+	}
+
+	console.warn(
+		`[startup] No writable userData path found; continuing with default "${defaultUserDataPath}".`
+	);
+	return defaultUserDataPath;
+}
 
 app.setName(APP_DISPLAY_NAME);
+configureLinuxRuntimeStability();
+ensureWritableUserDataPath();
 initMainProcessSentry();
 
 function reportMainProcessError(error, context = {}) {
@@ -262,6 +375,95 @@ function shouldBlockNativeShortcut(input = {}) {
 	}
 
 	return false;
+}
+
+function sanitizeFileNameForSaveDialog(fileName, fallback = 'export.bin') {
+	const normalized = String(fileName || '')
+		.trim()
+		.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_');
+	return normalized || fallback;
+}
+
+function normalizeSaveDialogFilters(rawFilters = []) {
+	if (!Array.isArray(rawFilters)) return [];
+	return rawFilters
+		.map((item) => {
+			const name = String(item?.name || '').trim();
+			const extensions = Array.isArray(item?.extensions)
+				? item.extensions
+						.map((extension) => String(extension || '').trim().replace(/^\./, ''))
+						.filter(Boolean)
+				: [];
+			if (!name || extensions.length === 0) return null;
+			return { name, extensions };
+		})
+		.filter(Boolean);
+}
+
+async function openPathInShell(targetPath) {
+	const normalizedPath = String(targetPath || '').trim();
+	if (!normalizedPath) return false;
+	const openError = await shell.openPath(normalizedPath);
+	return !openError;
+}
+
+async function openContainingFolderInShell(targetFilePath) {
+	const normalizedFilePath = String(targetFilePath || '').trim();
+	if (!normalizedFilePath) return false;
+
+	try {
+		if (fs.existsSync(normalizedFilePath)) {
+			const stats = fs.statSync(normalizedFilePath);
+			if (stats.isDirectory()) {
+				return await openPathInShell(normalizedFilePath);
+			}
+			shell.showItemInFolder(normalizedFilePath);
+			return true;
+		}
+
+		const containingDirectory = path.dirname(normalizedFilePath);
+		if (
+			!containingDirectory ||
+			containingDirectory === '.' ||
+			containingDirectory === normalizedFilePath
+		) {
+			return false;
+		}
+		return await openPathInShell(containingDirectory);
+	} catch (error) {
+		console.warn('[shell] Failed to open containing folder:', error);
+		return false;
+	}
+}
+
+async function saveFileFromRenderer(payload = {}) {
+	const defaultFileName = sanitizeFileNameForSaveDialog(payload?.defaultFileName, 'export.bin');
+	const defaultDirectory = app.getPath('downloads');
+	const defaultPath = path.join(defaultDirectory, defaultFileName);
+	const filters = normalizeSaveDialogFilters(payload?.filters);
+
+	const saveResult = await dialog.showSaveDialog(mainWindow || undefined, {
+		title: 'Export File',
+		defaultPath,
+		filters: filters.length > 0 ? filters : [{ name: 'All Files', extensions: ['*'] }],
+		properties: ['createDirectory', 'showOverwriteConfirmation'],
+	});
+	if (saveResult.canceled || !saveResult.filePath) {
+		return { canceled: true, filePath: '' };
+	}
+
+	const fileBase64 = String(payload?.fileBase64 || '').trim();
+	if (!fileBase64) {
+		throw new Error('Missing export payload');
+	}
+
+	const fileBuffer = Buffer.from(fileBase64, 'base64');
+	await fs.promises.mkdir(path.dirname(saveResult.filePath), { recursive: true });
+	await fs.promises.writeFile(saveResult.filePath, fileBuffer);
+	return {
+		canceled: false,
+		filePath: saveResult.filePath,
+	};
 }
 
 function sanitizeSteamSyncSegment(value, fallback = 'local') {
@@ -679,6 +881,11 @@ async function steamSyncCreateFile(payload = {}) {
 			name: entry.name,
 			cloud: getSteamCloudRuntimeStatus(),
 		});
+		const cloud = getSteamCloudRuntimeStatus();
+		const cloudError = String(cloud?.error || '').trim();
+		throw new Error(
+			`Steam Cloud write skipped during create: ${cloudError || 'cloud unavailable'}`
+		);
 	}
 
 	logSteamSyncEvent('CREATE', {
@@ -688,7 +895,10 @@ async function steamSyncCreateFile(payload = {}) {
 		bundlePath: getSteamSyncBundleCachePath(profileId),
 		cloudWritten,
 	});
-	return toSteamSyncFileMetadata(entry);
+	return {
+		...toSteamSyncFileMetadata(entry),
+		cloudWritten,
+	};
 }
 
 async function steamSyncUpdateFile(payload = {}) {
@@ -734,6 +944,11 @@ async function steamSyncUpdateFile(payload = {}) {
 			name: updated.name,
 			cloud: getSteamCloudRuntimeStatus(),
 		});
+		const cloud = getSteamCloudRuntimeStatus();
+		const cloudError = String(cloud?.error || '').trim();
+		throw new Error(
+			`Steam Cloud write skipped during update: ${cloudError || 'cloud unavailable'}`
+		);
 	}
 	logSteamSyncEvent('UPDATE', {
 		profileId,
@@ -742,7 +957,57 @@ async function steamSyncUpdateFile(payload = {}) {
 		bundlePath: getSteamSyncBundleCachePath(profileId),
 		cloudWritten,
 	});
-	return toSteamSyncFileMetadata(updated);
+	return {
+		...toSteamSyncFileMetadata(updated),
+		cloudWritten,
+	};
+}
+
+async function steamSyncDeleteFile(payload = {}) {
+	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
+	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
+	if (!fileId) {
+		throw new Error('Missing Steam sync file id');
+	}
+
+	const { bundle } = await readSteamSyncBundle(profileId);
+	const existing = (bundle?.entries || []).find((item) => item.id === fileId);
+	if (!existing) {
+		return { id: fileId, deleted: false };
+	}
+
+	const nextEntries = (bundle?.entries || []).filter((item) => item.id !== fileId);
+	const nextBundle = normalizeSteamSyncBundle(
+		{
+			...bundle,
+			profileId,
+			modifiedTime: new Date().toISOString(),
+			entries: nextEntries,
+		},
+		profileId
+	);
+	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
+	if (!cloudWritten) {
+		logSteamSyncEvent('DELETE_CLOUD_SKIPPED', {
+			profileId,
+			fileId: existing.id,
+			name: existing.name,
+			cloud: getSteamCloudRuntimeStatus(),
+		});
+		const cloud = getSteamCloudRuntimeStatus();
+		const cloudError = String(cloud?.error || '').trim();
+		throw new Error(
+			`Steam Cloud write skipped during delete: ${cloudError || 'cloud unavailable'}`
+		);
+	}
+	logSteamSyncEvent('DELETE', {
+		profileId,
+		fileId: existing.id,
+		name: existing.name,
+		bundlePath: getSteamSyncBundleCachePath(profileId),
+		cloudWritten,
+	});
+	return { id: fileId, deleted: true, cloudWritten };
 }
 
 function sendMenuCommand(command, payload = {}) {
@@ -822,9 +1087,12 @@ function createAppMenu(context = menuContext) {
 	const canImportExportProject = isProject;
 	const canSaveDialogue = isDialogue;
 	const canExportDialogue = isDialogue || isDialogueSettings;
+	const canOpenDialogueLastExport = canExportDialogue;
 	const canUndoRedoDialogue = isDialogue;
 	const canGraphNavigation = isDialogue;
 	const canSetContentLocale = (isDialogue || isDialogueSettings) && Boolean(normalizedContext.projectId);
+	const canOpenSettingsDialog = isProject || isDialogue || isDialogueSettings;
+	const canOpenSync = !isDialogue;
 	const canShowTour = isDashboard || isDialogue;
 	const contentLocaleMenuItems = normalizedContext.supportedContentLocales.map((localeCode) => ({
 		label: getLocaleMenuLabel(localeCode),
@@ -849,6 +1117,224 @@ function createAppMenu(context = menuContext) {
 		: isDashboard
 			? 'Restart Dashboard Tour'
 			: 'Restart Tour';
+	const appendMenuSection = (menuItems, sectionItems = []) => {
+		if (!Array.isArray(sectionItems) || sectionItems.length === 0) return;
+		if (menuItems.length > 0 && menuItems[menuItems.length - 1]?.type !== 'separator') {
+			menuItems.push({ type: 'separator' });
+		}
+		menuItems.push(...sectionItems);
+	};
+
+	const fileTopItems = [];
+	if (canNavigateBack) {
+		fileTopItems.push({
+			label: 'Back',
+			accelerator: 'CmdOrCtrl+[',
+			click: () => sendMenuCommand('navigate-back'),
+		});
+	}
+	if (isDashboard) {
+		fileTopItems.push({
+			label: 'New Project',
+			accelerator: 'CmdOrCtrl+N',
+			click: () => sendMenuCommand('new-project'),
+		});
+	} else if (isProject) {
+		fileTopItems.push({
+			label: 'New Dialogue',
+			accelerator: 'CmdOrCtrl+N',
+			click: () => sendMenuCommand('new-dialogue'),
+		});
+	}
+	if (isDashboard) {
+		fileTopItems.push({
+			label: 'Find Projects',
+			accelerator: 'CmdOrCtrl+F',
+			click: () => sendMenuCommand('dashboard-focus-search'),
+		});
+	}
+	const fileMenuItems = [];
+	appendMenuSection(fileMenuItems, fileTopItems);
+
+	const projectFileItems = [];
+	if (canImportExportProject) {
+		projectFileItems.push(
+			{
+				label: 'Import Project',
+				accelerator: 'CmdOrCtrl+I',
+				enabled: true,
+				click: () => sendMenuCommand('project-import'),
+			},
+			{
+				label: 'Export Project',
+				accelerator: 'CmdOrCtrl+Shift+E',
+				enabled: true,
+				click: () => sendMenuCommand('project-export'),
+			},
+			{
+				label: 'Open Last Project Export Path',
+				enabled: true,
+				click: () => sendMenuCommand('project-open-last-export'),
+			}
+		);
+	}
+	if (projectFileItems.length > 0) {
+		appendMenuSection(fileMenuItems, projectFileItems);
+	}
+
+	const dialogueFileItems = [];
+	if (canSaveDialogue) {
+		dialogueFileItems.push({
+			label: 'Save Dialogue',
+			accelerator: 'CmdOrCtrl+S',
+			enabled: true,
+			click: () => sendMenuCommand('dialogue-save'),
+		});
+	}
+	if (canExportDialogue) {
+		dialogueFileItems.push({
+			label: 'Export Dialogue',
+			accelerator: 'CmdOrCtrl+E',
+			enabled: true,
+			click: () => sendMenuCommand('dialogue-export'),
+		});
+	}
+	if (canOpenDialogueLastExport) {
+		dialogueFileItems.push({
+			label: 'Open Last Dialogue Export Path',
+			enabled: true,
+			click: () => sendMenuCommand('dialogue-open-last-export'),
+		});
+	}
+	if (dialogueFileItems.length > 0) {
+		appendMenuSection(fileMenuItems, dialogueFileItems);
+	}
+
+	appendMenuSection(fileMenuItems, [isMac ? { role: 'close' } : { role: 'quit' }]);
+
+	const editMenuItems = [];
+	if (canUndoRedoDialogue) {
+		editMenuItems.push(
+			{
+				label: 'Undo',
+				accelerator: 'CmdOrCtrl+Z',
+				click: () => sendMenuCommand('dialogue-undo'),
+			},
+			{
+				label: 'Redo',
+				accelerator: isMac ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y',
+				click: () => sendMenuCommand('dialogue-redo'),
+			}
+		);
+	}
+
+	const viewMenuItems = [
+		{
+			label: 'Command Palette',
+			accelerator: 'CmdOrCtrl+K',
+			click: () => sendMenuCommand('open-command-palette'),
+		},
+	];
+	const viewDialogueItems = [];
+	if (isDialogue) {
+		viewDialogueItems.push({
+			label: 'Start Preview',
+			click: () => sendMenuCommand('dialogue-start-preview'),
+		});
+	}
+	if (canGraphNavigation) {
+		viewDialogueItems.push(
+			{
+				label: 'Recenter Graph',
+				click: () => sendMenuCommand('dialogue-recenter'),
+			},
+			{
+				label: 'Focus Start Node',
+				click: () => sendMenuCommand('dialogue-focus-start'),
+			}
+		);
+	}
+	appendMenuSection(viewMenuItems, viewDialogueItems);
+	appendMenuSection(viewMenuItems, [
+		{ role: 'resetZoom' },
+		{ role: 'zoomIn' },
+		{ role: 'zoomOut' },
+		{ role: 'togglefullscreen' },
+	]);
+
+	const settingsMenuItems = [
+		{
+			label: 'Theme',
+			submenu: [
+				{
+					label: 'Light',
+					click: () => sendMenuCommand('set-theme', { theme: 'light' }),
+				},
+				{
+					label: 'Dark',
+					click: () => sendMenuCommand('set-theme', { theme: 'dark' }),
+				},
+			],
+		},
+	];
+	if (canSetContentLocale && contentLocaleMenuItems.length > 0) {
+		settingsMenuItems.push({
+			label: 'Content Locale',
+			submenu: contentLocaleMenuItems,
+		});
+	}
+	settingsMenuItems.push({
+		label: 'Language',
+		submenu: languageMenuItems,
+	});
+	appendMenuSection(settingsMenuItems, [
+		...(canOpenSettingsDialog
+			? [
+					{
+						label: settingsLabel,
+						accelerator: 'CmdOrCtrl+,',
+						click: () => sendMenuCommand('open-settings'),
+					},
+			  ]
+			: []),
+		...(canOpenSync
+			? [
+					{
+						label: 'Cloud Sync',
+						accelerator: 'CmdOrCtrl+Shift+S',
+						click: () => sendMenuCommand('open-sync'),
+					},
+			  ]
+			: []),
+	]);
+
+	const helpMenuItems = [];
+	if (canShowTour) {
+		helpMenuItems.push({
+			label: tourLabel,
+			click: () => sendMenuCommand('show-tour'),
+		});
+	}
+	appendMenuSection(helpMenuItems, [
+		{
+			label: 'Terms of Service',
+			click: () => sendMenuCommand('open-terms'),
+		},
+		{
+			label: 'Data Policy',
+			click: () => sendMenuCommand('open-data-policy'),
+		},
+	]);
+	appendMenuSection(helpMenuItems, [
+		{
+			label: 'Report Issue',
+			click: () => shell.openExternal(ISSUES_URL),
+		},
+		{
+			label: 'Community Discord',
+			click: () => shell.openExternal(SUPPORT_URL),
+		},
+	]);
 
 	const template = [
 		...(isMac
@@ -871,171 +1357,20 @@ function createAppMenu(context = menuContext) {
 			: []),
 		{
 			label: 'File',
-			submenu: [
-				{
-					label: 'Back',
-					accelerator: 'CmdOrCtrl+[',
-					enabled: canNavigateBack,
-					click: () => sendMenuCommand('navigate-back'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'New Project',
-					accelerator: 'CmdOrCtrl+N',
-					click: () => sendMenuCommand('new-project'),
-				},
-				{
-					label: 'Find Projects',
-					accelerator: 'CmdOrCtrl+F',
-					enabled: isDashboard,
-					click: () => sendMenuCommand('dashboard-focus-search'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Import Project',
-					accelerator: 'CmdOrCtrl+I',
-					enabled: canImportExportProject,
-					click: () => sendMenuCommand('project-import'),
-				},
-				{
-					label: 'Export Project',
-					accelerator: 'CmdOrCtrl+Shift+E',
-					enabled: canImportExportProject,
-					click: () => sendMenuCommand('project-export'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Save Dialogue',
-					accelerator: 'CmdOrCtrl+S',
-					enabled: canSaveDialogue,
-					click: () => sendMenuCommand('dialogue-save'),
-				},
-				{
-					label: 'Export Dialogue',
-					accelerator: 'CmdOrCtrl+E',
-					enabled: canExportDialogue,
-					click: () => sendMenuCommand('dialogue-export'),
-				},
-				{ type: 'separator' },
-				isMac ? { role: 'close' } : { role: 'quit' },
-			],
+			submenu: fileMenuItems,
 		},
-		{
-			label: 'Edit',
-			submenu: [
-				{
-					label: 'Undo',
-					accelerator: 'CmdOrCtrl+Z',
-					enabled: canUndoRedoDialogue,
-					click: () => sendMenuCommand('dialogue-undo'),
-				},
-				{
-					label: 'Redo',
-					accelerator: isMac ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y',
-					enabled: canUndoRedoDialogue,
-					click: () => sendMenuCommand('dialogue-redo'),
-				},
-			],
-		},
+		...(editMenuItems.length > 0 ? [{ label: 'Edit', submenu: editMenuItems }] : []),
 		{
 			label: 'View',
-			submenu: [
-				{
-					label: 'Command Palette',
-					accelerator: 'CmdOrCtrl+K',
-					click: () => sendMenuCommand('open-command-palette'),
-				},
-				{
-					label: 'Start Preview',
-					enabled: isDialogue,
-					click: () => sendMenuCommand('dialogue-start-preview'),
-				},
-				{
-					label: 'Recenter Graph',
-					enabled: canGraphNavigation,
-					click: () => sendMenuCommand('dialogue-recenter'),
-				},
-				{
-					label: 'Focus Start Node',
-					enabled: canGraphNavigation,
-					click: () => sendMenuCommand('dialogue-focus-start'),
-				},
-				{ type: 'separator' },
-				{ role: 'resetZoom' },
-				{ role: 'zoomIn' },
-				{ role: 'zoomOut' },
-				{ type: 'separator' },
-				{ role: 'togglefullscreen' },
-			],
+			submenu: viewMenuItems,
 		},
 		{
 			label: 'Settings',
-			submenu: [
-				{
-					label: 'Theme',
-					submenu: [
-						{
-							label: 'Light',
-							click: () => sendMenuCommand('set-theme', { theme: 'light' }),
-						},
-						{
-							label: 'Dark',
-							click: () => sendMenuCommand('set-theme', { theme: 'dark' }),
-						},
-					],
-				},
-				{
-					label: 'Content Locale',
-					enabled: canSetContentLocale,
-					submenu:
-						contentLocaleMenuItems.length > 0
-							? contentLocaleMenuItems
-							: [{ label: 'No locales available', enabled: false }],
-				},
-				{
-					label: 'Language',
-					submenu: languageMenuItems,
-				},
-				{ type: 'separator' },
-				{
-					label: settingsLabel,
-					accelerator: 'CmdOrCtrl+,',
-					click: () => sendMenuCommand('open-settings'),
-				},
-				{
-					label: 'Cloud Sync',
-					accelerator: 'CmdOrCtrl+Shift+S',
-					click: () => sendMenuCommand('open-sync'),
-				},
-			],
+			submenu: settingsMenuItems,
 		},
 		{
 			label: 'Help',
-			submenu: [
-				{
-					label: tourLabel,
-					enabled: canShowTour,
-					click: () => sendMenuCommand('show-tour'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Terms of Service',
-					click: () => sendMenuCommand('open-terms'),
-				},
-				{
-					label: 'Data Policy',
-					click: () => sendMenuCommand('open-data-policy'),
-				},
-				{ type: 'separator' },
-				{
-					label: 'Report Issue',
-					click: () => shell.openExternal(ISSUES_URL),
-				},
-				{
-					label: 'Community Discord',
-					click: () => shell.openExternal(SUPPORT_URL),
-				},
-			],
+			submenu: helpMenuItems,
 		},
 	];
 
@@ -1510,6 +1845,9 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
 
 function createMainWindow() {
 	const iconPath = getIconPath();
+	const disableLinuxWindowIcon =
+		process.platform === 'linux' &&
+		String(process.env.MOUNTEA_DISABLE_LINUX_WINDOW_ICON || '1').trim() !== '0';
 	mainWindow = new BrowserWindow({
 		width: 1440,
 		height: 920,
@@ -1518,7 +1856,7 @@ function createMainWindow() {
 		show: false,
 		autoHideMenuBar: false,
 		title: APP_DISPLAY_NAME,
-		icon: iconPath,
+		icon: disableLinuxWindowIcon ? undefined : iconPath,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.cjs'),
 			contextIsolation: true,
@@ -1585,6 +1923,9 @@ function registerIpcHandlers() {
 	ipcMain.removeAllListeners('menu:set-context');
 	ipcMain.removeAllListeners('sync:trace');
 	ipcMain.removeHandler('shell:open-external');
+	ipcMain.removeHandler('shell:open-path');
+	ipcMain.removeHandler('shell:open-containing-folder');
+	ipcMain.removeHandler('dialog:save-file');
 	ipcMain.removeHandler('auth:start-google-oauth');
 	ipcMain.removeHandler('steam:get-status');
 	ipcMain.removeHandler('steam:open-overlay');
@@ -1595,6 +1936,7 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('steam-sync:download-file');
 	ipcMain.removeHandler('steam-sync:create-file');
 	ipcMain.removeHandler('steam-sync:update-file');
+	ipcMain.removeHandler('steam-sync:delete-file');
 
 	ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
 		if (!isAllowedExternalUrl(rawUrl)) {
@@ -1602,6 +1944,18 @@ function registerIpcHandlers() {
 		}
 		await shell.openExternal(rawUrl);
 		return true;
+	});
+
+	ipcMain.handle('shell:open-path', async (_event, rawPath) => {
+		return await openPathInShell(rawPath);
+	});
+
+	ipcMain.handle('shell:open-containing-folder', async (_event, rawFilePath) => {
+		return await openContainingFolderInShell(rawFilePath);
+	});
+
+	ipcMain.handle('dialog:save-file', async (_event, payload) => {
+		return await saveFileFromRenderer(payload || {});
 	});
 
 	ipcMain.handle('auth:start-google-oauth', async (_event, payload) => {
@@ -1646,6 +2000,10 @@ function registerIpcHandlers() {
 
 	ipcMain.handle('steam-sync:update-file', async (_event, payload) => {
 		return await steamSyncUpdateFile(payload || {});
+	});
+
+	ipcMain.handle('steam-sync:delete-file', async (_event, payload) => {
+		return await steamSyncDeleteFile(payload || {});
 	});
 
 	ipcMain.on('menu:set-context', (_event, payload) => {
@@ -1739,4 +2097,3 @@ app.on('before-quit', () => {
 		// Best-effort cleanup.
 	}
 });
-

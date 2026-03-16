@@ -11,6 +11,7 @@ import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useConditionStore } from '@/stores/conditionStore';
 import { useSyncStore } from '@/stores/syncStore';
 import { ProjectSidebar } from '@/components/projects/ProjectSidebar';
+import { CreateDialogueDialog } from '@/components/dialogues/CreateDialogueDialog';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { SimpleTooltip } from '@/components/ui/tooltip';
@@ -19,6 +20,8 @@ import { SaveIndicator } from '@/components/ui/save-indicator';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+import { toast } from '@/components/ui/toaster';
+import { openContainingFolder } from '@/lib/export/exportFile';
 
 // Import section components (we'll create these)
 import { OverviewSection } from '@/components/projects/sections/OverviewSection';
@@ -65,6 +68,7 @@ function ProjectDetailsPage() {
 	const [isImporting, setIsImporting] = useState(false);
 	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [isCreateDialogueDialogOpen, setIsCreateDialogueDialogOpen] = useState(false);
 	const syncCheckedRef = useRef(new Set());
 	const fileInputRef = useRef(null);
 
@@ -120,6 +124,34 @@ function ProjectDetailsPage() {
 		}
 	};
 
+	const handleOpenLastExportPath = useCallback(async () => {
+		const lastExportPath = String(project?.lastExportPath || '').trim();
+		if (!lastExportPath) {
+			toast({
+				variant: 'warning',
+				title: 'No export path available',
+				description: 'Export this project first to create a last export path.',
+			});
+			return;
+		}
+
+		const opened = await openContainingFolder(lastExportPath);
+		if (!opened) {
+			toast({
+				variant: 'error',
+				title: 'Unable to open export path',
+				description: isDesktopElectron
+					? 'The export folder could not be opened.'
+					: 'Open Last Export Path is available in the desktop app.',
+			});
+		}
+	}, [isDesktopElectron, project?.lastExportPath]);
+
+	const handleCreateDialogueRequest = useCallback(() => {
+		setActiveSection('dialogues');
+		setIsCreateDialogueDialogOpen(true);
+	}, []);
+
 	useEffect(() => {
 		const handleCommandExport = (event) => {
 			const detail = event?.detail;
@@ -135,14 +167,36 @@ function ProjectDetailsPage() {
 			}
 		};
 
+		const handleCommandOpenLastExport = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			void handleOpenLastExportPath();
+		};
+
+		const handleCommandNewDialogue = (event) => {
+			const detail = event?.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			handleCreateDialogueRequest();
+		};
+
 		window.addEventListener('command:project-export', handleCommandExport);
 		window.addEventListener('command:project-import', handleCommandImport);
+		window.addEventListener(
+			'command:project-open-last-export',
+			handleCommandOpenLastExport
+		);
+		window.addEventListener('command:project-new-dialogue', handleCommandNewDialogue);
 
 		return () => {
 			window.removeEventListener('command:project-export', handleCommandExport);
 			window.removeEventListener('command:project-import', handleCommandImport);
+			window.removeEventListener(
+				'command:project-open-last-export',
+				handleCommandOpenLastExport
+			);
+			window.removeEventListener('command:project-new-dialogue', handleCommandNewDialogue);
 		};
-	}, [projectId, handleExport]);
+	}, [projectId, handleCreateDialogueRequest, handleExport, handleOpenLastExportPath]);
 
 	useEffect(() => {
 		if (isMobile) return;
@@ -168,13 +222,18 @@ function ProjectDetailsPage() {
 					if (fileInputRef.current) {
 						fileInputRef.current.click();
 					}
+					return;
+				}
+				if (key === 'n') {
+					event.preventDefault();
+					handleCreateDialogueRequest();
 				}
 			}
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, [handleExport, isMobile]);
+	}, [handleCreateDialogueRequest, handleExport, isMobile]);
 
 	const handleImport = async (event) => {
 		const file = event.target.files?.[0];
@@ -296,6 +355,11 @@ function ProjectDetailsPage() {
 				onChange={handleImport}
 				className="hidden"
 			/>
+			<CreateDialogueDialog
+				open={isCreateDialogueDialogOpen}
+				onOpenChange={setIsCreateDialogueDialogOpen}
+				projectId={projectId}
+			/>
 
 			{/* Main Content */}
 			<div className="flex-1 flex min-h-0 overflow-hidden">
@@ -323,9 +387,10 @@ function ProjectDetailsPage() {
 								decorators={projectDecorators}
 								conditions={projectConditions}
 								onExport={handleExport}
+								onOpenLastExportPath={handleOpenLastExportPath}
 								onImport={handleImport}
 								onDelete={handleDeleteRequest}
-							onSectionChange={setActiveSection}
+								onSectionChange={setActiveSection}
 								fileInputRef={fileInputRef}
 								isImporting={isImporting}
 							/>
@@ -334,6 +399,7 @@ function ProjectDetailsPage() {
 							<DialoguesSection
 								projectId={projectId}
 								dialogues={projectDialogues}
+								onCreateDialogue={handleCreateDialogueRequest}
 							/>
 						)}
 						{activeSection === 'participants' && (
@@ -364,6 +430,7 @@ function ProjectDetailsPage() {
 							<ProjectSettingsSection
 								project={project}
 								onExport={handleExport}
+								onOpenLastExportPath={handleOpenLastExportPath}
 								onDelete={handleDeleteRequest}
 							/>
 						)}

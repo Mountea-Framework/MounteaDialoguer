@@ -21,7 +21,7 @@ import { isMobileDevice } from "@/lib/deviceDetection";
  */
 export function ParticipantsSection({ projectId, participants = [] }) {
   const { t } = useTranslation();
-  const { importParticipants, exportParticipants } = useParticipantStore();
+  const { importParticipantsFromFile, exportParticipantsArchive } = useParticipantStore();
   const { categories, loadCategories } = useCategoryStore();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -148,14 +148,11 @@ export function ParticipantsSection({ projectId, participants = [] }) {
 
   const handleExport = async () => {
     try {
-      const data = await exportParticipants(projectId);
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
+      const { blob, defaultFileName } = await exportParticipantsArchive(projectId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `participants-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = defaultFileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -171,9 +168,7 @@ export function ParticipantsSection({ projectId, participants = [] }) {
 
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      await importParticipants(projectId, Array.isArray(data) ? data : [data]);
+      await importParticipantsFromFile(projectId, file);
     } catch (error) {
       console.error("Failed to import participants:", error);
     } finally {
@@ -200,7 +195,7 @@ export function ParticipantsSection({ projectId, participants = [] }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json"
+            accept=".json,.zip,.mnteapart"
             onChange={handleImport}
             className="hidden"
           />

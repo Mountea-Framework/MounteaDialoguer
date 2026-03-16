@@ -10,6 +10,8 @@ import { SettingsCommandDialog } from '@/components/ui/SettingsCommandDialog';
 import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { db } from '@/lib/db';
+import { openContainingFolder } from '@/lib/export/exportFile';
+import { toast } from '@/components/ui/toaster';
 import { useSyncStore } from '@/stores/syncStore';
 import { useSteamStore } from '@/stores/steamStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -48,6 +50,7 @@ import {
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
 } from '@/lib/localization/stringTable';
+import { APP_LANGUAGE_CODES } from '@/lib/localization/appLanguages';
 
 export const Route = createRootRoute({
 	component: RootComponent,
@@ -377,19 +380,32 @@ function RootComponent() {
 		setLoginDialogOpen,
 	]);
 
-	useEffect(() => {
-		const electronApi = typeof window !== 'undefined' ? window.electronAPI : null;
-		if (!electronApi?.isElectron || typeof electronApi.onMenuCommand !== 'function') {
-			return undefined;
-		}
+	const handleMenuCommand = useCallback(
+		async (command, commandPayload = {}) => {
+			const emit = (eventName, detail = {}) => {
+				window.dispatchEvent(new CustomEvent(eventName, { detail }));
+			};
+			const openLastExportPath = async ({ path: rawPath, entityLabel }) => {
+				const exportPath = String(rawPath || '').trim();
+				if (!exportPath) {
+					toast({
+						variant: 'warning',
+						title: 'No export path available',
+						description: `Export this ${entityLabel} first to create a last export path.`,
+					});
+					return;
+				}
 
-		const emit = (eventName, detail = {}) => {
-			window.dispatchEvent(new CustomEvent(eventName, { detail }));
-		};
+				const opened = await openContainingFolder(exportPath);
+				if (!opened) {
+					toast({
+						variant: 'error',
+						title: 'Unable to open export path',
+						description: `The ${entityLabel} export folder could not be opened.`,
+					});
+				}
+			};
 
-		const unsubscribe = electronApi.onMenuCommand((payload) => {
-			const command = payload?.command || '';
-			const commandPayload = payload?.payload || {};
 			switch (command) {
 				case 'new-project': {
 					if (currentPath !== '/') {
@@ -397,6 +413,12 @@ function RootComponent() {
 						window.setTimeout(() => emit('menu:new-project'), 120);
 					} else {
 						emit('menu:new-project');
+					}
+					return;
+				}
+				case 'new-dialogue': {
+					if (routeContext.type === 'project' && routeContext.projectId) {
+						emit('command:project-new-dialogue', { projectId: routeContext.projectId });
 					}
 					return;
 				}
@@ -445,6 +467,17 @@ function RootComponent() {
 					}
 					return;
 				}
+				case 'project-open-last-export': {
+					if (!routeContext.projectId) return;
+					const project = (projects || []).find(
+						(item) => String(item?.id || '') === String(routeContext.projectId)
+					);
+					await openLastExportPath({
+						path: project?.lastExportPath,
+						entityLabel: 'project',
+					});
+					return;
+				}
 				case 'dialogue-save': {
 					if (routeContext.type === 'dialogue') {
 						emit('command:dialogue-save', {
@@ -464,6 +497,22 @@ function RootComponent() {
 							dialogueId: routeContext.dialogueId,
 						});
 					}
+					return;
+				}
+				case 'dialogue-open-last-export': {
+					if (
+						routeContext.type !== 'dialogue' &&
+						routeContext.type !== 'dialogue-settings'
+					) {
+						return;
+					}
+					const dialogueId = String(routeContext.dialogueId || '').trim();
+					if (!dialogueId) return;
+					const dialogue = await db.dialogues.get(dialogueId);
+					await openLastExportPath({
+						path: dialogue?.lastExportPath,
+						entityLabel: 'dialogue',
+					});
 					return;
 				}
 				case 'dialogue-undo': {
@@ -520,7 +569,7 @@ function RootComponent() {
 				}
 				case 'set-language': {
 					const language = commandPayload.language;
-					if (['en', 'cs', 'de', 'fr', 'es', 'pl'].includes(language)) {
+					if (APP_LANGUAGE_CODES.includes(language)) {
 						runtimeI18n.changeLanguage(language);
 						window.localStorage.setItem('i18nextLng', language);
 					}
@@ -563,8 +612,6 @@ function RootComponent() {
 							context: { type: 'project', projectId: routeContext.projectId },
 							mode: 'detail',
 						});
-					} else {
-						openSettingsCommand({ mode: 'list' });
 					}
 					return;
 				}
@@ -598,6 +645,30 @@ function RootComponent() {
 				default:
 					return;
 			}
+		},
+		[
+			currentPath,
+			navigate,
+			openSettingsCommand,
+			projects,
+			routeContext.dialogueId,
+			routeContext.projectId,
+			routeContext.type,
+			runtimeI18n,
+			setCommandPaletteOpen,
+			setLoginDialogOpen,
+			setProjectContentLocale,
+		]
+	);
+
+	useEffect(() => {
+		const electronApi = typeof window !== 'undefined' ? window.electronAPI : null;
+		if (!electronApi?.isElectron || typeof electronApi.onMenuCommand !== 'function') {
+			return undefined;
+		}
+
+		const unsubscribe = electronApi.onMenuCommand((payload) => {
+			void handleMenuCommand(payload?.command || '', payload?.payload || {});
 		});
 
 		return () => {
@@ -605,18 +676,20 @@ function RootComponent() {
 				unsubscribe();
 			}
 		};
-	}, [
-		currentPath,
-		navigate,
-		openSettingsCommand,
-		routeContext.dialogueId,
-		routeContext.projectId,
-		routeContext.type,
-		runtimeI18n,
-		setCommandPaletteOpen,
-		setLoginDialogOpen,
-		setProjectContentLocale,
-	]);
+	}, [handleMenuCommand]);
+
+	useEffect(() => {
+		const handleCommandMenuCommand = (event) => {
+			const command = String(event?.detail?.command || '').trim();
+			if (!command) return;
+			void handleMenuCommand(command, event?.detail?.payload || {});
+		};
+
+		window.addEventListener('command:menu-command', handleCommandMenuCommand);
+		return () => {
+			window.removeEventListener('command:menu-command', handleCommandMenuCommand);
+		};
+	}, [handleMenuCommand]);
 
 	useEffect(() => {
 		const electronApi = typeof window !== 'undefined' ? window.electronAPI : null;

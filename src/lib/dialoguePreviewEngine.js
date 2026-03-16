@@ -1,6 +1,7 @@
 export const PREVIEW_START_NODE_ID = '00000000-0000-0000-0000-000000000001';
 
-const PREVIEW_TERMINAL_TYPES = new Set(['completeNode', 'openChildGraphNode']);
+const PREVIEW_TERMINAL_TYPES = new Set(['completeNode']);
+const PREVIEW_NODE_REF_SEPARATOR = '::';
 
 export const getPreviewNodesAndEdges = (nodes = [], edges = []) => {
 	const regularNodes = Array.isArray(nodes)
@@ -140,6 +141,28 @@ export const getSpeakerForPreview = (node, t) => {
 };
 
 export const isTerminalPreviewNode = (node) => PREVIEW_TERMINAL_TYPES.has(node?.type);
+
+export const createPreviewNodeRefKey = ({ dialogueId = '', nodeId = '' } = {}) => {
+	const safeDialogueId = String(dialogueId || '').trim();
+	const safeNodeId = String(nodeId || '').trim();
+	if (!safeDialogueId || !safeNodeId) return '';
+	return `${safeDialogueId}${PREVIEW_NODE_REF_SEPARATOR}${safeNodeId}`;
+};
+
+export const parsePreviewNodeRefKey = (value = '') => {
+	const normalized = String(value || '').trim();
+	if (!normalized) {
+		return { dialogueId: '', nodeId: '' };
+	}
+	const separatorIndex = normalized.indexOf(PREVIEW_NODE_REF_SEPARATOR);
+	if (separatorIndex === -1) {
+		return { dialogueId: '', nodeId: normalized };
+	}
+	return {
+		dialogueId: normalized.slice(0, separatorIndex),
+		nodeId: normalized.slice(separatorIndex + PREVIEW_NODE_REF_SEPARATOR.length),
+	};
+};
 
 const stableStringifyObject = (value) => {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return '{}';

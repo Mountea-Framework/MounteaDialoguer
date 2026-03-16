@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { openContainingFolder, saveExportBlob } from '@/lib/export/exportFile';
 import { useSyncStore } from '@/stores/syncStore';
 import {
 	DEFAULT_LOCALE,
@@ -16,6 +17,11 @@ import {
 	remapLocalizedEntriesForImportedDialogue,
 	validateLocalizedEntriesForDialogue,
 } from '@/lib/localization/stringTable';
+import {
+	blobToStoredParticipantThumbnail,
+	buildParticipantImageId,
+	storedParticipantThumbnailToBlob,
+} from '@/lib/participantThumbnails';
 
 const normalizeDialogueRow = (row = {}) => ({
 	...row,
@@ -232,6 +238,16 @@ export const useDialogueStore = create((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const dialogue = await db.dialogues.get(id);
+			if (!dialogue) {
+				throw new Error('Dialogue not found');
+			}
+			const syncedProviders = Array.from(
+				new Set(
+					(await db.syncProjects.where('projectId').equals(dialogue.projectId).toArray())
+						.map((entry) => String(entry?.provider || '').trim())
+						.filter(Boolean)
+				)
+			);
 			await db.transaction('rw', [db.dialogues, db.nodes, db.edges, db.localizedStrings], async () => {
 				await db.dialogues.delete(id);
 				await db.nodes.where('dialogueId').equals(id).delete();
@@ -239,6 +255,9 @@ export const useDialogueStore = create((set, get) => ({
 				await db.localizedStrings.where('dialogueId').equals(id).delete();
 			});
 			await get().loadDialogues(dialogue.projectId);
+			await useSyncStore.getState().scheduleDialogueDeletion(id, dialogue.projectId, {
+				providers: syncedProviders,
+			});
 			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
 				variant: 'success',
@@ -576,6 +595,71 @@ export const useDialogueStore = create((set, get) => ({
 		}
 	},
 
+		/**
+		 * Read-only graph loader for preview runtime (does not mutate store state).
+		 */
+		loadDialogueGraphForPreview: async (dialogueId, options = {}) => {
+			try {
+				const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
+
+				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
+				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+				const dialogue = await db.dialogues.get(dialogueId);
+				if (!dialogue) {
+					return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
+				}
+
+				const project = dialogue.projectId ? await db.projects.get(dialogue.projectId) : null;
+				const localizationState = getProjectLocalizationState(project);
+				const activeLocale = normalizeLocaleTag(
+					options?.activeLocale,
+					localizationState.defaultLocale
+				);
+				const defaultLocale = localizationState.defaultLocale;
+				const entries = dialogue.projectId
+					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
+					: [];
+
+				let nodes = loadedNodes.map((node) => {
+					if (!node.data?.dialogueRows) return node;
+					const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
+						if (row.audioFile?.base64) {
+							return {
+								...row,
+								audioFile: restoreAudioFromStorage(row.audioFile),
+							};
+						}
+						return row;
+					});
+					return {
+						...node,
+						data: {
+							...node.data,
+							dialogueRows: restoredRows,
+						},
+					};
+				});
+
+				nodes = materializeLocalizedNodes({
+					nodes,
+					dialogueId,
+					dialogueSlug: dialogue.localizationSlug,
+					locale: activeLocale,
+					defaultLocale,
+					stringEntries: entries,
+				});
+
+				return {
+					nodes,
+					edges,
+					viewport: dialogue.viewport || { x: 0, y: 0, zoom: 1 },
+				};
+			} catch (error) {
+				console.error('Error loading dialogue graph for preview:', error);
+				throw error;
+			}
+		},
+
 	/**
 	 * Clear current dialogue
 	 */
@@ -588,8 +672,6 @@ export const useDialogueStore = create((set, get) => ({
 	 */
 	exportDialogue: async (dialogueId) => {
 		try {
-			const { saveAs } = await import('file-saver');
-
 			// Get dialogue name for the file
 			const dialogue = await db.dialogues.get(dialogueId);
 			if (!dialogue) {
@@ -598,15 +680,47 @@ export const useDialogueStore = create((set, get) => ({
 
 			// Use the shared blob export function
 			const blob = await get().exportDialogueAsBlob(dialogueId);
+			const defaultFileName = `${dialogue.name}.mnteadlg`;
 
-			// Download
-			saveAs(blob, `${dialogue.name}.mnteadlg`);
+			const saveResult = await saveExportBlob({
+				blob,
+				defaultFileName,
+				filters: [{ name: 'Dialogue Export', extensions: ['mnteadlg'] }],
+			});
+			if (saveResult.canceled) {
+				return;
+			}
 
+			if (saveResult.filePath) {
+				await db.dialogues.update(dialogueId, {
+					lastExportPath: saveResult.filePath,
+				});
+				set((state) => ({
+					dialogues: state.dialogues.map((entry) =>
+						entry.id === dialogueId
+							? { ...entry, lastExportPath: saveResult.filePath }
+							: entry
+					),
+					currentDialogue:
+						state.currentDialogue?.id === dialogueId
+							? { ...state.currentDialogue, lastExportPath: saveResult.filePath }
+							: state.currentDialogue,
+				}));
+			}
 
 			toast({
 				variant: 'success',
 				title: 'Dialogue Exported',
-				description: `${dialogue.name}.mnteadlg has been exported`,
+				description: `${defaultFileName} has been exported`,
+				action: saveResult.filePath
+					? {
+						label: 'Open Folder',
+						onClick: () => {
+							void openContainingFolder(saveResult.filePath);
+						},
+					}
+					: undefined,
+				duration: saveResult.filePath ? 8000 : 3000,
 			});
 		} catch (error) {
 			console.error('Error exporting dialogue:', error);
@@ -817,6 +931,12 @@ export const useDialogueStore = create((set, get) => ({
 			const participantsExport = usedParticipants.map((p) => ({
 				name: p.name,
 				fullPath: categoryPathMap.get(p.category) || p.category,
+				participantImage: p.thumbnail
+					? buildParticipantImageId({
+						participantName: p.name,
+						categoryPath: categoryPathMap.get(p.category) || p.category,
+					})
+					: null,
 			}));
 
 				// Create ZIP file
@@ -876,6 +996,23 @@ export const useDialogueStore = create((set, get) => ({
 					}
 				}
 			}
+
+			// Add participant thumbnail files
+			const thumbnailsFolder = zip.folder('Thumbnails');
+			participantsExport.forEach((entry, index) => {
+				const participantImageId = String(entry?.participantImage || '').trim();
+				if (!participantImageId) return;
+				const participant = usedParticipants[index];
+				try {
+					const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
+					if (!thumbnailBlob) return;
+					thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
+				} catch (error) {
+					console.warn(
+						`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
+					);
+				}
+			});
 
 			// Generate and return blob
 			const blob = await zip.generateAsync({ type: 'blob' });
@@ -977,15 +1114,42 @@ export const useDialogueStore = create((set, get) => ({
 			}
 
 			// Step 2: Import participants with deduplication
+			const participantThumbnailById = new Map();
+			for (const partData of participants) {
+				const participantImageId = String(partData?.participantImage || '').trim();
+				if (!participantImageId) continue;
+				const thumbnailEntry =
+					zip.file(`Thumbnails/${participantImageId}.png`) ||
+					zip.file(`thumbnails/${participantImageId}.png`);
+				if (!thumbnailEntry) continue;
+				try {
+					const thumbnailBlob = await thumbnailEntry.async('blob');
+					const thumbnail = await blobToStoredParticipantThumbnail(thumbnailBlob);
+					participantThumbnailById.set(participantImageId, thumbnail);
+				} catch (error) {
+					console.warn(
+						`Skipping invalid participant thumbnail in dialogue import (${participantImageId})`
+					);
+				}
+			}
+
 			const existingParticipants = await db.participants
 				.where('projectId')
 				.equals(projectId)
 				.toArray();
 
+			const existingParticipantsByName = new Map(
+				existingParticipants.map((participant) => [participant.name, participant])
+			);
 			const existingParticipantNames = new Set(existingParticipants.map((p) => p.name));
 			const participantMapping = new Map(); // old name -> new name
 
 			for (const partData of participants) {
+				const participantImageId = String(partData?.participantImage || '').trim();
+				const importedThumbnail = participantImageId
+					? participantThumbnailById.get(participantImageId) || null
+					: null;
+
 				if (!existingParticipantNames.has(partData.name)) {
 					// Find the category by fullPath
 					const categoryName = categoryMapping.get(partData.fullPath) ||
@@ -1000,12 +1164,27 @@ export const useDialogueStore = create((set, get) => ({
 						id: uuidv4(),
 						name: partData.name,
 						category: categoryName,
+						thumbnail: importedThumbnail,
 						projectId,
 						createdAt: now,
 						modifiedAt: now,
 					};
 					await db.participants.add(newParticipant);
 					existingParticipantNames.add(partData.name);
+					existingParticipantsByName.set(partData.name, newParticipant);
+				} else if (importedThumbnail) {
+					const existingParticipant = existingParticipantsByName.get(partData.name);
+					if (existingParticipant && !existingParticipant.thumbnail) {
+						await db.participants.update(existingParticipant.id, {
+							thumbnail: importedThumbnail,
+							modifiedAt: now,
+						});
+						existingParticipantsByName.set(partData.name, {
+							...existingParticipant,
+							thumbnail: importedThumbnail,
+							modifiedAt: now,
+						});
+					}
 				}
 				participantMapping.set(partData.name, partData.name);
 			}

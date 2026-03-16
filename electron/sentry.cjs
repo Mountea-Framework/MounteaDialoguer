@@ -1,4 +1,10 @@
-const Sentry = require('@sentry/electron/main');
+let Sentry = null;
+try {
+	Sentry = require('@sentry/electron/main');
+} catch (error) {
+	// Keep app startup resilient if runtime packaging omits Sentry.
+	console.warn('[sentry] @sentry/electron/main unavailable, continuing without Sentry.', error);
+}
 
 let sentryInitialized = false;
 
@@ -16,6 +22,7 @@ function resolveMainProcessDsn() {
 
 function initMainProcessSentry() {
 	if (sentryInitialized) return true;
+	if (!Sentry) return false;
 	const dsn = resolveMainProcessDsn();
 	if (!dsn) return false;
 
@@ -35,7 +42,7 @@ function initMainProcessSentry() {
 }
 
 function captureMainProcessException(error, context = {}) {
-	if (!sentryInitialized) return;
+	if (!sentryInitialized || !Sentry) return;
 	const normalizedError =
 		error instanceof Error ? error : new Error(String(error || 'unknown main-process error'));
 

@@ -15,10 +15,18 @@ import {
 	previewPushProject,
 	pullProjectFromFile,
 	pullProject,
+	deleteLocalProject as deleteLocalProjectEngine,
 	pushProject as pushProjectToRemote,
+	publishTombstone as publishTombstoneEngine,
 	syncAllProjects as syncAllProjectsEngine,
 } from '@/lib/sync/syncEngine';
-import { getSyncAccount, upsertSyncAccount, clearSyncAccount } from '@/lib/sync/syncStorage';
+import {
+	getSyncAccount,
+	upsertSyncAccount,
+	clearSyncAccount,
+	upsertSyncTombstone,
+	listPendingSyncTombstones,
+} from '@/lib/sync/syncStorage';
 import {
 	SYNC_PROVIDER_IDS,
 	getSyncProviderConfig,
@@ -45,6 +53,9 @@ const DEFAULT_PULL_STATE = Object.freeze({
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
+const STEAM_CONNECT_SYNC_COOLDOWN_MS = 5000;
+let steamConnectSyncInFlight = false;
+let lastSteamConnectSyncAt = 0;
 
 const NOOP_PROFILE_STORAGE = Object.freeze({
 	getItem: () => null,
@@ -314,6 +325,22 @@ export const useSyncStore = create(
 			connectSteamProvider: async (steamStatus) => {
 				const isAvailable = Boolean(steamStatus?.available);
 				const identity = String(steamStatus?.personaName || steamStatus?.steamId || '');
+				const currentState = get();
+				const alreadyConnected =
+					currentState.provider === 'steam' &&
+					(currentState.status === 'connected' || currentState.status === 'syncing');
+
+				if (alreadyConnected && isAvailable) {
+					if (identity) {
+						set((state) => ({
+							providerInputs: withProviderInput(state, 'steam', {
+								accountLabel: identity,
+							}),
+						}));
+					}
+					return true;
+				}
+
 				set((state) => ({
 					provider: 'steam',
 					status: isAvailable ? 'connected' : 'disconnected',
@@ -327,11 +354,31 @@ export const useSyncStore = create(
 					account: identity,
 					available: isAvailable,
 				});
-				if (isAvailable) {
-					await get().syncAllProjects({
-						mode: 'full',
-						trigger: 'steam-connect',
-					});
+				if (isAvailable && !alreadyConnected) {
+					const nowMs = Date.now();
+					if (steamConnectSyncInFlight) {
+						traceSyncEvent('SKIP', {
+							reason: 'steam-connect-sync-in-flight',
+							provider: 'steam',
+						});
+					} else if (nowMs - lastSteamConnectSyncAt < STEAM_CONNECT_SYNC_COOLDOWN_MS) {
+						traceSyncEvent('SKIP', {
+							reason: 'steam-connect-sync-cooldown',
+							provider: 'steam',
+							cooldownMs: STEAM_CONNECT_SYNC_COOLDOWN_MS,
+						});
+					} else {
+						steamConnectSyncInFlight = true;
+						lastSteamConnectSyncAt = nowMs;
+						try {
+							await get().syncAllProjects({
+								mode: 'full',
+								trigger: 'steam-connect',
+							});
+						} finally {
+							steamConnectSyncInFlight = false;
+						}
+					}
 				}
 				return isAvailable;
 			},
@@ -431,6 +478,197 @@ export const useSyncStore = create(
 				}));
 			},
 
+			processPendingTombstones: async (providerId = null) => {
+				const state = get();
+				const resolvedProviderId = normalizeProviderId(
+					providerId || resolveCloudProviderId(state)
+				);
+				if (!resolvedProviderId || !canUseCloudSyncProvider(resolvedProviderId)) {
+					return { processed: 0, pending: 0 };
+				}
+
+				const pending = await listPendingSyncTombstones(resolvedProviderId);
+				if (!pending.length) {
+					return { processed: 0, pending: 0 };
+				}
+
+				traceSyncEvent('TOMBSTONE_SWEEP_START', {
+					provider: resolvedProviderId,
+					count: pending.length,
+				});
+
+				let processed = 0;
+				for (const entry of pending) {
+					const entityType = String(entry?.entityType || 'project').trim().toLowerCase();
+					const entityId = String(entry?.entityId || entry?.projectId || '').trim();
+					if (!entityId) continue;
+					try {
+						await publishTombstoneEngine({
+							provider: resolvedProviderId,
+							entityType,
+							entityId,
+							projectId: String(entry?.projectId || '').trim() || '',
+							deletedAt: entry?.deletedAt,
+							expiresAt: entry?.expiresAt,
+						});
+						processed += 1;
+						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_DONE', {
+							provider: resolvedProviderId,
+							entityType,
+							entityId,
+						});
+					} catch (error) {
+						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
+							provider: resolvedProviderId,
+							entityType,
+							entityId,
+							message: String(error?.message || error),
+						});
+					}
+				}
+
+				traceSyncEvent('TOMBSTONE_SWEEP_DONE', {
+					provider: resolvedProviderId,
+					processed,
+					pending: pending.length - processed,
+				});
+				return { processed, pending: pending.length - processed };
+			},
+
+			scheduleProjectDeletion: async (projectId, options = {}) => {
+				const normalizedProjectId = String(projectId || '').trim();
+				if (!normalizedProjectId) return;
+
+				const currentState = get();
+				const explicitProviders = Array.isArray(options?.providers)
+					? options.providers.map((id) => normalizeProviderId(id)).filter(Boolean)
+					: [];
+				const activeCloudProviderId = resolveCloudProviderId(currentState);
+				const providers = Array.from(
+					new Set([
+						...explicitProviders,
+						...(activeCloudProviderId ? [activeCloudProviderId] : []),
+					])
+				).filter((id) => canUseCloudSyncProvider(id));
+
+				if (!providers.length) {
+					traceSyncEvent('DELETE_QUEUE_SKIP', {
+						projectId: normalizedProjectId,
+						reason: 'no-provider',
+					});
+					return;
+				}
+
+				const deletedAt = new Date().toISOString();
+				for (const providerId of providers) {
+					await upsertSyncTombstone({
+						provider: providerId,
+						entityType: 'project',
+						entityId: normalizedProjectId,
+						projectId: normalizedProjectId,
+						deletedAt,
+						pending: true,
+					});
+					traceSyncEvent('TOMBSTONE_QUEUED', {
+						entityType: 'project',
+						entityId: normalizedProjectId,
+						provider: providerId,
+					});
+				}
+
+				for (const providerId of providers) {
+					try {
+						await get().processPendingTombstones(providerId);
+					} catch (error) {
+						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
+							provider: providerId,
+							entityType: 'project',
+							entityId: normalizedProjectId,
+							message: String(error?.message || error),
+						});
+					}
+				}
+
+				if (
+					activeCloudProviderId &&
+					providers.includes(activeCloudProviderId) &&
+					canRunSyncForStatus(activeCloudProviderId, currentState.status)
+				) {
+					await get().syncAllProjects({
+						mode: 'full',
+						trigger: 'project-delete',
+					});
+				}
+			},
+
+			scheduleDialogueDeletion: async (dialogueId, projectId, options = {}) => {
+				const normalizedDialogueId = String(dialogueId || '').trim();
+				const normalizedProjectId = String(projectId || '').trim();
+				if (!normalizedDialogueId || !normalizedProjectId) return;
+
+				const currentState = get();
+				const explicitProviders = Array.isArray(options?.providers)
+					? options.providers.map((id) => normalizeProviderId(id)).filter(Boolean)
+					: [];
+				const activeCloudProviderId = resolveCloudProviderId(currentState);
+				const providers = Array.from(
+					new Set([
+						...explicitProviders,
+						...(activeCloudProviderId ? [activeCloudProviderId] : []),
+					])
+				).filter((id) => canUseCloudSyncProvider(id));
+
+				if (!providers.length) {
+					traceSyncEvent('TOMBSTONE_QUEUE_SKIP', {
+						entityType: 'dialogue',
+						entityId: normalizedDialogueId,
+						reason: 'no-provider',
+					});
+					return;
+				}
+
+				const deletedAt = new Date().toISOString();
+				for (const providerId of providers) {
+					await upsertSyncTombstone({
+						provider: providerId,
+						entityType: 'dialogue',
+						entityId: normalizedDialogueId,
+						projectId: normalizedProjectId,
+						deletedAt,
+						pending: true,
+					});
+					traceSyncEvent('TOMBSTONE_QUEUED', {
+						entityType: 'dialogue',
+						entityId: normalizedDialogueId,
+						provider: providerId,
+					});
+				}
+
+				for (const providerId of providers) {
+					try {
+						await get().processPendingTombstones(providerId);
+					} catch (error) {
+						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
+							provider: providerId,
+							entityType: 'dialogue',
+							entityId: normalizedDialogueId,
+							message: String(error?.message || error),
+						});
+					}
+				}
+
+				if (
+					activeCloudProviderId &&
+					providers.includes(activeCloudProviderId) &&
+					canRunSyncForStatus(activeCloudProviderId, currentState.status)
+				) {
+					await get().syncAllProjects({
+						mode: 'full',
+						trigger: 'dialogue-delete',
+					});
+				}
+			},
+
 			syncAllProjects: async (options = {}) => {
 				const syncStartedAt = Date.now();
 				const currentState = get();
@@ -490,7 +728,13 @@ export const useSyncStore = create(
 				const resetPullState = createResetPullState('bulk');
 				let shouldShow = false;
 				let total = 0;
+				const providerPassphrases = cloudProviderId
+					? { [cloudProviderId]: resolveSyncPassphrase(currentState, cloudProviderId) }
+					: {};
+				const engineProviders = cloudProviderId ? [cloudProviderId] : [];
 				try {
+					await get().processPendingTombstones(cloudProviderId);
+
 					if (mode === 'list') {
 						console.log('[sync] Listing remote projects (debug)');
 						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
@@ -622,10 +866,14 @@ export const useSyncStore = create(
 						const diffStartedAt = Date.now();
 						traceSyncEvent('PULL_DIFF_START', { provider: cloudProviderId });
 						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
+						const localDeletes = Array.isArray(diff.actions.toDeleteLocal)
+							? diff.actions.toDeleteLocal
+							: [];
 						traceSyncEvent('PULL_DIFF_DONE', {
 							elapsedMs: Date.now() - diffStartedAt,
 							toPull: diff.actions.toPull.length,
 							toPush: diff.actions.toPush.length,
+							toDeleteLocal: localDeletes.length,
 							remoteOnly: diff.actions.remoteOnly.length,
 							localOnly: diff.actions.localOnly.length,
 						});
@@ -639,8 +887,8 @@ export const useSyncStore = create(
 							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
 						}
 
-						if (diff.actions.toPull.length === 0) {
-							console.log('[sync] No projects to pull');
+						if (diff.actions.toPull.length === 0 && localDeletes.length === 0) {
+							console.log('[sync] No projects to pull or prune locally');
 							traceSyncEvent('NOOP', {
 								mode: 'pull',
 								reason: 'nothing-to-pull',
@@ -654,7 +902,7 @@ export const useSyncStore = create(
 							diff.comparisons.map((item) => [item.projectId, item])
 						);
 						const startedAt = Date.now();
-						const total = diff.actions.toPull.length;
+						const total = diff.actions.toPull.length + localDeletes.length;
 						let index = 0;
 
 						set({
@@ -668,6 +916,51 @@ export const useSyncStore = create(
 								total,
 							},
 						});
+
+						for (const projectId of localDeletes) {
+							index += 1;
+							const deleteStartedAt = Date.now();
+							traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_START', {
+								projectId,
+								index,
+								total,
+							});
+
+							set({
+								pullState: {
+									active: true,
+									step: 'applying',
+									progress: Math.min(95, Math.round((index / total) * 90)),
+									projectId,
+									mode: 'bulk',
+									current: index,
+									total,
+								},
+							});
+
+							try {
+								const result = await deleteLocalProjectEngine({
+									projectId,
+									provider: cloudProviderId,
+								});
+								console.log('[sync] Pruned local project missing remotely', result);
+								traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_DONE', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - deleteStartedAt,
+								});
+							} catch (error) {
+								console.error('[sync] Local prune failed', projectId, error);
+								traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_ERROR', {
+									projectId,
+									index,
+									total,
+									elapsedMs: Date.now() - deleteStartedAt,
+									message: String(error?.message || error),
+								});
+							}
+						}
 
 						for (const projectId of diff.actions.toPull) {
 							index += 1;
@@ -744,8 +1037,11 @@ export const useSyncStore = create(
 
 					traceSyncEvent('FULL_SYNC_ENGINE_START', { provider: cloudProviderId });
 					await syncAllProjectsEngine({
+						mode: 'full',
 						passphrase,
+						passphrases: providerPassphrases,
 						provider: cloudProviderId,
+						providers: engineProviders,
 						onProgress: (info) => {
 							if (info?.phase === 'start') {
 								total = info.total || 0;
@@ -1044,3 +1340,14 @@ export const useSyncStore = create(
 		}
 	)
 );
+
+
+
+
+
+
+
+
+
+
+

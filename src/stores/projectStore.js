@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
+import { openContainingFolder, saveExportBlob } from '@/lib/export/exportFile';
 import { useSyncStore } from '@/stores/syncStore';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import {
@@ -16,6 +17,11 @@ import {
 	trackExampleProjectCreated,
 	trackFirstNonExampleProjectCreated,
 } from '@/lib/achievements/achievementTracker';
+import {
+	blobToStoredParticipantThumbnail,
+	buildParticipantImageId,
+	storedParticipantThumbnailToBlob,
+} from '@/lib/participantThumbnails';
 
 const MAX_PROJECT_IMPORT_ARCHIVE_BYTES = 25 * 1024 * 1024;
 const MAX_PROJECT_IMPORT_ENTRY_COUNT = 1000;
@@ -329,7 +335,30 @@ export const useProjectStore = create((set, get) => ({
 				db.dialogues.get(childDialogueId),
 			]);
 			if (existingDialogue || existingChildDialogue) {
-				throw new Error('Example graph already exists. Delete the previous example project first.');
+				const candidateProjectIds = Array.from(
+					new Set(
+						[
+							String(existingDialogue?.projectId || '').trim(),
+							String(existingChildDialogue?.projectId || '').trim(),
+						].filter(Boolean)
+					)
+				);
+				const candidateProjects = await Promise.all(
+					candidateProjectIds.map(async (id) => await db.projects.get(id))
+				);
+				const existingExampleProject = candidateProjects.find(Boolean);
+				if (existingExampleProject) {
+					throw new Error('Example graph already exists. Delete the previous example project first.');
+				}
+
+				// Recover from orphaned example dialogues left without a parent project.
+				await db.transaction('rw', [db.dialogues, db.nodes, db.edges, db.localizedStrings], async () => {
+					await db.dialogues.delete(dialogueId);
+					await db.dialogues.delete(childDialogueId);
+					await db.nodes.where('dialogueId').anyOf([dialogueId, childDialogueId]).delete();
+					await db.edges.where('dialogueId').anyOf([dialogueId, childDialogueId]).delete();
+					await db.localizedStrings.where('dialogueId').anyOf([dialogueId, childDialogueId]).delete();
+				});
 			}
 
 			const newProject = {
@@ -1413,6 +1442,13 @@ export const useProjectStore = create((set, get) => ({
 	deleteProject: async (id) => {
 		set({ isLoading: true, error: null });
 		try {
+			const syncedProviders = Array.from(
+				new Set(
+					(await db.syncProjects.where('projectId').equals(id).toArray())
+						.map((entry) => String(entry?.provider || '').trim())
+						.filter(Boolean)
+				)
+			);
 			await db.transaction('rw', [db.projects, db.dialogues, db.participants, db.categories, db.decorators, db.conditions, db.localizedStrings, db.nodes, db.edges], async () => {
 				const projectDialogues = await db.dialogues.where('projectId').equals(id).toArray();
 				const dialogueIds = projectDialogues.map((dialogue) => dialogue.id);
@@ -1432,7 +1468,9 @@ export const useProjectStore = create((set, get) => ({
 			});
 			await get().loadProjects();
 			await useDialogueStore.getState().loadDialogues();
-			useSyncStore.getState().schedulePush(id);
+			await useSyncStore.getState().scheduleProjectDeletion(id, {
+				providers: syncedProviders,
+			});
 			toast({
 				variant: 'success',
 				title: 'Project Deleted',
@@ -1490,9 +1528,8 @@ export const useProjectStore = create((set, get) => ({
 	 */
 	exportProject: async (projectId) => {
 		try {
-			// Load JSZip and file-saver
+			// Load JSZip
 			const JSZip = (await import('jszip')).default;
-			const { saveAs } = await import('file-saver');
 
 			// Get project data
 			const project = await db.projects.get(projectId);
@@ -1555,6 +1592,12 @@ export const useProjectStore = create((set, get) => ({
 			const participantsExport = participants.map((p) => ({
 				name: p.name,
 				fullPath: categoryPathMap.get(p.category) || p.category,
+				participantImage: p.thumbnail
+					? buildParticipantImageId({
+						participantName: p.name,
+						categoryPath: categoryPathMap.get(p.category) || p.category,
+					})
+					: null,
 			}));
 
 			// Export decorators (definitions only)
@@ -1578,6 +1621,21 @@ export const useProjectStore = create((set, get) => ({
 			projectZip.file('participants.json', JSON.stringify(participantsExport, null, 2));
 			projectZip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
 			projectZip.file('conditions.json', JSON.stringify(conditionsExport, null, 2));
+			const thumbnailsFolder = projectZip.folder('Thumbnails');
+			participantsExport.forEach((entry, index) => {
+				const participantImageId = String(entry?.participantImage || '').trim();
+				if (!participantImageId) return;
+				const participant = participants[index];
+				try {
+					const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
+					if (!thumbnailBlob) return;
+					thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
+				} catch (error) {
+					console.warn(
+						`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
+					);
+				}
+			});
 
 			// Create dialogues folder
 			const dialoguesFolder = projectZip.folder('dialogues');
@@ -1607,12 +1665,46 @@ export const useProjectStore = create((set, get) => ({
 
 			// Generate the final ZIP
 			const blob = await projectZip.generateAsync({ type: 'blob' });
-			saveAs(blob, `${project.name}.mnteadlgproj`);
+			const defaultFileName = `${project.name}.mnteadlgproj`;
+			const saveResult = await saveExportBlob({
+				blob,
+				defaultFileName,
+				filters: [{ name: 'Project Export', extensions: ['mnteadlgproj'] }],
+			});
+			if (saveResult.canceled) {
+				return;
+			}
+
+			if (saveResult.filePath) {
+				await db.projects.update(projectId, {
+					lastExportPath: saveResult.filePath,
+				});
+				set((state) => ({
+					projects: state.projects.map((entry) =>
+						entry.id === projectId
+							? { ...entry, lastExportPath: saveResult.filePath }
+							: entry
+					),
+					currentProject:
+						state.currentProject?.id === projectId
+							? { ...state.currentProject, lastExportPath: saveResult.filePath }
+							: state.currentProject,
+				}));
+			}
 
 			toast({
 				variant: 'success',
 				title: 'Project Exported',
-				description: `${project.name}.mnteadlgproj has been exported`,
+				description: `${defaultFileName} has been exported`,
+				action: saveResult.filePath
+					? {
+						label: 'Open Folder',
+						onClick: () => {
+							void openContainingFolder(saveResult.filePath);
+						},
+					}
+					: undefined,
+				duration: saveResult.filePath ? 8000 : 3000,
 			});
 		} catch (error) {
 			console.error('Error exporting project:', error);
@@ -1716,19 +1808,28 @@ export const useProjectStore = create((set, get) => ({
 			await db.projects.add(newProject);
 
 			const categoryIdMap = new Map();
+			const importedCategoryPathToName = new Map();
 
 			for (const cat of categories) {
+				const fullPath = String(cat?.fullPath || '').trim();
+				const categoryName =
+					String(cat?.name || '').trim() || (fullPath ? fullPath.split('.').pop() : 'Unknown');
 				const newCatId = uuidv4();
 				const newCat = {
 					id: newCatId,
-					name: cat.name,
+					name: categoryName,
 					parentCategoryId: null,
 					projectId: newProjectId,
 					createdAt: now,
 					modifiedAt: now,
 				};
 				await db.categories.add(newCat);
-				categoryIdMap.set(cat.id, newCatId);
+				if (cat?.id) {
+					categoryIdMap.set(cat.id, newCatId);
+				}
+				if (fullPath) {
+					importedCategoryPathToName.set(fullPath, categoryName);
+				}
 			}
 
 			for (const cat of categories) {
@@ -1742,11 +1843,36 @@ export const useProjectStore = create((set, get) => ({
 			}
 
 			for (const part of participants) {
+				const participantImageId = String(part?.participantImage || '').trim();
+				let thumbnail = null;
+				if (participantImageId) {
+					const thumbnailEntry =
+						zip.file(`Thumbnails/${participantImageId}.png`) ||
+						zip.file(`thumbnails/${participantImageId}.png`);
+					if (thumbnailEntry) {
+						try {
+							const thumbnailBlob = await thumbnailEntry.async('blob');
+							thumbnail = await blobToStoredParticipantThumbnail(thumbnailBlob);
+						} catch (error) {
+							console.warn(
+								`Skipping invalid participant thumbnail in project import (${participantImageId})`
+							);
+						}
+					}
+				}
+
+				const fullPath = String(part?.fullPath || '').trim();
+				const categoryName =
+					importedCategoryPathToName.get(fullPath) ||
+					String(part?.category || '').trim() ||
+					(fullPath ? fullPath.split('.').pop() : 'Unknown');
+
 				const newPartId = uuidv4();
 				await db.participants.add({
 					id: newPartId,
 					name: part.name,
-					category: part.category,
+					category: categoryName || 'Unknown',
+					thumbnail,
 					projectId: newProjectId,
 					createdAt: now,
 					modifiedAt: now,

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
 	getDialogueRowsForPreview,
 	getSpeakerForPreview,
@@ -13,16 +14,68 @@ import {
 	collectPreviewScenarioRules,
 	evaluatePreviewEdgeConditions,
 	resolvePreviewAudioSource,
+	getPreviewNodesAndEdges,
+	createPreviewNodeRefKey,
 } from '@/lib/dialoguePreviewEngine';
+import { resolveParticipantThumbnailDataUrl } from '@/lib/participantThumbnails';
 
 const CLOSE_ANIMATION_MS = 260;
 const MAX_PREVIEW_STEPS = 600;
 const NODE_TRANSITION_DELAY_MS = 220;
+const ROW_COMPLETION_HOLD_MS = 48;
+
+const buildPreviewGraphRuntime = (nodes = [], edges = []) => {
+	const { regularNodes, regularEdges } = getPreviewNodesAndEdges(nodes, edges);
+	const nodeMap = new Map(regularNodes.map((node) => [node.id, node]));
+	const outgoingEdgeMap = new Map();
+
+	regularEdges.forEach((edge) => {
+		if (!edge?.source || !edge?.target) return;
+		if (!outgoingEdgeMap.has(edge.source)) {
+			outgoingEdgeMap.set(edge.source, []);
+		}
+		outgoingEdgeMap.get(edge.source).push(edge);
+	});
+
+	return {
+		regularNodes,
+		regularEdges,
+		nodeMap,
+		outgoingEdgeMap,
+		scenarioRules: collectPreviewScenarioRules(regularEdges),
+	};
+};
+
+const mergeScenarioRulesFromGraphCache = (graphCache = {}) => {
+	const seen = new Set();
+	const merged = [];
+
+	Object.values(graphCache).forEach((graph) => {
+		const rules = Array.isArray(graph?.scenarioRules) ? graph.scenarioRules : [];
+		rules.forEach((rule) => {
+			if (!rule?.key || seen.has(rule.key)) return;
+			seen.add(rule.key);
+			merged.push(rule);
+		});
+	});
+
+	return merged;
+};
+
+const buildNodeRef = (dialogueId, nodeId) => ({
+	dialogueId: String(dialogueId || '').trim(),
+	nodeId: String(nodeId || '').trim(),
+});
+
+const getNodeRefKey = (nodeRef) => createPreviewNodeRefKey(nodeRef);
 
 export function DialoguePreviewOverlay({
 	open,
 	nodes = [],
 	edges = [],
+	participants = [],
+	rootDialogueId = '',
+	loadDialogueGraphForPreview,
 	onStop,
 	onNodeFocus,
 	onNodeChange,
@@ -33,23 +86,29 @@ export function DialoguePreviewOverlay({
 	const [speaker, setSpeaker] = useState('');
 	const [lineText, setLineText] = useState('');
 	const [choiceOptions, setChoiceOptions] = useState([]);
-	const [currentNodeId, setCurrentNodeId] = useState(null);
+	const [currentNodeRef, setCurrentNodeRef] = useState(null);
 	const [volume, setVolume] = useState(100);
 	const [hasCurrentAudio, setHasCurrentAudio] = useState(false);
-	const [visitedNodeIds, setVisitedNodeIds] = useState([]);
+	const [visitedNodeKeys, setVisitedNodeKeys] = useState([]);
 	const [selectedBranches, setSelectedBranches] = useState({});
-	const [activeBranchNodeId, setActiveBranchNodeId] = useState(null);
+	const [activeBranchNodeRef, setActiveBranchNodeRef] = useState(null);
 	const [currentRowIndex, setCurrentRowIndex] = useState(0);
 	const [currentRowCount, setCurrentRowCount] = useState(0);
 	const [currentRowProgressPercent, setCurrentRowProgressPercent] = useState(0);
+	const [graphCache, setGraphCache] = useState({});
 	const [scenarioRules, setScenarioRules] = useState([]);
 	const [scenarioContext, setScenarioContext] = useState({});
 	const [scenarioReady, setScenarioReady] = useState(false);
 	const [scenarioError, setScenarioError] = useState('');
 
+	const nodesRef = useRef(nodes);
+	const edgesRef = useRef(edges);
+	const graphCacheRef = useRef({});
+	const scenarioContextRef = useRef({});
 	const runtimeRef = useRef({
 		timer: null,
 		rowProgressTimer: null,
+		rowProgressToken: 0,
 		stepCount: 0,
 		audio: null,
 		audioObjectUrl: null,
@@ -58,105 +117,183 @@ export function DialoguePreviewOverlay({
 	});
 	const wasOpenRef = useRef(false);
 
-	const regularNodes = useMemo(
-		() => nodes.filter((node) => node?.type !== 'placeholderNode'),
-		[nodes]
-	);
-	const regularEdges = useMemo(
-		() => edges.filter((edge) => !edge?.data?.isPlaceholder),
-		[edges]
-	);
-	const nodeMap = useMemo(
-		() => new Map(regularNodes.map((node) => [node.id, node])),
-		[regularNodes]
-	);
-	const outgoingEdgeMap = useMemo(() => {
-		const map = new Map();
-		regularEdges.forEach((edge) => {
-			if (!map.has(edge.source)) map.set(edge.source, []);
-			map.get(edge.source).push(edge);
-		});
-		return map;
-	}, [regularEdges]);
-	const getTraversableNextNodes = useCallback(
-		(sourceNodeId) => {
-			const edgesFromNode = outgoingEdgeMap.get(sourceNodeId) || [];
+	const safeRootDialogueId = useMemo(() => String(rootDialogueId || '').trim(), [rootDialogueId]);
+	const currentNodeId = currentNodeRef?.nodeId || null;
+
+	const getGraphRuntime = useCallback((dialogueId) => {
+		const key = String(dialogueId || '').trim();
+		if (!key) return null;
+		return graphCacheRef.current[key] || null;
+	}, []);
+
+	const getTraversableNextNodeRefs = useCallback(
+		(sourceRef) => {
+			const sourceDialogueId = String(sourceRef?.dialogueId || '').trim();
+			const sourceNodeId = String(sourceRef?.nodeId || '').trim();
+			if (!sourceDialogueId || !sourceNodeId) return [];
+
+			const graph = getGraphRuntime(sourceDialogueId);
+			if (!graph) return [];
+
+			const edgesFromNode = graph.outgoingEdgeMap.get(sourceNodeId) || [];
 			return edgesFromNode
-				.filter((edge) => evaluatePreviewEdgeConditions(edge, scenarioContext))
-				.map((edge) => nodeMap.get(edge.target))
+				.filter((edge) => evaluatePreviewEdgeConditions(edge, scenarioContextRef.current))
+				.map((edge) => {
+					if (!graph.nodeMap.has(edge.target)) return null;
+					return buildNodeRef(sourceDialogueId, edge.target);
+				})
 				.filter(Boolean);
 		},
-		[outgoingEdgeMap, scenarioContext, nodeMap]
+		[getGraphRuntime]
 	);
-	const scenarioRuleDefinitions = useMemo(
-		() => collectPreviewScenarioRules(regularEdges),
-		[regularEdges]
-	);
-	const getStartPreviewNodeId = useCallback(
-		(context) => {
-			const startEdges = outgoingEdgeMap.get(PREVIEW_START_NODE_ID) || [];
+
+	const getStartPreviewNodeRef = useCallback(
+		(dialogueId, context) => {
+			const graph = getGraphRuntime(dialogueId);
+			if (!graph) return null;
+
+			const startEdges = graph.outgoingEdgeMap.get(PREVIEW_START_NODE_ID) || [];
 			const validStartEdge = startEdges.find(
 				(edge) =>
-					nodeMap.has(edge.target) &&
+					graph.nodeMap.has(edge.target) &&
 					evaluatePreviewEdgeConditions(edge, context)
 			);
-			return validStartEdge?.target || null;
+
+			return validStartEdge
+				? buildNodeRef(dialogueId, validStartEdge.target)
+				: null;
 		},
-		[outgoingEdgeMap, nodeMap]
+		[getGraphRuntime]
 	);
-	const selectedRouteNodeIds = useMemo(() => {
-		const startNodeId = getStartPreviewNodeId(scenarioContext);
+
+	const selectedRouteNodeKeys = useMemo(() => {
 		const route = [];
 		const seen = new Set();
-		let cursorId = startNodeId;
+		let cursorRef = getStartPreviewNodeRef(safeRootDialogueId, scenarioContext);
 		let steps = 0;
 
-		while (cursorId && nodeMap.has(cursorId) && steps < MAX_PREVIEW_STEPS && !seen.has(cursorId)) {
-			route.push(cursorId);
-			seen.add(cursorId);
+		while (cursorRef && steps < MAX_PREVIEW_STEPS) {
+			const cursorKey = getNodeRefKey(cursorRef);
+			if (!cursorKey || seen.has(cursorKey)) break;
+
+			const graph = graphCache[cursorRef.dialogueId];
+			if (!graph || !graph.nodeMap.has(cursorRef.nodeId)) break;
+			const node = graph.nodeMap.get(cursorRef.nodeId);
+
+			route.push(cursorKey);
+			seen.add(cursorKey);
 			steps += 1;
 
-			const node = nodeMap.get(cursorId);
 			if (!node || isTerminalPreviewNode(node)) break;
 
 			if (node.type === 'returnNode') {
-				const returnTarget = node.data?.targetNode;
-				if (!returnTarget || !nodeMap.has(returnTarget)) break;
-				cursorId = returnTarget;
+				const returnTarget = String(node.data?.targetNode || '').trim();
+				if (!returnTarget || !graph.nodeMap.has(returnTarget)) break;
+				cursorRef = buildNodeRef(cursorRef.dialogueId, returnTarget);
 				continue;
 			}
 
-			const nextNodes = getTraversableNextNodes(cursorId);
-			if (nextNodes.length === 0) break;
-
-			if (nextNodes.length > 1 && node.type !== 'answerNode') {
-				const selectedChoiceId = selectedBranches[cursorId];
-				if (!selectedChoiceId || !nodeMap.has(selectedChoiceId)) break;
-				cursorId = selectedChoiceId;
+			if (node.type === 'openChildGraphNode') {
+				const targetDialogueId = String(node.data?.targetDialogue || '').trim();
+				const childStartRef = getStartPreviewNodeRef(targetDialogueId, scenarioContext);
+				if (!childStartRef) break;
+				cursorRef = childStartRef;
 				continue;
 			}
 
-			cursorId = nextNodes[0].id;
+			const nextNodeRefs = getTraversableNextNodeRefs(cursorRef);
+			if (nextNodeRefs.length === 0) break;
+
+			if (nextNodeRefs.length > 1 && node.type !== 'answerNode') {
+				const selectedKey = selectedBranches[cursorKey];
+				const selectedRef = nextNodeRefs.find((ref) => getNodeRefKey(ref) === selectedKey);
+				if (!selectedRef) break;
+				cursorRef = selectedRef;
+				continue;
+			}
+
+			cursorRef = nextNodeRefs[0];
 		}
 
 		return route;
-	}, [nodeMap, getTraversableNextNodes, selectedBranches, scenarioContext, getStartPreviewNodeId]);
+	}, [
+		safeRootDialogueId,
+		scenarioContext,
+		graphCache,
+		getStartPreviewNodeRef,
+		getTraversableNextNodeRefs,
+		selectedBranches,
+	]);
 
 	const visitedPlayableCount = useMemo(() => {
-		const reachableSet = new Set(selectedRouteNodeIds);
-		return visitedNodeIds.filter((id) => reachableSet.has(id)).length;
-	}, [visitedNodeIds, selectedRouteNodeIds]);
+		const reachableSet = new Set(selectedRouteNodeKeys);
+		return visitedNodeKeys.filter((key) => reachableSet.has(key)).length;
+	}, [visitedNodeKeys, selectedRouteNodeKeys]);
 
 	const previewProgressPercent = useMemo(() => {
-		if (selectedRouteNodeIds.length === 0) return 0;
-		return Math.min(100, Math.round((visitedPlayableCount / selectedRouteNodeIds.length) * 100));
-	}, [visitedPlayableCount, selectedRouteNodeIds]);
+		if (selectedRouteNodeKeys.length === 0) return 0;
+		return Math.min(100, Math.round((visitedPlayableCount / selectedRouteNodeKeys.length) * 100));
+	}, [visitedPlayableCount, selectedRouteNodeKeys]);
+
+	const participantThumbnailByName = useMemo(() => {
+		const map = new Map();
+		participants.forEach((participant) => {
+			const name = String(participant?.name || '').trim();
+			if (!name || map.has(name)) return;
+			const thumbnailUrl = resolveParticipantThumbnailDataUrl(participant?.thumbnail);
+			if (thumbnailUrl) {
+				map.set(name, thumbnailUrl);
+			}
+		});
+		return map;
+	}, [participants]);
+
+	const speakerThumbnailUrl = useMemo(() => {
+		const speakerName = String(speaker || '').trim();
+		if (!speakerName) return '';
+		return participantThumbnailByName.get(speakerName) || '';
+	}, [participantThumbnailByName, speaker]);
 
 	const clearTimer = useCallback(() => {
 		if (runtimeRef.current.timer) {
 			window.clearTimeout(runtimeRef.current.timer);
 			runtimeRef.current.timer = null;
 		}
+		runtimeRef.current.rowProgressToken += 1;
+		if (runtimeRef.current.rowProgressTimer) {
+			window.clearInterval(runtimeRef.current.rowProgressTimer);
+			runtimeRef.current.rowProgressTimer = null;
+		}
+	}, []);
+
+	const startRowProgress = useCallback((durationMs) => {
+		runtimeRef.current.rowProgressToken += 1;
+		const token = runtimeRef.current.rowProgressToken;
+
+		if (runtimeRef.current.rowProgressTimer) {
+			window.clearInterval(runtimeRef.current.rowProgressTimer);
+			runtimeRef.current.rowProgressTimer = null;
+		}
+
+		setCurrentRowProgressPercent(0);
+		const startedAt = Date.now();
+		runtimeRef.current.rowProgressTimer = window.setInterval(() => {
+			if (token !== runtimeRef.current.rowProgressToken) return;
+			const elapsed = Date.now() - startedAt;
+			const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
+			setCurrentRowProgressPercent(pct);
+			if (pct >= 100 && runtimeRef.current.rowProgressTimer) {
+				window.clearInterval(runtimeRef.current.rowProgressTimer);
+				runtimeRef.current.rowProgressTimer = null;
+			}
+		}, 16);
+
+		return token;
+	}, []);
+
+	const finishRowProgress = useCallback((token) => {
+		if (token !== runtimeRef.current.rowProgressToken) return;
+		setCurrentRowProgressPercent(100);
 		if (runtimeRef.current.rowProgressTimer) {
 			window.clearInterval(runtimeRef.current.rowProgressTimer);
 			runtimeRef.current.rowProgressTimer = null;
@@ -185,8 +322,9 @@ export function DialoguePreviewOverlay({
 				window.clearTimeout(runtimeRef.current.closeTimeout);
 				runtimeRef.current.closeTimeout = null;
 			}
+
 			setChoiceOptions([]);
-			setCurrentNodeId(null);
+			setCurrentNodeRef(null);
 			setLineText('');
 			setSpeaker('');
 			setHasCurrentAudio(false);
@@ -194,7 +332,7 @@ export function DialoguePreviewOverlay({
 			setCurrentRowCount(0);
 			setCurrentRowProgressPercent(0);
 			setSelectedBranches({});
-			setActiveBranchNodeId(null);
+			setActiveBranchNodeRef(null);
 			onNodeChange?.(null);
 
 			if (!withAnimation) {
@@ -218,8 +356,12 @@ export function DialoguePreviewOverlay({
 	);
 
 	const buildChoiceOption = useCallback(
-		(choiceNode, { available = true, isConditional = false } = {}) => {
-			const nextAfterChoice = getTraversableNextNodes(choiceNode.id);
+		(choiceRef, { available = true, isConditional = false } = {}) => {
+			const graph = getGraphRuntime(choiceRef?.dialogueId);
+			const choiceNode = graph?.nodeMap.get(choiceRef?.nodeId);
+			if (!choiceNode) return null;
+
+			const nextAfterChoice = getTraversableNextNodeRefs(choiceRef);
 			const decoratorsCount = Array.isArray(choiceNode.data?.decorators)
 				? choiceNode.data.decorators.length
 				: 0;
@@ -233,19 +375,24 @@ export function DialoguePreviewOverlay({
 				outcome = 'openChildGraph';
 			} else if (nextAfterChoice.length === 0) {
 				outcome = 'end';
-			} else if (nextAfterChoice.length === 1 && nextAfterChoice[0].type === 'completeNode') {
-				outcome = 'complete';
-			} else if (nextAfterChoice.length === 1 && nextAfterChoice[0].type === 'returnNode') {
-				outcome = 'return';
-			} else if (
-				nextAfterChoice.length === 1 &&
-				nextAfterChoice[0].type === 'openChildGraphNode'
-			) {
-				outcome = 'openChildGraph';
+			} else if (nextAfterChoice.length === 1) {
+				const nextRef = nextAfterChoice[0];
+				const nextGraph = getGraphRuntime(nextRef.dialogueId);
+				const nextNode = nextGraph?.nodeMap.get(nextRef.nodeId);
+				if (nextNode?.type === 'completeNode') {
+					outcome = 'complete';
+				} else if (nextNode?.type === 'returnNode') {
+					outcome = 'return';
+				} else if (nextNode?.type === 'openChildGraphNode') {
+					outcome = 'openChildGraph';
+				}
 			}
 
 			return {
+				key: getNodeRefKey(choiceRef),
+				nodeRef: choiceRef,
 				id: choiceNode.id,
+				dialogueId: choiceRef.dialogueId,
 				label:
 					choiceNode.data?.selectionTitle ||
 					choiceNode.data?.displayName ||
@@ -257,36 +404,94 @@ export function DialoguePreviewOverlay({
 				isConditional,
 			};
 		},
-		[getTraversableNextNodes, t]
+		[getGraphRuntime, getTraversableNextNodeRefs, t]
 	);
 
 	const getBranchChoiceOptions = useCallback(
-		(sourceNodeId) => {
-			const outgoingEdges = outgoingEdgeMap.get(sourceNodeId) || [];
+		(sourceRef) => {
+			const graph = getGraphRuntime(sourceRef?.dialogueId);
+			if (!graph) return [];
+
+			const outgoingEdges = graph.outgoingEdgeMap.get(sourceRef.nodeId) || [];
 			const uniqueByTarget = new Set();
 			const options = [];
 
 			outgoingEdges.forEach((edge) => {
-				const targetNode = nodeMap.get(edge.target);
-				if (!targetNode) return;
-				if (uniqueByTarget.has(targetNode.id)) return;
-				uniqueByTarget.add(targetNode.id);
+				const targetNodeId = String(edge?.target || '').trim();
+				if (!targetNodeId || !graph.nodeMap.has(targetNodeId)) return;
+				if (uniqueByTarget.has(targetNodeId)) return;
+				uniqueByTarget.add(targetNodeId);
 
 				const rules = edge?.data?.conditions?.rules;
 				const isConditional = Array.isArray(rules) && rules.length > 0;
-				const available = evaluatePreviewEdgeConditions(edge, scenarioContext);
-				options.push(buildChoiceOption(targetNode, { available, isConditional }));
+				const available = evaluatePreviewEdgeConditions(edge, scenarioContextRef.current);
+				const choiceRef = buildNodeRef(sourceRef.dialogueId, targetNodeId);
+				const option = buildChoiceOption(choiceRef, { available, isConditional });
+				if (option) {
+					options.push(option);
+				}
 			});
 
 			return options;
 		},
-		[outgoingEdgeMap, nodeMap, scenarioContext, buildChoiceOption]
+		[getGraphRuntime, buildChoiceOption]
 	);
 
+	const ensureGraphLoaded = useCallback(
+		async (dialogueId) => {
+			const targetDialogueId = String(dialogueId || '').trim();
+			if (!targetDialogueId) return null;
+
+			const existing = getGraphRuntime(targetDialogueId);
+			if (existing) return existing;
+			if (typeof loadDialogueGraphForPreview !== 'function') return null;
+
+			try {
+				const loaded = await loadDialogueGraphForPreview(targetDialogueId);
+				const runtime = buildPreviewGraphRuntime(loaded?.nodes || [], loaded?.edges || []);
+				graphCacheRef.current = {
+					...graphCacheRef.current,
+					[targetDialogueId]: runtime,
+				};
+				setGraphCache((prev) => ({
+					...prev,
+					[targetDialogueId]: runtime,
+				}));
+				setScenarioRules(mergeScenarioRulesFromGraphCache({
+					...graphCacheRef.current,
+				}));
+				setScenarioContext((prev) => {
+					const next = { ...prev };
+					runtime.scenarioRules.forEach((rule) => {
+						if (!Object.prototype.hasOwnProperty.call(next, rule.key)) {
+							next[rule.key] = true;
+						}
+					});
+					return next;
+				});
+				return runtime;
+			} catch (error) {
+				console.warn('[preview] Failed to lazily load dialogue graph', {
+					targetDialogueId,
+					error,
+				});
+				return null;
+			}
+		},
+		[getGraphRuntime, loadDialogueGraphForPreview]
+	);
 	const goToNode = useCallback(
-		(nodeId) => {
-			const node = nodeMap.get(nodeId);
-			if (!node) {
+		(nodeRef) => {
+			const dialogueKey = String(nodeRef?.dialogueId || '').trim();
+			const nodeKey = String(nodeRef?.nodeId || '').trim();
+			if (!dialogueKey || !nodeKey) {
+				closePreview({ withAnimation: true });
+				return;
+			}
+
+			const graph = getGraphRuntime(dialogueKey);
+			const node = graph?.nodeMap.get(nodeKey);
+			if (!graph || !node) {
 				closePreview({ withAnimation: true });
 				return;
 			}
@@ -297,34 +502,53 @@ export function DialoguePreviewOverlay({
 				return;
 			}
 
-			setCurrentNodeId(node.id);
-			onNodeChange?.(node.id);
-			onNodeFocus?.(node.id);
-			if (node.id !== PREVIEW_START_NODE_ID) {
-				setVisitedNodeIds((prev) => (prev.includes(node.id) ? prev : [...prev, node.id]));
+			const activeNodeRef = buildNodeRef(dialogueKey, nodeKey);
+			const activeKey = getNodeRefKey(activeNodeRef);
+			setCurrentNodeRef(activeNodeRef);
+			onNodeChange?.(activeNodeRef);
+			onNodeFocus?.(activeNodeRef);
+			if (node.id !== PREVIEW_START_NODE_ID && activeKey) {
+				setVisitedNodeKeys((prev) => (prev.includes(activeKey) ? prev : [...prev, activeKey]));
 			}
 
 			if (node.type === 'returnNode') {
-				const targetNodeId = node.data?.targetNode;
-				if (!targetNodeId || !nodeMap.has(targetNodeId)) {
+				const targetNodeId = String(node.data?.targetNode || '').trim();
+				if (!targetNodeId || !graph.nodeMap.has(targetNodeId)) {
 					closePreview({ withAnimation: true });
 					return;
 				}
 				runtimeRef.current.timer = window.setTimeout(() => {
-					goToNode(targetNodeId);
+					goToNode(buildNodeRef(dialogueKey, targetNodeId));
 				}, NODE_TRANSITION_DELAY_MS);
 				return;
 			}
 
 			if (node.type === 'openChildGraphNode') {
-				closePreview({ withAnimation: true });
+				const targetDialogueId = String(node.data?.targetDialogue || '').trim();
+				setChoiceOptions([]);
+				setHasCurrentAudio(false);
+				setCurrentRowIndex(0);
+				setCurrentRowCount(0);
+				setCurrentRowProgressPercent(0);
+				runtimeRef.current.timer = window.setTimeout(async () => {
+					await ensureGraphLoaded(targetDialogueId);
+					const childStartRef = getStartPreviewNodeRef(
+						targetDialogueId,
+						scenarioContextRef.current
+					);
+					if (!childStartRef) {
+						closePreview({ withAnimation: true });
+						return;
+					}
+					goToNode(childStartRef);
+				}, NODE_TRANSITION_DELAY_MS);
 				return;
 			}
 
 			if (node.type === 'delayNode') {
 				const durationMs = Math.max(200, (Number(node.data?.duration) || 0.1) * 1000);
-				const nextNodes = getTraversableNextNodes(node.id);
-				const branchOptions = getBranchChoiceOptions(node.id);
+				const nextNodeRefs = getTraversableNextNodeRefs(activeNodeRef);
+				const branchOptions = getBranchChoiceOptions(activeNodeRef);
 
 				setSpeaker(getSpeakerForPreview(node, t));
 				setLineText(
@@ -338,40 +562,30 @@ export function DialoguePreviewOverlay({
 				setCurrentRowIndex(1);
 				setCurrentRowProgressPercent(0);
 
-				const delayStart = Date.now();
-				if (runtimeRef.current.rowProgressTimer) {
-					window.clearInterval(runtimeRef.current.rowProgressTimer);
-				}
-				runtimeRef.current.rowProgressTimer = window.setInterval(() => {
-					const elapsed = Date.now() - delayStart;
-					const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
-					setCurrentRowProgressPercent(pct);
-					if (pct >= 100 && runtimeRef.current.rowProgressTimer) {
-						window.clearInterval(runtimeRef.current.rowProgressTimer);
-						runtimeRef.current.rowProgressTimer = null;
-					}
-				}, 50);
+				const progressToken = startRowProgress(durationMs);
 
 				runtimeRef.current.timer = window.setTimeout(() => {
-					setCurrentRowProgressPercent(0);
-					if (nextNodes.length === 0) {
-						closePreview({ withAnimation: true });
-						return;
-					}
-					if (branchOptions.length > 1) {
-						setActiveBranchNodeId(node.id);
-						setChoiceOptions(branchOptions);
-						return;
-					}
-					window.setTimeout(() => {
-						goToNode(nextNodes[0].id);
-					}, NODE_TRANSITION_DELAY_MS);
+					finishRowProgress(progressToken);
+					runtimeRef.current.timer = window.setTimeout(() => {
+						if (nextNodeRefs.length === 0) {
+							closePreview({ withAnimation: true });
+							return;
+						}
+						if (branchOptions.length > 1) {
+							setActiveBranchNodeRef(activeNodeRef);
+							setChoiceOptions(branchOptions);
+							return;
+						}
+						window.requestAnimationFrame(() => {
+							goToNode(nextNodeRefs[0]);
+						});
+					}, ROW_COMPLETION_HOLD_MS);
 				}, durationMs);
 				return;
 			}
 
 			const rows = getDialogueRowsForPreview(node);
-			const nextNodes = getTraversableNextNodes(node.id);
+			const nextNodeRefs = getTraversableNextNodeRefs(activeNodeRef);
 
 			const finalizeNode = () => {
 				if (isTerminalPreviewNode(node)) {
@@ -379,21 +593,21 @@ export function DialoguePreviewOverlay({
 					return;
 				}
 
-				const branchOptions = node.type !== 'answerNode' ? getBranchChoiceOptions(node.id) : [];
+				const branchOptions = node.type !== 'answerNode' ? getBranchChoiceOptions(activeNodeRef) : [];
 				if (branchOptions.length > 1) {
-					setActiveBranchNodeId(node.id);
+					setActiveBranchNodeRef(activeNodeRef);
 					setChoiceOptions(branchOptions);
 					return;
 				}
 
-				if (nextNodes.length === 0) {
+				if (nextNodeRefs.length === 0) {
 					closePreview({ withAnimation: true });
 					return;
 				}
 
 				setCurrentRowProgressPercent(0);
 				runtimeRef.current.timer = window.setTimeout(() => {
-					goToNode(nextNodes[0].id);
+					goToNode(nextNodeRefs[0]);
 				}, NODE_TRANSITION_DELAY_MS);
 			};
 
@@ -438,51 +652,91 @@ export function DialoguePreviewOverlay({
 				}
 
 				const durationMs = Math.max(200, (Number(row.duration) || 0.1) * 1000);
-				const rowStart = Date.now();
-				setCurrentRowProgressPercent(0);
-				if (runtimeRef.current.rowProgressTimer) {
-					window.clearInterval(runtimeRef.current.rowProgressTimer);
-				}
-				runtimeRef.current.rowProgressTimer = window.setInterval(() => {
-					const elapsed = Date.now() - rowStart;
-					const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
-					setCurrentRowProgressPercent(pct);
-					if (pct >= 100 && runtimeRef.current.rowProgressTimer) {
-						window.clearInterval(runtimeRef.current.rowProgressTimer);
-						runtimeRef.current.rowProgressTimer = null;
-					}
-				}, 50);
+				const progressToken = startRowProgress(durationMs);
 
 				index += 1;
-				runtimeRef.current.timer = window.setTimeout(renderNextRow, durationMs);
+				runtimeRef.current.timer = window.setTimeout(() => {
+					finishRowProgress(progressToken);
+					runtimeRef.current.timer = window.setTimeout(() => {
+						window.requestAnimationFrame(renderNextRow);
+					}, ROW_COMPLETION_HOLD_MS);
+				}, durationMs);
 			};
 
 			renderNextRow();
 		},
 		[
-			nodeMap,
+			closePreview,
+			getBranchChoiceOptions,
+			getGraphRuntime,
+			getStartPreviewNodeRef,
+			getTraversableNextNodeRefs,
 			onNodeChange,
 			onNodeFocus,
-			getTraversableNextNodes,
+			stopAudio,
 			t,
 			volume,
-			closePreview,
-			stopAudio,
-			getBranchChoiceOptions,
+			ensureGraphLoaded,
+			startRowProgress,
+			finishRowProgress,
 		]
 	);
 
 	const startScenarioPreview = useCallback(() => {
-		const startNodeId = getStartPreviewNodeId(scenarioContext);
-		if (!startNodeId) {
+		const startNodeRef = getStartPreviewNodeRef(safeRootDialogueId, scenarioContext);
+		if (!startNodeRef) {
 			setScenarioError(t('editor.preview.invalidNoPlayablePath'));
 			return;
 		}
 		setScenarioError('');
 		setScenarioReady(true);
 		runtimeRef.current.stepCount = 0;
-		goToNode(startNodeId);
-	}, [goToNode, getStartPreviewNodeId, scenarioContext, t]);
+		goToNode(startNodeRef);
+	}, [getStartPreviewNodeRef, goToNode, safeRootDialogueId, scenarioContext, t]);
+
+	const preloadGraphCache = useCallback(async () => {
+		const rootId = String(safeRootDialogueId || '').trim();
+		if (!rootId) return {};
+
+		const cache = {
+			[rootId]: buildPreviewGraphRuntime(nodesRef.current, edgesRef.current),
+		};
+		const visitedDialogues = new Set([rootId]);
+		const queue = [rootId];
+
+		while (queue.length > 0) {
+			const dialogueCursor = queue.shift();
+			const graph = cache[dialogueCursor];
+			if (!graph) continue;
+
+			const childDialogueIds = graph.regularNodes
+				.filter((node) => node?.type === 'openChildGraphNode')
+				.map((node) => String(node?.data?.targetDialogue || '').trim())
+				.filter(Boolean);
+
+			for (const childDialogueId of childDialogueIds) {
+				if (visitedDialogues.has(childDialogueId)) continue;
+				visitedDialogues.add(childDialogueId);
+
+				if (typeof loadDialogueGraphForPreview !== 'function') continue;
+				try {
+					const loaded = await loadDialogueGraphForPreview(childDialogueId);
+					cache[childDialogueId] = buildPreviewGraphRuntime(
+						loaded?.nodes || [],
+						loaded?.edges || []
+					);
+					queue.push(childDialogueId);
+				} catch (error) {
+					console.warn('[preview] Failed to preload child dialogue graph', {
+						childDialogueId,
+						error,
+					});
+				}
+			}
+		}
+
+		return cache;
+	}, [safeRootDialogueId, loadDialogueGraphForPreview]);
 
 	useEffect(() => {
 		if (!open) {
@@ -492,55 +746,112 @@ export function DialoguePreviewOverlay({
 				runtimeRef.current.closeTimeout = null;
 			}
 			runtimeRef.current.isClosingLocked = false;
+			graphCacheRef.current = {};
+			setGraphCache({});
 			setIsVisible(false);
 			return;
 		}
 		if (wasOpenRef.current) return;
 		wasOpenRef.current = true;
 
+		let cancelled = false;
 		setIsVisible(true);
 		setIsClosing(false);
 		setChoiceOptions([]);
 		setHasCurrentAudio(false);
-		setVisitedNodeIds([]);
+		setVisitedNodeKeys([]);
 		setSelectedBranches({});
-		setActiveBranchNodeId(null);
+		setActiveBranchNodeRef(null);
 		setCurrentRowIndex(0);
 		setCurrentRowCount(0);
 		setCurrentRowProgressPercent(0);
 		setScenarioError('');
-		const initialScenarioContext = scenarioRuleDefinitions.reduce((acc, rule) => {
-			acc[rule.key] = true;
-			return acc;
-		}, {});
-		const initialStartNodeId = getStartPreviewNodeId(initialScenarioContext);
-		setScenarioRules(scenarioRuleDefinitions);
-		setScenarioContext(initialScenarioContext);
-		const hasScenarioSetup = scenarioRuleDefinitions.length > 0;
-		setScenarioReady(!hasScenarioSetup);
-		setCurrentNodeId(!hasScenarioSetup ? initialStartNodeId : null);
-		if (!hasScenarioSetup && !initialStartNodeId) {
-			closePreview({ withAnimation: true });
-			return;
-		}
-		if (!hasScenarioSetup) {
-			runtimeRef.current.stepCount = 0;
-			goToNode(initialStartNodeId);
-		}
+		setCurrentNodeRef(null);
+		graphCacheRef.current = {};
+		setGraphCache({});
+		setScenarioRules([]);
+		setScenarioContext({});
+		setScenarioReady(false);
+
+		const initializePreview = async () => {
+			const rootGraph = buildPreviewGraphRuntime(nodesRef.current, edgesRef.current);
+			const initialCache = {
+				[safeRootDialogueId]: rootGraph,
+			};
+			graphCacheRef.current = initialCache;
+			setGraphCache(initialCache);
+
+			const mergedScenarioRules = mergeScenarioRulesFromGraphCache(initialCache);
+			const initialScenarioContext = mergedScenarioRules.reduce((acc, rule) => {
+				acc[rule.key] = true;
+				return acc;
+			}, {});
+			const initialStartNodeRef = getStartPreviewNodeRef(
+				safeRootDialogueId,
+				initialScenarioContext
+			);
+
+			setScenarioRules(mergedScenarioRules);
+			setScenarioContext(initialScenarioContext);
+
+			const hasScenarioSetup = mergedScenarioRules.length > 0;
+			setScenarioReady(!hasScenarioSetup);
+			setCurrentNodeRef(!hasScenarioSetup ? initialStartNodeRef : null);
+			if (!hasScenarioSetup && !initialStartNodeRef) {
+				closePreview({ withAnimation: true });
+				return;
+			}
+			if (!hasScenarioSetup && initialStartNodeRef) {
+				runtimeRef.current.stepCount = 0;
+				goToNode(initialStartNodeRef);
+			}
+
+			// Continue loading descendants in the background without blocking initial playback.
+			const expandedCache = await preloadGraphCache();
+			if (cancelled) return;
+			graphCacheRef.current = expandedCache;
+			setGraphCache(expandedCache);
+			setScenarioRules((prevRules) => {
+				const nextRules = mergeScenarioRulesFromGraphCache(expandedCache);
+				return nextRules.length > prevRules.length ? nextRules : prevRules;
+			});
+			setScenarioContext((prev) => {
+				const next = { ...prev };
+				mergeScenarioRulesFromGraphCache(expandedCache).forEach((rule) => {
+					if (!Object.prototype.hasOwnProperty.call(next, rule.key)) {
+						next[rule.key] = true;
+					}
+				});
+				return next;
+			});
+		};
+
+		initializePreview();
 
 		return () => {
+			cancelled = true;
 			clearTimer();
 			stopAudio();
 		};
 	}, [
 		open,
-		goToNode,
 		clearTimer,
-		stopAudio,
 		closePreview,
-		getStartPreviewNodeId,
-		scenarioRuleDefinitions,
+		goToNode,
+		getStartPreviewNodeRef,
+		preloadGraphCache,
+		safeRootDialogueId,
+		stopAudio,
 	]);
+
+	useEffect(() => {
+		nodesRef.current = nodes;
+		edgesRef.current = edges;
+	}, [nodes, edges]);
+
+	useEffect(() => {
+		scenarioContextRef.current = scenarioContext;
+	}, [scenarioContext]);
 
 	useEffect(() => {
 		if (!isVisible) return undefined;
@@ -596,11 +907,24 @@ export function DialoguePreviewOverlay({
 						<p className="text-xs uppercase tracking-wide text-muted-foreground">
 							{t('editor.preview.title')}
 						</p>
-						<p className="text-sm font-semibold">{speaker || t('editor.preview.waiting')}</p>
+						<div className="mt-1 flex items-center gap-2 min-w-0">
+							<Avatar className="h-8 w-8 shrink-0">
+								{speakerThumbnailUrl ? (
+									<AvatarImage src={speakerThumbnailUrl} alt={speaker || 'Speaker'} />
+								) : (
+									<AvatarFallback className="text-xs">
+										{(speaker || '?').charAt(0).toUpperCase()}
+									</AvatarFallback>
+								)}
+							</Avatar>
+							<p className="text-sm font-semibold truncate">
+								{speaker || t('editor.preview.waiting')}
+							</p>
+						</div>
 						<div className="mt-2 flex items-center gap-3">
 							<Progress value={previewProgressPercent} className="h-1.5" />
 							<span className="text-[11px] text-muted-foreground whitespace-nowrap">
-								{visitedPlayableCount}/{selectedRouteNodeIds.length || 0}
+								{visitedPlayableCount}/{selectedRouteNodeKeys.length || 0}
 							</span>
 						</div>
 					</div>
@@ -677,137 +1001,144 @@ export function DialoguePreviewOverlay({
 
 					{!scenarioSetupRequired && (
 						<>
-					<div className="min-h-[130px] rounded-xl border border-border bg-background/70 p-4">
-						<p className="text-base leading-relaxed whitespace-pre-wrap">
-							{lineText || t('editor.preview.waiting')}
-						</p>
-						{currentRowCount > 0 && (
-							<div className="mt-4 space-y-2">
-								<div className="flex items-center justify-between text-[11px] text-muted-foreground">
-									<span>
-										{t('editor.preview.currentRowProgress')}: {currentRowIndex}/{currentRowCount}
-									</span>
-									<span>{currentRowProgressPercent}%</span>
-								</div>
-								<Progress value={currentRowProgressPercent} className="h-1.5" />
-							</div>
-						)}
-					</div>
-
-					{choiceOptions.length > 0 && (
-						<div className="space-y-2">
-							<p className="text-sm font-medium text-muted-foreground">
-								{t('editor.preview.chooseAnswer')}
-							</p>
-							<div className="grid gap-2">
-								{choiceOptions.map((choice) => (
-									<Button
-										key={choice.id}
-										type="button"
-										variant="outline"
-										disabled={!choice.available}
-										className={`justify-start text-left h-auto py-2.5 ${
-											!choice.available
-												? 'opacity-60 cursor-not-allowed'
-												: ''
-										} ${
-											choice.outcome === 'complete'
-												? 'border-destructive/40 bg-destructive/5'
-												: choice.outcome === 'end'
-													? 'border-amber-500/35 bg-amber-500/5'
-													: choice.outcome === 'openChildGraph'
-														? 'border-cyan-500/35 bg-cyan-500/5'
-													: ''
-										}`}
-										onClick={() => {
-											if (!choice.available) return;
-											setChoiceOptions([]);
-											if (activeBranchNodeId) {
-												setSelectedBranches((prev) => ({
-													...prev,
-													[activeBranchNodeId]: choice.id,
-												}));
-											}
-											setActiveBranchNodeId(null);
-											window.setTimeout(() => {
-												goToNode(choice.id);
-											}, NODE_TRANSITION_DELAY_MS);
-										}}
-									>
-										<div className="w-full">
-											<div className="font-medium">{choice.label}</div>
-											<div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-												{choice.outcome === 'end' && (
-													<span className="inline-flex items-center rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5">
-														{t('editor.preview.choiceEnds')}
-													</span>
-												)}
-												{choice.outcome === 'complete' && (
-													<span className="inline-flex items-center gap-1 rounded-full border border-destructive/35 bg-destructive/10 px-2 py-0.5 text-destructive">
-														<CheckCircle2 className="h-3 w-3" />
-														{t('editor.preview.choiceComplete')}
-													</span>
-												)}
-												{choice.outcome === 'return' && (
-													<span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
-														<CornerUpLeft className="h-3 w-3" />
-														{t('editor.preview.choiceReturn')}
-													</span>
-												)}
-												{choice.outcome === 'openChildGraph' && (
-													<span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2 py-0.5">
-														<ExternalLink className="h-3 w-3" />
-														{t('editor.preview.choiceOpenChildGraph')}
-													</span>
-												)}
-												{choice.isConditional && (
-													<span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
-														Conditional
-													</span>
-												)}
-												{!choice.available && (
-													<span className="inline-flex items-center rounded-full border border-muted-foreground/35 bg-muted px-2 py-0.5 text-muted-foreground">
-														Unavailable
-													</span>
-												)}
-												{choice.decoratorsCount > 0 && (
-													<span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5">
-														<Sparkles className="h-3 w-3" />
-														{t('editor.preview.choiceDecorators', {
-															count: choice.decoratorsCount,
-														})}
-													</span>
-												)}
-											</div>
+							<div className="min-h-[130px] rounded-xl border border-border bg-background/70 p-4">
+								<p className="text-base leading-relaxed whitespace-pre-wrap">
+									{lineText || t('editor.preview.waiting')}
+								</p>
+								{currentRowCount > 0 && (
+									<div className="mt-4 space-y-2">
+										<div className="flex items-center justify-between text-[11px] text-muted-foreground">
+											<span>
+												{t('editor.preview.currentRowProgress')}: {currentRowIndex}/{currentRowCount}
+											</span>
+											<span>{currentRowProgressPercent}%</span>
 										</div>
-									</Button>
-								))}
+										<Progress
+											value={currentRowProgressPercent}
+											className="h-1.5"
+											indicatorClassName="transition-none"
+										/>
+									</div>
+								)}
 							</div>
-						</div>
-					)}
 
-					<div className="rounded-xl border border-border bg-background/60 p-4">
-						<div className="flex items-center gap-3">
-							<Volume2 className="h-4 w-4 text-muted-foreground" />
-							<Input
-								type="range"
-								min={0}
-								max={100}
-								step={1}
-								value={volume}
-								onChange={(event) => setVolume(Number(event.target.value))}
-								disabled={!hasCurrentAudio}
-								className={!hasCurrentAudio ? 'opacity-40 cursor-not-allowed' : undefined}
-							/>
-							<span className="text-xs w-10 text-right text-muted-foreground">{volume}%</span>
-						</div>
-						{currentNodeId && (
-							<div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-								<Play className="h-3 w-3" />
-								{t('editor.preview.activeNode')}: <code>{currentNodeId.slice(0, 8)}</code>
+							{choiceOptions.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-sm font-medium text-muted-foreground">
+										{t('editor.preview.chooseAnswer')}
+									</p>
+									<div className="grid gap-2">
+										{choiceOptions.map((choice) => (
+											<Button
+												key={choice.key}
+												type="button"
+												variant="outline"
+												disabled={!choice.available}
+												className={`justify-start text-left h-auto py-2.5 ${
+													!choice.available
+														? 'opacity-60 cursor-not-allowed'
+														: ''
+												} ${
+													choice.outcome === 'complete'
+														? 'border-destructive/40 bg-destructive/5'
+														: choice.outcome === 'end'
+															? 'border-amber-500/35 bg-amber-500/5'
+															: choice.outcome === 'openChildGraph'
+																? 'border-cyan-500/35 bg-cyan-500/5'
+																: ''
+												}`}
+												onClick={() => {
+													if (!choice.available) return;
+													setChoiceOptions([]);
+													if (activeBranchNodeRef) {
+														const activeKey = getNodeRefKey(activeBranchNodeRef);
+														if (activeKey) {
+															setSelectedBranches((prev) => ({
+																...prev,
+																[activeKey]: choice.key,
+															}));
+														}
+													}
+													setActiveBranchNodeRef(null);
+													window.setTimeout(() => {
+														goToNode(choice.nodeRef);
+													}, NODE_TRANSITION_DELAY_MS);
+												}}
+											>
+												<div className="w-full">
+													<div className="font-medium">{choice.label}</div>
+													<div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+														{choice.outcome === 'end' && (
+															<span className="inline-flex items-center rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5">
+																{t('editor.preview.choiceEnds')}
+															</span>
+														)}
+														{choice.outcome === 'complete' && (
+															<span className="inline-flex items-center gap-1 rounded-full border border-destructive/35 bg-destructive/10 px-2 py-0.5 text-destructive">
+																<CheckCircle2 className="h-3 w-3" />
+																{t('editor.preview.choiceComplete')}
+															</span>
+														)}
+														{choice.outcome === 'return' && (
+															<span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
+																<CornerUpLeft className="h-3 w-3" />
+																{t('editor.preview.choiceReturn')}
+															</span>
+														)}
+														{choice.outcome === 'openChildGraph' && (
+															<span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2 py-0.5">
+																<ExternalLink className="h-3 w-3" />
+																{t('editor.preview.choiceOpenChildGraph')}
+															</span>
+														)}
+														{choice.isConditional && (
+															<span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5">
+																Conditional
+															</span>
+														)}
+														{!choice.available && (
+															<span className="inline-flex items-center rounded-full border border-muted-foreground/35 bg-muted px-2 py-0.5 text-muted-foreground">
+																Unavailable
+															</span>
+														)}
+														{choice.decoratorsCount > 0 && (
+															<span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5">
+																<Sparkles className="h-3 w-3" />
+																{t('editor.preview.choiceDecorators', {
+																	count: choice.decoratorsCount,
+																})}
+															</span>
+														)}
+													</div>
+												</div>
+											</Button>
+										))}
+									</div>
+								</div>
+							)}
+
+							<div className="rounded-xl border border-border bg-background/60 p-4">
+								<div className="flex items-center gap-3">
+									<Volume2 className="h-4 w-4 text-muted-foreground" />
+									<Input
+										type="range"
+										min={0}
+										max={100}
+										step={1}
+										value={volume}
+										onChange={(event) => setVolume(Number(event.target.value))}
+										disabled={!hasCurrentAudio}
+										className={!hasCurrentAudio ? 'opacity-40 cursor-not-allowed' : undefined}
+									/>
+									<span className="text-xs w-10 text-right text-muted-foreground">{volume}%</span>
+								</div>
+								{currentNodeId && (
+									<div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+										<Play className="h-3 w-3" />
+										{t('editor.preview.activeNode')}: <code>{currentNodeId.slice(0, 8)}</code>
+									</div>
+								)}
 							</div>
-						)}
-					</div>
 						</>
 					)}
 				</div>

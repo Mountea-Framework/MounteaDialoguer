@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { readProviderCatalog } from '@/lib/sync/core/providerCatalog';
 import { listRemoteProjectsWithSteamRetry } from '@/lib/sync/core/remoteCatalog';
 import { getSyncContext } from '@/lib/sync/core/providerGateway';
 
@@ -40,17 +41,50 @@ export function dedupeRemoteProjects(remoteProjects) {
 export async function diffRemoteLocal(options = {}) {
 	const { providerId } = getSyncContext(options);
 	console.log('[sync] Building remote/local diff');
+
 	const remoteRaw = await listRemoteProjectsWithSteamRetry(providerId, 'diff');
 	const { unique: remoteUnique, duplicates } = dedupeRemoteProjects(remoteRaw);
 	const remoteMap = new Map(remoteUnique.map((item) => [item.projectId, item]));
 
+	const catalogRead = await readProviderCatalog(providerId);
+	const catalog = catalogRead?.readable ? catalogRead.catalog : null;
+	const activeProjectTombstones = new Set(
+		(catalog?.tombstones || [])
+			.filter((entry) => {
+				if (String(entry?.entityType || '').trim() !== 'project') return false;
+				const expiresAtMs = entry?.expiresAt ? Date.parse(entry.expiresAt) : 0;
+				return !(expiresAtMs && expiresAtMs <= Date.now());
+			})
+			.map((entry) => String(entry?.entityId || '').trim())
+			.filter(Boolean)
+	);
+	const projectsWithDialogueTombstones = new Set(
+		(catalog?.tombstones || [])
+			.filter((entry) => {
+				if (String(entry?.entityType || '').trim() !== 'dialogue') return false;
+				const expiresAtMs = entry?.expiresAt ? Date.parse(entry.expiresAt) : 0;
+				return !(expiresAtMs && expiresAtMs <= Date.now());
+			})
+			.map((entry) => String(entry?.projectId || '').trim())
+			.filter(Boolean)
+	);
+	for (const projectEntry of catalog?.objects?.projects || []) {
+		const projectId = String(projectEntry?.projectId || '').trim();
+		if (!projectId || remoteMap.has(projectId)) continue;
+		const fileId = String(projectEntry?.snapshotFileId || '').trim();
+		if (!fileId) continue;
+		remoteMap.set(projectId, {
+			projectId,
+			fileId,
+			revision: Number(projectEntry?.snapshotRevision || 0),
+			updatedAt: projectEntry?.updatedAt || '',
+		});
+	}
+
 	const localProjects = await db.projects.toArray();
 	const localMap = new Map(localProjects.map((project) => [project.id, project]));
 
-	const localMeta = await db.syncProjects
-		.where('provider')
-		.equals(providerId)
-		.toArray();
+	const localMeta = await db.syncProjects.where('provider').equals(providerId).toArray();
 	const metaMap = new Map(localMeta.map((item) => [item.projectId, item]));
 
 	const allIds = new Set([...remoteMap.keys(), ...localMap.keys()]);
@@ -58,6 +92,7 @@ export async function diffRemoteLocal(options = {}) {
 	const actions = {
 		toPull: [],
 		toPush: [],
+		toDeleteLocal: [],
 		unchanged: [],
 		remoteOnly: [],
 		localOnly: [],
@@ -73,12 +108,20 @@ export async function diffRemoteLocal(options = {}) {
 		const remoteUpdated = remote?.updatedAt ? Date.parse(remote.updatedAt) : 0;
 
 		let decision = 'unchanged';
-		if (remote && !local) {
+		if (local && activeProjectTombstones.has(projectId)) {
+			decision = 'delete-local';
+		} else if (local && remote && projectsWithDialogueTombstones.has(projectId)) {
+			decision = 'pull';
+		} else if (remote && !local) {
 			decision = 'pull';
 			actions.remoteOnly.push(projectId);
 		} else if (!remote && local) {
-			decision = 'push';
-			actions.localOnly.push(projectId);
+			if (meta) {
+				decision = 'unchanged';
+			} else {
+				decision = 'push';
+				actions.localOnly.push(projectId);
+			}
 		} else if (remote && local) {
 			if (meta) {
 				if (remoteRevision > localRevision) decision = 'pull';
@@ -91,6 +134,7 @@ export async function diffRemoteLocal(options = {}) {
 
 		if (decision === 'pull') actions.toPull.push(projectId);
 		else if (decision === 'push') actions.toPush.push(projectId);
+		else if (decision === 'delete-local') actions.toDeleteLocal.push(projectId);
 		else actions.unchanged.push(projectId);
 
 		comparisons.push({
@@ -107,6 +151,7 @@ export async function diffRemoteLocal(options = {}) {
 				? {
 						modifiedAt: local.modifiedAt,
 						metaRevision: localRevision || null,
+						hasSyncMeta: Boolean(meta),
 					}
 				: null,
 		});
@@ -120,3 +165,5 @@ export async function diffRemoteLocal(options = {}) {
 		actions,
 	};
 }
+
+

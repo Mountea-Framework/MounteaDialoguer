@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogOut, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -53,6 +53,7 @@ export function SyncLoginDialog({
 	const [activeProvider, setActiveProvider] = useState(
 		googleSyncEnabled ? 'googleDrive' : showSteamProvider ? 'steam' : ''
 	);
+	const steamAutoConnectAttemptedRef = useRef(false);
 
 	const googleInput = getProviderInput('googleDrive');
 	const googleAccountLabel = googleInput.accountLabel || '';
@@ -89,6 +90,11 @@ export function SyncLoginDialog({
 	}, [open, googleSyncEnabled, showSteamProvider]);
 
 	useEffect(() => {
+		if (open) return;
+		steamAutoConnectAttemptedRef.current = false;
+	}, [open]);
+
+	useEffect(() => {
 		if (provider === 'steam' && showSteamProvider) {
 			setActiveProvider('steam');
 			return;
@@ -114,11 +120,16 @@ export function SyncLoginDialog({
 	useEffect(() => {
 		if (!open) return;
 		if (!showSteamProvider || !steamStatus?.available) return;
-		if (provider === 'steam' && (status === 'connected' || status === 'syncing')) return;
+		if (steamAutoConnectAttemptedRef.current) return;
+		// Prevent reconnect loops when a Steam sync error occurs while the dialog is open.
+		// Manual "Sync now" remains available for explicit retry.
+		if (provider === 'steam') return;
 		if (provider === 'googleDrive' && status === 'connected') return;
 
+		steamAutoConnectAttemptedRef.current = true;
 		connectSteamProvider(steamStatus).catch((error) => {
 			console.warn('[sync] Failed to auto-connect Steam provider:', error);
+			steamAutoConnectAttemptedRef.current = false;
 		});
 	}, [
 		connectSteamProvider,

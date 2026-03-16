@@ -112,9 +112,14 @@ export function SettingsCommandDialog() {
 		}
 		return t('settingsCommand.actions.openSettings');
 	}, [context?.type, t]);
+	const isMainPageContext = !context?.type || context?.type === 'dashboard';
 
-	const groups = useMemo(
-		() => [
+	const groups = useMemo(() => {
+		if (isMainPageContext) {
+			return [];
+		}
+
+		const items = [
 			{
 				id: 'actions',
 				title: t('settingsCommand.groups.actions'),
@@ -127,61 +132,63 @@ export function SettingsCommandDialog() {
 					},
 				],
 			},
-			{
-				id: 'shortcuts',
-				title: t('settingsCommand.groups.shortcuts'),
-				items:
-					context?.type === 'dialogue'
-						? [
-								{
-									id: 'shortcut-save',
-									label: t('settingsCommand.items.save'),
-									icon: Save,
-									keys: ['Ctrl', 'S'],
-								},
-								{
-									id: 'shortcut-undo',
-									label: t('settingsCommand.items.undo'),
-									icon: Undo2,
-									keys: ['Ctrl', 'Z'],
-								},
-								{
-									id: 'shortcut-redo',
-									label: t('settingsCommand.items.redo'),
-									icon: Redo2,
-									keys: ['Ctrl', 'Y'],
-								},
-								{
-									id: 'shortcut-delete',
-									label: t('settingsCommand.items.deleteSelection'),
-									icon: Trash2,
-									keys: ['Delete'],
-								},
-								{
-									id: 'shortcut-deselect',
-									label: t('settingsCommand.items.deselectAll'),
-									icon: X,
-									keys: ['Esc'],
-								},
-							]
-						: [
-								{
-									id: 'shortcut-command',
-									label: t('settingsCommand.items.commandPalette'),
-									icon: CommandIcon,
-									keys: ['Ctrl', 'K'],
-								},
-								{
-									id: 'shortcut-shortcuts',
-									label: t('settingsCommand.items.showShortcuts'),
-									icon: Keyboard,
-									keys: ['?'],
-								},
-							],
-			},
-		],
-		[actionLabel, context?.type, setMode, t]
-	);
+		];
+
+		items.push({
+			id: 'shortcuts',
+			title: t('settingsCommand.groups.shortcuts'),
+			items:
+				context?.type === 'dialogue'
+					? [
+							{
+								id: 'shortcut-save',
+								label: t('settingsCommand.items.save'),
+								icon: Save,
+								keys: ['Ctrl', 'S'],
+							},
+							{
+								id: 'shortcut-undo',
+								label: t('settingsCommand.items.undo'),
+								icon: Undo2,
+								keys: ['Ctrl', 'Z'],
+							},
+							{
+								id: 'shortcut-redo',
+								label: t('settingsCommand.items.redo'),
+								icon: Redo2,
+								keys: ['Ctrl', 'Y'],
+							},
+							{
+								id: 'shortcut-delete',
+								label: t('settingsCommand.items.deleteSelection'),
+								icon: Trash2,
+								keys: ['Delete'],
+							},
+							{
+								id: 'shortcut-deselect',
+								label: t('settingsCommand.items.deselectAll'),
+								icon: X,
+								keys: ['Esc'],
+							},
+						]
+					: [
+							{
+								id: 'shortcut-command',
+								label: t('settingsCommand.items.commandPalette'),
+								icon: CommandIcon,
+								keys: ['Ctrl', 'K'],
+							},
+							{
+								id: 'shortcut-shortcuts',
+								label: t('settingsCommand.items.showShortcuts'),
+								icon: Keyboard,
+								keys: ['?'],
+							},
+						],
+		});
+
+		return items;
+	}, [actionLabel, context?.type, isMainPageContext, setMode, t]);
 
 	const detailPanelContent =
 		context?.type === 'dialogue' ? (

@@ -105,6 +105,7 @@ import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOve
 import { getDeviceType } from '@/lib/deviceDetection';
 import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
 import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+import { openContainingFolder } from '@/lib/export/exportFile';
 import {
 	getNodeDefinition,
 	getNodeDefaultData,
@@ -341,8 +342,14 @@ function DialogueEditorPage() {
 	const { resolvedTheme, setTheme } = useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
-	const { dialogues, loadDialogues, saveDialogueGraph, loadDialogueGraph, exportDialogue } =
-		useDialogueStore();
+	const {
+		dialogues,
+		loadDialogues,
+		saveDialogueGraph,
+		loadDialogueGraph,
+		loadDialogueGraphForPreview: loadDialogueGraphForPreviewFromStore,
+		exportDialogue,
+	} = useDialogueStore();
 	const contentLocaleByProject = useUIStore((state) => state.contentLocaleByProject);
 	const setProjectContentLocale = useUIStore((state) => state.setProjectContentLocale);
 	const { participants, loadParticipants } = useParticipantStore();
@@ -367,6 +374,13 @@ function DialogueEditorPage() {
 		}
 		return projectLocalization.defaultLocale;
 	}, [contentLocaleByProject, projectId, projectLocalization]);
+	const loadDialogueGraphForPreview = useCallback(
+		(targetDialogueId) =>
+			loadDialogueGraphForPreviewFromStore(targetDialogueId, {
+				activeLocale: contentLocale,
+			}),
+		[loadDialogueGraphForPreviewFromStore, contentLocale]
+	);
 
 	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -407,7 +421,8 @@ function DialogueEditorPage() {
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-	const [previewActiveNodeId, setPreviewActiveNodeId] = useState(null);
+	const [previewActiveNodeRef, setPreviewActiveNodeRef] = useState(null);
+	const previewOriginRef = useRef(null);
 	const graphLoadKeyRef = useRef('');
 	const hasPendingNodeDataEditsRef = useRef(false);
 	const headerRef = useRef(null);
@@ -1373,11 +1388,23 @@ function DialogueEditorPage() {
 
 	const handlePreviewStop = useCallback(() => {
 		setIsPreviewOpen(false);
-		setPreviewActiveNodeId(null);
-	}, []);
+		setPreviewActiveNodeRef(null);
+		const origin = previewOriginRef.current;
+		if (!origin || origin.dialogueId === dialogueId) {
+			window.setTimeout(() => {
+				focusStartNode();
+			}, 0);
+		}
+	}, [dialogueId, focusStartNode]);
 
-	const handlePreviewNodeFocus = useCallback((nodeId) => {
+	const handlePreviewNodeFocus = useCallback((nodeRef) => {
+		const nodeId = String(nodeRef?.nodeId || '').trim();
+		const previewDialogueId = String(nodeRef?.dialogueId || '').trim();
 		if (!reactFlowInstance || !nodeId) return;
+		if (previewDialogueId !== dialogueId) {
+			setPreviewActiveNodeRef(null);
+			return;
+		}
 
 		try {
 			reactFlowInstance.fitView({
@@ -1397,7 +1424,16 @@ function DialogueEditorPage() {
 				{ zoom: 1, duration: 280 }
 			);
 		}
-	}, [reactFlowInstance, nodes]);
+	}, [dialogueId, reactFlowInstance, nodes]);
+
+	const handlePreviewNodeChange = useCallback((nodeRef) => {
+		const previewDialogueId = String(nodeRef?.dialogueId || '').trim();
+		if (!nodeRef || previewDialogueId !== dialogueId) {
+			setPreviewActiveNodeRef(null);
+			return;
+		}
+		setPreviewActiveNodeRef(nodeRef);
+	}, [dialogueId]);
 
 	const handleStartPreview = useCallback(() => {
 		if (deviceType === 'mobile') return;
@@ -1449,9 +1485,13 @@ function DialogueEditorPage() {
 		setSelectedNode(null);
 		setSelectedEdge(null);
 		setIsMobilePanelOpen(false);
-		setPreviewActiveNodeId(null);
+		setPreviewActiveNodeRef(null);
+		previewOriginRef.current = {
+			dialogueId,
+			nodeId: START_NODE_ID,
+		};
 		setIsPreviewOpen(true);
-	}, [deviceType, getMissingRequiredNodes, nodes, edges, t]);
+	}, [deviceType, dialogueId, getMissingRequiredNodes, nodes, edges, t]);
 
 	// Handle save
 	const handleSave = useCallback(async () => {
@@ -2038,6 +2078,14 @@ function DialogueEditorPage() {
 	const getMinimapColor = useCallback((node) => {
 		return getNodeDefinition(node.type)?.minimapColor || '#6b7280';
 	}, []);
+	const previewActiveNodeId = useMemo(() => {
+		const previewDialogueId = String(previewActiveNodeRef?.dialogueId || '').trim();
+		const previewNodeId = String(previewActiveNodeRef?.nodeId || '').trim();
+		if (!previewDialogueId || previewDialogueId !== dialogueId || !previewNodeId) {
+			return null;
+		}
+		return previewNodeId;
+	}, [dialogueId, previewActiveNodeRef]);
 
 	const previewDisplayNodes = useMemo(
 		() =>
@@ -2120,6 +2168,29 @@ function DialogueEditorPage() {
 		}
 	};
 
+	const handleOpenLastExportPath = useCallback(async () => {
+		const lastExportPath = String(dialogue?.lastExportPath || '').trim();
+		if (!lastExportPath) {
+			toastStandalone({
+				variant: 'warning',
+				title: 'No export path available',
+				description: 'Export this dialogue first to create a last export path.',
+			});
+			return;
+		}
+
+		const opened = await openContainingFolder(lastExportPath);
+		if (!opened) {
+			toastStandalone({
+				variant: 'error',
+				title: 'Unable to open export path',
+				description: isDesktopElectron
+					? 'The export folder could not be opened.'
+					: 'Open Last Export Path is available in the desktop app.',
+			});
+		}
+	}, [dialogue?.lastExportPath, isDesktopElectron]);
+
 	const handleContentLocaleChange = useCallback(
 		(nextValueOrEvent) => {
 			const rawNextValue =
@@ -2173,6 +2244,11 @@ function DialogueEditorPage() {
 			handleExport();
 		};
 
+		const handleCommandOpenLastExport = (event) => {
+			if (!matchesDialogue(event)) return;
+			void handleOpenLastExportPath();
+		};
+
 		const handleCommandUndo = (event) => {
 			if (!matchesDialogue(event)) return;
 			handleUndo();
@@ -2211,6 +2287,10 @@ function DialogueEditorPage() {
 
 		window.addEventListener('command:dialogue-save', handleCommandSave);
 		window.addEventListener('command:dialogue-export', handleCommandExport);
+		window.addEventListener(
+			'command:dialogue-open-last-export',
+			handleCommandOpenLastExport
+		);
 		window.addEventListener('command:dialogue-undo', handleCommandUndo);
 		window.addEventListener('command:dialogue-redo', handleCommandRedo);
 		window.addEventListener('command:dialogue-start-preview', handleCommandStartPreview);
@@ -2225,6 +2305,10 @@ function DialogueEditorPage() {
 		return () => {
 			window.removeEventListener('command:dialogue-save', handleCommandSave);
 			window.removeEventListener('command:dialogue-export', handleCommandExport);
+			window.removeEventListener(
+				'command:dialogue-open-last-export',
+				handleCommandOpenLastExport
+			);
 			window.removeEventListener('command:dialogue-undo', handleCommandUndo);
 			window.removeEventListener('command:dialogue-redo', handleCommandRedo);
 			window.removeEventListener('command:dialogue-start-preview', handleCommandStartPreview);
@@ -2240,6 +2324,7 @@ function DialogueEditorPage() {
 		dialogueId,
 		handleContentLocaleChange,
 		handleExport,
+		handleOpenLastExportPath,
 		handleFocusStartNode,
 		handleRecenterGraph,
 		handleRedo,
@@ -2558,9 +2643,12 @@ function DialogueEditorPage() {
 							open={isPreviewOpen}
 							nodes={nodes}
 							edges={edges}
+							participants={participants}
+							rootDialogueId={dialogueId}
+							loadDialogueGraphForPreview={loadDialogueGraphForPreview}
 							onStop={handlePreviewStop}
 							onNodeFocus={handlePreviewNodeFocus}
-							onNodeChange={setPreviewActiveNodeId}
+							onNodeChange={handlePreviewNodeChange}
 						/>
 					)}
 
