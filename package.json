@@ -29,7 +29,8 @@
 		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
 		"validate:skills": "npm run lint:ci && npm run build && npm run test:e2e:smoke",
 		"predeploy": "npm run build",
-		"deploy": "gh-pages -d dist"
+		"deploy": "gh-pages -d dist",
+		"steam:upload:linux": "./steam_build_upload_linux.sh"
 	},
 	"build": {
 		"appId": "com.mountea.dialoguer",
