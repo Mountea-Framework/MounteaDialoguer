@@ -14,6 +14,7 @@ import {
   Cloud,
   HelpCircle,
   Sparkles,
+  Upload,
 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
 import { useDialogueStore } from "@/stores/dialogueStore";
@@ -57,7 +58,7 @@ export const Route = createFileRoute("/")({
 });
 
 // Dashboard Header Component
-function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
+function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour, onImport }) {
   const { t } = useTranslation();
   const { status: syncStatus, setLoginDialogOpen } = useSyncStore();
   const appIconSrc = `${import.meta.env.BASE_URL}mounteaDialoguerIcon.png`;
@@ -136,6 +137,17 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
             data-header-mobile-hidden
           >
             <HelpCircle className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onImport}
+            className="rounded-full shrink-0 hidden md:inline-flex"
+            aria-label={t("common.import")}
+            title={t("common.import")}
+            data-header-mobile-hidden
+          >
+            <Upload className="h-4 w-4" />
           </Button>
           <Button
             onClick={onNewProject}
@@ -431,15 +443,22 @@ function MobileProjectsTable({
   dialogueCountByProject,
   onOpenProject,
   onCreateProject,
+  onImport,
 }) {
   const { t } = useTranslation();
 
   return (
     <div className="md:hidden space-y-3" data-tour="projects-grid">
-      <Button onClick={onCreateProject} className="w-full gap-2" size="sm">
-        <Plus className="h-4 w-4" />
-        {t("projects.createNew")}
-      </Button>
+      <div className="flex gap-2">
+        <Button onClick={onCreateProject} className="flex-1 gap-2" size="sm">
+          <Plus className="h-4 w-4" />
+          {t("projects.createNew")}
+        </Button>
+        <Button variant="outline" onClick={onImport} size="sm" className="gap-2">
+          <Upload className="h-4 w-4" />
+          {t("common.import")}
+        </Button>
+      </div>
 
       <Card className="overflow-hidden">
         <Table>
@@ -488,16 +507,18 @@ function ProjectsDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isDesktopElectron = isDesktopElectronRuntime();
-  const { projects, loadProjects, isLoading, createOnboardingExampleProject } =
+  const { projects, loadProjects, isLoading, createOnboardingExampleProject, importProject } =
     useProjectStore();
   const { dialogues, loadDialogues } = useDialogueStore();
   const { lastSyncedAt } = useSyncStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
   const { runTour, finishTour, resetTour } = useOnboarding("dashboard");
   const desktopSearchInputRef = useRef(null);
+  const importFileInputRef = useRef(null);
 
   useEffect(() => {
     loadProjects();
@@ -567,6 +588,27 @@ function ProjectsDashboard() {
     }
   };
 
+  const handleImportFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setIsImporting(true);
+    try {
+      const newId = await importProject(file);
+      if (newId) {
+        await loadProjects();
+        await loadDialogues();
+        navigate({ to: "/projects/$projectId", params: { projectId: newId } });
+      }
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImport = () => {
+    importFileInputRef.current?.click();
+  };
+
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -593,12 +635,21 @@ function ProjectsDashboard() {
         onOpenChange={setIsCreateDialogOpen}
       />
 
+      <input
+        ref={importFileInputRef}
+        type="file"
+        accept=".mnteadlgproj"
+        onChange={handleImportFileChange}
+        className="hidden"
+      />
+
       {!isDesktopElectron && (
         <DashboardHeader
           onNewProject={handleNewProject}
           onSearch={setSearchQuery}
           searchQuery={searchQuery}
           onShowTour={resetTour}
+          onImport={handleImport}
         />
       )}
 
@@ -616,6 +667,17 @@ function ProjectsDashboard() {
                 className="pl-9 h-9"
               />
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleImport}
+              className="gap-1 whitespace-nowrap"
+              aria-label={t("common.import")}
+              disabled={isImporting}
+            >
+              <Upload className="h-4 w-4" />
+              {t("common.import")}
+            </Button>
             <Button
               onClick={handleNewProject}
               size="sm"
@@ -659,6 +721,14 @@ function ProjectsDashboard() {
                     <Plus className="h-4 w-4" />
                     {t("projects.createNew")}
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleImport}
+                    disabled={isImporting}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {isImporting ? t("common.loading") : t("common.import")}
+                  </Button>
                   {projects.length === 0 && (
                     <Button
                       variant="outline"
@@ -687,6 +757,7 @@ function ProjectsDashboard() {
                 dialogueCountByProject={dialogueCountByProject}
                 onOpenProject={handleOpenProject}
                 onCreateProject={handleNewProject}
+                onImport={handleImport}
               />
 
               <div
@@ -709,6 +780,22 @@ function ProjectsDashboard() {
                   </span>
                   <span className="text-sm text-muted-foreground mt-2">
                     {t("projects.createNewDescription")}
+                  </span>
+                </button>
+
+                <button
+                  onClick={handleImport}
+                  disabled={isImporting}
+                  className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] hover:border-primary hover:bg-primary/5 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="h-8 w-8 text-primary" />
+                  </div>
+                  <span className="font-bold text-lg">
+                    {isImporting ? t("common.loading") : t("common.import")}
+                  </span>
+                  <span className="text-sm text-muted-foreground mt-2">
+                    {t("projects.importDescription", { defaultValue: "Import a .mnteadlgproj file" })}
                   </span>
                 </button>
               </div>

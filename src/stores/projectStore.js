@@ -1807,39 +1807,40 @@ export const useProjectStore = create((set, get) => ({
 
 			await db.projects.add(newProject);
 
-			const categoryIdMap = new Map();
-			const importedCategoryPathToName = new Map();
+			// Build category hierarchy from fullPath (e.g. "NPC.Merchant" → NPC > Merchant)
+			const existingCategoryPaths = new Map(); // fullPath → { id, name }
 
 			for (const cat of categories) {
-				const fullPath = String(cat?.fullPath || '').trim();
-				const categoryName =
-					String(cat?.name || '').trim() || (fullPath ? fullPath.split('.').pop() : 'Unknown');
-				const newCatId = uuidv4();
-				const newCat = {
-					id: newCatId,
-					name: categoryName,
-					parentCategoryId: null,
-					projectId: newProjectId,
-					createdAt: now,
-					modifiedAt: now,
-				};
-				await db.categories.add(newCat);
-				if (cat?.id) {
-					categoryIdMap.set(cat.id, newCatId);
-				}
-				if (fullPath) {
-					importedCategoryPathToName.set(fullPath, categoryName);
+				const fullPath = String(cat?.fullPath || cat?.name || '').trim();
+				if (!fullPath) continue;
+				const pathParts = fullPath.split('.');
+				let parentId = null;
+				let currentPath = '';
+
+				for (const part of pathParts) {
+					currentPath = currentPath ? `${currentPath}.${part}` : part;
+					if (!existingCategoryPaths.has(currentPath)) {
+						const newCatId = uuidv4();
+						await db.categories.add({
+							id: newCatId,
+							name: part,
+							parentCategoryId: parentId,
+							projectId: newProjectId,
+							createdAt: now,
+							modifiedAt: now,
+						});
+						existingCategoryPaths.set(currentPath, { id: newCatId, name: part });
+						parentId = newCatId;
+					} else {
+						parentId = existingCategoryPaths.get(currentPath).id;
+					}
 				}
 			}
 
-			for (const cat of categories) {
-				if (cat.parentCategoryId) {
-					const newCatId = categoryIdMap.get(cat.id);
-					const newParentId = categoryIdMap.get(cat.parentCategoryId);
-					if (newCatId && newParentId) {
-						await db.categories.update(newCatId, { parentCategoryId: newParentId });
-					}
-				}
+			// Build path-to-leaf-name map for participant category resolution
+			const importedCategoryPathToName = new Map();
+			for (const [path, entry] of existingCategoryPaths) {
+				importedCategoryPathToName.set(path, entry.name);
 			}
 
 			for (const part of participants) {
