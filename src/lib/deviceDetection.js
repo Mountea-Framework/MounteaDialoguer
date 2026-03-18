@@ -114,6 +114,7 @@ export const getDeviceType = () => {
 export const isMobileDevice = () => getDeviceType() === 'mobile';
 export const isTabletDevice = () => getDeviceType() === 'tablet';
 export const isDesktopDevice = () => getDeviceType() === 'desktop';
+export const isMobileOrTablet = () => getDeviceType() !== 'desktop';
 export const isTouchDevice = () => {
 	if (typeof window === 'undefined') return false;
 	return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
