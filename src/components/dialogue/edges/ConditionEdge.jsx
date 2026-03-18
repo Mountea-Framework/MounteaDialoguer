@@ -74,11 +74,14 @@ const ConditionEdge = memo((props) => {
 									)}
 								</button>
 							</ContextMenuTrigger>
-							<ContextMenuContent className="w-40">
+							<ContextMenuContent
+								className="w-40"
+								onCloseAutoFocus={(e) => e.preventDefault()}
+							>
 								<ContextMenuItem
 									variant="destructive"
-									onClick={(event) => {
-										event.stopPropagation();
+									onSelect={(event) => {
+										event.preventDefault();
 										data?.onDeleteEdge?.(id);
 									}}
 								>

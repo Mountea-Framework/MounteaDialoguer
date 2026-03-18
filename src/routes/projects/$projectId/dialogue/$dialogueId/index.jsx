@@ -152,6 +152,7 @@ const noop = () => {};
 
 const NodeContextMenuContext = createContext({
 	onDeleteNode: noop,
+	onContextMenuAction: noop,
 });
 
 const useNodeContextMenu = () => useContext(NodeContextMenuContext);
@@ -167,7 +168,7 @@ const NodeContextMenuProvider = ({ value, children }) => {
 const withNodeContextMenu = (NodeComponent) => {
 	const WrappedNode = (props) => {
 		const { t } = useTranslation();
-		const { onDeleteNode } = useNodeContextMenu();
+		const { onDeleteNode, onContextMenuAction } = useNodeContextMenu();
 		const isPlaceholder = props.type === 'placeholderNode';
 		const canDelete = !isPlaceholder && props.id !== START_NODE_ID;
 
@@ -182,12 +183,16 @@ const withNodeContextMenu = (NodeComponent) => {
 						<NodeComponent {...props} />
 					</div>
 				</ContextMenuTrigger>
-				<ContextMenuContent className="w-40">
+				<ContextMenuContent
+					className="w-40"
+					onCloseAutoFocus={(e) => e.preventDefault()}
+				>
 					<ContextMenuItem
 						variant="destructive"
 						disabled={!canDelete}
 						onSelect={(event) => {
 							event.preventDefault();
+							onContextMenuAction?.();
 							if (!canDelete) return;
 							onDeleteNode?.(props.id);
 						}}
@@ -426,6 +431,7 @@ function DialogueEditorPage() {
 	const previewOriginRef = useRef(null);
 	const graphLoadKeyRef = useRef('');
 	const hasPendingNodeDataEditsRef = useRef(false);
+	const lastContextMenuActionRef = useRef(0);
 	const headerRef = useRef(null);
 	const bottomToolbarRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
@@ -1192,17 +1198,21 @@ function DialogueEditorPage() {
 	const onNodeClick = useCallback((event, node) => {
 		// Skip placeholder nodes
 		if (node.type === 'placeholderNode') return;
+		// Suppress click if it follows a context-menu action (Radix focus-restoration artifact)
+		if (Date.now() - lastContextMenuActionRef.current < 300) return;
 
 		setSelectedNode(node);
 		setSelectedEdge(null); // Deselect edge when node is selected
-	}, []);
+	}, [lastContextMenuActionRef]);
 
 	// Handle edge click
 	const onEdgeClick = useCallback((event, edge) => {
+		// Suppress click if it follows a context-menu action (Radix focus-restoration artifact)
+		if (Date.now() - lastContextMenuActionRef.current < 300) return;
 		setSelectedEdge(edge);
 		setSelectedNode(null); // Deselect node when edge is selected
 		// On mobile/tablet, the edge action bar handles the panel open — don't auto-open here
-	}, []);
+	}, [lastContextMenuActionRef]);
 
 	// Handle pane click (deselect all)
 	const onPaneClick = useCallback(() => {
@@ -2185,7 +2195,7 @@ function DialogueEditorPage() {
 				data: {
 					...edge.data,
 					onOpenDetails: openEdgeDetails,
-					onDeleteEdge: deleteEdgeById,
+					onDeleteEdge: (edgeId) => { lastContextMenuActionRef.current = Date.now(); deleteEdgeById(edgeId); },
 				},
 				animated: selectedEdge?.id === edge.id,
 				style: {
@@ -2416,6 +2426,7 @@ function DialogueEditorPage() {
 	const nodeContextMenuValue = useMemo(
 		() => ({
 			onDeleteNode: deleteNodeById,
+			onContextMenuAction: () => { lastContextMenuActionRef.current = Date.now(); },
 		}),
 		[deleteNodeById]
 	);
