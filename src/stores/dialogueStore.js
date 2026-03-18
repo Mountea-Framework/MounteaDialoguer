@@ -1303,14 +1303,21 @@ export const useDialogueStore = create((set, get) => ({
 
 				// Normalize rows so each row has a stable ID for audio rebinding.
 				if (nodeData.dialogueRows) {
-					nodeData.dialogueRows = normalizeDialogueRows(nodeData.dialogueRows).map((row) => {
-						const oldRowId = row.id;
+					const rawRows = nodeData.dialogueRows;
+					nodeData.dialogueRows = normalizeDialogueRows(rawRows).map((row, idx) => {
+						const rawRow = rawRows[idx] || {};
+						const oldRowId = rawRow.id || row.id;
 						const newRowId = uuidv4();
 						rowIdMapping.set(`${oldNodeId}:${oldRowId}`, newRowId);
-						return {
-							...row,
-							id: newRowId,
-						};
+						const nextRow = { ...row, id: newRowId };
+						// Remove synthetic empty text added by normalizeDialogueRow when the original
+						// row uses textKey (text lives in the string table, not inline). Without this,
+						// prepareLocalizedNodesAndEntries would overwrite the default-locale string
+						// table value with an empty string, causing EN rows to appear blank after import.
+						if (nextRow.textKey && !Object.prototype.hasOwnProperty.call(rawRow, 'text')) {
+							delete nextRow.text;
+						}
+						return nextRow;
 					});
 				}
 
