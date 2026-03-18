@@ -214,6 +214,9 @@
 		"deleteCascadeTitle": "Supprimer le nœud et ses enfants ?",
 		"deleteCascadeDescription": "La suppression de ce nœud supprimera tous les nœuds enfants. Cette action est irréversible.",
 		"deleteCascadeConfirm": "Tout supprimer",
+		"deleteEdgeCascadeTitle": "Supprimer l'arête et les nœuds suivants ?",
+		"deleteEdgeCascadeDescription": "C'est la seule connexion au nœud cible. La suppression de cette arête supprimera également le nœud cible et tous ses enfants. Cette action est irréversible.",
+		"deleteEdgeCascadeConfirm": "Supprimer l'arête et les nœuds",
 		"sections": {
 			"nodeData": "Données du Nœud",
 			"dialogueDetails": "Détails du Dialogue",

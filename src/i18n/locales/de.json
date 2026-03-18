@@ -214,6 +214,9 @@
 		"deleteCascadeTitle": "Knoten und Kinder löschen?",
 		"deleteCascadeDescription": "Beim Löschen dieses Knotens werden alle Kindknoten gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
 		"deleteCascadeConfirm": "Alle löschen",
+		"deleteEdgeCascadeTitle": "Kante und folgende Knoten löschen?",
+		"deleteEdgeCascadeDescription": "Dies ist die einzige Verbindung zum Zielknoten. Das Löschen dieser Kante löscht auch den Zielknoten und alle seine Kinder. Diese Aktion kann nicht rückgängig gemacht werden.",
+		"deleteEdgeCascadeConfirm": "Kante und Knoten löschen",
 		"sections": {
 			"nodeData": "Knotendaten",
 			"dialogueDetails": "Dialogdetails",
