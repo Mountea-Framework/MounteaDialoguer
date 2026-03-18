@@ -1,4 +1,4 @@
-import { MessageCircle, User, CornerUpLeft, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
+import { MessageCircle, User, CornerUpLeft, CheckCircle2, Clock, ExternalLink, Link2 } from 'lucide-react';
 import {
 	Dialog,
 	DialogContent,
@@ -13,7 +13,7 @@ import { getCreatableNodeDefinitions } from '@/config/dialogueNodes';
  * Node Type Selection Modal Component
  * Allows mobile users to select which type of node to create
  */
-export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType }) {
+export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType, onConnectExisting }) {
 	const iconMap = {
 		messageCircle: MessageCircle,
 		user: User,
@@ -61,8 +61,27 @@ export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType }) {
 							</Button>
 						);
 					})}
-				</div>
-			</DialogContent>
-		</Dialog>
+				<div className="border-t border-border my-1" />
+				<Button
+					variant="outline"
+					className="h-auto p-4 justify-start gap-4"
+					onClick={() => {
+						onOpenChange(false);
+						onConnectExisting?.();
+					}}
+				>
+					<div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+						<Link2 className="h-5 w-5" />
+					</div>
+					<div className="flex flex-col items-start gap-1 text-left">
+						<span className="font-semibold">Connect to Existing</span>
+						<span className="text-xs text-muted-foreground">
+							Link to a node already in this dialogue
+						</span>
+					</div>
+				</Button>
+			</div>
+		</DialogContent>
+	</Dialog>
 	);
 }

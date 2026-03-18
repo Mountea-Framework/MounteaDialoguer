@@ -101,6 +101,7 @@ import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
+import { NodeConnectionModal } from '@/components/dialogue/NodeConnectionModal';
 import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
 import { getDeviceType } from '@/lib/deviceDetection';
 import { validatePreviewGraph } from '@/lib/dialoguePreviewEngine';
@@ -423,6 +424,8 @@ function DialogueEditorPage() {
 	const isDesktopElectron = isDesktopElectronRuntime();
 	const [isNodeTypeModalOpen, setIsNodeTypeModalOpen] = useState(false);
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
+	const [isNodeConnectionModalOpen, setIsNodeConnectionModalOpen] = useState(false);
+	const [connectionCandidateNodes, setConnectionCandidateNodes] = useState([]);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isEdgeCascadeDeleteOpen, setIsEdgeCascadeDeleteOpen] = useState(false);
@@ -1770,6 +1773,55 @@ function DialogueEditorPage() {
 		setPendingPlaceholderData({ placeholderId, position, parentNodeId });
 		setIsNodeTypeModalOpen(true);
 	}, []);
+
+	// Open the node connection drawer with valid candidate nodes (mobile)
+	const handleConnectExistingClicked = useCallback(() => {
+		if (!pendingPlaceholderData) return;
+		const { parentNodeId } = pendingPlaceholderData;
+
+		const alreadyConnected = new Set(
+			edges
+				.filter((e) => e.source === parentNodeId && !e.data?.isPlaceholder)
+				.map((e) => e.target)
+		);
+
+		const candidates = nodes.filter(
+			(n) =>
+				n.type !== 'placeholderNode' &&
+				n.id !== parentNodeId &&
+				n.id !== START_NODE_ID &&
+				!alreadyConnected.has(n.id)
+		);
+
+		setConnectionCandidateNodes(candidates);
+		setIsNodeTypeModalOpen(false);
+		setIsNodeConnectionModalOpen(true);
+	}, [pendingPlaceholderData, nodes, edges]);
+
+	// Connect parent node to an existing node, removing the placeholder (mobile)
+	const handleConnectExistingNode = useCallback((targetNodeId) => {
+		if (!pendingPlaceholderData) return;
+		const { placeholderId, parentNodeId } = pendingPlaceholderData;
+
+		setNodes((nds) => nds.filter((n) => n.id !== placeholderId));
+		setEdges((eds) => {
+			const withoutPlaceholder = eds.filter((e) => e.target !== placeholderId);
+			const newEdge = {
+				id: `${parentNodeId}-${targetNodeId}`,
+				source: parentNodeId,
+				target: targetNodeId,
+				type: 'conditionEdge',
+				markerEnd: { type: MarkerType.ArrowClosed },
+				data: { conditions: { mode: 'all', rules: [] } },
+			};
+			return addEdge(newEdge, withoutPlaceholder);
+		});
+
+		markUnsaved();
+		setIsNodeConnectionModalOpen(false);
+		setPendingPlaceholderData(null);
+		setConnectionCandidateNodes([]);
+	}, [pendingPlaceholderData, setNodes, setEdges, markUnsaved]);
 
 	// Handle node type selection from modal (mobile)
 	const handleNodeTypeSelect = useCallback((nodeType) => {
@@ -3147,6 +3199,15 @@ function DialogueEditorPage() {
 				open={isNodeTypeModalOpen}
 				onOpenChange={setIsNodeTypeModalOpen}
 				onSelectType={handleNodeTypeSelect}
+				onConnectExisting={handleConnectExistingClicked}
+			/>
+
+			{/* Node Connection Modal (Mobile) */}
+			<NodeConnectionModal
+				open={isNodeConnectionModalOpen}
+				onOpenChange={setIsNodeConnectionModalOpen}
+				candidateNodes={connectionCandidateNodes}
+				onSelectNode={handleConnectExistingNode}
 			/>
 
 			{showMobileGraphLoader &&
