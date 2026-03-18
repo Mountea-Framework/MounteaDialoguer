@@ -58,7 +58,7 @@ export const Route = createFileRoute("/")({
 });
 
 // Dashboard Header Component
-function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour, onImport }) {
+function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour }) {
   const { t } = useTranslation();
   const { status: syncStatus, setLoginDialogOpen } = useSyncStore();
   const appIconSrc = `${import.meta.env.BASE_URL}mounteaDialoguerIcon.png`;
@@ -137,17 +137,6 @@ function DashboardHeader({ onNewProject, onSearch, searchQuery, onShowTour, onIm
             data-header-mobile-hidden
           >
             <HelpCircle className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onImport}
-            className="rounded-full shrink-0 hidden md:inline-flex"
-            aria-label={t("common.import")}
-            title={t("common.import")}
-            data-header-mobile-hidden
-          >
-            <Upload className="h-4 w-4" />
           </Button>
           <Button
             onClick={onNewProject}
@@ -515,6 +504,7 @@ function ProjectsDashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportDragOver, setIsImportDragOver] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
   const { runTour, finishTour, resetTour } = useOnboarding("dashboard");
   const desktopSearchInputRef = useRef(null);
@@ -609,6 +599,26 @@ function ProjectsDashboard() {
     importFileInputRef.current?.click();
   };
 
+  const handleImportDrop = async (event) => {
+    event.preventDefault();
+    setIsImportDragOver(false);
+    const file = Array.from(event.dataTransfer.files).find((f) =>
+      f.name.endsWith(".mnteadlgproj")
+    );
+    if (!file || isImporting) return;
+    setIsImporting(true);
+    try {
+      const newId = await importProject(file);
+      if (newId) {
+        await loadProjects();
+        await loadDialogues();
+        navigate({ to: "/projects/$projectId", params: { projectId: newId } });
+      }
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -649,7 +659,6 @@ function ProjectsDashboard() {
           onSearch={setSearchQuery}
           searchQuery={searchQuery}
           onShowTour={resetTour}
-          onImport={handleImport}
         />
       )}
 
@@ -786,7 +795,15 @@ function ProjectsDashboard() {
                 <button
                   onClick={handleImport}
                   disabled={isImporting}
-                  className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] hover:border-primary hover:bg-primary/5 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                  onDragOver={(e) => { e.preventDefault(); setIsImportDragOver(true); }}
+                  onDragEnter={(e) => { e.preventDefault(); setIsImportDragOver(true); }}
+                  onDragLeave={() => setIsImportDragOver(false)}
+                  onDrop={handleImportDrop}
+                  className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center min-h-[280px] transition-all group disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isImportDragOver
+                      ? "border-primary bg-primary/10 scale-[1.02]"
+                      : "hover:border-primary hover:bg-primary/5"
+                  }`}
                 >
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Upload className="h-8 w-8 text-primary" />
