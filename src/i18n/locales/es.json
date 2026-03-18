@@ -214,6 +214,9 @@
 		"deleteCascadeTitle": "¿Eliminar el nodo y sus hijos?",
 		"deleteCascadeDescription": "Al eliminar este nodo se eliminarán todos los nodos hijos. Esta acción no se puede deshacer.",
 		"deleteCascadeConfirm": "Eliminar todo",
+		"deleteEdgeCascadeTitle": "¿Eliminar arista y nodos siguientes?",
+		"deleteEdgeCascadeDescription": "Esta es la única conexión al nodo de destino. Eliminar esta arista también eliminará el nodo de destino y todos sus hijos. Esta acción no se puede deshacer.",
+		"deleteEdgeCascadeConfirm": "Eliminar arista y nodos",
 		"sections": {
 			"nodeData": "Datos del Nodo",
 			"dialogueDetails": "Detalles del Diálogo",

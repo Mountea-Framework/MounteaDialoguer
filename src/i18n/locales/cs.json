@@ -216,6 +216,9 @@
     "deleteCascadeTitle": "Smazat Node a všechny její dceřiné nodes?",
     "deleteCascadeDescription": "Smazáním této Node smažete i všechny dceřiné nodes. Tato akce nelze vzít zpět. Jedná se o omezení mobilního editoru.",
     "deleteCascadeConfirm": "Smazat vše",
+    "deleteEdgeCascadeTitle": "Smazat hranu a následující uzly?",
+    "deleteEdgeCascadeDescription": "Toto je jediné spojení k cílovému uzlu. Smazáním této hrany smažete i cílový uzel a všechny jeho potomky. Tato akce nelze vzít zpět.",
+    "deleteEdgeCascadeConfirm": "Smazat hranu a uzly",
     "sections": {
       "nodeData": "Node data",
       "dialogueDetails": "Detaily dialogu",

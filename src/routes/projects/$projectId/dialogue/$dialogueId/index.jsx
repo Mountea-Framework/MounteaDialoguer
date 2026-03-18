@@ -152,6 +152,7 @@ const noop = () => {};
 
 const NodeContextMenuContext = createContext({
 	onDeleteNode: noop,
+	onContextMenuAction: noop,
 });
 
 const useNodeContextMenu = () => useContext(NodeContextMenuContext);
@@ -167,7 +168,7 @@ const NodeContextMenuProvider = ({ value, children }) => {
 const withNodeContextMenu = (NodeComponent) => {
 	const WrappedNode = (props) => {
 		const { t } = useTranslation();
-		const { onDeleteNode } = useNodeContextMenu();
+		const { onDeleteNode, onContextMenuAction } = useNodeContextMenu();
 		const isPlaceholder = props.type === 'placeholderNode';
 		const canDelete = !isPlaceholder && props.id !== START_NODE_ID;
 
@@ -182,12 +183,16 @@ const withNodeContextMenu = (NodeComponent) => {
 						<NodeComponent {...props} />
 					</div>
 				</ContextMenuTrigger>
-				<ContextMenuContent className="w-40">
+				<ContextMenuContent
+					className="w-40"
+					onCloseAutoFocus={(e) => e.preventDefault()}
+				>
 					<ContextMenuItem
 						variant="destructive"
 						disabled={!canDelete}
 						onSelect={(event) => {
 							event.preventDefault();
+							onContextMenuAction?.();
 							if (!canDelete) return;
 							onDeleteNode?.(props.id);
 						}}
@@ -420,11 +425,13 @@ function DialogueEditorPage() {
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
+	const [isEdgeCascadeDeleteOpen, setIsEdgeCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [previewActiveNodeRef, setPreviewActiveNodeRef] = useState(null);
 	const previewOriginRef = useRef(null);
 	const graphLoadKeyRef = useRef('');
 	const hasPendingNodeDataEditsRef = useRef(false);
+	const lastContextMenuActionRef = useRef(0);
 	const headerRef = useRef(null);
 	const bottomToolbarRef = useRef(null);
 	const bodyOverflowRef = useRef(null);
@@ -461,7 +468,7 @@ function DialogueEditorPage() {
 	}, []);
 
 	useLayoutEffect(() => {
-		if (deviceType === 'mobile') {
+		if (deviceType !== 'desktop') {
 			setHideBottomToolbarMeta(false);
 			return undefined;
 		}
@@ -484,7 +491,7 @@ function DialogueEditorPage() {
 	}, [deviceType]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') {
+		if (deviceType === 'desktop') {
 			if (bodyOverflowRef.current !== null) {
 				document.body.style.overflow = bodyOverflowRef.current;
 				bodyOverflowRef.current = null;
@@ -594,7 +601,7 @@ function DialogueEditorPage() {
 	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance, contentLocale]);
 
 	const isMobileGraphLoading =
-		deviceType === 'mobile' &&
+		deviceType !== 'desktop' &&
 		(!hasGraphInitialized || (!hasLoadedViewport && (!hasInitialLayout || !hasInitialFocus)));
 
 	useEffect(() => {
@@ -604,7 +611,7 @@ function DialogueEditorPage() {
 	}, [dialogueId]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') {
+		if (deviceType === 'desktop') {
 			setShowMobileGraphLoader(false);
 			setMobileLoadProgress(100);
 			mobileLoaderStartedAtRef.current = null;
@@ -620,7 +627,7 @@ function DialogueEditorPage() {
 	}, [deviceType, isMobileGraphLoading]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') return;
+		if (deviceType === 'desktop') return;
 
 		let target = 15;
 		if (hasGraphInitialized) target = 55;
@@ -631,7 +638,7 @@ function DialogueEditorPage() {
 	}, [deviceType, hasGraphInitialized, hasInitialLayout, hasLoadedViewport, hasInitialFocus]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') return;
+		if (deviceType === 'desktop') return;
 
 		if (!isMobileGraphLoading) {
 			setMobileLoadProgress(100);
@@ -652,7 +659,7 @@ function DialogueEditorPage() {
 	}, [deviceType, isMobileGraphLoading]);
 
 	useEffect(() => {
-		if (deviceType === 'mobile') {
+		if (deviceType !== 'desktop') {
 			setShowDesktopGraphLoader(false);
 			return;
 		}
@@ -747,7 +754,7 @@ function DialogueEditorPage() {
 	}, [reactFlowInstance]);
 
 	useEffect(() => {
-		if (deviceType === 'mobile') return;
+		if (deviceType !== 'desktop') return;
 		if (!hasGraphInitialized) return;
 
 		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus && !hasLoadedViewport) {
@@ -1107,11 +1114,11 @@ function DialogueEditorPage() {
 			if (!edge) return;
 			setSelectedNode(null);
 			setSelectedEdge(edge);
-			if (deviceType === 'mobile') {
-				setIsMobilePanelOpen(true);
-			}
+			// On desktop, the drawer opens automatically via its open condition.
+			// On mobile/tablet, the edge action bar shows first; panel opens only when the user
+			// explicitly taps the panel-open button there.
 		},
-		[edges, deviceType]
+		[edges]
 	);
 
 	const updateEdgeData = useCallback(
@@ -1191,19 +1198,21 @@ function DialogueEditorPage() {
 	const onNodeClick = useCallback((event, node) => {
 		// Skip placeholder nodes
 		if (node.type === 'placeholderNode') return;
+		// Suppress click if it follows a context-menu action (Radix focus-restoration artifact)
+		if (Date.now() - lastContextMenuActionRef.current < 300) return;
 
 		setSelectedNode(node);
 		setSelectedEdge(null); // Deselect edge when node is selected
-	}, []);
+	}, [lastContextMenuActionRef]);
 
 	// Handle edge click
 	const onEdgeClick = useCallback((event, edge) => {
+		// Suppress click if it follows a context-menu action (Radix focus-restoration artifact)
+		if (Date.now() - lastContextMenuActionRef.current < 300) return;
 		setSelectedEdge(edge);
 		setSelectedNode(null); // Deselect node when edge is selected
-		if (deviceType === 'mobile') {
-			setIsMobilePanelOpen(true);
-		}
-	}, [deviceType]);
+		// On mobile/tablet, the edge action bar handles the panel open — don't auto-open here
+	}, [lastContextMenuActionRef]);
 
 	// Handle pane click (deselect all)
 	const onPaneClick = useCallback(() => {
@@ -1245,6 +1254,17 @@ function DialogueEditorPage() {
 
 		setSelectedNode((current) => (current?.id === nodeId ? null : current));
 	}, [setNodes, setEdges, saveToHistory, markUnsaved]);
+
+	const deleteEdgeById = useCallback((edgeId) => {
+		if (!edgeId) return;
+		setEdges((eds) => {
+			const updatedEdges = eds.filter((e) => e.id !== edgeId);
+			saveToHistory(nodes, updatedEdges);
+			markUnsaved();
+			return updatedEdges;
+		});
+		setSelectedEdge((current) => (current?.id === edgeId ? null : current));
+	}, [nodes, setEdges, saveToHistory, markUnsaved]);
 
 	// Delete selected node
 	const deleteSelectedNode = useCallback(() => {
@@ -1298,6 +1318,74 @@ function DialogueEditorPage() {
 
 		setSelectedNode(null);
 	}, [selectedNode, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
+
+	// Checks if edge is the only incoming connection to its target, then either
+	// opens cascade-delete dialog or deletes the edge directly.
+	const handleMobileEdgeDelete = useCallback(() => {
+		if (!selectedEdge) return;
+		const otherIncoming = edges.filter(
+			(e) => e.target === selectedEdge.target && e.id !== selectedEdge.id
+		);
+		if (otherIncoming.length === 0) {
+			setIsEdgeCascadeDeleteOpen(true);
+		} else {
+			setEdges((eds) => {
+				const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
+				saveToHistory(nodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+			setSelectedEdge(null);
+		}
+	}, [selectedEdge, edges, nodes, setEdges, saveToHistory, markUnsaved]);
+
+	// Cascade-deletes the target node (and its descendants) plus the edge itself.
+	const deleteSelectedEdgeCascade = useCallback(() => {
+		if (!selectedEdge) return;
+		const targetId = selectedEdge.target;
+		const nodeIdsToRemove = new Set([targetId]);
+		const queue = [targetId];
+
+		while (queue.length > 0) {
+			const currentId = queue.shift();
+			edges.forEach((edge) => {
+				if (edge.source === currentId && !nodeIdsToRemove.has(edge.target)) {
+					nodeIdsToRemove.add(edge.target);
+					queue.push(edge.target);
+				}
+			});
+		}
+
+		setNodes((nds) => {
+			const placeholderIdsToRemove = nds
+				.filter(
+					(n) =>
+						n.type === 'placeholderNode' &&
+						nodeIdsToRemove.has(n.data?.parentNodeId)
+				)
+				.map((n) => n.id);
+
+			placeholderIdsToRemove.forEach((id) => nodeIdsToRemove.add(id));
+
+			const updatedNodes = nds.filter((n) => !nodeIdsToRemove.has(n.id));
+
+			setEdges((eds) => {
+				const updatedEdges = eds.filter(
+					(e) =>
+						e.id !== selectedEdge.id &&
+						!nodeIdsToRemove.has(e.source) &&
+						!nodeIdsToRemove.has(e.target)
+				);
+				saveToHistory(updatedNodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+
+			return updatedNodes;
+		});
+
+		setSelectedEdge(null);
+	}, [selectedEdge, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	const getMissingRequiredNodes = useCallback(() => {
 		const missingNodes = new Map();
@@ -1376,7 +1464,7 @@ function DialogueEditorPage() {
 					onClick: () => {
 						setSelectedNode(node);
 						setSelectedEdge(null);
-						if (deviceType === 'mobile') {
+						if (deviceType !== 'desktop') {
 							setIsMobilePanelOpen(true);
 						}
 					},
@@ -1436,7 +1524,7 @@ function DialogueEditorPage() {
 	}, [dialogueId]);
 
 	const handleStartPreview = useCallback(() => {
-		if (deviceType === 'mobile') return;
+		if (deviceType !== 'desktop') return;
 
 		const missingRequiredNodes = getMissingRequiredNodes();
 		if (missingRequiredNodes.size > 0) {
@@ -1803,9 +1891,9 @@ function DialogueEditorPage() {
 			showValidationToasts,
 	]);
 
-	// Add placeholders to nodes on mobile
+	// Add placeholders to nodes on mobile/tablet
 	useEffect(() => {
-		if (deviceType !== 'mobile' || nodes.length === 0) return;
+		if (deviceType === 'desktop' || nodes.length === 0) return;
 
 		const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
 		const placeholderNodes = nodes.filter((n) => n.type === 'placeholderNode');
@@ -1929,9 +2017,9 @@ function DialogueEditorPage() {
 		focusStartNode();
 	}, [focusStartNode]);
 
-	// Auto-apply layout on mobile when nodes change
+	// Auto-apply layout on mobile/tablet when nodes change
 	useEffect(() => {
-		if (deviceType !== 'mobile' || !hasGraphInitialized) return;
+		if (deviceType === 'desktop' || !hasGraphInitialized) return;
 
 		const regularNodeCount = nodes.filter((n) => n.type !== 'placeholderNode').length;
 		const placeholderCount = nodes.length - regularNodeCount;
@@ -2041,7 +2129,7 @@ function DialogueEditorPage() {
 					deleteSelectedNode();
 				}
 				// Delete selected edge
-				else if (selectedEdge && deviceType !== 'mobile') {
+				else if (selectedEdge && deviceType === 'desktop') {
 					setEdges((eds) => {
 						const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
 						saveToHistory(nodes, updatedEdges);
@@ -2107,6 +2195,7 @@ function DialogueEditorPage() {
 				data: {
 					...edge.data,
 					onOpenDetails: openEdgeDetails,
+					onDeleteEdge: (edgeId) => { lastContextMenuActionRef.current = Date.now(); deleteEdgeById(edgeId); },
 				},
 				animated: selectedEdge?.id === edge.id,
 				style: {
@@ -2115,7 +2204,7 @@ function DialogueEditorPage() {
 					strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
 				},
 			})),
-		[edges, selectedEdge, openEdgeDetails]
+		[edges, selectedEdge, openEdgeDetails, deleteEdgeById]
 	);
 
 	// Handle drag start for node spawning
@@ -2337,6 +2426,7 @@ function DialogueEditorPage() {
 	const nodeContextMenuValue = useMemo(
 		() => ({
 			onDeleteNode: deleteNodeById,
+			onContextMenuAction: () => { lastContextMenuActionRef.current = Date.now(); },
 		}),
 		[deleteNodeById]
 	);
@@ -2352,7 +2442,7 @@ function DialogueEditorPage() {
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
 			{/* Onboarding Tour - Desktop only */}
-			{deviceType !== 'mobile' && (
+			{deviceType === 'desktop' && (
 				<OnboardingTour
 					run={runTour}
 					onFinish={finishTour}
@@ -2411,7 +2501,7 @@ function DialogueEditorPage() {
 															shortcut: 'Ctrl+E',
 															onSelect: handleExport,
 														},
-														...(deviceType !== 'mobile'
+														...(deviceType === 'desktop'
 															? [
 																	{
 																		icon: PlayCircle,
@@ -2505,7 +2595,7 @@ function DialogueEditorPage() {
 															shortcut: '',
 															onSelect: handleFocusStartNode,
 														},
-														...(deviceType !== 'mobile'
+														...(deviceType === 'desktop'
 															? [
 																	{
 																		icon: HelpCircle,
@@ -2563,8 +2653,8 @@ function DialogueEditorPage() {
 				{/* ReactFlow Canvas */}
 				<div
 					className="flex-1 relative"
-					onDrop={deviceType !== 'mobile' ? onDrop : undefined}
-					onDragOver={deviceType !== 'mobile' ? onDragOver : undefined}
+					onDrop={deviceType === 'desktop' ? onDrop : undefined}
+					onDragOver={deviceType === 'desktop' ? onDragOver : undefined}
 					data-tour="canvas"
 				>
 					<NodeContextMenuProvider value={nodeContextMenuValue}>
@@ -2585,13 +2675,13 @@ function DialogueEditorPage() {
 					className="bg-grid"
 					proOptions={{ hideAttribution: true }}
 					// Mobile: Disable node dragging but allow manual panning via drag
-					nodesDraggable={deviceType !== 'mobile'}
+					nodesDraggable={deviceType === 'desktop'}
 					panOnDrag={true}
 					panOnScroll={false}
-					zoomOnScroll={deviceType !== 'mobile'}
+					zoomOnScroll={deviceType === 'desktop'}
 					zoomOnPinch={false}
 					zoomOnDoubleClick={false}
-					nodesConnectable={deviceType !== 'mobile'}
+					nodesConnectable={deviceType === 'desktop'}
 					elementsSelectable={true}
 					minZoom={FLOW_MIN_ZOOM}
 					maxZoom={FLOW_MAX_ZOOM}
@@ -2627,7 +2717,7 @@ function DialogueEditorPage() {
 							/>
 						</div>
 					</Panel>
-					{deviceType !== 'mobile' && (
+					{deviceType === 'desktop' && (
 						<MiniMap
 							nodeColor={getMinimapColor}
 							className="!bg-card !border !border-border !rounded-lg !shadow-lg"
@@ -2638,7 +2728,7 @@ function DialogueEditorPage() {
 				</ReactFlow>
 					</NodeContextMenuProvider>
 
-					{deviceType !== 'mobile' && (
+					{deviceType === 'desktop' && (
 						<DialoguePreviewOverlay
 							open={isPreviewOpen}
 							nodes={nodes}
@@ -2655,7 +2745,7 @@ function DialogueEditorPage() {
 			</div>
 
 			{/* Mobile Node Action Bar */}
-			{deviceType === 'mobile' && selectedNode && (
+			{deviceType !== 'desktop' && selectedNode && (
 				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
 					<span className="text-sm font-medium truncate max-w-32">
 						{selectedNode.data.displayName || selectedNode.type?.replace('Node', '')}
@@ -2695,7 +2785,7 @@ function DialogueEditorPage() {
 			)}
 
 			{/* Mobile Cascade Delete Confirmation */}
-			{deviceType === 'mobile' && (
+			{deviceType !== 'desktop' && (
 				<AlertDialog open={isCascadeDeleteOpen} onOpenChange={setIsCascadeDeleteOpen}>
 					<AlertDialogContent variant="destructive" size="sm">
 						<AlertDialogHeader>
@@ -2723,29 +2813,96 @@ function DialogueEditorPage() {
 				</AlertDialog>
 			)}
 
+			{/* Mobile Edge Action Bar */}
+			{deviceType !== 'desktop' && selectedEdge && !selectedNode && (
+				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
+					<span className="text-sm font-medium truncate max-w-32">
+						{t('editor.edgeDetails')}
+					</span>
+					<div className="h-4 w-px bg-border" />
+					<div className="flex items-center gap-1">
+						<ButtonGroup>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setIsMobilePanelOpen(true)}
+							>
+								<PanelRightOpen className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+								onClick={handleMobileEdgeDelete}
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setSelectedEdge(null)}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</ButtonGroup>
+					</div>
+				</div>
+			)}
+
+			{/* Mobile Edge Cascade Delete Confirmation */}
+			{deviceType !== 'desktop' && (
+				<AlertDialog open={isEdgeCascadeDeleteOpen} onOpenChange={setIsEdgeCascadeDeleteOpen}>
+					<AlertDialogContent variant="destructive" size="sm">
+						<AlertDialogHeader>
+							<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+								<Trash2 className="h-6 w-6" />
+							</AlertDialogMedia>
+							<AlertDialogTitle>{t('editor.deleteEdgeCascadeTitle')}</AlertDialogTitle>
+							<AlertDialogDescription>
+								{t('editor.deleteEdgeCascadeDescription')}
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel variant="outline">{t('common.cancel')}</AlertDialogCancel>
+							<AlertDialogAction
+								variant="destructive"
+								onClick={() => {
+									setIsEdgeCascadeDeleteOpen(false);
+									deleteSelectedEdgeCascade();
+								}}
+							>
+								{t('editor.deleteEdgeCascadeConfirm')}
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			)}
+
 			{/* Node Properties Drawer */}
 			<Drawer
 				open={
-					deviceType === 'mobile'
+					deviceType !== 'desktop'
 						? Boolean((selectedNode || selectedEdge) && isMobilePanelOpen)
 						: Boolean(selectedNode || selectedEdge)
 				}
 				onOpenChange={(open) => {
 					if (open) return;
-					if (deviceType === 'mobile') {
+					if (deviceType !== 'desktop') {
 						setIsMobilePanelOpen(false);
 					} else {
 						setSelectedNode(null);
 						setSelectedEdge(null);
 					}
 				}}
-				direction={deviceType === 'mobile' ? 'bottom' : 'right'}
+				direction={deviceType !== 'desktop' ? 'bottom' : 'right'}
 			>
 				<DrawerContent
-					side={deviceType === 'mobile' ? 'bottom' : 'right'}
-					size={deviceType === 'mobile' ? 'md' : '2xl'}
+					side={deviceType !== 'desktop' ? 'bottom' : 'right'}
+					size={deviceType !== 'desktop' ? 'md' : '2xl'}
 					className={
-						deviceType === 'mobile'
+						deviceType !== 'desktop'
 							? 'max-h-[82vh] overscroll-contain touch-pan-y'
 							: null
 					}
@@ -2763,7 +2920,7 @@ function DialogueEditorPage() {
 										variant="ghost"
 										size="icon"
 										onClick={() => {
-											if (deviceType === 'mobile') {
+											if (deviceType !== 'desktop') {
 												setIsMobilePanelOpen(false);
 											} else {
 												setSelectedNode(null);
@@ -2800,7 +2957,7 @@ function DialogueEditorPage() {
 										variant="ghost"
 										size="icon"
 										onClick={() => {
-											if (deviceType === 'mobile') {
+											if (deviceType !== 'desktop') {
 												setIsMobilePanelOpen(false);
 											} else {
 												setSelectedEdge(null);
@@ -2844,7 +3001,7 @@ function DialogueEditorPage() {
 			</div>
 
 			{/* Bottom Toolbar - Hidden on mobile */}
-			{deviceType !== 'mobile' && (
+			{deviceType === 'desktop' && (
 			<div
 				ref={bottomToolbarRef}
 				className={`border-t bg-card px-6 py-3 flex items-center gap-4 transition-opacity ${
@@ -2993,7 +3150,7 @@ function DialogueEditorPage() {
 			/>
 
 			{showMobileGraphLoader &&
-				deviceType === 'mobile' &&
+				deviceType !== 'desktop' &&
 				typeof document !== 'undefined' &&
 				createPortal(
 					<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-2xl backdrop-saturate-150">
@@ -3017,7 +3174,7 @@ function DialogueEditorPage() {
 				)}
 
 			{showDesktopGraphLoader &&
-				deviceType !== 'mobile' &&
+				deviceType === 'desktop' &&
 				typeof document !== 'undefined' &&
 				createPortal(
 					<div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/35 backdrop-blur-xl backdrop-saturate-125">

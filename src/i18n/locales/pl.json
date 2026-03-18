@@ -216,6 +216,9 @@
 		"deleteCascadeTitle": "Usunąć węzeł i potomne?",
 		"deleteCascadeDescription": "Usunięcie tego węzła spowoduje usunięcie wszystkich węzłów potomnych. Tej operacji nie można cofnąć.",
 		"deleteCascadeConfirm": "Usuń wszystko",
+		"deleteEdgeCascadeTitle": "Usunąć krawędź i następne węzły?",
+		"deleteEdgeCascadeDescription": "To jedyne połączenie do węzła docelowego. Usunięcie tej krawędzi spowoduje również usunięcie węzła docelowego i wszystkich jego potomnych. Tej operacji nie można cofnąć.",
+		"deleteEdgeCascadeConfirm": "Usuń krawędź i węzły",
 		"sections": {
 			"nodeData": "Dane węzła",
 			"dialogueDetails": "Szczegóły dialogu",

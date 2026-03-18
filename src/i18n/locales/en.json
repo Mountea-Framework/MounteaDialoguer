@@ -274,6 +274,9 @@
 		"deleteCascadeTitle": "Delete Node and Children?",
 		"deleteCascadeDescription": "Deleting this node will delete all child nodes. This action cannot be undone.",
 		"deleteCascadeConfirm": "Delete All",
+		"deleteEdgeCascadeTitle": "Delete Edge and Following Nodes?",
+		"deleteEdgeCascadeDescription": "This is the only connection to the target node. Deleting this edge will also delete the target node and all its children. This action cannot be undone.",
+		"deleteEdgeCascadeConfirm": "Delete Edge and Nodes",
 		"sections": {
 			"nodeData": "Node Data",
 			"dialogueDetails": "Dialogue Details",
