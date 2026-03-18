@@ -1785,13 +1785,34 @@ function DialogueEditorPage() {
 				.map((e) => e.target)
 		);
 
-		const candidates = nodes.filter(
-			(n) =>
-				n.type !== 'placeholderNode' &&
-				n.id !== parentNodeId &&
-				n.id !== START_NODE_ID &&
-				!alreadyConnected.has(n.id)
-		);
+		// Build adjacency map for non-placeholder edges (target → sources that reach it)
+		// Used for cycle detection: a candidate would create a cycle if it can already
+		// reach parentNodeId through the existing graph (candidate → ... → parentNodeId).
+		const reachableFrom = (startId) => {
+			const visited = new Set();
+			const queue = [startId];
+			while (queue.length > 0) {
+				const cur = queue.shift();
+				if (visited.has(cur)) continue;
+				visited.add(cur);
+				edges
+					.filter((e) => e.source === cur && !e.data?.isPlaceholder)
+					.forEach((e) => queue.push(e.target));
+			}
+			return visited;
+		};
+
+		const candidates = nodes.filter((n) => {
+			if (n.type === 'placeholderNode') return false;
+			if (n.id === parentNodeId) return false;
+			if (n.id === START_NODE_ID) return false;
+			if (alreadyConnected.has(n.id)) return false;
+			// Exclude nodes that can already reach parentNodeId — connecting them
+			// would create a cycle.
+			const reachable = reachableFrom(n.id);
+			if (reachable.has(parentNodeId)) return false;
+			return true;
+		});
 
 		setConnectionCandidateNodes(candidates);
 		setIsNodeTypeModalOpen(false);

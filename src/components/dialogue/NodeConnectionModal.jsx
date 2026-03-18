@@ -1,91 +1,80 @@
 import { useState } from 'react';
-import { Link2, MessageCircle, User, CornerUpLeft, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
 import {
 	Drawer,
 	DrawerContent,
 	DrawerHeader,
 	DrawerTitle,
 	DrawerDescription,
+	DrawerFooter,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { getNodeDefinition } from '@/config/dialogueNodes';
-
-const iconMap = {
-	messageCircle: MessageCircle,
-	user: User,
-	cornerUpLeft: CornerUpLeft,
-	checkCircle2: CheckCircle2,
-	clock: Clock,
-	externalLink: ExternalLink,
-};
 
 /**
  * Node Connection Modal Component
  * Allows mobile users to connect a placeholder's parent node to an already-existing node.
+ * Uses a Vaul bottom-drawer with a NativeSelect for node selection.
  */
 export function NodeConnectionModal({ open, onOpenChange, candidateNodes, onSelectNode }) {
-	const [search, setSearch] = useState('');
+	const [selectedId, setSelectedId] = useState('');
 
 	const handleOpenChange = (v) => {
 		onOpenChange(v);
-		if (!v) setSearch('');
+		if (!v) setSelectedId('');
 	};
 
-	const filtered = (candidateNodes || []).filter((n) =>
-		(n.data?.displayName || '').toLowerCase().includes(search.toLowerCase())
-	);
+	const handleConnect = () => {
+		if (!selectedId) return;
+		onSelectNode(selectedId);
+		handleOpenChange(false);
+	};
+
+	const nodes = candidateNodes || [];
 
 	return (
 		<Drawer open={open} onOpenChange={handleOpenChange}>
-			<DrawerContent>
-				<DrawerHeader>
+			<DrawerContent className="max-h-[92vh] flex flex-col">
+				<DrawerHeader className="text-left">
 					<DrawerTitle>Connect to Existing Node</DrawerTitle>
 					<DrawerDescription>Select a node to connect to</DrawerDescription>
 				</DrawerHeader>
-				<div className="px-4 pb-2">
-					<Input
-						placeholder="Search nodes..."
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						className="mb-3"
-					/>
-					<div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pb-4">
-						{filtered.length === 0 ? (
-							<p className="text-sm text-muted-foreground text-center py-6">
-								No connectable nodes
-							</p>
-						) : (
-							filtered.map((n) => {
+
+				<div className="no-scrollbar flex-1 min-h-0 overflow-y-auto px-4 py-2">
+					{nodes.length === 0 ? (
+						<p className="text-sm text-muted-foreground text-center py-6">
+							No connectable nodes available
+						</p>
+					) : (
+						<NativeSelect
+							value={selectedId}
+							onChange={(e) => setSelectedId(e.target.value)}
+						>
+							<option value="" disabled>
+								Choose a node…
+							</option>
+							{nodes.map((n) => {
 								const def = getNodeDefinition(n.type) || {};
-								const Icon = iconMap[def.icon] || Link2;
+								const displayName = n.data?.displayName || def.label || n.id;
+								const typeLabel = def.label && def.label !== displayName ? ` (${def.label})` : '';
 								return (
-									<Button
-										key={n.id}
-										variant="outline"
-										className="h-auto p-4 justify-start gap-4"
-										onClick={() => {
-											onSelectNode(n.id);
-											handleOpenChange(false);
-										}}
-									>
-										<div
-											className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center ${def.colorClass || ''}`}
-										>
-											<Icon className="h-5 w-5" />
-										</div>
-										<div className="flex flex-col items-start gap-0.5 text-left">
-											<span className="font-semibold">
-												{n.data?.displayName || def.label}
-											</span>
-											<span className="text-xs text-muted-foreground">{def.label}</span>
-										</div>
-									</Button>
+									<option key={n.id} value={n.id}>
+										{displayName}{typeLabel}
+									</option>
 								);
-							})
-						)}
-					</div>
+							})}
+						</NativeSelect>
+					)}
 				</div>
+
+				<DrawerFooter className="border-t border-border/60 bg-background">
+					<Button onClick={handleConnect} disabled={!selectedId || nodes.length === 0}>
+						Connect
+					</Button>
+					<Button variant="ghost" onClick={() => handleOpenChange(false)}>
+						Cancel
+					</Button>
+				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
 	);
