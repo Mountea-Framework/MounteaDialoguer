@@ -461,7 +461,7 @@ function DialogueEditorPage() {
 	}, []);
 
 	useLayoutEffect(() => {
-		if (deviceType === 'mobile') {
+		if (deviceType !== 'desktop') {
 			setHideBottomToolbarMeta(false);
 			return undefined;
 		}
@@ -484,7 +484,7 @@ function DialogueEditorPage() {
 	}, [deviceType]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') {
+		if (deviceType === 'desktop') {
 			if (bodyOverflowRef.current !== null) {
 				document.body.style.overflow = bodyOverflowRef.current;
 				bodyOverflowRef.current = null;
@@ -594,7 +594,7 @@ function DialogueEditorPage() {
 	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance, contentLocale]);
 
 	const isMobileGraphLoading =
-		deviceType === 'mobile' &&
+		deviceType !== 'desktop' &&
 		(!hasGraphInitialized || (!hasLoadedViewport && (!hasInitialLayout || !hasInitialFocus)));
 
 	useEffect(() => {
@@ -604,7 +604,7 @@ function DialogueEditorPage() {
 	}, [dialogueId]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') {
+		if (deviceType === 'desktop') {
 			setShowMobileGraphLoader(false);
 			setMobileLoadProgress(100);
 			mobileLoaderStartedAtRef.current = null;
@@ -620,7 +620,7 @@ function DialogueEditorPage() {
 	}, [deviceType, isMobileGraphLoading]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') return;
+		if (deviceType === 'desktop') return;
 
 		let target = 15;
 		if (hasGraphInitialized) target = 55;
@@ -631,7 +631,7 @@ function DialogueEditorPage() {
 	}, [deviceType, hasGraphInitialized, hasInitialLayout, hasLoadedViewport, hasInitialFocus]);
 
 	useEffect(() => {
-		if (deviceType !== 'mobile') return;
+		if (deviceType === 'desktop') return;
 
 		if (!isMobileGraphLoading) {
 			setMobileLoadProgress(100);
@@ -652,7 +652,7 @@ function DialogueEditorPage() {
 	}, [deviceType, isMobileGraphLoading]);
 
 	useEffect(() => {
-		if (deviceType === 'mobile') {
+		if (deviceType !== 'desktop') {
 			setShowDesktopGraphLoader(false);
 			return;
 		}
@@ -747,7 +747,7 @@ function DialogueEditorPage() {
 	}, [reactFlowInstance]);
 
 	useEffect(() => {
-		if (deviceType === 'mobile') return;
+		if (deviceType !== 'desktop') return;
 		if (!hasGraphInitialized) return;
 
 		if (reactFlowInstance && nodes.length > 0 && !hasInitialFocus && !hasLoadedViewport) {
@@ -1107,7 +1107,7 @@ function DialogueEditorPage() {
 			if (!edge) return;
 			setSelectedNode(null);
 			setSelectedEdge(edge);
-			if (deviceType === 'mobile') {
+			if (deviceType !== 'desktop') {
 				setIsMobilePanelOpen(true);
 			}
 		},
@@ -1200,7 +1200,7 @@ function DialogueEditorPage() {
 	const onEdgeClick = useCallback((event, edge) => {
 		setSelectedEdge(edge);
 		setSelectedNode(null); // Deselect node when edge is selected
-		if (deviceType === 'mobile') {
+		if (deviceType !== 'desktop') {
 			setIsMobilePanelOpen(true);
 		}
 	}, [deviceType]);
@@ -1376,7 +1376,7 @@ function DialogueEditorPage() {
 					onClick: () => {
 						setSelectedNode(node);
 						setSelectedEdge(null);
-						if (deviceType === 'mobile') {
+						if (deviceType !== 'desktop') {
 							setIsMobilePanelOpen(true);
 						}
 					},
@@ -1436,7 +1436,7 @@ function DialogueEditorPage() {
 	}, [dialogueId]);
 
 	const handleStartPreview = useCallback(() => {
-		if (deviceType === 'mobile') return;
+		if (deviceType !== 'desktop') return;
 
 		const missingRequiredNodes = getMissingRequiredNodes();
 		if (missingRequiredNodes.size > 0) {
@@ -1803,9 +1803,9 @@ function DialogueEditorPage() {
 			showValidationToasts,
 	]);
 
-	// Add placeholders to nodes on mobile
+	// Add placeholders to nodes on mobile/tablet
 	useEffect(() => {
-		if (deviceType !== 'mobile' || nodes.length === 0) return;
+		if (deviceType === 'desktop' || nodes.length === 0) return;
 
 		const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
 		const placeholderNodes = nodes.filter((n) => n.type === 'placeholderNode');
@@ -1929,9 +1929,9 @@ function DialogueEditorPage() {
 		focusStartNode();
 	}, [focusStartNode]);
 
-	// Auto-apply layout on mobile when nodes change
+	// Auto-apply layout on mobile/tablet when nodes change
 	useEffect(() => {
-		if (deviceType !== 'mobile' || !hasGraphInitialized) return;
+		if (deviceType === 'desktop' || !hasGraphInitialized) return;
 
 		const regularNodeCount = nodes.filter((n) => n.type !== 'placeholderNode').length;
 		const placeholderCount = nodes.length - regularNodeCount;
@@ -2041,7 +2041,7 @@ function DialogueEditorPage() {
 					deleteSelectedNode();
 				}
 				// Delete selected edge
-				else if (selectedEdge && deviceType !== 'mobile') {
+				else if (selectedEdge && deviceType === 'desktop') {
 					setEdges((eds) => {
 						const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
 						saveToHistory(nodes, updatedEdges);
@@ -2352,7 +2352,7 @@ function DialogueEditorPage() {
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
 			{/* Onboarding Tour - Desktop only */}
-			{deviceType !== 'mobile' && (
+			{deviceType === 'desktop' && (
 				<OnboardingTour
 					run={runTour}
 					onFinish={finishTour}
@@ -2411,7 +2411,7 @@ function DialogueEditorPage() {
 															shortcut: 'Ctrl+E',
 															onSelect: handleExport,
 														},
-														...(deviceType !== 'mobile'
+														...(deviceType === 'desktop'
 															? [
 																	{
 																		icon: PlayCircle,
@@ -2505,7 +2505,7 @@ function DialogueEditorPage() {
 															shortcut: '',
 															onSelect: handleFocusStartNode,
 														},
-														...(deviceType !== 'mobile'
+														...(deviceType === 'desktop'
 															? [
 																	{
 																		icon: HelpCircle,
@@ -2563,8 +2563,8 @@ function DialogueEditorPage() {
 				{/* ReactFlow Canvas */}
 				<div
 					className="flex-1 relative"
-					onDrop={deviceType !== 'mobile' ? onDrop : undefined}
-					onDragOver={deviceType !== 'mobile' ? onDragOver : undefined}
+					onDrop={deviceType === 'desktop' ? onDrop : undefined}
+					onDragOver={deviceType === 'desktop' ? onDragOver : undefined}
 					data-tour="canvas"
 				>
 					<NodeContextMenuProvider value={nodeContextMenuValue}>
@@ -2585,13 +2585,13 @@ function DialogueEditorPage() {
 					className="bg-grid"
 					proOptions={{ hideAttribution: true }}
 					// Mobile: Disable node dragging but allow manual panning via drag
-					nodesDraggable={deviceType !== 'mobile'}
+					nodesDraggable={deviceType === 'desktop'}
 					panOnDrag={true}
 					panOnScroll={false}
-					zoomOnScroll={deviceType !== 'mobile'}
+					zoomOnScroll={deviceType === 'desktop'}
 					zoomOnPinch={false}
 					zoomOnDoubleClick={false}
-					nodesConnectable={deviceType !== 'mobile'}
+					nodesConnectable={deviceType === 'desktop'}
 					elementsSelectable={true}
 					minZoom={FLOW_MIN_ZOOM}
 					maxZoom={FLOW_MAX_ZOOM}
@@ -2627,7 +2627,7 @@ function DialogueEditorPage() {
 							/>
 						</div>
 					</Panel>
-					{deviceType !== 'mobile' && (
+					{deviceType === 'desktop' && (
 						<MiniMap
 							nodeColor={getMinimapColor}
 							className="!bg-card !border !border-border !rounded-lg !shadow-lg"
@@ -2638,7 +2638,7 @@ function DialogueEditorPage() {
 				</ReactFlow>
 					</NodeContextMenuProvider>
 
-					{deviceType !== 'mobile' && (
+					{deviceType === 'desktop' && (
 						<DialoguePreviewOverlay
 							open={isPreviewOpen}
 							nodes={nodes}
@@ -2655,7 +2655,7 @@ function DialogueEditorPage() {
 			</div>
 
 			{/* Mobile Node Action Bar */}
-			{deviceType === 'mobile' && selectedNode && (
+			{deviceType !== 'desktop' && selectedNode && (
 				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
 					<span className="text-sm font-medium truncate max-w-32">
 						{selectedNode.data.displayName || selectedNode.type?.replace('Node', '')}
@@ -2695,7 +2695,7 @@ function DialogueEditorPage() {
 			)}
 
 			{/* Mobile Cascade Delete Confirmation */}
-			{deviceType === 'mobile' && (
+			{deviceType !== 'desktop' && (
 				<AlertDialog open={isCascadeDeleteOpen} onOpenChange={setIsCascadeDeleteOpen}>
 					<AlertDialogContent variant="destructive" size="sm">
 						<AlertDialogHeader>
@@ -2726,26 +2726,26 @@ function DialogueEditorPage() {
 			{/* Node Properties Drawer */}
 			<Drawer
 				open={
-					deviceType === 'mobile'
+					deviceType !== 'desktop'
 						? Boolean((selectedNode || selectedEdge) && isMobilePanelOpen)
 						: Boolean(selectedNode || selectedEdge)
 				}
 				onOpenChange={(open) => {
 					if (open) return;
-					if (deviceType === 'mobile') {
+					if (deviceType !== 'desktop') {
 						setIsMobilePanelOpen(false);
 					} else {
 						setSelectedNode(null);
 						setSelectedEdge(null);
 					}
 				}}
-				direction={deviceType === 'mobile' ? 'bottom' : 'right'}
+				direction={deviceType !== 'desktop' ? 'bottom' : 'right'}
 			>
 				<DrawerContent
-					side={deviceType === 'mobile' ? 'bottom' : 'right'}
-					size={deviceType === 'mobile' ? 'md' : '2xl'}
+					side={deviceType !== 'desktop' ? 'bottom' : 'right'}
+					size={deviceType !== 'desktop' ? 'md' : '2xl'}
 					className={
-						deviceType === 'mobile'
+						deviceType !== 'desktop'
 							? 'max-h-[82vh] overscroll-contain touch-pan-y'
 							: null
 					}
@@ -2763,7 +2763,7 @@ function DialogueEditorPage() {
 										variant="ghost"
 										size="icon"
 										onClick={() => {
-											if (deviceType === 'mobile') {
+											if (deviceType !== 'desktop') {
 												setIsMobilePanelOpen(false);
 											} else {
 												setSelectedNode(null);
@@ -2800,7 +2800,7 @@ function DialogueEditorPage() {
 										variant="ghost"
 										size="icon"
 										onClick={() => {
-											if (deviceType === 'mobile') {
+											if (deviceType !== 'desktop') {
 												setIsMobilePanelOpen(false);
 											} else {
 												setSelectedEdge(null);
@@ -2844,7 +2844,7 @@ function DialogueEditorPage() {
 			</div>
 
 			{/* Bottom Toolbar - Hidden on mobile */}
-			{deviceType !== 'mobile' && (
+			{deviceType === 'desktop' && (
 			<div
 				ref={bottomToolbarRef}
 				className={`border-t bg-card px-6 py-3 flex items-center gap-4 transition-opacity ${
@@ -2993,7 +2993,7 @@ function DialogueEditorPage() {
 			/>
 
 			{showMobileGraphLoader &&
-				deviceType === 'mobile' &&
+				deviceType !== 'desktop' &&
 				typeof document !== 'undefined' &&
 				createPortal(
 					<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-2xl backdrop-saturate-150">
@@ -3017,7 +3017,7 @@ function DialogueEditorPage() {
 				)}
 
 			{showDesktopGraphLoader &&
-				deviceType !== 'mobile' &&
+				deviceType === 'desktop' &&
 				typeof document !== 'undefined' &&
 				createPortal(
 					<div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/35 backdrop-blur-xl backdrop-saturate-125">

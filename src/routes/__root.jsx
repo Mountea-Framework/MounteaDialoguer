@@ -22,7 +22,7 @@ import { initializeActiveProfileFromSteamStatus } from '@/lib/profile/activeProf
 import { getSyncProviderConfig } from '@/lib/sync/providers/providerRegistry';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
-import { isMobileDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
+import { isMobileDevice, isDesktopDevice, startDeviceOverrideListener } from '@/lib/deviceDetection';
 import {
 	Dialog,
 	DialogContent,
@@ -246,7 +246,7 @@ function RootComponent() {
 	useEffect(() => {
 		const applyScrollbarVisibility = () => {
 			if (typeof document === 'undefined') return;
-			const shouldHideScrollbars = !isMobileDevice();
+			const shouldHideScrollbars = isDesktopDevice();
 			document.documentElement.classList.toggle('hide-scrollbars', shouldHideScrollbars);
 		};
 
