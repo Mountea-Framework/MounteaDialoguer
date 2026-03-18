@@ -1,8 +1,16 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@xyflow/react';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 const ConditionEdge = memo((props) => {
+	const { t } = useTranslation();
 	const {
 		id,
 		sourceX,
@@ -42,27 +50,43 @@ const ConditionEdge = memo((props) => {
 							pointerEvents: 'all',
 						}}
 					>
-						<button
-							type="button"
-							className={`relative h-7 w-7 rounded-full border bg-background shadow-sm inline-flex items-center justify-center transition-colors ${
-								selected
-									? 'border-primary text-primary bg-background'
-									: hasConditions
-										? 'border-primary/50 text-primary bg-background hover:border-primary/70'
-									: 'border-border text-muted-foreground bg-background hover:text-foreground hover:border-primary/40'
-							}`}
-							onClick={(event) => {
-								event.preventDefault();
-								event.stopPropagation();
-								data?.onOpenDetails?.(id);
-							}}
-							aria-label="Open edge conditions"
-						>
-							<SlidersHorizontal className="h-3.5 w-3.5" />
-							{hasConditions && (
-								<span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary/80 ring-2 ring-background" />
-							)}
-						</button>
+						<ContextMenu>
+							<ContextMenuTrigger asChild>
+								<button
+									type="button"
+									className={`relative h-7 w-7 rounded-full border bg-background shadow-sm inline-flex items-center justify-center transition-colors ${
+										selected
+											? 'border-primary text-primary bg-background'
+											: hasConditions
+												? 'border-primary/50 text-primary bg-background hover:border-primary/70'
+											: 'border-border text-muted-foreground bg-background hover:text-foreground hover:border-primary/40'
+									}`}
+									onClick={(event) => {
+										event.preventDefault();
+										event.stopPropagation();
+										data?.onOpenDetails?.(id);
+									}}
+									aria-label="Open edge conditions"
+								>
+									<SlidersHorizontal className="h-3.5 w-3.5" />
+									{hasConditions && (
+										<span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary/80 ring-2 ring-background" />
+									)}
+								</button>
+							</ContextMenuTrigger>
+							<ContextMenuContent className="w-40">
+								<ContextMenuItem
+									variant="destructive"
+									onClick={(event) => {
+										event.stopPropagation();
+										data?.onDeleteEdge?.(id);
+									}}
+								>
+									<Trash2 className="h-4 w-4 mr-2" />
+									{t('common.delete')}
+								</ContextMenuItem>
+							</ContextMenuContent>
+						</ContextMenu>
 					</div>
 				</EdgeLabelRenderer>
 			)}

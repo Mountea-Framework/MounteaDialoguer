@@ -420,6 +420,7 @@ function DialogueEditorPage() {
 	const [pendingPlaceholderData, setPendingPlaceholderData] = useState(null);
 	const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
+	const [isEdgeCascadeDeleteOpen, setIsEdgeCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [previewActiveNodeRef, setPreviewActiveNodeRef] = useState(null);
 	const previewOriginRef = useRef(null);
@@ -1107,11 +1108,11 @@ function DialogueEditorPage() {
 			if (!edge) return;
 			setSelectedNode(null);
 			setSelectedEdge(edge);
-			if (deviceType !== 'desktop') {
-				setIsMobilePanelOpen(true);
-			}
+			// On desktop, the drawer opens automatically via its open condition.
+			// On mobile/tablet, the edge action bar shows first; panel opens only when the user
+			// explicitly taps the panel-open button there.
 		},
-		[edges, deviceType]
+		[edges]
 	);
 
 	const updateEdgeData = useCallback(
@@ -1200,10 +1201,8 @@ function DialogueEditorPage() {
 	const onEdgeClick = useCallback((event, edge) => {
 		setSelectedEdge(edge);
 		setSelectedNode(null); // Deselect node when edge is selected
-		if (deviceType !== 'desktop') {
-			setIsMobilePanelOpen(true);
-		}
-	}, [deviceType]);
+		// On mobile/tablet, the edge action bar handles the panel open — don't auto-open here
+	}, []);
 
 	// Handle pane click (deselect all)
 	const onPaneClick = useCallback(() => {
@@ -1245,6 +1244,17 @@ function DialogueEditorPage() {
 
 		setSelectedNode((current) => (current?.id === nodeId ? null : current));
 	}, [setNodes, setEdges, saveToHistory, markUnsaved]);
+
+	const deleteEdgeById = useCallback((edgeId) => {
+		if (!edgeId) return;
+		setEdges((eds) => {
+			const updatedEdges = eds.filter((e) => e.id !== edgeId);
+			saveToHistory(nodes, updatedEdges);
+			markUnsaved();
+			return updatedEdges;
+		});
+		setSelectedEdge((current) => (current?.id === edgeId ? null : current));
+	}, [nodes, setEdges, saveToHistory, markUnsaved]);
 
 	// Delete selected node
 	const deleteSelectedNode = useCallback(() => {
@@ -1298,6 +1308,74 @@ function DialogueEditorPage() {
 
 		setSelectedNode(null);
 	}, [selectedNode, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
+
+	// Checks if edge is the only incoming connection to its target, then either
+	// opens cascade-delete dialog or deletes the edge directly.
+	const handleMobileEdgeDelete = useCallback(() => {
+		if (!selectedEdge) return;
+		const otherIncoming = edges.filter(
+			(e) => e.target === selectedEdge.target && e.id !== selectedEdge.id
+		);
+		if (otherIncoming.length === 0) {
+			setIsEdgeCascadeDeleteOpen(true);
+		} else {
+			setEdges((eds) => {
+				const updatedEdges = eds.filter((e) => e.id !== selectedEdge.id);
+				saveToHistory(nodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+			setSelectedEdge(null);
+		}
+	}, [selectedEdge, edges, nodes, setEdges, saveToHistory, markUnsaved]);
+
+	// Cascade-deletes the target node (and its descendants) plus the edge itself.
+	const deleteSelectedEdgeCascade = useCallback(() => {
+		if (!selectedEdge) return;
+		const targetId = selectedEdge.target;
+		const nodeIdsToRemove = new Set([targetId]);
+		const queue = [targetId];
+
+		while (queue.length > 0) {
+			const currentId = queue.shift();
+			edges.forEach((edge) => {
+				if (edge.source === currentId && !nodeIdsToRemove.has(edge.target)) {
+					nodeIdsToRemove.add(edge.target);
+					queue.push(edge.target);
+				}
+			});
+		}
+
+		setNodes((nds) => {
+			const placeholderIdsToRemove = nds
+				.filter(
+					(n) =>
+						n.type === 'placeholderNode' &&
+						nodeIdsToRemove.has(n.data?.parentNodeId)
+				)
+				.map((n) => n.id);
+
+			placeholderIdsToRemove.forEach((id) => nodeIdsToRemove.add(id));
+
+			const updatedNodes = nds.filter((n) => !nodeIdsToRemove.has(n.id));
+
+			setEdges((eds) => {
+				const updatedEdges = eds.filter(
+					(e) =>
+						e.id !== selectedEdge.id &&
+						!nodeIdsToRemove.has(e.source) &&
+						!nodeIdsToRemove.has(e.target)
+				);
+				saveToHistory(updatedNodes, updatedEdges);
+				markUnsaved();
+				return updatedEdges;
+			});
+
+			return updatedNodes;
+		});
+
+		setSelectedEdge(null);
+	}, [selectedEdge, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	const getMissingRequiredNodes = useCallback(() => {
 		const missingNodes = new Map();
@@ -2107,6 +2185,7 @@ function DialogueEditorPage() {
 				data: {
 					...edge.data,
 					onOpenDetails: openEdgeDetails,
+					onDeleteEdge: deleteEdgeById,
 				},
 				animated: selectedEdge?.id === edge.id,
 				style: {
@@ -2115,7 +2194,7 @@ function DialogueEditorPage() {
 					strokeWidth: selectedEdge?.id === edge.id ? 3 : 2,
 				},
 			})),
-		[edges, selectedEdge, openEdgeDetails]
+		[edges, selectedEdge, openEdgeDetails, deleteEdgeById]
 	);
 
 	// Handle drag start for node spawning
@@ -2717,6 +2796,73 @@ function DialogueEditorPage() {
 								}}
 							>
 								{t('editor.deleteCascadeConfirm')}
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			)}
+
+			{/* Mobile Edge Action Bar */}
+			{deviceType !== 'desktop' && selectedEdge && !selectedNode && (
+				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-card border rounded-full shadow-lg px-4 py-2">
+					<span className="text-sm font-medium truncate max-w-32">
+						{t('editor.edgeDetails')}
+					</span>
+					<div className="h-4 w-px bg-border" />
+					<div className="flex items-center gap-1">
+						<ButtonGroup>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setIsMobilePanelOpen(true)}
+							>
+								<PanelRightOpen className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+								onClick={handleMobileEdgeDelete}
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => setSelectedEdge(null)}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</ButtonGroup>
+					</div>
+				</div>
+			)}
+
+			{/* Mobile Edge Cascade Delete Confirmation */}
+			{deviceType !== 'desktop' && (
+				<AlertDialog open={isEdgeCascadeDeleteOpen} onOpenChange={setIsEdgeCascadeDeleteOpen}>
+					<AlertDialogContent variant="destructive" size="sm">
+						<AlertDialogHeader>
+							<AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+								<Trash2 className="h-6 w-6" />
+							</AlertDialogMedia>
+							<AlertDialogTitle>{t('editor.deleteEdgeCascadeTitle')}</AlertDialogTitle>
+							<AlertDialogDescription>
+								{t('editor.deleteEdgeCascadeDescription')}
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel variant="outline">{t('common.cancel')}</AlertDialogCancel>
+							<AlertDialogAction
+								variant="destructive"
+								onClick={() => {
+									setIsEdgeCascadeDeleteOpen(false);
+									deleteSelectedEdgeCascade();
+								}}
+							>
+								{t('editor.deleteEdgeCascadeConfirm')}
 							</AlertDialogAction>
 						</AlertDialogFooter>
 					</AlertDialogContent>
