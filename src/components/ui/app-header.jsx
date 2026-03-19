@@ -107,15 +107,14 @@ export const AppHeader = forwardRef(function AppHeader(
 									</DropdownMenuContent>
 								</DropdownMenu>
 							) : null}
-						</div>
-						<div
+						</div>						
+						<div							
 							className={cn(
 								'hidden items-center gap-2 shrink-0 md:flex md:justify-end',
 								rightClassName
-							)}
+							)}							
 						>
 							{rightItems}
-							{menuButton}
 						</div>
 					</>
 				) : null}

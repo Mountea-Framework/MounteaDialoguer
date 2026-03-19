@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { NativeSelect } from '@/components/ui/native-select';
 import { useToast } from '@/components/ui/toaster';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -191,11 +192,21 @@ export function DialogueRowsPanel({
 		onChange(newRows);
 	};
 
-	// Auto-complete state for dynamic text
+	// Participant token insertion state
 	const [activeRowIndex, setActiveRowIndex] = useState(null);
-	const [autocompleteVisible, setAutocompleteVisible] = useState(false);
-	const [autocompleteFilter, setAutocompleteFilter] = useState('');
+	const [participantTokenFilter, setParticipantTokenFilter] = useState('');
+	const [participantTokenStart, setParticipantTokenStart] = useState(null);
+	const [participantTokenCursor, setParticipantTokenCursor] = useState(null);
+	const [participantSelectValue, setParticipantSelectValue] = useState('');
 	const textareaRefs = useRef({});
+
+	const closeParticipantPicker = () => {
+		setActiveRowIndex(null);
+		setParticipantTokenFilter('');
+		setParticipantTokenStart(null);
+		setParticipantTokenCursor(null);
+		setParticipantSelectValue('');
+	};
 
 	const handleTextChange = (index, value, event) => {
 		updateRow(index, { text: value });
@@ -212,47 +223,71 @@ export function DialogueRowsPanel({
 			// Check if we're still in the middle of typing a variable
 			if (!filterText.includes('}') && !filterText.includes(' ') && !filterText.includes('\n')) {
 				setActiveRowIndex(index);
-				setAutocompleteFilter(filterText.toLowerCase());
-				setAutocompleteVisible(true);
+				setParticipantTokenFilter(filterText.toLowerCase());
+				setParticipantTokenStart(dollarIndex);
+				setParticipantTokenCursor(cursorPos);
+				setParticipantSelectValue('');
 			} else {
-				setAutocompleteVisible(false);
+				closeParticipantPicker();
 			}
 		} else {
-			setAutocompleteVisible(false);
+			closeParticipantPicker();
 		}
 	};
 
-	const insertParticipant = (participantName) => {
-		if (activeRowIndex === null) return;
+	const insertParticipant = (rowIndex, participantName) => {
+		if (rowIndex === null || rowIndex === undefined) return;
+		if (participantTokenStart === null || participantTokenCursor === null) return;
 
-		const row = dialogueRows[activeRowIndex];
-		const textarea = textareaRefs.current[activeRowIndex];
+		const row = dialogueRows[rowIndex];
+		const textarea = textareaRefs.current[rowIndex];
 		if (!textarea) return;
-
-		const cursorPos = textarea.selectionStart;
-		const textBeforeCursor = row.text.substring(0, cursorPos);
-		const dollarIndex = textBeforeCursor.lastIndexOf('$');
 
 		// Replace from $ to cursor with ${participantName}
 		const newText =
-			row.text.substring(0, dollarIndex) +
+			row.text.substring(0, participantTokenStart) +
 			`\${${participantName}}` +
-			row.text.substring(cursorPos);
+			row.text.substring(participantTokenCursor);
 
-		updateRow(activeRowIndex, { text: newText });
-		setAutocompleteVisible(false);
+		updateRow(rowIndex, { text: newText });
+		closeParticipantPicker();
 
 		// Focus back on textarea
 		setTimeout(() => {
 			textarea.focus();
-			const newPos = dollarIndex + participantName.length + 3; // Position after ${name}
+			const newPos = participantTokenStart + participantName.length + 3; // Position after ${name}
 			textarea.setSelectionRange(newPos, newPos);
 		}, 0);
 	};
 
-	const filteredParticipants = participants.filter((p) =>
-		p.name.toLowerCase().includes(autocompleteFilter)
-	);
+	const buildParticipantGroups = (filter = '') => {
+		const normalizedFilter = String(filter || '').toLowerCase().trim();
+		const candidates = (participants || []).filter((participant) =>
+			String(participant?.name || '').toLowerCase().includes(normalizedFilter)
+		);
+		const list = candidates.length > 0 ? candidates : participants;
+		const groups = new Map();
+
+		list.forEach((participant) => {
+			const name = String(participant?.name || '').trim();
+			if (!name) return;
+			const category = String(participant?.category || 'Participants').trim() || 'Participants';
+			if (!groups.has(category)) {
+				groups.set(category, []);
+			}
+			groups.get(category).push({
+				id: participant.id,
+				name,
+			});
+		});
+
+		return Array.from(groups.entries())
+			.map(([label, options]) => ({
+				label,
+				options: options.sort((a, b) => a.name.localeCompare(b.name)),
+			}))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	};
 
 	// Handle audio file upload
 	const handleAudioUpload = async (index, file) => {
@@ -469,24 +504,37 @@ export function DialogueRowsPanel({
 												placeholder="Enter dialogue text... Type $ to insert participant names"
 												className="min-h-[100px] font-mono text-sm"
 											/>
-											{autocompleteVisible &&
-												activeRowIndex === index &&
-												filteredParticipants.length > 0 && (
-													<div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-														{filteredParticipants.map((participant) => (
-															<button
-																key={participant.id}
-																onClick={() => insertParticipant(participant.name)}
-																className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2"
-															>
-																<span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-																	{participant.name.charAt(0).toUpperCase()}
-																</span>
-																<span>{participant.name}</span>
-															</button>
+											{activeRowIndex === index && (
+												<div className="space-y-2">
+													<Label htmlFor={`participant-token-${row.id}`} className="text-xs text-muted-foreground">
+														Insert Participant
+													</Label>
+													<NativeSelect
+														id={`participant-token-${row.id}`}
+														value={participantSelectValue}
+														onChange={(e) => {
+															const selected = e.target.value;
+															setParticipantSelectValue(selected);
+															if (selected) {
+																insertParticipant(index, selected);
+															}
+														}}
+													>
+														<option value="">
+															Select participant...
+														</option>
+														{buildParticipantGroups(participantTokenFilter).map((group) => (
+															<optgroup key={group.label} label={group.label}>
+																{group.options.map((option) => (
+																	<option key={option.id} value={option.name}>
+																		{option.name}
+																	</option>
+																))}
+															</optgroup>
 														))}
-													</div>
-												)}
+													</NativeSelect>
+												</div>
+											)}
 										</div>
 
 										{/* Audio File */}
