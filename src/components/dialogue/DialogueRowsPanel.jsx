@@ -194,7 +194,6 @@ export function DialogueRowsPanel({
 	// Auto-complete state for dynamic text
 	const [activeRowIndex, setActiveRowIndex] = useState(null);
 	const [autocompleteVisible, setAutocompleteVisible] = useState(false);
-	const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
 	const [autocompleteFilter, setAutocompleteFilter] = useState('');
 	const textareaRefs = useRef({});
 
@@ -215,14 +214,6 @@ export function DialogueRowsPanel({
 				setActiveRowIndex(index);
 				setAutocompleteFilter(filterText.toLowerCase());
 				setAutocompleteVisible(true);
-
-				// Position autocomplete near cursor
-				const textarea = event.target;
-				const rect = textarea.getBoundingClientRect();
-				setAutocompletePosition({
-					top: rect.top - 150,
-					left: rect.left + 10,
-				});
 			} else {
 				setAutocompleteVisible(false);
 			}
@@ -463,7 +454,7 @@ export function DialogueRowsPanel({
 								{isExpanded && (
 									<div className="p-4 pt-0 space-y-4 border-t border-border">
 										{/* Dialogue Text */}
-										<div className="space-y-2">
+										<div className="space-y-2 relative">
 											<Label htmlFor={`text-${row.id}`}>
 												Dialogue Text
 												<span className="ml-2 text-xs text-muted-foreground">
@@ -478,6 +469,24 @@ export function DialogueRowsPanel({
 												placeholder="Enter dialogue text... Type $ to insert participant names"
 												className="min-h-[100px] font-mono text-sm"
 											/>
+											{autocompleteVisible &&
+												activeRowIndex === index &&
+												filteredParticipants.length > 0 && (
+													<div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+														{filteredParticipants.map((participant) => (
+															<button
+																key={participant.id}
+																onClick={() => insertParticipant(participant.name)}
+																className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2"
+															>
+																<span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+																	{participant.name.charAt(0).toUpperCase()}
+																</span>
+																<span>{participant.name}</span>
+															</button>
+														))}
+													</div>
+												)}
 										</div>
 
 										{/* Audio File */}
@@ -585,30 +594,6 @@ export function DialogueRowsPanel({
 				</Button>
 			)}
 
-			{/* Autocomplete Dropdown */}
-			{autocompleteVisible && filteredParticipants.length > 0 && (
-				<div
-					className="fixed z-50 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto"
-					style={{
-						top: `${autocompletePosition.top}px`,
-						left: `${autocompletePosition.left}px`,
-						minWidth: '200px',
-					}}
-				>
-					{filteredParticipants.map((participant) => (
-						<button
-							key={participant.id}
-							onClick={() => insertParticipant(participant.name)}
-							className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2"
-						>
-							<span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-								{participant.name.charAt(0).toUpperCase()}
-							</span>
-							<span>{participant.name}</span>
-						</button>
-					))}
-				</div>
-			)}
 		</div>
 	);
 }
