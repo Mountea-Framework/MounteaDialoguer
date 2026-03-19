@@ -177,6 +177,14 @@ export function DialogueRowsPanel({
 	};
 
 	const updateRow = (index, updates) => {
+		const targetRow = dialogueRows[index];
+		if (!targetRow) return;
+
+		const hasValueChange = Object.entries(updates || {}).some(
+			([key, value]) => targetRow?.[key] !== value
+		);
+		if (!hasValueChange) return;
+
 		const newRows = dialogueRows.map((row, i) =>
 			i === index ? { ...row, ...updates } : row
 		);

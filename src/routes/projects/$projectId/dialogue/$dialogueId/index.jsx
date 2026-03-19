@@ -401,7 +401,11 @@ function DialogueEditorPage() {
 		});
 		onNodesChangeBase(filteredChanges);
 	}, [onNodesChangeBase]);
-	const [selectedNode, setSelectedNode] = useState(null);
+	const [selectedNodeId, setSelectedNodeId] = useState(null);
+	const selectedNode = useMemo(
+		() => nodes.find((node) => node.id === selectedNodeId) || null,
+		[nodes, selectedNodeId]
+	);
 	const [selectedEdge, setSelectedEdge] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveStatus, setSaveStatus] = useState('saved');
@@ -681,16 +685,6 @@ function DialogueEditorPage() {
 		setShowDesktopGraphLoader(true);
 	}, [deviceType, hasGraphInitialized, hasLoadedViewport, hasInitialFocus]);
 
-	// Sync selected node with nodes state to reflect updates
-	useEffect(() => {
-		if (selectedNode) {
-			const updatedNode = nodes.find((n) => n.id === selectedNode.id);
-			if (updatedNode) {
-				setSelectedNode(updatedNode);
-			}
-		}
-	}, [nodes]);
-
 	// Sync selected edge with edges state to reflect updates
 	useEffect(() => {
 		if (selectedEdge) {
@@ -797,20 +791,20 @@ function DialogueEditorPage() {
 	);
 
 	// Save to history when selected node changes (user clicked away after editing)
-	const prevSelectedNodeRef = useRef(selectedNode);
+	const prevSelectedNodeRef = useRef(selectedNodeId);
 	useEffect(() => {
-		const prevNode = prevSelectedNodeRef.current;
+		const prevNodeId = prevSelectedNodeRef.current;
 		if (
-			prevNode &&
-			prevNode !== selectedNode &&
+			prevNodeId &&
+			prevNodeId !== selectedNodeId &&
 			hasPendingNodeDataEditsRef.current
 		) {
 			// User left an edited node: create one undo checkpoint.
 			saveToHistory(nodes, edges);
 			hasPendingNodeDataEditsRef.current = false;
 		}
-		prevSelectedNodeRef.current = selectedNode;
-	}, [selectedNode, nodes, edges, saveToHistory]);
+		prevSelectedNodeRef.current = selectedNodeId;
+	}, [selectedNodeId, nodes, edges, saveToHistory]);
 
 	// Warn before leaving with unsaved changes
 	const shouldWarnOnLeave = hasUnsavedChanges && saveStatus !== 'saved';
@@ -1115,7 +1109,7 @@ function DialogueEditorPage() {
 		(edgeId) => {
 			const edge = edges.find((candidate) => candidate.id === edgeId);
 			if (!edge) return;
-			setSelectedNode(null);
+			setSelectedNodeId(null);
 			setSelectedEdge(edge);
 			// On desktop, the drawer opens automatically via its open condition.
 			// On mobile/tablet, the edge action bar shows first; panel opens only when the user
@@ -1204,7 +1198,7 @@ function DialogueEditorPage() {
 		// Suppress click if it follows a context-menu action (Radix focus-restoration artifact)
 		if (Date.now() - lastContextMenuActionRef.current < 300) return;
 
-		setSelectedNode(node);
+		setSelectedNodeId(node.id);
 		setSelectedEdge(null); // Deselect edge when node is selected
 	}, [lastContextMenuActionRef]);
 
@@ -1213,13 +1207,13 @@ function DialogueEditorPage() {
 		// Suppress click if it follows a context-menu action (Radix focus-restoration artifact)
 		if (Date.now() - lastContextMenuActionRef.current < 300) return;
 		setSelectedEdge(edge);
-		setSelectedNode(null); // Deselect node when edge is selected
+		setSelectedNodeId(null); // Deselect node when edge is selected
 		// On mobile/tablet, the edge action bar handles the panel open — don't auto-open here
 	}, [lastContextMenuActionRef]);
 
 	// Handle pane click (deselect all)
 	const onPaneClick = useCallback(() => {
-		setSelectedNode(null);
+		setSelectedNodeId(null);
 		setSelectedEdge(null);
 	}, []);
 
@@ -1255,7 +1249,7 @@ function DialogueEditorPage() {
 			return updatedNodes;
 		});
 
-		setSelectedNode((current) => (current?.id === nodeId ? null : current));
+		setSelectedNodeId((current) => (current === nodeId ? null : current));
 	}, [setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	const deleteEdgeById = useCallback((edgeId) => {
@@ -1319,7 +1313,7 @@ function DialogueEditorPage() {
 			return updatedNodes;
 		});
 
-		setSelectedNode(null);
+		setSelectedNodeId(null);
 	}, [selectedNode, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	// Checks if edge is the only incoming connection to its target, then either
@@ -1465,7 +1459,7 @@ function DialogueEditorPage() {
 				action: {
 					label: t('editor.validation.focusNode'),
 					onClick: () => {
-						setSelectedNode(node);
+						setSelectedNodeId(node.id);
 						setSelectedEdge(null);
 						if (deviceType !== 'desktop') {
 							setIsMobilePanelOpen(true);
@@ -1533,7 +1527,7 @@ function DialogueEditorPage() {
 		if (missingRequiredNodes.size > 0) {
 			const firstMissingNode = missingRequiredNodes.values().next().value?.node;
 			if (firstMissingNode) {
-				setSelectedNode(firstMissingNode);
+				setSelectedNodeId(firstMissingNode.id);
 				setSelectedEdge(null);
 				setIsMobilePanelOpen(false);
 			}
@@ -1573,7 +1567,7 @@ function DialogueEditorPage() {
 			return;
 		}
 
-		setSelectedNode(null);
+		setSelectedNodeId(null);
 		setSelectedEdge(null);
 		setIsMobilePanelOpen(false);
 		setPreviewActiveNodeRef(null);
@@ -2848,7 +2842,7 @@ function DialogueEditorPage() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 rounded-full"
-								onClick={() => setSelectedNode(null)}
+								onClick={() => setSelectedNodeId(null)}
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -2965,7 +2959,7 @@ function DialogueEditorPage() {
 					if (deviceType !== 'desktop') {
 						setIsMobilePanelOpen(false);
 					} else {
-						setSelectedNode(null);
+						setSelectedNodeId(null);
 						setSelectedEdge(null);
 					}
 				}}
@@ -2996,7 +2990,7 @@ function DialogueEditorPage() {
 											if (deviceType !== 'desktop') {
 												setIsMobilePanelOpen(false);
 											} else {
-												setSelectedNode(null);
+												setSelectedNodeId(null);
 											}
 										}}
 										className="h-8 w-8"
@@ -3283,3 +3277,4 @@ function DialogueEditorPage() {
 		</div>
 	);
 }
+
