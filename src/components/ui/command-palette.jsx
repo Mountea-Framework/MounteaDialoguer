@@ -15,10 +15,12 @@ import {
 	Play,
 	Plus,
 	RotateCcw,
+	Redo2,
 	Save,
 	Search as SearchIcon,
 	Settings,
 	ShieldCheck,
+	Undo2,
 	Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -274,6 +276,27 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 		}
 		if (fileItems.length > 0) {
 			groups.push({ group: 'File', items: fileItems });
+		}
+
+		const editItems = [];
+		if (isDialogue) {
+			editItems.push(
+				{
+					icon: Undo2,
+					label: 'Undo',
+					shortcut: 'Ctrl+Z',
+					onSelect: () => dispatchMenuCommand('dialogue-undo'),
+				},
+				{
+					icon: Redo2,
+					label: 'Redo',
+					shortcut: 'Ctrl+Y',
+					onSelect: () => dispatchMenuCommand('dialogue-redo'),
+				}
+			);
+		}
+		if (editItems.length > 0) {
+			groups.push({ group: 'Edit', items: editItems });
 		}
 
 		const viewItems = [];
