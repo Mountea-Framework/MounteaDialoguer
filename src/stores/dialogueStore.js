@@ -850,10 +850,13 @@ export const useDialogueStore = create((set, get) => ({
 				throw new Error('Export failed: Start Node (00000000-0000-0000-0000-000000000001) is missing from the dialogue');
 			}
 
-			// Collect unique participants and categories from nodes
+			// Collect unique participants and used decorator/condition references from nodes/edges.
 			const participantSet = new Set();
-			const decoratorsExport = [];
-				const allDialogueRows = [];
+			const usedDecoratorIds = new Set();
+			const usedDecoratorNames = new Set();
+			const usedConditionIds = new Set();
+			const usedConditionNames = new Set();
+			const allDialogueRows = [];
 
 				localizedPreviewNodes.forEach((node) => {
 					// Extract participant
@@ -874,15 +877,26 @@ export const useDialogueStore = create((set, get) => ({
 						});
 				}
 
-				// Extract decorators with nodeId
-				if (node.data?.decorators) {
+				// Track used decorators from node instances.
+				if (Array.isArray(node.data?.decorators)) {
 					node.data.decorators.forEach((decorator) => {
-						decoratorsExport.push({
-							...decorator,
-							nodeId: node.id,
-						});
+						const decoratorId = String(decorator?.id || '').trim();
+						const decoratorName = String(decorator?.name || '').trim();
+						if (decoratorId) usedDecoratorIds.add(decoratorId);
+						if (decoratorName) usedDecoratorNames.add(decoratorName);
 					});
 				}
+			});
+
+			// Track used conditions from edge instances.
+			(edges || []).forEach((edge) => {
+				const rules = Array.isArray(edge?.data?.conditions?.rules) ? edge.data.conditions.rules : [];
+				rules.forEach((rule) => {
+					const conditionId = String(rule?.id || '').trim();
+					const conditionName = String(rule?.name || '').trim();
+					if (conditionId) usedConditionIds.add(conditionId);
+					if (conditionName) usedConditionNames.add(conditionName);
+				});
 			});
 
 			// Load participants and categories from database
@@ -895,6 +909,8 @@ export const useDialogueStore = create((set, get) => ({
 				.where('projectId')
 				.equals(dialogue.projectId)
 				.toArray();
+			const decorators = await db.decorators.where('projectId').equals(dialogue.projectId).toArray();
+			const conditions = await db.conditions.where('projectId').equals(dialogue.projectId).toArray();
 
 			// Filter to only used participants
 			const usedParticipants = participants.filter((p) =>
@@ -940,6 +956,28 @@ export const useDialogueStore = create((set, get) => ({
 					: null,
 			}));
 
+			const exportDefinition = (entry) => {
+				const exported = { ...(entry || {}) };
+				delete exported.projectId;
+				delete exported.createdAt;
+				delete exported.modifiedAt;
+				return exported;
+			};
+			const decoratorsExport = decorators
+				.filter((definition) => {
+					const definitionId = String(definition?.id || '').trim();
+					const definitionName = String(definition?.name || '').trim();
+					return usedDecoratorIds.has(definitionId) || usedDecoratorNames.has(definitionName);
+				})
+				.map(exportDefinition);
+			const conditionsExport = conditions
+				.filter((definition) => {
+					const definitionId = String(definition?.id || '').trim();
+					const definitionName = String(definition?.name || '').trim();
+					return usedConditionIds.has(definitionId) || usedConditionNames.has(definitionName);
+				})
+				.map(exportDefinition);
+
 				// Create ZIP file
 				const zip = new JSZip();
 
@@ -966,6 +1004,7 @@ export const useDialogueStore = create((set, get) => ({
 				zip.file('edges.json', JSON.stringify(edges, null, 2));
 				zip.file('dialogueRows.json', JSON.stringify(allDialogueRows, null, 2));
 				zip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
+				zip.file('conditions.json', JSON.stringify(conditionsExport, null, 2));
 				zip.file(
 					'stringTable.json',
 					JSON.stringify(
