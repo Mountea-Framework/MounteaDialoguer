@@ -733,8 +733,8 @@ export const useDialogueStore = create((set, get) => ({
 		}
 	},
 
-	// Export dialogue as Blob (for nested exports in project)
-		exportDialogueAsBlob: async (dialogueId) => {
+	// Export dialogue as Blob (for direct export and nested project exports)
+		exportDialogueAsBlob: async (dialogueId, options = {}) => {
 			try {
 				console.log(`[exportDialogueAsBlob] Starting export for dialogue: ${dialogueId}`);
 				const JSZip = (await import('jszip')).default;
@@ -768,7 +768,8 @@ export const useDialogueStore = create((set, get) => ({
 					}
 					return node;
 				});
-				let persistedNodes = loadedNodes;
+				// Export must operate on the restored node graph so audio blobs are available.
+				let persistedNodes = nodes;
 				let effectiveStringTableEntries = stringTableEntries;
 				let localizedPreviewNodes = materializeLocalizedNodes({
 					nodes: persistedNodes,
@@ -997,22 +998,25 @@ export const useDialogueStore = create((set, get) => ({
 				}
 			}
 
-			// Add participant thumbnail files
-			const thumbnailsFolder = zip.folder('Thumbnails');
-			participantsExport.forEach((entry, index) => {
-				const participantImageId = String(entry?.participantImage || '').trim();
-				if (!participantImageId) return;
-				const participant = usedParticipants[index];
-				try {
-					const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
-					if (!thumbnailBlob) return;
-					thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
-				} catch (error) {
-					console.warn(
-						`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
-					);
-				}
-			});
+			// Add participant thumbnail files unless explicitly disabled (used by project export).
+			const includeThumbnails = options?.includeThumbnails !== false;
+			if (includeThumbnails) {
+				const thumbnailsFolder = zip.folder('Thumbnails');
+				participantsExport.forEach((entry, index) => {
+					const participantImageId = String(entry?.participantImage || '').trim();
+					if (!participantImageId) return;
+					const participant = usedParticipants[index];
+					try {
+						const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
+						if (!thumbnailBlob) return;
+						thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
+					} catch (error) {
+						console.warn(
+							`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
+						);
+					}
+				});
+			}
 
 			// Generate and return blob
 			const blob = await zip.generateAsync({ type: 'blob' });

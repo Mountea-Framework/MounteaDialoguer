@@ -1648,8 +1648,11 @@ export const useProjectStore = create((set, get) => ({
 				try {
 					console.log(`Exporting dialogue: ${dialogue.name} (${dialogue.id})`);
 
-					// Generate the dialogue export blob
-					const dialogueBlob = await dialogueStore.exportDialogueAsBlob(dialogue.id);
+					// Generate nested dialogue export blob without thumbnails.
+					// Project-level archive already contains all participant thumbnails.
+					const dialogueBlob = await dialogueStore.exportDialogueAsBlob(dialogue.id, {
+						includeThumbnails: false,
+					});
 
 					// Add to dialogues folder with sanitized name
 					const sanitizedName = dialogue.name.replace(/[^a-z0-9]/gi, '_');
