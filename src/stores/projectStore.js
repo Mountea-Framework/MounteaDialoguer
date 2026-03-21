@@ -1562,6 +1562,13 @@ export const useProjectStore = create((set, get) => ({
 				.where('projectId')
 				.equals(projectId)
 				.toArray();
+			const dialogueIds = dialogues.map((dialogue) => dialogue.id).filter(Boolean);
+			const nodes = dialogueIds.length > 0
+				? await db.nodes.where('dialogueId').anyOf(dialogueIds).toArray()
+				: [];
+			const edges = dialogueIds.length > 0
+				? await db.edges.where('dialogueId').anyOf(dialogueIds).toArray()
+				: [];
 
 			// Build category path map
 			const { useCategoryStore } = await import('./categoryStore');
@@ -1600,17 +1607,53 @@ export const useProjectStore = create((set, get) => ({
 					: null,
 			}));
 
-			// Export decorators (definitions only)
+			const usedDecoratorIds = new Set();
+			const usedDecoratorNames = new Set();
+			const usedConditionIds = new Set();
+			const usedConditionNames = new Set();
+
+			nodes.forEach((node) => {
+				const decoratorInstances = Array.isArray(node?.data?.decorators) ? node.data.decorators : [];
+				decoratorInstances.forEach((decorator) => {
+					const decoratorId = String(decorator?.id || '').trim();
+					const decoratorName = String(decorator?.name || '').trim();
+					if (decoratorId) usedDecoratorIds.add(decoratorId);
+					if (decoratorName) usedDecoratorNames.add(decoratorName);
+				});
+			});
+
+			edges.forEach((edge) => {
+				const rules = Array.isArray(edge?.data?.conditions?.rules) ? edge.data.conditions.rules : [];
+				rules.forEach((rule) => {
+					const conditionId = String(rule?.id || '').trim();
+					const conditionName = String(rule?.name || '').trim();
+					if (conditionId) usedConditionIds.add(conditionId);
+					if (conditionName) usedConditionNames.add(conditionName);
+				});
+			});
+
+			// Export used decorator/condition definitions only (retain GUID/id).
 			const exportWithoutMeta = (entry) => {
 				const exported = { ...entry };
-				delete exported.id;
 				delete exported.projectId;
 				delete exported.createdAt;
 				delete exported.modifiedAt;
 				return exported;
 			};
-			const decoratorsExport = decorators.map(exportWithoutMeta);
-			const conditionsExport = conditions.map(exportWithoutMeta);
+			const decoratorsExport = decorators
+				.filter((definition) => {
+					const definitionId = String(definition?.id || '').trim();
+					const definitionName = String(definition?.name || '').trim();
+					return usedDecoratorIds.has(definitionId) || usedDecoratorNames.has(definitionName);
+				})
+				.map(exportWithoutMeta);
+			const conditionsExport = conditions
+				.filter((definition) => {
+					const definitionId = String(definition?.id || '').trim();
+					const definitionName = String(definition?.name || '').trim();
+					return usedConditionIds.has(definitionId) || usedConditionNames.has(definitionName);
+				})
+				.map(exportWithoutMeta);
 
 			// Create main project ZIP
 			const projectZip = new JSZip();
@@ -1648,8 +1691,11 @@ export const useProjectStore = create((set, get) => ({
 				try {
 					console.log(`Exporting dialogue: ${dialogue.name} (${dialogue.id})`);
 
-					// Generate the dialogue export blob
-					const dialogueBlob = await dialogueStore.exportDialogueAsBlob(dialogue.id);
+					// Generate nested dialogue export blob without thumbnails.
+					// Project-level archive already contains all participant thumbnails.
+					const dialogueBlob = await dialogueStore.exportDialogueAsBlob(dialogue.id, {
+						includeThumbnails: false,
+					});
 
 					// Add to dialogues folder with sanitized name
 					const sanitizedName = dialogue.name.replace(/[^a-z0-9]/gi, '_');

@@ -18,21 +18,12 @@ import dagre from 'dagre';
 import { ZoomSlider } from '@/components/dialogue/ZoomSlider';
 import {
 	ArrowLeft,
-	Save,
-	Download,
-	Undo2,
-	Redo2,
-	Sun,
-	Moon,
 	MessageCircle,
-	Settings,
 	User,
 	CheckCircle2,
 	CornerUpLeft,
 	ExternalLink,
-	Heart,
 	X,
-	HelpCircle,
 	Network,
 	MoreVertical,
 	Trash2,
@@ -71,7 +62,6 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { toast as toastStandalone, clearToasts } from '@/components/ui/toaster';
-import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -99,7 +89,6 @@ import { OnboardingTour, useOnboarding } from '@/components/ui/onboarding-tour';
 import { celebrateSuccess } from '@/lib/confetti';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/ui/app-header';
-import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { NodeTypeSelectionModal } from '@/components/dialogue/NodeTypeSelectionModal';
 import { NodeConnectionModal } from '@/components/dialogue/NodeConnectionModal';
 import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
@@ -115,7 +104,6 @@ import {
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
 } from '@/lib/localization/stringTable';
-import { getLocalizationLocaleLabel } from '@/lib/localization/localeCatalog';
 
 export const Route = createFileRoute(
 	'/projects/$projectId/dialogue/$dialogueId/'
@@ -345,7 +333,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
 function DialogueEditorPage() {
 	const { t } = useTranslation();
-	const { resolvedTheme, setTheme } = useTheme();
+	useTheme();
 	const { projectId, dialogueId } = Route.useParams();
 	const { projects, loadProjects } = useProjectStore();
 	const {
@@ -407,7 +395,7 @@ function DialogueEditorPage() {
 		[nodes, selectedNodeId]
 	);
 	const [selectedEdge, setSelectedEdge] = useState(null);
-	const [isSaving, setIsSaving] = useState(false);
+	const [, setIsSaving] = useState(false);
 	const [saveStatus, setSaveStatus] = useState('saved');
 	const [lastSaved, setLastSaved] = useState(null);
 	const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
@@ -420,7 +408,6 @@ function DialogueEditorPage() {
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
-	const openSettingsCommand = useSettingsCommandStore((state) => state.openWithContext);
 	const setCommandPaletteOpen = useCommandPaletteStore((state) => state.setOpen);
 
 	// Device detection
@@ -1618,12 +1605,10 @@ function DialogueEditorPage() {
 		getMissingRequiredNodes,
 		logMissingRequiredNodes,
 		showValidationToasts,
-		clearToasts,
 		setIsSaving,
 		setSaveStatus,
 		setHasUnsavedChanges,
 		setLastSaved,
-		deviceType,
 	]);
 
 	// Update node data (without saving to history on every keystroke)
@@ -2129,7 +2114,19 @@ function DialogueEditorPage() {
 				queueMobileStartFocus(layoutedNodes);
 			}
 		}
-	}, [deviceType, hasGraphInitialized, nodes.length, edges.length, hasInitialLayout, hasInitialFocus, queueMobileStartFocus]);
+	}, [
+		deviceType,
+		hasGraphInitialized,
+		nodes,
+		edges,
+		hasInitialLayout,
+		hasInitialFocus,
+		lastLayoutRegularNodeCount,
+		lastLayoutPlaceholderCount,
+		setNodes,
+		setEdges,
+		queueMobileStartFocus,
+	]);
 
 	// Undo
 	const handleUndo = useCallback(() => {
@@ -2307,7 +2304,7 @@ function DialogueEditorPage() {
 	}, []);
 
 	// Handle export
-	const handleExport = async () => {
+	const handleExport = useCallback(async () => {
 		try {
 			// Filter out placeholder nodes and their edges before saving
 			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
@@ -2322,7 +2319,7 @@ function DialogueEditorPage() {
 		} catch (error) {
 			console.error('Failed to export dialogue:', error);
 		}
-	};
+	}, [nodes, edges, saveDialogueGraph, dialogueId, viewport, contentLocale, exportDialogue]);
 
 	const handleOpenLastExportPath = useCallback(async () => {
 		const lastExportPath = String(dialogue?.lastExportPath || '').trim();
