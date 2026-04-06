@@ -20,7 +20,7 @@ export function isGoogleSyncEnabled() {
 }
 
 const ONBOARDING_EXAMPLE_REMOTE_URL =
-	'https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/main/public/onboarding-example.mnteadlgproj';
+	'https://github.com/Mountea-Framework/MounteaDialoguer/raw/refs/heads/dev/ExampleProject/OnboardingExample.mnteadlgproj';
 const ONBOARDING_EXAMPLE_BUNDLED_PATH = 'onboarding-example.mnteadlgproj';
 
 export function getOnboardingExampleProjectRemoteUrl() {
