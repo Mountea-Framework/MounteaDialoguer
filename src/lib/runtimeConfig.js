@@ -18,3 +18,15 @@ export function isSteamChannel() {
 export function isGoogleSyncEnabled() {
 	return readFlag(import.meta.env.VITE_ENABLE_GOOGLE_SYNC, true);
 }
+
+const ONBOARDING_EXAMPLE_REMOTE_URL =
+	'https://raw.githubusercontent.com/Mountea-Framework/MounteaDialoguer/main/public/onboarding-example.mnteadlgproj';
+const ONBOARDING_EXAMPLE_BUNDLED_PATH = 'onboarding-example.mnteadlgproj';
+
+export function getOnboardingExampleProjectRemoteUrl() {
+	return ONBOARDING_EXAMPLE_REMOTE_URL;
+}
+
+export function getOnboardingExampleBundledPath() {
+	return ONBOARDING_EXAMPLE_BUNDLED_PATH;
+}
