@@ -52,6 +52,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
 import { isDesktopElectronRuntime } from "@/lib/electronRuntime";
 import { useSyncStore } from "@/stores/syncStore";
+import { toast } from "@/components/ui/toaster";
+import { ONBOARDING_TEMPLATE_ERROR_CODES } from "@/lib/onboarding/templateLoader";
 
 export const Route = createFileRoute("/")({
   component: ProjectsDashboard,
@@ -573,6 +575,23 @@ function ProjectsDashboard() {
       navigate({ to: "/projects/$projectId", params: { projectId: result.projectId } });
     } catch (error) {
       console.error("Error creating example project:", error);
+      if (
+        !isDesktopElectron &&
+        error?.code === ONBOARDING_TEMPLATE_ERROR_CODES.WEB_FALLBACK_REQUIRED
+      ) {
+        toast({
+          variant: "error",
+          title: "Example template unavailable",
+          description: "Import a local .mnteadlgproj file to continue onboarding.",
+          action: {
+            label: "Import File",
+            onClick: () => {
+              importFileInputRef.current?.click();
+            },
+          },
+          duration: 8000,
+        });
+      }
     } finally {
       setIsCreatingExampleProject(false);
     }
