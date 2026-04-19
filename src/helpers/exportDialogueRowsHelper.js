@@ -1,5 +1,6 @@
 import { getDB } from "../indexedDB";
 import JSZip from "jszip";
+import { sanitizeAudioFileName } from "../lib/assetNaming";
 
 export const exportDialogueRows = async (projectGuid) => {
 	try {
@@ -40,7 +41,10 @@ export const exportDialogueRows = async (projectGuid) => {
 						);
 						if (audioData) {
 							const subFolder = audioFolder.folder(row.id);
-							const fileName = row.audio.path.split("/").pop();
+							const fileName = sanitizeAudioFileName(
+								row.audio.path.split("/").pop(),
+								"Audio"
+							);
 							subFolder.file(fileName, audioData, { binary: true });
 							console.log(
 								`Added audio file to zip: ${fileName}, size: ${audioData.size} bytes`

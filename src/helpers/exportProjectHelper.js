@@ -1,5 +1,6 @@
 import { getDB } from "../indexedDB";
 import JSZip from "jszip";
+import { sanitizeAudioFileName } from "../lib/assetNaming";
 /*import { exportCategories } from "./exportCategoriesHelper";
 import { exportParticipants } from "./exportParticipantsHelper";*/
 import { fetchAudioFile } from "./exportDialogueRowsHelper";
@@ -62,7 +63,11 @@ export const exportProject = async (projectGuid) => {
 							row.audio.path
 						);
 						const subFolder = audioFolder.folder(row.id);
-						subFolder.file(row.audio.path.split("/").pop(), audioData, {
+						const safeFileName = sanitizeAudioFileName(
+							row.audio.path.split("/").pop(),
+							"Audio"
+						);
+						subFolder.file(safeFileName, audioData, {
 							binary: true,
 						});
 					} catch (error) {

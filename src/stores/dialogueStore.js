@@ -22,6 +22,8 @@ import {
 	buildParticipantImageId,
 	storedParticipantThumbnailToBlob,
 } from '@/lib/participantThumbnails';
+import { sanitizeAudioFileName } from '@/lib/assetNaming';
+import { resolveRowAudioImportSelection } from '@/lib/dialogueImportAudio';
 
 const normalizeDialogueRow = (row = {}) => ({
 	...row,
@@ -1031,7 +1033,8 @@ export const useDialogueStore = create((set, get) => ({
 							const dialogueRow = node.data.dialogueRows.find((r) => r.id === row.id);
 						if (dialogueRow?.audioFile?.blob) {
 							const rowFolder = audioFolder.folder(row.id);
-							rowFolder.file(dialogueRow.audioFile.name, dialogueRow.audioFile.blob);
+							const safeAudioName = sanitizeAudioFileName(dialogueRow.audioFile.name, 'Audio');
+							rowFolder.file(safeAudioName, dialogueRow.audioFile.blob);
 						}
 					}
 				}
@@ -1455,14 +1458,25 @@ export const useDialogueStore = create((set, get) => ({
 						// Look for audio files in that subfolder
 						const rowFolder = audioFolder.folder(row.id);
 						if (rowFolder) {
-							// Get the first file in the folder (should only be one)
-							const audioFiles = Object.keys(rowFolder.files).filter(
-								(path) => !path.endsWith('/')
-							);
+							const { selectedPath: selectedAudioPath, warnings } =
+								resolveRowAudioImportSelection(rowFolder, row.id);
+							warnings.forEach((warning) => {
+								console.warn('[importDialogue:audio]', warning);
+							});
 
-							if (audioFiles.length > 0) {
-								const audioFile = rowFolder.files[audioFiles[0]];
+							if (selectedAudioPath) {
+								const audioFile = rowFolder.files[selectedAudioPath];
+								if (!audioFile) {
+									console.warn('[importDialogue:audio]', {
+										code: 'selected_audio_not_found',
+										rowId: row.id,
+										selectedAudioPath,
+									});
+									continue;
+								}
 								const audioBlob = await audioFile.async('blob');
+								const importedFileName = selectedAudioPath.split('/').pop();
+								const safeImportedFileName = sanitizeAudioFileName(importedFileName, 'Audio');
 
 								// Store audio in IndexedDB
 								// We'll need to update the node's dialogue row with audio data
@@ -1470,7 +1484,8 @@ export const useDialogueStore = create((set, get) => ({
 									const remappedRowId =
 										rowIdMapping.get(`${row.nodeId}:${row.id}`) || row.id;
 									if (nodeId) {
-										const node = await db.nodes.get(nodeId);
+										const nodePrimaryKey = [dialogueId, nodeId];
+										const node = await db.nodes.get(nodePrimaryKey);
 										if (node && node.data.dialogueRows) {
 											const normalizedRows = node.data.dialogueRows.map((item) => ({
 												...(item || {}),
@@ -1480,11 +1495,11 @@ export const useDialogueStore = create((set, get) => ({
 											// Create audio file data
 											const audioFileData = {
 												id: uuidv4(),
-												name: audioFiles[0].split('/').pop(),
+												name: safeImportedFileName,
 												type: audioBlob.type,
 												size: audioBlob.size,
 												blob: audioBlob,
-												path: `audio/${remappedRowId}/${audioFiles[0].split('/').pop()}`,
+												path: `audio/${remappedRowId}/${safeImportedFileName}`,
 											};
 
 												normalizedRows[rowIndex].audioFile = audioFileData;
@@ -1492,7 +1507,7 @@ export const useDialogueStore = create((set, get) => ({
 												delete normalizedRows[rowIndex].text;
 												node.data.dialogueRows = normalizedRows;
 
-											await db.nodes.update(nodeId, { data: node.data });
+											await db.nodes.update(nodePrimaryKey, { data: node.data });
 										}
 									}
 								}

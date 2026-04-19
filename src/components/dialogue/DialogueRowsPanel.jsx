@@ -320,7 +320,7 @@ export function DialogueRowsPanel({
 			toast({
 				variant: 'success',
 				title: 'Audio Uploaded',
-				description: `${file.name} uploaded successfully`,
+				description: `${audioData.name} uploaded successfully`,
 			});
 		} catch (error) {
 			console.error('Error uploading audio:', error);

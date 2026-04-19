@@ -2,6 +2,7 @@
  * Audio Utility Functions
  * Handles audio blob conversion and storage
  */
+import { sanitizeAudioFileName } from '@/lib/assetNaming';
 
 /**
  * Convert a Blob to base64 string for storage
@@ -36,7 +37,7 @@ export async function prepareAudioForStorage(audioFile) {
 
 	const base64 = await blobToBase64(audioFile.blob);
 	return {
-		name: audioFile.name,
+		name: sanitizeAudioFileName(audioFile.name, 'Audio'),
 		size: audioFile.size || audioFile.blob.size,
 		base64: base64,
 		mimeType: audioFile.blob.type,
@@ -51,7 +52,7 @@ export function restoreAudioFromStorage(storedAudio) {
 
 	const blob = base64ToBlob(storedAudio.base64, storedAudio.mimeType);
 	return {
-		name: storedAudio.name,
+		name: sanitizeAudioFileName(storedAudio.name, 'Audio'),
 		size: storedAudio.size || blob.size,
 		blob: blob,
 		url: URL.createObjectURL(blob),
