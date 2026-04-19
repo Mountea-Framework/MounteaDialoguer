@@ -2,6 +2,7 @@
  * Audio Storage Utilities
  * Handles storing and retrieving audio files from IndexedDB
  */
+import { sanitizeAudioFileName } from '@/lib/assetNaming';
 
 /**
  * Store audio file in IndexedDB
@@ -9,13 +10,15 @@
  */
 export async function storeAudioFile(file) {
 	try {
+		const safeName = sanitizeAudioFileName(file?.name, 'Audio');
+
 		// Read file as ArrayBuffer
 		const arrayBuffer = await file.arrayBuffer();
 
 		// Create audio object with metadata
 		const audioData = {
 			id: crypto.randomUUID(),
-			name: file.name,
+			name: safeName,
 			type: file.type,
 			size: file.size,
 			data: arrayBuffer,

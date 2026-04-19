@@ -5,16 +5,11 @@ import {
 	PARTICIPANT_THUMBNAIL_MAX_INPUT_BYTES,
 	PARTICIPANT_THUMBNAIL_MIN_DIMENSION,
 } from '@/lib/sync/core/constants';
+import { sanitizeAttachmentIdSegment } from '@/lib/assetNaming';
 
 
 function sanitizeImageIdSegment(value, fallback = 'Unknown') {
-	const normalized = String(value || '')
-		.trim()
-		.replace(/[.\s/\\>-]+/g, '_')
-		.replace(/[^a-zA-Z0-9_]/g, '_')
-		.replace(/_+/g, '_')
-		.replace(/^_+|_+$/g, '');
-	return normalized || fallback;
+	return sanitizeAttachmentIdSegment(value, fallback);
 }
 
 function base64ToBlob(dataUrl) {
