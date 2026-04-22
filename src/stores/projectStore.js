@@ -708,8 +708,50 @@ export const useProjectStore = create((set, get) => ({
 			}
 
 			const { v4: uuidv4 } = await import('uuid');
-			const newProjectId = uuidv4();
+			const importedProjectGuid = String(projectData?.projectGuid || projectData?.id || '').trim();
+			const newProjectId = importedProjectGuid || uuidv4();
 			const now = new Date().toISOString();
+			const existingProject = await db.projects.get(newProjectId);
+
+			if (existingProject) {
+				await db.transaction(
+					'rw',
+					[
+						db.dialogues,
+						db.nodes,
+						db.edges,
+						db.participants,
+						db.categories,
+						db.decorators,
+						db.conditions,
+						db.localizedStrings,
+						db.syncProjects,
+						db.syncDeletions,
+						db.syncTombstones,
+					],
+					async () => {
+						const existingDialogues = await db.dialogues.where('projectId').equals(newProjectId).toArray();
+						const dialogueIds = existingDialogues
+							.map((dialogue) => String(dialogue?.id || '').trim())
+							.filter(Boolean);
+
+						if (dialogueIds.length > 0) {
+							await db.nodes.where('dialogueId').anyOf(dialogueIds).delete();
+							await db.edges.where('dialogueId').anyOf(dialogueIds).delete();
+						}
+
+						await db.dialogues.where('projectId').equals(newProjectId).delete();
+						await db.participants.where('projectId').equals(newProjectId).delete();
+						await db.categories.where('projectId').equals(newProjectId).delete();
+						await db.decorators.where('projectId').equals(newProjectId).delete();
+						await db.conditions.where('projectId').equals(newProjectId).delete();
+						await db.localizedStrings.where('projectId').equals(newProjectId).delete();
+						await db.syncProjects.where('projectId').equals(newProjectId).delete();
+						await db.syncDeletions.where('projectId').equals(newProjectId).delete();
+						await db.syncTombstones.where('projectId').equals(newProjectId).delete();
+					}
+				);
+			}
 
 			const newProject = {
 				id: newProjectId,
@@ -719,11 +761,11 @@ export const useProjectStore = create((set, get) => ({
 				localization: normalizeProjectLocalizationConfig(projectData.localization || {}),
 				isExample: Boolean(importOptions.isExample),
 				importSource: String(importOptions.source || 'manual-import'),
-				createdAt: now,
+				createdAt: projectData.createdAt || existingProject?.createdAt || now,
 				modifiedAt: now,
 			};
 
-			await db.projects.add(newProject);
+			await db.projects.put(newProject);
 
 			// Build category hierarchy from fullPath (e.g. "NPC.Merchant" → NPC > Merchant)
 			const existingCategoryPaths = new Map(); // fullPath → { id, name }
