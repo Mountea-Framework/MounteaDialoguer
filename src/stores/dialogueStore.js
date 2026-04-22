@@ -936,6 +936,7 @@ export const useDialogueStore = create((set, get) => ({
 				// Prepare export data
 				const dialogueData = {
 					dialogueGuid: dialogue.id,
+					id: dialogue.id,
 					dialogueName: dialogue.name,
 					localizationSlug: dialogue.localizationSlug,
 					localizationVersion: dialogue.localizationVersion || 2,
@@ -1284,13 +1285,27 @@ export const useDialogueStore = create((set, get) => ({
 
 			let finalName = dialogueData.dialogueName;
 			let counter = 1;
-			while (existingDialogues.some((d) => d.name === finalName)) {
+			const dialogueGuid = String(dialogueData?.dialogueGuid || '').trim();
+			const fallbackDialogueId = String(dialogueData?.id || '').trim();
+			if (dialogueGuid && fallbackDialogueId && dialogueGuid !== fallbackDialogueId) {
+				console.warn('[importDialogue] dialogueGuid/id mismatch; using dialogueGuid', {
+					dialogueGuid,
+					id: fallbackDialogueId,
+				});
+			}
+			const dialogueId = dialogueGuid || fallbackDialogueId;
+			if (!dialogueId) {
+				throw new Error('Invalid dialogue file: missing dialogue GUID');
+			}
+
+			const otherDialogues = existingDialogues.filter((d) => d.id !== dialogueId);
+			while (otherDialogues.some((d) => d.name === finalName)) {
 				finalName = `${dialogueData.dialogueName} (${counter})`;
 				counter++;
 			}
 
-			// Step 5: Create the dialogue
-			const dialogueId = uuidv4();
+			// Step 5: Create the dialogue — preserve the original ID so cross-dialogue
+			// references (e.g. openChildGraphNode.targetDialogue) remain valid after import.
 				const newDialogue = {
 					id: dialogueId,
 					projectId,
@@ -1307,21 +1322,47 @@ export const useDialogueStore = create((set, get) => ({
 					modifiedAt: now,
 				};
 
-			await db.dialogues.add(newDialogue);
+			await db.dialogues.put(newDialogue);
 
 			// Step 6: Import nodes
 			// Build a map of old node IDs to new node IDs
 			const nodeIdMapping = new Map();
 			const rowIdMapping = new Map();
+			const mapNodeReference = (rawNodeId) => {
+				const nodeId = String(rawNodeId || '').trim();
+				if (!nodeId) return '';
+				return (
+					nodeIdMapping.get(nodeId) ||
+					nodeIdMapping.get(nodeId.toLowerCase()) ||
+					nodeIdMapping.get(nodeId.toUpperCase()) ||
+					''
+				);
+			};
+			const mapRowReference = (rawNodeId, rawRowId) => {
+				const nodeId = String(rawNodeId || '').trim();
+				const rowId = String(rawRowId || '').trim();
+				if (!nodeId || !rowId) return '';
+				const composite = `${nodeId}:${rowId}`;
+				const lowerComposite = `${nodeId.toLowerCase()}:${rowId.toLowerCase()}`;
+				const upperComposite = `${nodeId.toUpperCase()}:${rowId.toUpperCase()}`;
+				return (
+					rowIdMapping.get(composite) ||
+					rowIdMapping.get(lowerComposite) ||
+					rowIdMapping.get(upperComposite) ||
+					''
+				);
+			};
 			const importedNodesForLocalization = [];
 
 			for (const node of nodes) {
-				const oldNodeId = node.id;
+				const oldNodeId = String(node.id || '').trim();
 				const newNodeId = node.type === 'startNode'
 					? '00000000-0000-0000-0000-000000000001'
-					: uuidv4();
+					: oldNodeId;
 
 				nodeIdMapping.set(oldNodeId, newNodeId);
+				nodeIdMapping.set(oldNodeId.toLowerCase(), newNodeId);
+				nodeIdMapping.set(oldNodeId.toUpperCase(), newNodeId);
 
 				// Process node data
 				const nodeData = { ...node.data };
@@ -1346,15 +1387,24 @@ export const useDialogueStore = create((set, get) => ({
 						};
 					});
 				}
+				// Normalize node references (legacy exports may differ only by UUID casing).
+				if (typeof nodeData.targetNode === 'string' && nodeData.targetNode.trim()) {
+					const remappedTargetNode = mapNodeReference(nodeData.targetNode);
+					if (remappedTargetNode) {
+						nodeData.targetNode = remappedTargetNode;
+					}
+				}
 
 				// Normalize rows so each row has a stable ID for audio rebinding.
 				if (nodeData.dialogueRows) {
 					const rawRows = nodeData.dialogueRows;
 					nodeData.dialogueRows = normalizeDialogueRows(rawRows).map((row, idx) => {
 						const rawRow = rawRows[idx] || {};
-						const oldRowId = rawRow.id || row.id;
+						const oldRowId = String(rawRow.id || row.id || '').trim();
 						const newRowId = uuidv4();
 						rowIdMapping.set(`${oldNodeId}:${oldRowId}`, newRowId);
+						rowIdMapping.set(`${oldNodeId.toLowerCase()}:${oldRowId.toLowerCase()}`, newRowId);
+						rowIdMapping.set(`${oldNodeId.toUpperCase()}:${oldRowId.toUpperCase()}`, newRowId);
 						const nextRow = { ...row, id: newRowId };
 						// Remove synthetic empty text added by normalizeDialogueRow when the original
 						// row uses textKey (text lives in the string table, not inline). Without this,
@@ -1384,8 +1434,8 @@ export const useDialogueStore = create((set, get) => ({
 				const newEdge = {
 					id: uuidv4(),
 					dialogueId,
-					source: nodeIdMapping.get(edge.source),
-					target: nodeIdMapping.get(edge.target),
+					source: mapNodeReference(edge.source),
+					target: mapNodeReference(edge.target),
 					sourceHandle: edge.sourceHandle,
 					targetHandle: edge.targetHandle,
 					markerEnd: edge.markerEnd,
@@ -1429,13 +1479,12 @@ export const useDialogueStore = create((set, get) => ({
 					throw new Error('Imported dialogue contains invalid localization references.');
 				}
 				await db.transaction('rw', [db.nodes, db.edges, db.localizedStrings], async () => {
-					await db.nodes.where('dialogueId').equals(dialogueId).delete();
 					const importPersistedNodes = buildPersistedNodesWithoutLocalizedText(
 						preparedImport.nodes,
 						dialogueId
 					);
 					if (importPersistedNodes.length > 0) {
-						await db.nodes.bulkAdd(importPersistedNodes);
+						await db.nodes.bulkPut(importPersistedNodes);
 					}
 					await db.edges.where('dialogueId').equals(dialogueId).delete();
 					if (remappedEdges.length > 0) {
@@ -1480,9 +1529,9 @@ export const useDialogueStore = create((set, get) => ({
 
 								// Store audio in IndexedDB
 								// We'll need to update the node's dialogue row with audio data
-								const nodeId = nodeIdMapping.get(row.nodeId);
+								const nodeId = mapNodeReference(row.nodeId);
 									const remappedRowId =
-										rowIdMapping.get(`${row.nodeId}:${row.id}`) || row.id;
+										mapRowReference(row.nodeId, row.id) || row.id;
 									if (nodeId) {
 										const nodePrimaryKey = [dialogueId, nodeId];
 										const node = await db.nodes.get(nodePrimaryKey);
