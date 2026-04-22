@@ -725,9 +725,6 @@ export const useProjectStore = create((set, get) => ({
 						db.decorators,
 						db.conditions,
 						db.localizedStrings,
-						db.syncProjects,
-						db.syncDeletions,
-						db.syncTombstones,
 					],
 					async () => {
 						const existingDialogues = await db.dialogues.where('projectId').equals(newProjectId).toArray();
@@ -746,9 +743,6 @@ export const useProjectStore = create((set, get) => ({
 						await db.decorators.where('projectId').equals(newProjectId).delete();
 						await db.conditions.where('projectId').equals(newProjectId).delete();
 						await db.localizedStrings.where('projectId').equals(newProjectId).delete();
-						await db.syncProjects.where('projectId').equals(newProjectId).delete();
-						await db.syncDeletions.where('projectId').equals(newProjectId).delete();
-						await db.syncTombstones.where('projectId').equals(newProjectId).delete();
 					}
 				);
 			}
