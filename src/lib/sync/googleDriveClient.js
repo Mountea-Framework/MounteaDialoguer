@@ -1,13 +1,16 @@
 import { getSyncAccount, upsertSyncAccount } from '@/lib/sync/syncStorage';
 import { refreshAccessToken } from '@/lib/sync/googleDriveAuth';
 import { getGoogleDriveSyncRoot } from '@/lib/sync/googleDriveConfig';
+import { getRepositoryContext } from '@/lib/db';
 
 const DRIVE_FILES_ENDPOINT = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_ENDPOINT = 'https://www.googleapis.com/upload/drive/v3/files';
 const ALLOWED_PREFIXES = [DRIVE_FILES_ENDPOINT, DRIVE_UPLOAD_ENDPOINT];
 
-async function getValidAccessToken() {
-	const account = await getSyncAccount('googleDrive');
+async function getValidAccessToken(context) {
+	context.assertCurrent();
+	const account = await getSyncAccount('googleDrive', context);
+	context.assertCurrent();
 	if (!account?.accessToken) {
 		throw new Error('Missing Google Drive token');
 	}
@@ -21,14 +24,16 @@ async function getValidAccessToken() {
 		throw new Error('tokenExpired');
 	}
 
-	const refreshed = await refreshAccessToken(account.refreshToken);
+	const refreshed = await refreshAccessToken(account.refreshToken, { signal: context.signal });
+	context.assertCurrent();
 	const nextExpiresAt = Date.now() + refreshed.expires_in * 1000;
 
 	await upsertSyncAccount('googleDrive', {
 		...account,
 		accessToken: refreshed.access_token,
 		expiresAt: nextExpiresAt,
-	});
+	}, context);
+	context.assertCurrent();
 
 	return refreshed.access_token;
 }
@@ -44,19 +49,23 @@ function buildDriveUrl(base, pathSegment, params) {
 	return url;
 }
 
-async function driveRequest(url, options = {}) {
+async function driveRequest(url, options, context) {
+	context.assertCurrent();
 	const urlString = url.toString();
 	if (!ALLOWED_PREFIXES.some((prefix) => urlString.startsWith(prefix))) {
 		throw new Error('Blocked non-Google Drive request');
 	}
-	const token = await getValidAccessToken();
+	const token = await getValidAccessToken(context);
+	context.assertCurrent();
 	const response = await fetch(urlString, {
 		...options,
+		signal: context.signal,
 		headers: {
 			Authorization: `Bearer ${token}`,
 			...options.headers,
 		},
 	});
+	context.assertCurrent();
 
 	if (!response.ok) {
 		throw new Error(`Google Drive request failed: ${response.status}`);
@@ -126,7 +135,8 @@ function appendFileAccessParams(params, syncRoot) {
 	}
 }
 
-export async function findAppDataFile(fileName) {
+export async function findAppDataFile(fileName, { context } = {}) {
+	context ||= await getRepositoryContext(); context.assertCurrent();
 	const syncRoot = getGoogleDriveSyncRoot();
 	const query = buildFindFileQuery(fileName, syncRoot);
 
@@ -137,12 +147,14 @@ export async function findAppDataFile(fileName) {
 	appendScopeParams(params, syncRoot);
 
 	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, null, params);
-	const response = await driveRequest(url);
+	const response = await driveRequest(url, {}, context);
 	const data = await response.json();
+	context.assertCurrent();
 	return data.files?.[0] || null;
 }
 
-export async function listAppDataFiles({ namePrefix } = {}) {
+export async function listAppDataFiles({ namePrefix } = {}, { context } = {}) {
+	context ||= await getRepositoryContext(); context.assertCurrent();
 	const syncRoot = getGoogleDriveSyncRoot();
 	const query = buildListFilesQuery(namePrefix, syncRoot);
 
@@ -161,8 +173,9 @@ export async function listAppDataFiles({ namePrefix } = {}) {
 		}
 
 		const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, null, params);
-		const response = await driveRequest(url);
+		const response = await driveRequest(url, {}, context);
 		const data = await response.json();
+		context.assertCurrent();
 		if (Array.isArray(data.files)) {
 			files.push(...data.files);
 		}
@@ -172,16 +185,18 @@ export async function listAppDataFiles({ namePrefix } = {}) {
 	return files;
 }
 
-export async function downloadAppDataFile(fileId) {
+export async function downloadAppDataFile(fileId, { context } = {}) {
+	context ||= await getRepositoryContext(); context.assertCurrent();
 	const syncRoot = getGoogleDriveSyncRoot();
 	const params = new URLSearchParams({ alt: 'media' });
 	appendFileAccessParams(params, syncRoot);
 	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, fileId, params);
-	const response = await driveRequest(url);
-	return await response.text();
+	const response = await driveRequest(url, {}, context);
+	const content = await response.text(); context.assertCurrent(); return content;
 }
 
-export async function createAppDataFile({ name, content, mimeType, appProperties }) {
+export async function createAppDataFile({ name, content, mimeType, appProperties }, { context } = {}) {
+	context ||= await getRepositoryContext(); context.assertCurrent();
 	const syncRoot = getGoogleDriveSyncRoot();
 	const metadata = {
 		name,
@@ -202,12 +217,13 @@ export async function createAppDataFile({ name, content, mimeType, appProperties
 			'Content-Type': `multipart/related; boundary=${boundary}`,
 		},
 		body,
-	});
+	}, context);
 
-	return await response.json();
+	const result = await response.json(); context.assertCurrent(); return result;
 }
 
-export async function updateAppDataFile({ fileId, content, mimeType, appProperties }) {
+export async function updateAppDataFile({ fileId, content, mimeType, appProperties }, { context } = {}) {
+	context ||= await getRepositoryContext(); context.assertCurrent();
 	const syncRoot = getGoogleDriveSyncRoot();
 	const metadata = {
 		appProperties,
@@ -226,18 +242,19 @@ export async function updateAppDataFile({ fileId, content, mimeType, appProperti
 			'Content-Type': `multipart/related; boundary=${boundary}`,
 		},
 		body,
-	});
+	}, context);
 
-	return await response.json();
+	const result = await response.json(); context.assertCurrent(); return result;
 }
 
-export async function deleteAppDataFile(fileId) {
+export async function deleteAppDataFile(fileId, { context } = {}) {
+	context ||= await getRepositoryContext(); context.assertCurrent();
 	const syncRoot = getGoogleDriveSyncRoot();
 	const params = new URLSearchParams();
 	appendFileAccessParams(params, syncRoot);
 	const url = buildDriveUrl(DRIVE_FILES_ENDPOINT, fileId, params);
 	await driveRequest(url, {
 		method: 'DELETE',
-	});
+	}, context);
 	return { id: fileId };
 }

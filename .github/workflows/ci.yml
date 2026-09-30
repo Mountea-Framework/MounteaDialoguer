@@ -1,37 +1,158 @@
 name: CI
-
 on:
   push:
-    branches:
-      - master
+    branches: [master, 'validation/**']
   pull_request:
   workflow_dispatch:
-
+permissions:
+  contents: read
 jobs:
   quality:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: Lint
-        run: npm run lint:ci
-
-      - name: Build
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run lint:ci
+      - run: npm run test:regressions
+      - name: Build the renderer once
         run: npm run build
-
-      - name: Smoke E2E
-        run: npm run test:e2e:smoke
+        env:
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+      - name: Finalize private maps and validate exact production files
+        run: npm run validate:artifact
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-renderer-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve renderer validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-evidence-${{ github.sha }}
+          path: |
+            tmp/playwright-report
+            tmp/playwright-results
+            tmp/production-results
+            dist/release.json
+            dist/artifact-integrity.json
+            dist/artifact-validation.json
+          if-no-files-found: warn
+          retention-days: 14
+  native:
+    name: Unsigned package (${{ matrix.target }})
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x64
+            os: windows-2022
+            platform: win32
+            arch: x64
+          - target: macos-intel
+            os: macos-15-intel
+            platform: darwin
+            arch: x64
+          - target: macos-arm64
+            os: macos-15
+            platform: darwin
+            arch: arm64
+          - target: linux-x64
+            os: ubuntu-22.04
+            platform: linux
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      MOUNTEA_EXPECTED_PLATFORM: ${{ matrix.platform }}
+      MOUNTEA_EXPECTED_ARCH: ${{ matrix.arch }}
+      MOUNTEA_NATIVE_EVIDENCE_PATH: tmp/native-evidence/startup.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - name: Record runner identity
+        shell: bash
+        run: |
+          mkdir -p tmp/native-evidence
+          node -e 'const fs=require("node:fs"),os=require("node:os"); fs.writeFileSync("tmp/native-evidence/host.json",JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,os:os.release(),commit:process.env.GITHUB_SHA,runnerImage:process.env.ImageOS,runnerVersion:process.env.ImageVersion},null,2)); if(process.platform!==process.env.MOUNTEA_EXPECTED_PLATFORM||process.arch!==process.env.MOUNTEA_EXPECTED_ARCH) process.exit(1)'
+      - run: npm ci
+      - name: Install Linux display and runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          npx playwright install-deps chromium
+          sudo apt-get install -y xvfb xauth libgtk-3-0 libnss3 libasound2 libgbm1
+      - name: Install platform browser
+        run: npx playwright install chromium
+      - name: Run platform module regressions
+        shell: bash
+        run: npm run test:regressions 2>&1 | tee tmp/native-evidence/regressions.log
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-renderer-${{ github.sha }}
+          path: dist
+      - run: node scripts/release-artifact.mjs verify
+      - name: Package the tested renderer without rebuilding
+        shell: bash
+        run: npm run electron:pack -- --${{ matrix.arch }} 2>&1 | tee tmp/native-evidence/package.log
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Configure packaged Linux sandbox
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          test -f release/linux-unpacked/chrome-sandbox
+          sudo chown root:root release/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 release/linux-unpacked/chrome-sandbox
+          stat -c '%U:%G %a %n' release/linux-unpacked/chrome-sandbox > tmp/native-evidence/sandbox.txt
+      - name: Validate actual packaged startup
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run --auto-servernum npm run validate:native-package 2>&1 | tee tmp/native-evidence/startup.log
+          else
+            npm run validate:native-package 2>&1 | tee tmp/native-evidence/startup.log
+          fi
+      - run: node scripts/release-artifact.mjs verify
+      - name: Validate the shared production renderer on this platform
+        shell: bash
+        run: npm run test:e2e:production 2>&1 | tee tmp/native-evidence/production.log
+      - run: node scripts/release-artifact.mjs verify
+      - name: Record gate outcome
+        if: always()
+        shell: bash
+        env:
+          NATIVE_JOB_STATUS: ${{ job.status }}
+        run: |
+          mkdir -p tmp/native-evidence
+          node -e 'require("node:fs").writeFileSync("tmp/native-evidence/outcome.json",JSON.stringify({status:process.env.NATIVE_JOB_STATUS,gate:"unsigned-unpacked",platform:process.env.MOUNTEA_EXPECTED_PLATFORM,arch:process.env.MOUNTEA_EXPECTED_ARCH,commit:process.env.GITHUB_SHA},null,2))'
+      - name: Preserve native evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-evidence-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            tmp/native-evidence
+            tmp/playwright-report
+            tmp/playwright-results
+            tmp/production-results
+            dist/release.json
+            dist/artifact-integrity.json
+            dist/artifact-validation.json
+          if-no-files-found: error
+          retention-days: 14

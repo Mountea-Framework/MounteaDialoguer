@@ -7,6 +7,7 @@ const NOOP_PROFILE_STORAGE = Object.freeze({
 	setItem: () => {},
 	removeItem: () => {},
 });
+const INITIAL_UI_STATE = { sidebarOpen: true, viewMode: 'grid', sortBy: 'modifiedAt', sortOrder: 'desc', contentLocaleByProject: {} };
 
 const profileScopedUiStorage = createJSONStorage(() => {
 	if (typeof window === 'undefined' || !window.localStorage) {
@@ -80,6 +81,7 @@ export const useUIStore = create(
 		{
 			name: 'mountea-dialoguer-ui',
 			storage: profileScopedUiStorage,
+			merge: (persisted, current) => ({ ...current, ...INITIAL_UI_STATE, ...persisted }),
 		}
 	)
 );

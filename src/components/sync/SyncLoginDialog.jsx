@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { isMobileDevice } from '@/lib/deviceDetection';
 import { GoogleDriveIcon } from '@/components/sync/GoogleDriveIcon';
 import { SteamIcon } from '@/components/sync/SteamIcon';
+import { SyncQueueStatus } from '@/components/sync/SyncQueueStatus';
 import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
 import { isElectronRuntime } from '@/lib/electronRuntime';
 
@@ -43,6 +44,8 @@ export function SyncLoginDialog({
 		setProviderPassphrase,
 		setProviderAccountLabel,
 		setProviderRememberPassphrase,
+		canRememberCredentials,
+		cancelAuthentication,
 	} = useSyncStore();
 	const steamStatus = useSteamStore((state) => state.status);
 	const openSteamOverlay = useSteamStore((state) => state.openOverlay);
@@ -91,8 +94,10 @@ export function SyncLoginDialog({
 
 	useEffect(() => {
 		if (open) return;
+		cancelAuthentication();
 		steamAutoConnectAttemptedRef.current = false;
-	}, [open]);
+	}, [open, cancelAuthentication]);
+	useEffect(() => () => cancelAuthentication(), [cancelAuthentication]);
 
 	useEffect(() => {
 		if (provider === 'steam' && showSteamProvider) {
@@ -232,6 +237,7 @@ export function SyncLoginDialog({
 				)}
 			>
 				<div className="space-y-4 pb-2">
+					<SyncQueueStatus />
 					<Accordion
 						type="single"
 						collapsible
@@ -384,11 +390,11 @@ export function SyncLoginDialog({
 												<p className="text-xs text-muted-foreground">{t('sync.rememberHint')}</p>
 											</div>
 											<Switch
-												checked={googleRememberPassphrase}
+												checked={canRememberCredentials && googleRememberPassphrase}
 												onCheckedChange={(value) =>
 													setProviderRememberPassphrase('googleDrive', value)
 												}
-												disabled={isGoogleConnected || isGoogleBusy}
+												disabled={!canRememberCredentials || isGoogleConnected || isGoogleBusy}
 											/>
 										</div>
 

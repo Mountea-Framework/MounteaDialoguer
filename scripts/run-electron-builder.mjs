@@ -1,66 +1,32 @@
-import { spawn } from "node:child_process";
-import process from "node:process";
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { verifyArtifact } from './release-artifact.mjs';
+import fs from 'node:fs/promises';
+import { linuxSigningKeys, signLinuxArtifacts } from './sign-linux-release.mjs';
 
-const FILTERED_PATTERNS = [
-	"duplicate dependency references",
-	"skipped macOS notarization",
-];
-
-function commandForCurrentPlatform(command) {
-	return process.platform === "win32" ? `${command}.cmd` : command;
+export function signingArguments(platform, env) {
+	const requireKeys = (keys) => { for (const key of keys) if (!env[key]) throw new Error(`Public ${platform} release requires ${key}; signing cannot be skipped.`); };
+	if (platform === 'win32') { requireKeys(['CSC_LINK', 'CSC_KEY_PASSWORD']); return ['--config.forceCodeSigning=true']; }
+	if (platform === 'darwin') { requireKeys(['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_ID', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_TEAM_ID']); return ['--config.forceCodeSigning=true', '--config.mac.notarize=true']; }
+	if (platform === 'linux') { requireKeys(['MOUNTEA_LINUX_SIGNING_KEY_FILE', 'MOUNTEA_LINUX_PUBLIC_KEY_FILE']); return []; }
+	throw new Error(`Unsupported public release platform: ${platform}`);
 }
-
-function shouldFilterLine(line) {
-	return FILTERED_PATTERNS.some((pattern) => line.includes(pattern));
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	const args = process.argv.slice(2), publicRelease = args.includes('--public-release');
+	await verifyArtifact('dist');
+	const signing = publicRelease ? signingArguments(process.platform, process.env) : [];
+	let linuxOutput;
+	if (publicRelease && process.platform === 'linux') {
+		await linuxSigningKeys();
+		await fs.mkdir('release', { recursive: true });
+		linuxOutput = await fs.mkdtemp(path.resolve('release/linux-public-'));
+		signing.push(`--config.directories.output=${linuxOutput}`);
+	}
+	if (!publicRelease) console.log('Local package validation: this command does not establish a signed public release.');
+	const child = spawn(process.execPath, [path.resolve('node_modules/electron-builder/out/cli/cli.js'), ...args.filter((arg) => arg !== '--public-release'), ...signing, '--publish', 'never'], { stdio: 'inherit', env: process.env, windowsHide: true });
+	const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', (value) => resolve(value ?? 1)); });
+	await verifyArtifact('dist');
+	if (code === 0 && linuxOutput) await signLinuxArtifacts(linuxOutput);
+	process.exitCode = code;
 }
-
-function forwardStream(stream, target, rawLogsEnabled) {
-	let pending = "";
-
-	stream.on("data", (chunk) => {
-		const text = pending + chunk.toString();
-		const lines = text.split(/\r?\n/);
-		pending = lines.pop() ?? "";
-
-		for (const line of lines) {
-			if (rawLogsEnabled || !shouldFilterLine(line)) {
-				target.write(`${line}\n`);
-			}
-		}
-	});
-
-	stream.on("end", () => {
-		if (!pending) return;
-		if (rawLogsEnabled || !shouldFilterLine(pending)) {
-			target.write(`${pending}\n`);
-		}
-	});
-}
-
-function main() {
-	const args = process.argv.slice(2);
-	const rawLogsEnabled = process.env.ELECTRON_BUILDER_RAW_LOGS === "1";
-	const isWindows = process.platform === "win32";
-	const command = isWindows ? "cmd.exe" : commandForCurrentPlatform("npx");
-	const commandArgs = isWindows
-		? ["/d", "/s", "/c", "npx", "electron-builder", ...args]
-		: ["electron-builder", ...args];
-
-	const child = spawn(command, commandArgs, {
-		stdio: ["inherit", "pipe", "pipe"],
-		env: process.env,
-	});
-
-	forwardStream(child.stdout, process.stdout, rawLogsEnabled);
-	forwardStream(child.stderr, process.stderr, rawLogsEnabled);
-
-	child.on("exit", (code, signal) => {
-		if (signal) {
-			process.kill(process.pid, signal);
-			return;
-		}
-		process.exit(code ?? 1);
-	});
-}
-
-main();

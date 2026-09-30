@@ -3,6 +3,8 @@ import { useSteamStore } from '@/stores/steamStore';
 import { STEAM_ACHIEVEMENT_IDS } from '@/config/steamAchievements';
 import {
 	readProfileScopedItem,
+	getActiveProfileId, getProfileGeneration,
+	buildProfileScopedKey, subscribeProfileChanges,
 	writeProfileScopedItem,
 } from '@/lib/profile/activeProfile';
 
@@ -33,29 +35,49 @@ function saveAchievementState(nextState) {
 	writeLocalStorage(ACHIEVEMENT_STATE_KEY, JSON.stringify(nextState || {}));
 }
 
-function isAchievementUnlocked(achievementId) {
-	const state = loadAchievementState();
-	return Boolean(state[achievementId]);
+const pendingRetries = new Map();
+
+export async function retryPendingAchievements() {
+ const profile = getActiveProfileId(), generation = getProfileGeneration();
+ const status = useSteamStore.getState().status;
+ if (!status?.available || (status.steamId && profile !== `steam-${status.steamId}`)) return false;
+ if (pendingRetries.has(profile)) return pendingRetries.get(profile);
+ const eligible = ([id, entry]) => entry && !entry.acknowledgedAt && Object.values(STEAM_ACHIEVEMENT_IDS).includes(id);
+ if (!Object.entries(loadAchievementState()).some(eligible)) return false;
+ const task = (async () => {
+  const attempted = new Set();
+  while (profile === getActiveProfileId() && generation === getProfileGeneration()) {
+   const next = Object.entries(loadAchievementState()).find((entry) => eligible(entry) && !attempted.has(entry[0]));
+   if (!next) break;
+   const [id, entry] = next;
+   attempted.add(id);
+   try {
+    const result = await useSteamStore.getState().unlockAchievement(id);
+    if (profile !== getActiveProfileId() || generation !== getProfileGeneration()) break;
+    if (result?.ok) {
+     const state = loadAchievementState();
+     state[id] = { ...entry, status: 'acknowledged', acknowledgedAt: new Date().toISOString() };
+     saveAchievementState(state);
+    }
+   } catch { /* Earned state remains pending for the next availability/timer retry. */ }
+  }
+  return true;
+ })();
+ pendingRetries.set(profile, task);
+ try { return await task; } finally { pendingRetries.delete(profile); }
 }
 
 async function unlockAchievement(achievementId) {
-	const id = String(achievementId || '').trim();
-	if (!id) return false;
-	if (isAchievementUnlocked(id)) return false;
-
-	const state = loadAchievementState();
-	state[id] = {
-		unlockedAt: new Date().toISOString(),
-	};
-	saveAchievementState(state);
-
-	try {
-		await useSteamStore.getState().unlockAchievement(id);
-	} catch (error) {
-		// Keep local unlock state even when Steam runtime is unavailable.
-	}
-
-	return true;
+ const id = String(achievementId || '').trim();
+ if (!id) return false;
+ const state = loadAchievementState();
+ const newlyEarned = !state[id];
+ if (newlyEarned) {
+  state[id] = { earnedAt: new Date().toISOString(), status: 'pending' };
+  saveAchievementState(state);
+ }
+ await retryPendingAchievements();
+ return newlyEarned;
 }
 
 function isExampleProject(project) {
@@ -118,34 +140,51 @@ export async function trackFirstConditionCreated(projectId) {
 	);
 }
 
+const ACTIVITY_STATE_KEY = 'mountea-activity-v2';
+const activityByProfile = new Map();
+function activityState() {
+ const profile = getActiveProfileId();
+ if (!activityByProfile.has(profile)) {
+  let saved = {};
+  try { saved = JSON.parse(readLocalStorage(ACTIVITY_STATE_KEY, '{}')); } catch { /* Recover invalid preferences. */ }
+  const minutes = Number(saved?.minutes ?? readLocalStorage(PLAYTIME_MINUTES_KEY, '0'));
+  const lastActivity = Number(saved?.lastActivity ?? readLocalStorage(LAST_ACTIVITY_TS_KEY, '0'));
+  activityByProfile.set(profile, { minutes: Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0, lastActivity: Number.isFinite(lastActivity) ? lastActivity : 0, lastTick: Date.now(), lastFlush: 0, dirty: false });
+ }
+ return activityByProfile.get(profile);
+}
+
 export function markUserActivity() {
-	writeLocalStorage(LAST_ACTIVITY_TS_KEY, String(Date.now()));
+ const state = activityState();
+ state.lastActivity = Date.now();
+ state.dirty = true;
 }
 
-export function getTrackedPlaytimeMinutes() {
-	const raw = readLocalStorage(PLAYTIME_MINUTES_KEY, '0');
-	const value = Number(raw);
-	if (!Number.isFinite(value) || value < 0) return 0;
-	return Math.floor(value);
+export function flushActivity({ force = false, profile = getActiveProfileId() } = {}) {
+	const state = activityByProfile.get(profile), now = Date.now();
+	if (!state) return false;
+ if (!state.dirty || (!force && now - state.lastFlush < 60_000)) return false;
+ window.localStorage.setItem(buildProfileScopedKey(ACTIVITY_STATE_KEY, profile), JSON.stringify({ minutes: state.minutes, lastActivity: state.lastActivity }));
+ state.lastFlush = now;
+ state.dirty = false;
+ return true;
 }
 
-function setTrackedPlaytimeMinutes(minutes) {
-	writeLocalStorage(PLAYTIME_MINUTES_KEY, String(minutes));
-}
+subscribeProfileChanges(() => {
+ for (const profile of activityByProfile.keys()) flushActivity({ force: true, profile });
+ void retryPendingAchievements();
+});
+
+export function getTrackedPlaytimeMinutes() { return activityState().minutes; }
 
 export async function trackActiveMinute() {
-	const lastActivityRaw = readLocalStorage(LAST_ACTIVITY_TS_KEY, '0');
-	const lastActivityTs = Number(lastActivityRaw);
-	if (!Number.isFinite(lastActivityTs)) return false;
-	if (Date.now() - lastActivityTs > ACTIVE_WINDOW_MS) return false;
-	if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
-
-	const minutes = getTrackedPlaytimeMinutes() + 1;
-	setTrackedPlaytimeMinutes(minutes);
-
-	if (minutes >= 600) {
-		return await unlockAchievement(STEAM_ACHIEVEMENT_IDS.POWER_USER_10H);
-	}
-
-	return false;
+ const state = activityState(), now = Date.now();
+ if (now - state.lastTick < 60_000) return false;
+ state.lastTick = now;
+ const eligible = now - state.lastActivity <= ACTIVE_WINDOW_MS && (typeof document === 'undefined' || document.visibilityState === 'visible');
+ if (eligible) { state.minutes += 1; state.dirty = true; }
+ flushActivity();
+ await retryPendingAchievements();
+ if (eligible && state.minutes >= 600) return await unlockAchievement(STEAM_ACHIEVEMENT_IDS.POWER_USER_10H);
+ return false;
 }

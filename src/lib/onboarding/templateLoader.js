@@ -1,6 +1,5 @@
-import { isDesktopElectronRuntime } from '@/lib/electronRuntime';
+const bundledTemplateUrl = `${import.meta.env.BASE_URL}onboarding-example.mnteadlgproj`;
 import {
-	getOnboardingExampleBundledPath,
 	getOnboardingExampleProjectRemoteUrl,
 } from '@/lib/runtimeConfig';
 
@@ -26,11 +25,28 @@ function toTemplateFile(blob, source) {
 }
 
 async function fetchBlob(url, sourceLabel) {
-	const response = await fetch(url, { cache: 'no-store' });
-	if (!response.ok) {
-		throw new Error(`${sourceLabel} fetch failed with HTTP ${response.status}`);
-	}
-	return await response.blob();
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 10000);
+	try {
+		const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+		if (!response.ok) throw new Error(`${sourceLabel} fetch failed with HTTP ${response.status}`);
+		const limit = 32 * 1024 * 1024;
+		if (Number(response.headers.get('content-length')) > limit) { controller.abort(); throw new Error('Onboarding template size is invalid'); }
+		const reader = response.body?.getReader();
+		if (!reader) throw new Error('Onboarding template response has no body');
+		const chunks = [];
+		let size = 0;
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			size += value.byteLength;
+			if (size > limit) { await reader.cancel(); controller.abort(); throw new Error('Onboarding template size is invalid'); }
+			chunks.push(value);
+		}
+		const blob = new Blob(chunks);
+		if (!blob.size) throw new Error('Onboarding template size is invalid');
+		return blob;
+	} finally { clearTimeout(timeout); }
 }
 
 function tryBuildGithubRawUrl(urlString) {
@@ -83,12 +99,6 @@ function buildRemoteTemplateCandidates(remoteUrl) {
 
 export async function resolveOnboardingExampleTemplateFile() {
 	const remoteUrl = String(getOnboardingExampleProjectRemoteUrl() || '').trim();
-	if (!remoteUrl) {
-		throw new OnboardingTemplateError(
-			'Onboarding template URL is not configured',
-			ONBOARDING_TEMPLATE_ERROR_CODES.REMOTE_FETCH_FAILED
-		);
-	}
 
 	try {
 		const remoteCandidates = buildRemoteTemplateCandidates(remoteUrl);
@@ -117,16 +127,7 @@ export async function resolveOnboardingExampleTemplateFile() {
 			remoteUrl: resolvedRemoteUrl,
 		};
 	} catch (remoteError) {
-		if (!isDesktopElectronRuntime()) {
-			throw new OnboardingTemplateError(
-				'Could not download onboarding example. Import a local .mnteadlgproj file to continue.',
-				ONBOARDING_TEMPLATE_ERROR_CODES.WEB_FALLBACK_REQUIRED,
-				{ remoteUrl, cause: remoteError }
-			);
-		}
-
-		const bundledRelativePath = String(getOnboardingExampleBundledPath() || '').trim();
-		const bundledUrl = `${import.meta.env.BASE_URL}${bundledRelativePath}`;
+		const bundledUrl = bundledTemplateUrl;
 		try {
 			const blob = await fetchBlob(bundledUrl, 'Bundled onboarding template');
 			return {

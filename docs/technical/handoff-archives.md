@@ -1,0 +1,9 @@
+# Archive and repository continuation checkpoint
+
+Owner: archives_v2. Scope: canonical/repository/remap/archive modules, snapshot.js, projectStore, dialogueStore except deleteDialogue, import UI.
+
+Final executed checkpoint on port 4193, tmp/archive-final-results: 29/29 passed (12 archive, 7 repository, 10 localization). Three smoke tests passed in preceding run. Includes mounted choice, streaming CRC, actual nested 128 MiB, exact encrypted snapshot full equality with canonical table ordering, cross-tab locking and remote metadata. Owned lint passed before final canonical ordering change; comprehensive final gate follows Phase9.
+
+Implemented: v3 canonical manifest archives with unique record paths and raw audio/thumbnail entries; stored thumbnail base64 and legacy dataUrl canonical conversion, byte/metadata validation, structured malformed record diagnostics. Central and local original ZIP paths checked before JSZip normalization/duplicate loss; Unicode path overrides and aliases rejected; streamed CRC32 checked after streaming expansion budget. Legacy bundled project reads with audio. Parsing/preparation perform no authoring writes; commit atomically writes authoring/revision/outbox with pinned context and expected sequence. Two-pass copy/remap covers return/child/definition/row/localization identities and extension metadata. Explicit copy-default/targeted replace UI exists on dashboard, project page and dialogue section. Local mutations queued across tabs with Web Locks; remote application preserves exact validated revision metadata and never enqueues echo. Incomplete remote heads remain strict-rejected by sync protocol design.
+
+Phase5 local data gates complete, current import-export guide and ledger updated. Phase9 CI/release work started; see handoff-release.md. Root coordinates final lint/build/all-suite gate after concurrent work settles. Do not modify migration.js or domain store work (sync worker).

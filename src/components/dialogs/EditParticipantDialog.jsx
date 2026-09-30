@@ -28,7 +28,7 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 	const [isProcessingThumbnail, setIsProcessingThumbnail] = useState(false);
 	const [formData, setFormData] = useState({
 		name: '',
-		category: '',
+		categoryId: '',
 		thumbnail: null,
 	});
 	const [errors, setErrors] = useState({});
@@ -41,7 +41,7 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 		if (open && participant) {
 			setFormData({
 				name: participant.name || '',
-				category: participant.category || '',
+				categoryId: participant.categoryId || '',
 				thumbnail: participant.thumbnail || null,
 			});
 		}
@@ -51,7 +51,9 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 	const getCategoryPath = (categoryId) => {
 		const path = [];
 		let current = categories.find((category) => category.id === categoryId);
-		while (current) {
+		const visited = new Set();
+		while (current && !visited.has(current.id)) {
+			visited.add(current.id);
 			path.unshift(current.name);
 			current = categories.find((category) => category.id === current.parentCategoryId);
 		}
@@ -100,13 +102,13 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 			newErrors.name = 'Name must be 16 characters or fewer';
 		}
 
-		if (!formData.category) {
+		if (!formData.categoryId) {
 			newErrors.category = t('validation.required');
 		}
 
-		if (!newErrors.name && formData.category && participant) {
+		if (!newErrors.name && formData.categoryId && participant) {
 			const name = formData.name.trim();
-			const categoryMatches = categories.filter((category) => category.name === formData.category);
+			const categoryMatches = categories.filter((category) => category.id === formData.categoryId);
 			const getRootId = (categoryId) => {
 				let currentId = categoryId;
 				const visited = new Set();
@@ -127,7 +129,7 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 			const isDuplicate = projectParticipants.some((entry) => {
 				if (entry.id === participant.id) return false;
 				if (entry.name !== name) return false;
-				const matchCategory = categories.find((category) => category.name === entry.category);
+				const matchCategory = categories.find((category) => category.id === entry.categoryId);
 				if (!matchCategory) return false;
 				const rootId = getRootId(matchCategory.id);
 				return rootId && rootIds.includes(rootId);
@@ -255,9 +257,9 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 							</Label>
 							<NativeSelect
 								id="category"
-								value={formData.category}
+								value={formData.categoryId}
 								onChange={(event) => {
-									setFormData({ ...formData, category: event.target.value });
+									setFormData({ ...formData, categoryId: event.target.value });
 									if (errors.category) setErrors({ ...errors, category: null });
 								}}
 								className={errors.category ? 'border-destructive' : ''}
@@ -274,7 +276,7 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 									groupedCategories.map((group) => (
 										<optgroup key={group.label} label={group.label}>
 											{group.options.map((option) => (
-												<option key={option.id} value={option.name}>
+												<option key={option.id} value={option.id}>
 													{option.label}
 												</option>
 											))}
@@ -300,7 +302,7 @@ export function EditParticipantDialog({ open, onOpenChange, participant, project
 								isUpdating ||
 								isProcessingThumbnail ||
 								!formData.name.trim() ||
-								!formData.category
+								!formData.categoryId
 							}
 						>
 							{isUpdating ? t('common.saving') : t('common.save')}

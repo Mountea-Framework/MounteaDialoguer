@@ -27,12 +27,12 @@ function createUnsupportedProviderError(providerId) {
 const googleDriveStorageProvider = Object.freeze({
 	id: 'googleDrive',
 	supportsCloudSync: true,
-	findFileByName: async (fileName) => await findGoogleAppDataFile(fileName),
-	listFiles: async ({ namePrefix } = {}) => await listGoogleAppDataFiles({ namePrefix }),
-	downloadFile: async (fileId) => await downloadGoogleAppDataFile(fileId),
-	createFile: async (payload) => await createGoogleAppDataFile(payload),
-	updateFile: async (payload) => await updateGoogleAppDataFile(payload),
-	deleteFile: async (fileId) => await deleteGoogleAppDataFile(fileId),
+	findFileByName: async (fileName, options) => await findGoogleAppDataFile(fileName, options),
+	listFiles: async ({ namePrefix } = {}, options) => await listGoogleAppDataFiles({ namePrefix }, options),
+	downloadFile: async (fileId, options) => await downloadGoogleAppDataFile(fileId, options),
+	createFile: async (payload, options) => await createGoogleAppDataFile(payload, options),
+	updateFile: async (payload, options) => await updateGoogleAppDataFile(payload, options),
+	deleteFile: async (fileId, options) => await deleteGoogleAppDataFile(fileId, options),
 });
 
 const steamStorageProvider = Object.freeze({

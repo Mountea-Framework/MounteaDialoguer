@@ -28,7 +28,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 	const [isProcessingThumbnail, setIsProcessingThumbnail] = useState(false);
 	const [formData, setFormData] = useState({
 		name: '',
-		category: '',
+		categoryId: '',
 		thumbnail: null,
 	});
 	const [errors, setErrors] = useState({});
@@ -44,7 +44,9 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 	const getCategoryPath = (categoryId) => {
 		const path = [];
 		let current = categories.find((category) => category.id === categoryId);
-		while (current) {
+		const visited = new Set();
+		while (current && !visited.has(current.id)) {
+			visited.add(current.id);
 			path.unshift(current.name);
 			current = categories.find((category) => category.id === current.parentCategoryId);
 		}
@@ -86,13 +88,13 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 			newErrors.name = 'Name must be 16 characters or fewer';
 		}
 
-		if (!formData.category) {
+		if (!formData.categoryId) {
 			newErrors.category = t('validation.required');
 		}
 
-		if (!newErrors.name && formData.category) {
+		if (!newErrors.name && formData.categoryId) {
 			const name = formData.name.trim();
-			const categoryMatches = categories.filter((category) => category.name === formData.category);
+			const categoryMatches = categories.filter((category) => category.id === formData.categoryId);
 			const getRootId = (categoryId) => {
 				let currentId = categoryId;
 				const visited = new Set();
@@ -112,7 +114,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 			const projectParticipants = participants.filter((participant) => participant.projectId === projectId);
 			const isDuplicate = projectParticipants.some((participant) => {
 				if (participant.name !== name) return false;
-				const matchCategory = categories.find((category) => category.name === participant.category);
+				const matchCategory = categories.find((category) => category.id === participant.categoryId);
 				if (!matchCategory) return false;
 				const rootId = getRootId(matchCategory.id);
 				return rootId && rootIds.includes(rootId);
@@ -157,7 +159,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 				...formData,
 				projectId,
 			});
-			setFormData({ name: '', category: '', thumbnail: null });
+			setFormData({ name: '', categoryId: '', thumbnail: null });
 			setErrors({});
 			onOpenChange(false);
 		} catch (error) {
@@ -243,9 +245,9 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 							</Label>
 							<NativeSelect
 								id="category"
-								value={formData.category}
+								value={formData.categoryId}
 								onChange={(event) => {
-									setFormData({ ...formData, category: event.target.value });
+									setFormData({ ...formData, categoryId: event.target.value });
 									if (errors.category) setErrors({ ...errors, category: null });
 								}}
 								className={errors.category ? 'border-destructive' : ''}
@@ -262,7 +264,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 									groupedCategories.map((group) => (
 										<optgroup key={group.label} label={group.label}>
 											{group.options.map((option) => (
-												<option key={option.id} value={option.name}>
+												<option key={option.id} value={option.id}>
 													{option.label}
 												</option>
 											))}
@@ -288,7 +290,7 @@ export function CreateParticipantDialog({ open, onOpenChange, projectId }) {
 								isCreating ||
 								isProcessingThumbnail ||
 								!formData.name.trim() ||
-								!formData.category
+								!formData.categoryId
 							}
 						>
 							{isCreating ? t('common.creating') : t('common.create')}

@@ -26,6 +26,8 @@ function PlaceholderNode({ id, data, selected, positionAbsoluteX, positionAbsolu
 				${selected ? 'border-primary shadow-lg' : 'border-border'}
 			`}
 			onClick={handleClick}
+			role="button" tabIndex={0} aria-label={t('editor.placeholder.addNode')}
+			onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); handleClick(); } }}
 		>
 			{/* Top Handle */}
 			<Handle

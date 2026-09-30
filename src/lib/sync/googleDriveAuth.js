@@ -87,38 +87,50 @@ function openPopup(url) {
 	);
 }
 
-function waitForAuthResult(expectedState) {
+function waitForAuthResult(expectedState, popup, signal) {
 	return new Promise((resolve, reject) => {
-		const handler = (event) => {
-			if (event.origin !== window.location.origin) return;
-			const { type, code, state, error, accessToken, expiresIn, tokenType, scope } = event.data || {};
-			if (type !== 'GOOGLE_OAUTH_RESULT') return;
-			if (state !== expectedState) return;
+		let settled = false;
+		let timeout;
+		let closedPoll;
+		const finish = (error, result) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			clearInterval(closedPoll);
 			window.removeEventListener('message', handler);
-			if (error) {
-				reject(new Error(error));
-			} else {
-				resolve({ code, accessToken, expiresIn, tokenType, scope });
-			}
+			signal?.removeEventListener('abort', abort);
+			try { if (!popup.closed) popup.close(); } catch { /* Already detached. */ }
+			if (error) reject(error); else resolve(result);
+		};
+		const abort = () => finish(new DOMException('Authentication cancelled', 'AbortError'));
+		const handler = (event) => {
+			if (event.origin !== window.location.origin || event.source !== popup) return;
+			const { type, code, state, error, accessToken, expiresIn, tokenType, scope } = event.data || {};
+			if (type !== 'GOOGLE_OAUTH_RESULT' || state !== expectedState) return;
+			finish(error ? new Error(String(error)) : null, { code, accessToken, expiresIn, tokenType, scope });
 		};
 		window.addEventListener('message', handler);
+		signal?.addEventListener('abort', abort, { once: true });
+		timeout = setTimeout(() => finish(new Error('Authentication timed out after 60 seconds')), 60000);
+		closedPoll = setInterval(() => { if (popup.closed) finish(new Error('Authentication window was closed')); }, 250);
+		if (signal?.aborted) abort();
 	});
 }
 
-export async function startGoogleDriveAuth() {
+export async function startGoogleDriveAuth({ signal } = {}) {
+	if (signal?.aborted) throw new DOMException('Authentication cancelled', 'AbortError');
 	const clientId = getClientId();
 	const scopes = getGoogleDriveScopes();
 	const electronApi = getElectronApi();
 	if (electronApi?.isElectron && typeof electronApi.startGoogleOAuth === 'function') {
-		const desktopClientSecret =
-			import.meta.env.VITE_GOOGLE_CLIENT_SECRET_DESKTOP ||
-			import.meta.env.VITE_GOOGLE_CLIENT_SECRET ||
-			'';
-		const result = await electronApi.startGoogleOAuth({
+		const cancel = () => { electronApi.cancelGoogleOAuth?.().catch(() => {}); };
+		signal?.addEventListener('abort', cancel, { once: true });
+		let result;
+		try { result = await electronApi.startGoogleOAuth({
 			clientId,
-			clientSecret: desktopClientSecret,
 			scopes,
-		});
+		}); } finally { signal?.removeEventListener('abort', cancel); }
+		if (signal?.aborted) throw new DOMException('Authentication cancelled', 'AbortError');
 
 		if (!result?.accessToken) {
 			throw new Error('Missing access token');
@@ -151,12 +163,13 @@ export async function startGoogleDriveAuth() {
 	const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`;
 	const popup = openPopup(authUrl);
 	if (!popup) {
+		clearAuthState();
 		throw new Error('Popup blocked');
 	}
 
 	let result;
 	try {
-		result = await waitForAuthResult(state);
+		result = await waitForAuthResult(state, popup, signal);
 	} finally {
 		clearAuthState();
 	}
@@ -206,7 +219,7 @@ export async function exchangeCodeForToken({ code, redirectUri, clientId }) {
 	return await response.json();
 }
 
-export async function refreshAccessToken(refreshToken) {
+export async function refreshAccessToken(refreshToken, { signal } = {}) {
 	const clientId = getClientId();
 	const body = new URLSearchParams({
 		client_id: clientId,
@@ -215,6 +228,7 @@ export async function refreshAccessToken(refreshToken) {
 	});
 
 	const response = await fetch(TOKEN_ENDPOINT, {
+		signal,
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',

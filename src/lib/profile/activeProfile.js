@@ -1,10 +1,22 @@
 const ACTIVE_PROFILE_KEY = 'mountea-active-profile-id';
 const DEFAULT_PROFILE_ID = 'local';
+let generation = 0;
+const listeners = new Set();
+export function getProfileGeneration() { return generation; }
+export function subscribeProfileChanges(listener) { listeners.add(listener); return () => listeners.delete(listener); }
+function notifyProfileChange(profileId) {
+	generation += 1;
+	for (const listener of listeners) listener(profileId, generation);
+}
+if (typeof window !== 'undefined') window.addEventListener('storage', (event) => {
+	if (event.key === ACTIVE_PROFILE_KEY) notifyProfileChange(getActiveProfileId());
+});
 
 function sanitizeProfileId(rawValue) {
 	const value = String(rawValue || '').trim();
 	if (!value) return DEFAULT_PROFILE_ID;
-	return value.replace(/[^a-zA-Z0-9_-]/g, '-');
+	if (!/^[a-zA-Z0-9_-]+$/.test(value)) throw new Error('Invalid profile identifier. Use letters, numbers, underscores, or hyphens; profile identifiers must not alias another profile.');
+	return value;
 }
 
 function canUseStorage() {
@@ -20,7 +32,9 @@ export function getActiveProfileId() {
 export function setActiveProfileId(profileId) {
 	if (!canUseStorage()) return DEFAULT_PROFILE_ID;
 	const normalized = sanitizeProfileId(profileId);
+	const previous = getActiveProfileId();
 	window.localStorage.setItem(ACTIVE_PROFILE_KEY, normalized);
+	if (previous !== normalized) notifyProfileChange(normalized);
 	return normalized;
 }
 
@@ -50,6 +64,9 @@ export function readProfileScopedItem(baseKey, fallback = '') {
 	if (scopedValue !== null) return scopedValue;
 
 	// Legacy fallback for pre-profile data; migrate on first read.
+	// Global historical settings belong to the local profile, never every Steam
+	// account that happens to sign in on this machine.
+	if (getActiveProfileId() !== DEFAULT_PROFILE_ID) return fallback;
 	const legacyValue = window.localStorage.getItem(baseKey);
 	if (legacyValue === null) return fallback;
 	window.localStorage.setItem(scopedKey, legacyValue);

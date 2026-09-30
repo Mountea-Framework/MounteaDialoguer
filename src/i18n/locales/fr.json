@@ -31,7 +31,8 @@
 			"minutesAgo_plural": "il y a {{count}} min",
 			"hoursAgo": "il y a {{count}} h",
 			"hoursAgo_plural": "il y a {{count}} h"
-		}
+		},
+		"retry": "Réessayer"
 	},
 	"navigation": {
 		"dashboard": "Tableau de bord",
@@ -43,7 +44,7 @@
 		"settings": "Paramètres"
 	},
 	"dashboard": {
-		"diskUsage": "Utilisation du Disque"
+		"diskUsage": "Stockage utilisé par ce site"
 	},
 	"decorators": {
 		"title": "Décorateurs",
@@ -172,7 +173,11 @@
 			"addCompleteTooltip": "Ajouter un nœud Terminer - glisser sur le canevas ou cliquer",
 			"delay": "Délai",
 			"addDelayTooltip": "Ajouter un nœud Délai - glisser sur le canevas ou cliquer",
-			"poweredBy": "Propulsé par"
+			"poweredBy": "Propulsé par",
+			"recenter": "Recentrer le graphe",
+			"backToStart": "Centrer le nœud Start",
+			"recenterTooltip": "Afficher tout le graphe",
+			"startFocusTooltip": "Centrer le nœud Start"
 		},
 		"nodes": {
 			"start": "Début",
@@ -452,5 +457,104 @@
 		"required": "Ce champ est requis",
 		"invalidName": "Nom invalide",
 		"nameTaken": "Ce nom est déjà utilisé"
+	},
+	"errors": {
+		"unexpectedTitle": "Erreur inattendue",
+		"unexpectedDescription": "Une erreur inattendue est survenue. Redémarrez l’application et réessayez.",
+		"storageInitialization": "Le stockage local n’a pas pu être ouvert en toute sécurité. Votre base de données d’origine a été conservée.",
+		"actions": {
+			"load": "Impossible de charger les données",
+			"create": "Impossible de créer cet élément",
+			"update": "Impossible de mettre à jour cet élément",
+			"save": "Impossible d’enregistrer les modifications",
+			"delete": "Impossible de supprimer cet élément",
+			"import": "Impossible d’importer l’archive",
+			"export": "Impossible d’exporter l’archive"
+		},
+		"details": {
+			"unexpected": "L’opération a échoué. Réessayez ; si le problème persiste, conservez votre sauvegarde et signalez-le.",
+			"stale": "Le profil ou le projet a changé. Rechargez les données et réessayez.",
+			"exists": "La destination existe déjà. Choisissez une nouvelle copie ou un remplacement explicite.",
+			"missing": "L’élément référencé est indisponible. Vérifiez le projet sélectionné.",
+			"referenced": "Supprimez ou réaffectez ces références avant de modifier ou supprimer cet élément.",
+			"categoryCycle": "Une catégorie ne peut pas être son propre ancêtre. Choisissez un autre parent.",
+			"categoryDepth": "Les catégories acceptent au maximum cinq niveaux. Choisissez un parent plus haut.",
+			"reference": "Choisissez un élément non ambigu appartenant à ce projet.",
+			"name": "Utilisez 1 à 16 lettres ou chiffres pour le nom.",
+			"duplicateName": "Choisissez un nom unique dans cet arbre de catégories.",
+			"definition": "Vérifiez les noms, types et valeurs par défaut des propriétés ; les types utilisés doivent rester compatibles.",
+			"repair": "Réparez les références et traductions du projet, puis réessayez.",
+			"media": "Restaurez les données originales du média et vérifiez la pièce jointe.",
+			"duplicateIdentity": "Choisissez une identité différente pour l’enregistrement en double.",
+			"quota": "Le stockage est plein. Exportez une sauvegarde et libérez de l’espace.",
+			"archiveLimit": "Réduisez l’archive ou divisez le projet : limites de 25 Mio compressés, 128 Mio décompressés, 5 Mio par entrée JSON, 1 000 entrées et 250 dialogues.",
+			"archiveCorrupt": "L’archive est endommagée ou contient des chemins ou enregistrements invalides. Restaurez une sauvegarde vérifiée ou exportez-la à nouveau.",
+			"archiveUnsupported": "Ce format d’archive n’est pas pris en charge. Exportez une archive standard de projet ou de dialogue avec une version compatible de l’application."
+		}
+	},
+	"metrics": {
+		"payloadEstimate": "Estimation des données",
+		"unavailable": "Indisponible",
+		"currentUser": "Utilisateur actuel"
+	},
+	"accessibility": {
+		"editorCommands": "Commandes de l’éditeur",
+		"editSelection": "Modifier la sélection",
+		"dialogueGraph": "Graphe de dialogue",
+		"zoom": "Zoom",
+		"zoomIn": "Agrandir",
+		"zoomOut": "Réduire",
+		"connectExisting": "Connecter à un nœud existant",
+		"chooseConnection": "Sélectionner le nœud à connecter",
+		"noConnections": "Aucun nœud à connecter",
+		"chooseNode": "Choisir un nœud…",
+		"connect": "Connecter",
+		"nodeType": "Choisir le type de nœud",
+		"nodeTypeDescription": "Choisissez le type de nœud à ajouter au dialogue"
+	},
+	"archive": {
+		"importTitle": "Importer une archive",
+		"copy": "Importer une nouvelle copie",
+		"replace": "Remplacer un élément existant",
+		"target": "Élément à remplacer",
+		"replaceWarning": "L’élément sélectionné et son graphe seront remplacés. Exportez d’abord une sauvegarde pour conserver la version actuelle.",
+		"confirmReplace": "Remplacer l’élément sélectionné",
+		"failed": "L’importation a échoué. Vérifiez l’archive et réessayez."
+	},
+	"recovery": {
+		"title": "Récupération du projet",
+		"description": "Corrigez ces références avant l’exportation ou la synchronisation. Les données d’origine sont conservées. Récupérez les textes ou médias manquants depuis une sauvegarde ; l’application ne peut pas les reconstruire.",
+		"failed": "La récupération a échoué. Vérifiez les détails et réessayez.",
+		"details": "Détails techniques",
+		"revalidate": "Revérifier les données réparées",
+		"record": "Enregistrement",
+		"unknown": "inconnu",
+		"download": "Télécharger les données d’origine",
+		"replacement": "Remplacement pour {{id}} {{row}}",
+		"choose": "Choisir un remplacement",
+		"assign": "Attribuer",
+		"restoreDescription": "Restaurez ce nœud avec une identité distincte et son type prévu, autre que Start. Vérifiez son dialogue et son contenu avant la restauration.",
+		"prepare": "Préparer le nœud récupéré",
+		"nodeJson": "JSON du nœud récupéré",
+		"restore": "Restaurer le nœud vérifié",
+		"globalTitle": "Rapport de récupération",
+		"globalDescription": "Certains enregistrements doivent être examinés. Les données originales sont conservées.",
+		"orphanGuidance": "Aucun projet propriétaire de ces enregistrements n’est disponible. Téléchargez les données originales et comparez-les à une sauvegarde avant de les récupérer manuellement dans un projet. Aucune attribution automatique n’a été effectuée.",
+		"openProject": "Ouvrir les paramètres de récupération du projet",
+		"reportDownload": "Télécharger le rapport de récupération",
+		"refresh": "Actualiser le rapport"
+	},
+	"syncConflicts": {
+		"title": "Conflits de synchronisation",
+		"description": "Les deux versions sont conservées. Choisissez celle à garder.",
+		"incomplete": "Une partie de l’historique est indisponible. Relancez la synchronisation avant de résoudre le conflit.",
+		"keepLocal": "Garder la version locale",
+		"keepRemote": "Garder la version distante",
+		"keepBoth": "Garder les deux projets",
+		"refresh": "Actualiser les conflits",
+		"selectRevision": "Version concurrente",
+		"revision": "Révision {{id}}",
+		"deleted": "Projet supprimé",
+		"resolveError": "Impossible de résoudre ce conflit."
 	}
 }

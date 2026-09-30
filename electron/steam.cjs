@@ -329,21 +329,11 @@ function getSteamCloudStatus() {
 
 function listSteamCloudFileNames() {
 	const cloud = getSteamCloudApi();
-	if (!cloud || typeof cloud?.listFiles !== 'function') {
-		return [];
-	}
-
-	try {
-		const files = cloud.listFiles();
-		if (!Array.isArray(files)) return [];
-		return files
-			.map((item) => String(item?.name || '').trim())
-			.filter(Boolean);
-	} catch (error) {
-		return [];
-	}
+	if (!cloud || typeof cloud.listFiles !== 'function') throw new Error('Steam Cloud listing unavailable');
+	const files = cloud.listFiles();
+	if (!Array.isArray(files)) throw new Error('Invalid Steam Cloud listing');
+	return files.map((item) => String(item?.name || '').trim()).filter(Boolean);
 }
-
 function steamCloudFileExists(name) {
 	const fileName = String(name || '').trim();
 	if (!fileName) return false;

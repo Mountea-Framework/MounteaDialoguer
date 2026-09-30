@@ -9,16 +9,23 @@ import { CommandPalette } from '@/components/ui/command-palette';
 import { SettingsCommandDialog } from '@/components/ui/SettingsCommandDialog';
 import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
-import { db } from '@/lib/db';
+import { SyncConflictPanel } from '@/components/sync/SyncConflictPanel';
+import { RecoverySummary } from '@/components/projects/RecoverySummary';
+import { db, getRepositoryContext } from '@/lib/db';
 import { openContainingFolder } from '@/lib/export/exportFile';
 import { toast } from '@/components/ui/toaster';
-import { useSyncStore } from '@/stores/syncStore';
+import { useSyncStore, startSyncRetryWorker } from '@/stores/syncStore';
 import { useSteamStore } from '@/stores/steamStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
-import { markUserActivity, trackActiveMinute } from '@/lib/achievements/achievementTracker';
+import { markUserActivity, trackActiveMinute, flushActivity, retryPendingAchievements } from '@/lib/achievements/achievementTracker';
 import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
-import { initializeActiveProfileFromSteamStatus } from '@/lib/profile/activeProfile';
+import { initializeActiveProfileFromSteamStatus, subscribeProfileChanges } from '@/lib/profile/activeProfile';
+import { useDialogueStore } from '@/stores/dialogueStore';
+import { useCategoryStore } from '@/stores/categoryStore';
+import { useParticipantStore } from '@/stores/participantStore';
+import { useDecoratorStore } from '@/stores/decoratorStore';
+import { useConditionStore } from '@/stores/conditionStore';
 import { getSyncProviderConfig } from '@/lib/sync/providers/providerRegistry';
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
@@ -60,6 +67,7 @@ function RootComponent() {
 	const { i18n: runtimeI18n } = useTranslation();
 	const navigate = useNavigate();
 	const [isLoading, setIsLoading] = useState(true);
+	const [initializationError, setInitializationError] = useState(null);
 	const [showContent, setShowContent] = useState(false);
 	const [promptedThisSession, setPromptedThisSession] = useState(false);
 	const [, setDeviceOverrideTick] = useState(0);
@@ -183,31 +191,43 @@ function RootComponent() {
 	}, []);
 
 	useEffect(() => {
-		const initializeApp = async () => {
+		let disposed = false;
+		let request = 0;
+		let resolvedSteamStatus;
+		const initializeApp = async (resolveSteam = false) => {
+			const ticket = ++request;
+			setIsLoading(true);
+			setShowContent(false);
+			setInitializationError(null);
 			try {
-				const steamStatus = await loadSteamStatus();
-				initializeActiveProfileFromSteamStatus(steamStatus);
-				// Rehydrate profile-scoped persisted stores after profile is resolved.
-				if (typeof useSyncStore.persist?.rehydrate === 'function') {
-					await useSyncStore.persist.rehydrate();
+				if (resolveSteam) {
+					resolvedSteamStatus = await loadSteamStatus();
+					if (disposed || ticket !== request) return;
+					initializeActiveProfileFromSteamStatus(resolvedSteamStatus);
+					if (ticket !== request) return;
 				}
-				// Wait for profile-scoped database to be ready
-				await db.open();
-				await loadAccount({ steamStatus });
-
-				// Ensure minimum loading time for smooth UX (1.5 seconds)
-				await new Promise((resolve) => setTimeout(resolve, 1500));
-
-				// Mark loading as complete
+				for (const store of [useProjectStore, useDialogueStore, useCategoryStore, useParticipantStore, useDecoratorStore, useConditionStore]) store.setState(store.getInitialState(), true);
+				const context = await getRepositoryContext();
+				// Rehydration merges from defaults so absent settings cannot leak
+				// from the previously active profile. It never writes old values first.
+				useSyncStore.persist.setOptions({ merge: (persisted, current) => ({ ...current, ...useSyncStore.getInitialState(), ...persisted }) });
+				await Promise.all([useUIStore.persist.rehydrate(), useSyncStore.persist.rehydrate()]);
+				context.assertCurrent();
+				if (disposed || ticket !== request) return;
+				await loadAccount({ steamStatus: resolvedSteamStatus });
+				context.assertCurrent();
+				if (disposed || ticket !== request) return;
 				setIsLoading(false);
 			} catch (error) {
+				if (disposed || ticket !== request || error.code === 'STALE_PROFILE') return;
 				console.error('Failed to initialize app:', error);
-				// Still proceed even if there's an error
+				setInitializationError(error);
 				setIsLoading(false);
 			}
 		};
-
-		initializeApp();
+		const unsubscribe = subscribeProfileChanges(() => { hasAutoSyncedRef.current = false; void initializeApp(); });
+		void initializeApp(true);
+		return () => { disposed = true; request += 1; unsubscribe(); };
 	}, [loadAccount, loadSteamStatus]);
 
 	useEffect(() => {
@@ -224,6 +244,14 @@ function RootComponent() {
 			markUserActivity();
 		};
 
+		const flush = () => flushActivity({ force: true });
+		const visibility = () => { if (document.visibilityState === 'hidden') flush(); };
+		window.addEventListener('pagehide', flush);
+		document.addEventListener('visibilitychange', visibility);
+		const unsubscribeSteam = useSteamStore.subscribe((state, previous) => {
+			if (state.status?.available && (!previous.status?.available || state.status.steamId !== previous.status.steamId)) void retryPendingAchievements();
+		});
+		void retryPendingAchievements();
 		handleActivity();
 		activityEvents.forEach((eventName) =>
 			window.addEventListener(eventName, handleActivity, { passive: true })
@@ -236,6 +264,10 @@ function RootComponent() {
 		}, 60_000);
 
 		return () => {
+			flush();
+			unsubscribeSteam();
+			window.removeEventListener('pagehide', flush);
+			document.removeEventListener('visibilitychange', visibility);
 			window.clearInterval(timer);
 			activityEvents.forEach((eventName) =>
 				window.removeEventListener(eventName, handleActivity)
@@ -297,6 +329,12 @@ function RootComponent() {
 		steamChannel,
 		steamStatus?.available,
 	]);
+
+	useEffect(() => {
+		if (!hasHydrated) return;
+		if (isLoading || !showContent) return;
+		return startSyncRetryWorker();
+	}, [hasHydrated, isLoading, showContent]);
 
 	useEffect(() => {
 		if (!hasHydrated) return;
@@ -720,8 +758,10 @@ function RootComponent() {
 				isLoading={isLoading}
 				onLoadingComplete={() => setShowContent(true)}
 			/>
-			{(showContent || !isLoading) && (
+			{initializationError && <div role="alert" className="p-8"><p>{runtimeI18n.t('errors.storageInitialization', { defaultValue: 'Local storage could not be opened safely. Your original database has been preserved.' })}</p><p>{initializationError.message}</p><button onClick={() => window.location.reload()}>{runtimeI18n.t('common.retry', { defaultValue: 'Retry' })}</button></div>}
+			{!initializationError && !isLoading && (showContent || !isLoading) && (
 				<div className="min-h-screen">
+					<RecoverySummary />
 					<div key={currentPath} className="route-fade-enter">
 						<Outlet />
 					</div>
@@ -738,6 +778,7 @@ function RootComponent() {
 						onHideLoginPromptChange={setHideLoginPrompt}
 					/>
 					<SyncPullDialog />
+					<SyncConflictPanel />
 				</>
 			)}
 			<Toaster />

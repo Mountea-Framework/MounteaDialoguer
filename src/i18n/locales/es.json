@@ -31,7 +31,8 @@
 			"minutesAgo_plural": "hace {{count}} min",
 			"hoursAgo": "hace {{count}} h",
 			"hoursAgo_plural": "hace {{count}} h"
-		}
+		},
+		"retry": "Reintentar"
 	},
 	"navigation": {
 		"dashboard": "Panel",
@@ -43,7 +44,7 @@
 		"settings": "Configuración"
 	},
 	"dashboard": {
-		"diskUsage": "Uso del Disco"
+		"diskUsage": "Almacenamiento usado por este sitio"
 	},
 	"decorators": {
 		"title": "Decoradores",
@@ -172,7 +173,11 @@
 			"addCompleteTooltip": "Añadir nodo Completar - arrastra al lienzo o haz clic",
 			"delay": "Retardo",
 			"addDelayTooltip": "Añadir nodo Retardo - arrastra al lienzo o haz clic",
-			"poweredBy": "Impulsado por"
+			"poweredBy": "Impulsado por",
+			"recenter": "Centrar grafo",
+			"backToStart": "Centrar nodo Start",
+			"recenterTooltip": "Mostrar todo el grafo",
+			"startFocusTooltip": "Centrar nodo Start"
 		},
 		"nodes": {
 			"start": "Inicio",
@@ -369,9 +374,9 @@
 	"tour": {
 		"dashboard": {
 			"welcomeTitle": "¡Bienvenido a Mountea Dialoguer!",
-			"welcomeText": "Hagamos un breve recorrido para ayudarte a empezar. Despu\u00e9s del tour, ver\u00e1s la configuraci\u00f3n de sincronizaci\u00f3n en la nube.",
+			"welcomeText": "Hagamos un breve recorrido para ayudarte a empezar. Después del tour, verás la configuración de sincronización en la nube.",
 			"exampleTitle": "Empieza con un proyecto de ejemplo",
-			"exampleText": "Crea un proyecto de muestra listo para explorar con un di\u00e1logo ya incluido.",
+			"exampleText": "Crea un proyecto de muestra listo para explorar con un diálogo ya incluido.",
 			"exampleAction": "Crear proyecto de ejemplo",
 			"createTitle": "Crea tu primer proyecto",
 			"createText": "Haz clic aquí para crear un nuevo proyecto. Los proyectos ayudan a organizar tus diálogos.",
@@ -452,5 +457,104 @@
 		"required": "Este campo es obligatorio",
 		"invalidName": "Nombre inválido",
 		"nameTaken": "Este nombre ya está en uso"
+	},
+	"errors": {
+		"unexpectedTitle": "Error inesperado",
+		"unexpectedDescription": "Se produjo un error inesperado. Reinicia la aplicación e inténtalo de nuevo.",
+		"storageInitialization": "No se pudo abrir el almacenamiento local de forma segura. Se ha conservado la base de datos original.",
+		"actions": {
+			"load": "No se pudieron cargar los datos",
+			"create": "No se pudo crear el elemento",
+			"update": "No se pudo actualizar el elemento",
+			"save": "No se pudieron guardar los cambios",
+			"delete": "No se pudo eliminar el elemento",
+			"import": "No se pudo importar el archivo",
+			"export": "No se pudo exportar el archivo"
+		},
+		"details": {
+			"unexpected": "La operación falló. Inténtelo de nuevo; si persiste, conserve la copia de seguridad e informe del problema.",
+			"stale": "El perfil o el proyecto ha cambiado. Recargue los datos e inténtelo de nuevo.",
+			"exists": "El destino ya existe. Elija una nueva copia o un reemplazo explícito.",
+			"missing": "El elemento referenciado no está disponible. Compruebe el proyecto seleccionado.",
+			"referenced": "Elimine o reasigne estas referencias antes de cambiar o eliminar este elemento.",
+			"categoryCycle": "Una categoría no puede ser su propio antecesor. Elija otro padre.",
+			"categoryDepth": "Las categorías admiten un máximo de cinco niveles. Elija un padre superior.",
+			"reference": "Elija un elemento inequívoco que pertenezca a este proyecto.",
+			"name": "Use de 1 a 16 letras o números para el nombre.",
+			"duplicateName": "Elija un nombre único dentro de este árbol de categorías.",
+			"definition": "Compruebe nombres, tipos y valores predeterminados de las propiedades; los tipos utilizados deben seguir siendo compatibles.",
+			"repair": "Repare las referencias y traducciones del proyecto y vuelva a intentarlo.",
+			"media": "Restaure los datos originales del medio y compruebe el adjunto.",
+			"duplicateIdentity": "Elija una identidad distinta para el registro duplicado.",
+			"quota": "El almacenamiento está lleno. Exporte una copia de seguridad y libere espacio.",
+			"archiveLimit": "Reduzca el archivo o divida el proyecto: límites de 25 MiB comprimidos, 128 MiB descomprimidos, 5 MiB por entrada JSON, 1.000 entradas y 250 diálogos.",
+			"archiveCorrupt": "El archivo está dañado o contiene rutas o registros no válidos. Restaure una copia de seguridad verificada o expórtelo de nuevo.",
+			"archiveUnsupported": "Este formato de archivo no es compatible. Exporte un archivo estándar de proyecto o diálogo desde una versión compatible de la aplicación."
+		}
+	},
+	"metrics": {
+		"payloadEstimate": "Estimación de datos",
+		"unavailable": "No disponible",
+		"currentUser": "Usuario actual"
+	},
+	"accessibility": {
+		"editorCommands": "Comandos del editor",
+		"editSelection": "Editar selección",
+		"dialogueGraph": "Grafo de diálogo",
+		"zoom": "Zoom",
+		"zoomIn": "Acercar",
+		"zoomOut": "Alejar",
+		"connectExisting": "Conectar a un nodo existente",
+		"chooseConnection": "Selecciona un nodo para conectar",
+		"noConnections": "No hay nodos disponibles para conectar",
+		"chooseNode": "Elige un nodo…",
+		"connect": "Conectar",
+		"nodeType": "Selecciona el tipo de nodo",
+		"nodeTypeDescription": "Elige el tipo de nodo que quieres añadir al diálogo"
+	},
+	"archive": {
+		"importTitle": "Importar archivo",
+		"copy": "Importar como copia nueva",
+		"replace": "Reemplazar un elemento existente",
+		"target": "Elemento que reemplazar",
+		"replaceWarning": "Se reemplazarán el elemento seleccionado y su grafo. Exporta primero una copia de seguridad para conservar la versión actual.",
+		"confirmReplace": "Reemplazar elemento seleccionado",
+		"failed": "La importación falló. Revisa el archivo e inténtalo de nuevo."
+	},
+	"recovery": {
+		"title": "Recuperación del proyecto",
+		"description": "Resuelve estas referencias antes de exportar o sincronizar. Se conservan los registros originales. Recupera los textos o medios que falten desde una copia de seguridad; la aplicación no puede reconstruirlos.",
+		"failed": "La recuperación falló. Revisa los detalles e inténtalo de nuevo.",
+		"details": "Detalles técnicos",
+		"revalidate": "Volver a validar los registros reparados",
+		"record": "Registro",
+		"unknown": "desconocido",
+		"download": "Descargar datos originales",
+		"replacement": "Reemplazo para {{id}} {{row}}",
+		"choose": "Elegir reemplazo",
+		"assign": "Asignar",
+		"restoreDescription": "Restaura este nodo con una identidad distinta y su tipo previsto, diferente de Start. Revisa su diálogo y contenido antes de restaurarlo.",
+		"prepare": "Preparar nodo recuperado",
+		"nodeJson": "JSON del nodo recuperado",
+		"restore": "Restaurar nodo revisado",
+		"globalTitle": "Informe de recuperación",
+		"globalDescription": "Algunos registros guardados requieren revisión. Los datos originales se conservan.",
+		"orphanGuidance": "Estos registros no tienen un proyecto propietario disponible. Descargue los datos originales y compárelos con una copia de seguridad antes de recuperarlos manualmente en un proyecto. No se ha asignado ningún propietario automáticamente.",
+		"openProject": "Abrir los ajustes de recuperación del proyecto",
+		"reportDownload": "Descargar informe de recuperación",
+		"refresh": "Actualizar informe"
+	},
+	"syncConflicts": {
+		"title": "Conflictos de sincronización",
+		"description": "Se conservan ambas versiones. Elige cuál quieres mantener.",
+		"incomplete": "Parte del historial no está disponible. Vuelve a sincronizar antes de resolver el conflicto.",
+		"keepLocal": "Mantener versión local",
+		"keepRemote": "Mantener versión remota",
+		"keepBoth": "Mantener ambos proyectos",
+		"refresh": "Actualizar conflictos",
+		"selectRevision": "Versión en conflicto",
+		"revision": "Revisión {{id}}",
+		"deleted": "Proyecto eliminado",
+		"resolveError": "No se pudo resolver este conflicto."
 	}
 }

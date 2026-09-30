@@ -6,6 +6,8 @@
 
 # Mountea Dialoguer
 
+Technical implementation documentation for contributors and AI assistants is in [docs/technical](docs/technical/README.md), including the [source map](docs/technical/source-map.md), [verification record](docs/technical/verification.md), and [known issues, bugs, and flaws](docs/technical/issues.md).
+
 > Mountea Dialoguer is a visual dialogue design platform for teams building narrative-driven games and interactive experiences.
 > It helps writers, narrative designers, and technical designers collaborate on branching conversations that are structured, testable, and production-ready.
 

@@ -17,20 +17,23 @@
 		"build:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 vite build",
 		"preview": "vite preview",
 		"electron:start": "electron .",
-		"electron:pack": "npm run build && node scripts/run-electron-builder.mjs --dir",
-		"electron:pack:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --dir --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
-		"electron:dist": "npm run build && node scripts/run-electron-builder.mjs",
-		"electron:dist:steam": "npm run build:steam && cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
-		"steam:upload:mac": "./steam_build_upload_mac.sh",
-		"lint": "eslint src --ext js,jsx",
-		"lint:ci": "eslint src/App.test.js src/components/dialogs/EditCategoryDialog.jsx src/components/projects/sections/OverviewSection.jsx src/components/ui/command.jsx src/hooks/useAutoSave.js src/indexedDB.js src/routes/projects/*/dialogue/*/index.jsx src/main.jsx src/lib/monitoring/sentry.js src/components/ui/AppErrorBoundary.jsx src/stores/projectStore.js src/lib/sync/core/syncActions.js tests/e2e/smoke.spec.js tests/e2e/evidence.spec.js tests/e2e/helpers/appHarness.js",
+		"electron:pack": "node scripts/run-electron-builder.mjs --dir",
+		"electron:pack:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --dir --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
+		"electron:dist": "node scripts/run-electron-builder.mjs --public-release",
+		"electron:dist:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --public-release --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
+		"steam:upload:mac": "node scripts/steam-upload.mjs --platform macos",
+		"lint": "eslint src electron scripts tests *.config.js .eslintrc.cjs --ext js,jsx,cjs,mjs",
+		"lint:ci": "npm run lint",
 		"test:e2e": "playwright test",
 		"test:e2e:smoke": "playwright test tests/e2e/smoke.spec.js",
 		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
-		"validate:skills": "npm run lint:ci && npm run build && npm run test:e2e:smoke",
-		"predeploy": "npm run build",
-		"deploy": "gh-pages -d dist",
-		"steam:upload:linux": "./steam_build_upload_linux.sh"
+		"validate:skills": "npm run lint:ci && npm run test:regressions && npm run build && npm run validate:artifact",
+		"steam:upload:linux": "node scripts/steam-upload.mjs --platform linux",
+		"test:regressions": "playwright test regressions --workers=1",
+		"test:e2e:production": "playwright test --config playwright.production.config.js",
+		"validate:artifact": "node scripts/release-artifact.mjs finalize && npm run test:e2e:production && node scripts/release-artifact.mjs attest",
+		"validate:native-package": "node scripts/validate-native-package.mjs",
+		"steam:upload": "node scripts/steam-upload.mjs"
 	},
 	"build": {
 		"appId": "com.mountea.dialoguer",
@@ -48,7 +51,8 @@
 			"dist/**/*",
 			"electron/**/*",
 			"node_modules/steamworks.js/**/*",
-			"package.json"
+			"package.json",
+			"!dist/**/*.map"
 		],
 		"win": {
 			"target": [
@@ -117,7 +121,9 @@
 		"zustand": "^5.0.2"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "^4.13.0",
 		"@playwright/test": "^1.58.2",
+		"@sentry/cli": "^2.58.6",
 		"@sentry/react": "^10.43.0",
 		"@tanstack/router-devtools": "^1.87.0",
 		"@tanstack/router-plugin": "^1.87.0",
