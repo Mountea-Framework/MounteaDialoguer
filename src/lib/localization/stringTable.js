@@ -1,3 +1,5 @@
+import dialogueNodeConfig from '@/config/dialogueNodes.json';
+
 const DEFAULT_LOCALE = 'en';
 
 export const LOCALIZED_STRING_FIELDS = Object.freeze({
@@ -138,7 +140,6 @@ export function normalizeProjectLocalizationConfig(rawConfig = {}) {
 	}
 
 	return {
-		enabled: true,
 		defaultLocale: rawDefault,
 		supportedLocales: supported.length > 0 ? supported : [rawDefault],
 	};
@@ -152,6 +153,24 @@ export function ensureDialogueLocalizationSlug(dialogue = null) {
 	const existing = slugifyForKeySegment(dialogue?.localizationSlug || '', '');
 	if (existing && existing !== 'item') return existing;
 	return slugifyForKeySegment(dialogue?.name || dialogue?.id || 'dialogue', 'dialogue');
+}
+
+/** Allocate against the entire project inside the caller's write transaction.
+ * Keep existing unique namespaces immutable, including across dialogue renames. */
+export function allocateDialogueLocalizationSlug(dialogue, projectDialogues = []) {
+	const base = ensureDialogueLocalizationSlug(dialogue);
+	const used = new Set(projectDialogues.filter((other) => String(other.id) !== String(dialogue.id)).map(ensureDialogueLocalizationSlug));
+	if (!used.has(base)) return base;
+	const identity = slugifyForKeySegment(dialogue.id, '') || shortHash(dialogue.id, 8);
+	const candidate = `${base}_${identity}`;
+	let result = candidate;
+	for (let index = 2; used.has(result); index += 1) result = `${candidate}_${index}`;
+	return result;
+}
+
+export function getLocalizedNodeFields(node) {
+	const configured = (dialogueNodeConfig[node?.type]?.sections || []).flatMap((section) => section.fields || []).filter((field) => field.localizable).map((field) => field.id);
+	return new Set(configured);
 }
 
 export function ensureNodeLocalizationToken(node = null) {
@@ -436,6 +455,15 @@ export function prepareLocalizedNodesAndEntries({
 	const seenKeys = new Set();
 	const seenNodeTokens = new Set();
 	const nodesForPersistence = [];
+	const assertEntryOwner = (entry, nodeId, rowId, field) => {
+		if (!entry) return;
+		if ((entry.projectId && entry.projectId !== safeProjectId) || (entry.dialogueId && entry.dialogueId !== safeDialogueId) || (entry.nodeId && entry.nodeId !== nodeId) || (entry.rowId && entry.rowId !== rowId) || entry.field !== field) {
+			const error = new Error(`Localization entry belongs to another record: ${entry.key}`);
+			error.code = 'LOCALIZATION_REPAIR_REQUIRED';
+			error.diagnostics = [{ type: 'entry_scope_mismatch', key: entry.key, nodeId, rowId, field }];
+			throw error;
+		}
+	};
 
 	for (const rawNode of nodes || []) {
 		const node = { ...rawNode };
@@ -499,7 +527,8 @@ export function prepareLocalizedNodesAndEntries({
 			}
 			seenKeys.add(key);
 
-			const existing = entriesByKey.get(key) || existingByKey.get(key) || null;
+			const existing = entriesByKey.get(key) || existingByKey.get(key) || existingByKey.get(rawNode?.data?.[keyField]) || null;
+			assertEntryOwner(existing, nodeId, rowId, field);
 			const values = { ...(existing?.values || {}) };
 			const hasRawValue = Object.prototype.hasOwnProperty.call(rawNode?.data || {}, valueField);
 			if (hasRawValue) {
@@ -507,6 +536,7 @@ export function prepareLocalizedNodesAndEntries({
 			}
 
 			entriesByKey.set(key, {
+				...existing,
 				projectId: safeProjectId,
 				key,
 				dialogueId: safeDialogueId,
@@ -523,6 +553,7 @@ export function prepareLocalizedNodesAndEntries({
 		};
 
 		if (
+			getLocalizedNodeFields(rawNode).has('displayName') ||
 			Object.prototype.hasOwnProperty.call(rawNode?.data || {}, 'displayName') ||
 			Object.prototype.hasOwnProperty.call(nodeData, 'displayNameKey')
 		) {
@@ -534,6 +565,7 @@ export function prepareLocalizedNodesAndEntries({
 		}
 
 		if (
+			getLocalizedNodeFields(rawNode).has('selectionTitle') ||
 			Object.prototype.hasOwnProperty.call(rawNode?.data || {}, 'selectionTitle') ||
 			Object.prototype.hasOwnProperty.call(nodeData, 'selectionTitleKey')
 		) {
@@ -602,7 +634,8 @@ export function prepareLocalizedNodesAndEntries({
 				}
 				seenKeys.add(rowTextKey);
 
-				const existing = entriesByKey.get(rowTextKey) || existingByKey.get(rowTextKey) || null;
+				const existing = entriesByKey.get(rowTextKey) || existingByKey.get(rowTextKey) || existingByKey.get(rawRow?.textKey) || null;
+				assertEntryOwner(existing, nodeId, rowId, LOCALIZED_STRING_FIELDS.rowText);
 				const values = { ...(existing?.values || {}) };
 				const rawSourceRow = Array.isArray(rawNode?.data?.dialogueRows)
 					? rawNode.data.dialogueRows[rowIndex]
@@ -612,6 +645,7 @@ export function prepareLocalizedNodesAndEntries({
 				}
 
 				entriesByKey.set(rowTextKey, {
+					...existing,
 					projectId: safeProjectId,
 					key: rowTextKey,
 					dialogueId: safeDialogueId,
@@ -768,59 +802,42 @@ export function buildLocalizedEntriesFromNodes({
 }
 
 export function validateLocalizedEntriesForDialogue({
-	nodes = [],
-	entries = [],
-	defaultLocale = DEFAULT_LOCALE,
+	nodes = [], entries = [], defaultLocale = DEFAULT_LOCALE,
+	projectId = '', dialogueId = '', dialogueSlug = '', projectEntries = [],
 }) {
 	const errors = [];
-	const byKey = new Map(
-		(entries || [])
-			.map((entry) => normalizeLocalizedStringEntry(entry))
-			.filter((entry) => entry.key)
-			.map((entry) => [entry.key, entry])
-	);
-	const requiredKeys = [];
+	const byKey = new Map();
+	for (const raw of entries) {
+		const entry = normalizeLocalizedStringEntry(raw);
+		if (byKey.has(entry.key)) errors.push({ type: 'duplicate_entry_key', key: entry.key });
+		byKey.set(entry.key, entry);
+	}
 	const seen = new Set();
-
-	for (const node of nodes || []) {
-		const nodeData = node?.data || {};
-		if (nodeData.displayNameKey) requiredKeys.push(nodeData.displayNameKey);
-		if (nodeData.selectionTitleKey) requiredKeys.push(nodeData.selectionTitleKey);
-		if (Array.isArray(nodeData.dialogueRows)) {
-			for (const row of nodeData.dialogueRows) {
-				if (row?.textKey) requiredKeys.push(row.textKey);
-			}
-		}
-	}
-
-	for (const key of requiredKeys) {
-		if (!key) {
-			errors.push({ type: 'missing_key_ref' });
-			continue;
-		}
-		if (!(READABLE_KEY_REGEX.test(key) || LEGACY_ROW_KEY_REGEX.test(key) || LEGACY_NODE_KEY_REGEX.test(key))) {
-			errors.push({ type: 'invalid_key_format', key });
-		}
-		if (seen.has(key)) {
-			errors.push({ type: 'duplicate_key_ref', key });
-		}
+	const normalizedDefault = normalizeLocaleTag(defaultLocale, DEFAULT_LOCALE);
+	const check = (node, field, key, row = null) => {
+		const scope = { nodeId: String(node.id), rowId: String(row?.id || ''), field };
+		if (!key) { errors.push({ type: 'missing_key_ref', ...scope }); return; }
+		const parsed = parseLocalizedStringKey(key);
+		if (!parsed) errors.push({ type: 'invalid_key_format', key, ...scope });
+		if (seen.has(key)) errors.push({ type: 'duplicate_key_ref', key, ...scope });
 		seen.add(key);
-
+		if (parsed && (parsed.field !== field || (parsed.keyType === 'legacy' && ((dialogueId && parsed.dialogueId !== String(dialogueId)) || parsed.nodeId !== scope.nodeId || (row && parsed.rowId !== scope.rowId))) || (parsed.keyType === 'readable' && ((dialogueSlug && parsed.dialogueSlug !== dialogueSlug) || parsed.nodeToken !== ensureNodeLocalizationToken(node) || (row && parsed.rowToken !== ensureRowLocalizationToken(row)))))) errors.push({ type: 'key_scope_mismatch', key, ...scope });
 		const entry = byKey.get(key);
-		if (!entry) {
-			errors.push({ type: 'missing_entry', key });
-			continue;
-		}
-		const normalizedDefault = normalizeLocaleTag(defaultLocale, DEFAULT_LOCALE);
-		if (!Object.prototype.hasOwnProperty.call(entry.values || {}, normalizedDefault)) {
-			errors.push({ type: 'missing_default_locale_value', key, locale: normalizedDefault });
-		}
-	}
-
-	return {
-		valid: errors.length === 0,
-		errors,
+		if (!entry) { errors.push({ type: 'missing_entry', key, ...scope }); return; }
+		if ((projectId && entry.projectId !== String(projectId)) || (dialogueId && entry.dialogueId !== String(dialogueId)) || ((dialogueId || entry.nodeId) && entry.nodeId !== scope.nodeId) || ((dialogueId || entry.rowId) && entry.rowId !== scope.rowId) || entry.field !== field) errors.push({ type: 'entry_scope_mismatch', key, ...scope });
+		if (projectEntries.some((other) => other.key === key && ((projectId && String(other.projectId) !== String(projectId)) || (dialogueId && String(other.dialogueId) !== String(dialogueId))))) errors.push({ type: 'project_key_collision', key, ...scope });
+		if (!Object.prototype.hasOwnProperty.call(entry.values, normalizedDefault)) errors.push({ type: 'missing_default_locale_value', key, locale: normalizedDefault, ...scope });
 	};
+	for (const node of nodes) {
+		if (node.type === 'placeholderNode') continue;
+		const data = node.data || {};
+		const fields = getLocalizedNodeFields(node);
+		for (const field of ['displayName', 'selectionTitle']) {
+			if (fields.has(field) || Object.prototype.hasOwnProperty.call(data, field) || Object.prototype.hasOwnProperty.call(data, `${field}Key`)) check(node, field, data[`${field}Key`]);
+		}
+		for (const row of data.dialogueRows || []) check(node, 'rowText', row?.textKey, row);
+	}
+	return { valid: errors.length === 0, errors };
 }
 
 export function buildStringTableV2Payload({
