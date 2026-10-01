@@ -13,11 +13,8 @@ const DEFAULT_CHOKIDAR_INTERVAL_MS = 300;
 const LINUX_ELECTRON_SAFE_ARGS = Object.freeze([
 	"--disable-gpu",
 	"--disable-software-rasterizer",
-	"--disable-gpu-sandbox",
 	"--in-process-gpu",
 	"--use-gl=swiftshader",
-	"--no-sandbox",
-	"--disable-setuid-sandbox",
 	"--ozone-platform-hint=x11",
 ]);
 
