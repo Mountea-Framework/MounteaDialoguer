@@ -180,7 +180,9 @@ export function EditCategoryDialog({ open, onOpenChange, category, projectId }) 
 	const getCategoryPath = (categoryId) => {
 		const path = [];
 		let current = categories.find((c) => c.id === categoryId);
-		while (current) {
+		const visited = new Set();
+		while (current && !visited.has(current.id)) {
+			visited.add(current.id);
 			path.unshift(current.name);
 			current = categories.find((c) => c.id === current.parentCategoryId);
 		}
