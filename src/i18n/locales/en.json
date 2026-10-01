@@ -34,7 +34,8 @@
 			"minutesAgo_plural": "{{count}}m ago",
 			"hoursAgo": "{{count}}h ago",
 			"hoursAgo_plural": "{{count}}h ago"
-		}
+		},
+		"retry": "Retry"
 	},
 	"navigation": {
 		"dashboard": "Dashboard",
@@ -46,7 +47,7 @@
 		"settings": "Settings"
 	},
 	"dashboard": {
-		"diskUsage": "Disk Usage"
+		"diskUsage": "Origin storage usage"
 	},
 	"decorators": {
 		"title": "Decorators",
@@ -189,9 +190,9 @@
 		"nodeToolbar": {
 			"autoLayout": "Auto Layout",
 			"autoLayoutTooltip": "Auto-layout nodes using dagre algorithm",
-			"recenter": "Recenter",
-			"recenterTooltip": "Fit the whole graph into view",
-			"backToStart": "Back to Start",
+			"recenter": "Recenter graph",
+			"recenterTooltip": "Fit the graph in view",
+			"backToStart": "Focus Start node",
 			"startFocusTooltip": "Focus the Start node",
 			"npc": "NPC",
 			"addNpcTooltip": "Add NPC node - drag to canvas or click",
@@ -553,5 +554,104 @@
 		"required": "This field is required",
 		"invalidName": "Invalid name",
 		"nameTaken": "This name is already in use"
+	},
+	"errors": {
+		"unexpectedTitle": "Unexpected error",
+		"unexpectedDescription": "An unexpected error occurred. Restart the app and try again.",
+		"storageInitialization": "Local storage could not be opened safely. Your original database has been preserved.",
+		"actions": {
+			"load": "Could not load data",
+			"create": "Could not create item",
+			"update": "Could not update item",
+			"save": "Could not save changes",
+			"delete": "Could not delete item",
+			"import": "Could not import archive",
+			"export": "Could not export archive"
+		},
+		"details": {
+			"unexpected": "The operation failed. Try again; if it keeps failing, retain your backup and report the problem.",
+			"stale": "The profile or project changed. Reload and retry.",
+			"exists": "The destination already exists. Choose a new copy or explicit replacement.",
+			"missing": "The referenced item is unavailable. Check the selected project.",
+			"referenced": "Remove or reassign these references before changing or deleting this item.",
+			"categoryCycle": "A category cannot be its own ancestor. Choose another parent.",
+			"categoryDepth": "Categories support at most five levels. Choose a higher parent.",
+			"reference": "Choose an unambiguous item belonging to this project.",
+			"name": "Use 1–16 letters or numbers for the name.",
+			"duplicateName": "Choose a name that is unique within this category tree.",
+			"definition": "Check property names, types and default values; referenced property types must remain compatible.",
+			"repair": "Repair the project references and translations, then retry.",
+			"media": "Restore the original media bytes and verify the attachment before retrying.",
+			"duplicateIdentity": "Choose a distinct identity for the duplicate record.",
+			"quota": "Storage is full. Export a backup and free space before retrying.",
+			"archiveLimit": "Reduce the archive size or split the project: limits are 25 MiB compressed, 128 MiB expanded, 5 MiB per JSON entry, 1,000 entries and 250 dialogues.",
+			"archiveCorrupt": "The archive is damaged or contains invalid paths or records. Restore a verified backup or export it again.",
+			"archiveUnsupported": "This archive format is unsupported. Export a standard project or dialogue archive from a compatible app version."
+		}
+	},
+	"metrics": {
+		"payloadEstimate": "Payload estimate",
+		"unavailable": "Unavailable",
+		"currentUser": "Current user"
+	},
+	"accessibility": {
+		"editorCommands": "Editor commands",
+		"editSelection": "Edit selection",
+		"dialogueGraph": "Dialogue graph",
+		"zoom": "Zoom",
+		"zoomIn": "Zoom in",
+		"zoomOut": "Zoom out",
+		"connectExisting": "Connect to existing node",
+		"chooseConnection": "Select a node to connect to",
+		"noConnections": "No connectable nodes available",
+		"chooseNode": "Choose a node…",
+		"connect": "Connect",
+		"nodeType": "Select node type",
+		"nodeTypeDescription": "Choose the type of node to add to the dialogue"
+	},
+	"archive": {
+		"importTitle": "Import archive",
+		"copy": "Import as a new copy",
+		"replace": "Replace an existing item",
+		"target": "Item to replace",
+		"replaceWarning": "The selected item and its graph content will be replaced. Export a backup first to keep the current version.",
+		"confirmReplace": "Replace selected item",
+		"failed": "Import failed. Review the archive and try again."
+	},
+	"recovery": {
+		"title": "Project recovery",
+		"description": "Resolve these references before exporting or synchronizing. Original records remain preserved. Recover missing text or media from an existing backup; the app cannot reconstruct them.",
+		"failed": "Recovery failed. Review the details and try again.",
+		"details": "Technical details",
+		"revalidate": "Revalidate repaired records",
+		"record": "Record",
+		"unknown": "unknown",
+		"download": "Download original evidence",
+		"replacement": "Replacement for {{id}} {{row}}",
+		"choose": "Choose a replacement",
+		"assign": "Assign",
+		"restoreDescription": "Restore this original node with a distinct identity and its intended non-Start type. Review its dialogue and authored data before restoring.",
+		"prepare": "Prepare recovered node",
+		"nodeJson": "Recovered node JSON",
+		"restore": "Restore reviewed node",
+		"globalTitle": "Recovery report",
+		"globalDescription": "Some saved records need review. Original evidence is preserved.",
+		"orphanGuidance": "These records have no available owning project. Download the original evidence and compare it with a backup before manually recovering it into a project. No ownership has been assigned automatically.",
+		"openProject": "Open project recovery settings",
+		"reportDownload": "Download recovery report",
+		"refresh": "Refresh report"
+	},
+	"syncConflicts": {
+		"title": "Synchronization conflicts",
+		"description": "Both versions are preserved. Choose which version to keep.",
+		"incomplete": "Some revision history is unavailable. Synchronize again before resolving.",
+		"keepLocal": "Keep local",
+		"keepRemote": "Keep remote",
+		"keepBoth": "Keep both projects",
+		"refresh": "Refresh conflicts",
+		"selectRevision": "Competing version",
+		"revision": "Revision {{id}}",
+		"deleted": "Deleted project",
+		"resolveError": "Could not resolve this conflict."
 	}
 }

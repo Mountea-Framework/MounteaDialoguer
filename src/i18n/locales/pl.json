@@ -34,7 +34,8 @@
 			"minutesAgo_plural": "{{count}} min temu",
 			"hoursAgo": "{{count}} godz. temu",
 			"hoursAgo_plural": "{{count}} godz. temu"
-		}
+		},
+		"retry": "Spróbuj ponownie"
 	},
 	"navigation": {
 		"dashboard": "Pulpit",
@@ -46,7 +47,7 @@
 		"settings": "Ustawienia"
 	},
 	"dashboard": {
-		"diskUsage": "Zużycie dysku"
+		"diskUsage": "Pamięć używana przez tę witrynę"
 	},
 	"decorators": {
 		"title": "Dekoratory",
@@ -174,7 +175,11 @@
 			"addCompleteTooltip": "Dodaj węzeł Zakończ — przeciągnij na płótno lub kliknij",
 			"delay": "Opóźnienie",
 			"addDelayTooltip": "Dodaj węzeł Opóźnienie — przeciągnij na płótno lub kliknij",
-			"poweredBy": "Zasilane przez"
+			"poweredBy": "Zasilane przez",
+			"recenter": "Wyśrodkuj graf",
+			"backToStart": "Przejdź do węzła Start",
+			"recenterTooltip": "Pokaż cały graf",
+			"startFocusTooltip": "Przejdź do węzła Start"
 		},
 		"nodes": {
 			"start": "Start",
@@ -484,5 +489,104 @@
 		"required": "To pole jest wymagane",
 		"invalidName": "Nieprawidłowa nazwa",
 		"nameTaken": "Ta nazwa jest już używana"
+	},
+	"errors": {
+		"unexpectedTitle": "Nieoczekiwany błąd",
+		"unexpectedDescription": "Wystąpił nieoczekiwany błąd. Uruchom aplikację ponownie i spróbuj jeszcze raz.",
+		"storageInitialization": "Nie udało się bezpiecznie otworzyć pamięci lokalnej. Oryginalna baza danych została zachowana.",
+		"actions": {
+			"load": "Nie można wczytać danych",
+			"create": "Nie można utworzyć elementu",
+			"update": "Nie można zaktualizować elementu",
+			"save": "Nie można zapisać zmian",
+			"delete": "Nie można usunąć elementu",
+			"import": "Nie można zaimportować archiwum",
+			"export": "Nie można wyeksportować archiwum"
+		},
+		"details": {
+			"unexpected": "Operacja nie powiodła się. Spróbuj ponownie; jeśli problem się powtarza, zachowaj kopię zapasową i zgłoś go.",
+			"stale": "Profil lub projekt uległ zmianie. Wczytaj dane ponownie i ponów próbę.",
+			"exists": "Cel już istnieje. Wybierz nową kopię lub jawne zastąpienie.",
+			"missing": "Wskazany element jest niedostępny. Sprawdź wybrany projekt.",
+			"referenced": "Usuń lub przypisz ponownie te odwołania przed zmianą albo usunięciem elementu.",
+			"categoryCycle": "Kategoria nie może być własnym przodkiem. Wybierz innego rodzica.",
+			"categoryDepth": "Kategorie obsługują najwyżej pięć poziomów. Wybierz wyższego rodzica.",
+			"reference": "Wybierz jednoznaczny element należący do tego projektu.",
+			"name": "Nazwa musi zawierać od 1 do 16 liter lub cyfr.",
+			"duplicateName": "Wybierz nazwę unikalną w tym drzewie kategorii.",
+			"definition": "Sprawdź nazwy, typy i wartości domyślne właściwości; używane typy muszą pozostać zgodne.",
+			"repair": "Napraw odwołania i tłumaczenia projektu, a następnie ponów próbę.",
+			"media": "Przywróć oryginalne dane multimedialne i sprawdź załącznik.",
+			"duplicateIdentity": "Wybierz inną tożsamość dla zduplikowanego rekordu.",
+			"quota": "Pamięć jest pełna. Wyeksportuj kopię zapasową i zwolnij miejsce.",
+			"archiveLimit": "Zmniejsz archiwum lub podziel projekt: limity to 25 MiB po kompresji, 128 MiB po rozpakowaniu, 5 MiB na wpis JSON, 1000 wpisów i 250 dialogów.",
+			"archiveCorrupt": "Archiwum jest uszkodzone lub zawiera nieprawidłowe ścieżki albo rekordy. Przywróć sprawdzoną kopię zapasową lub ponownie wyeksportuj dane.",
+			"archiveUnsupported": "Ten format archiwum nie jest obsługiwany. Wyeksportuj standardowe archiwum projektu lub dialogu ze zgodnej wersji aplikacji."
+		}
+	},
+	"metrics": {
+		"payloadEstimate": "Szacowany rozmiar danych",
+		"unavailable": "Niedostępne",
+		"currentUser": "Bieżący użytkownik"
+	},
+	"accessibility": {
+		"editorCommands": "Polecenia edytora",
+		"editSelection": "Edytuj zaznaczenie",
+		"dialogueGraph": "Graf dialogu",
+		"zoom": "Powiększenie",
+		"zoomIn": "Powiększ",
+		"zoomOut": "Pomniejsz",
+		"connectExisting": "Połącz z istniejącym węzłem",
+		"chooseConnection": "Wybierz węzeł do połączenia",
+		"noConnections": "Brak węzłów do połączenia",
+		"chooseNode": "Wybierz węzeł…",
+		"connect": "Połącz",
+		"nodeType": "Wybierz typ węzła",
+		"nodeTypeDescription": "Wybierz typ węzła do dodania do dialogu"
+	},
+	"archive": {
+		"importTitle": "Importuj archiwum",
+		"copy": "Importuj jako nową kopię",
+		"replace": "Zastąp istniejący element",
+		"target": "Element do zastąpienia",
+		"replaceWarning": "Wybrany element i jego graf zostaną zastąpione. Najpierw wyeksportuj kopię zapasową, aby zachować bieżącą wersję.",
+		"confirmReplace": "Zastąp wybrany element",
+		"failed": "Import nie powiódł się. Sprawdź archiwum i spróbuj ponownie."
+	},
+	"recovery": {
+		"title": "Odzyskiwanie projektu",
+		"description": "Popraw te odwołania przed eksportem lub synchronizacją. Oryginalne rekordy zostają zachowane. Brakujące teksty lub multimedia odzyskaj z kopii zapasowej; aplikacja nie może ich odtworzyć.",
+		"failed": "Odzyskiwanie nie powiodło się. Sprawdź szczegóły i spróbuj ponownie.",
+		"details": "Szczegóły techniczne",
+		"revalidate": "Ponownie sprawdź naprawione rekordy",
+		"record": "Rekord",
+		"unknown": "nieznany",
+		"download": "Pobierz oryginalne dane",
+		"replacement": "Zamiennik dla {{id}} {{row}}",
+		"choose": "Wybierz zamiennik",
+		"assign": "Przypisz",
+		"restoreDescription": "Przywróć ten węzeł z odrębnym identyfikatorem i zamierzonym typem innym niż Start. Przed przywróceniem sprawdź dialog i jego zawartość.",
+		"prepare": "Przygotuj odzyskany węzeł",
+		"nodeJson": "JSON odzyskanego węzła",
+		"restore": "Przywróć sprawdzony węzeł",
+		"globalTitle": "Raport odzyskiwania",
+		"globalDescription": "Niektóre zapisane rekordy wymagają sprawdzenia. Oryginalne dane zostały zachowane.",
+		"orphanGuidance": "Te rekordy nie mają dostępnego projektu nadrzędnego. Pobierz oryginalne dane i porównaj je z kopią zapasową przed ręcznym odzyskaniem w projekcie. Przynależność nie została przypisana automatycznie.",
+		"openProject": "Otwórz ustawienia odzyskiwania projektu",
+		"reportDownload": "Pobierz raport odzyskiwania",
+		"refresh": "Odśwież raport"
+	},
+	"syncConflicts": {
+		"title": "Konflikty synchronizacji",
+		"description": "Obie wersje zostają zachowane. Wybierz wersję do zachowania.",
+		"incomplete": "Część historii wersji jest niedostępna. Zsynchronizuj ponownie przed rozwiązaniem konfliktu.",
+		"keepLocal": "Zachowaj lokalną",
+		"keepRemote": "Zachowaj zdalną",
+		"keepBoth": "Zachowaj oba projekty",
+		"refresh": "Odśwież konflikty",
+		"selectRevision": "Konfliktowa wersja",
+		"revision": "Wersja {{id}}",
+		"deleted": "Usunięty projekt",
+		"resolveError": "Nie udało się rozwiązać tego konfliktu."
 	}
 }
