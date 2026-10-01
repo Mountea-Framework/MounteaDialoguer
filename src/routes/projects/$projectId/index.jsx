@@ -1,3 +1,4 @@
+import { ArchiveImportDialog } from '@/components/projects/ArchiveImportDialog';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -66,6 +67,7 @@ function ProjectDetailsPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [activeSection, setActiveSection] = useState(searchParams?.section || 'overview');
 	const [isImporting, setIsImporting] = useState(false);
+	const [importFile, setImportFile] = useState(null);
 	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [isCreateDialogueDialogOpen, setIsCreateDialogueDialogOpen] = useState(false);
@@ -239,19 +241,16 @@ function ProjectDetailsPage() {
 		const file = event.target.files?.[0];
 		if (!file) return;
 
+		setImportFile(file);
+		event.target.value = '';
+	};
+	const commitImport = async (options) => {
 		setIsImporting(true);
 		try {
-			await importProject(file);
-			// Reload all data after import
+			const importedId = await importProject(importFile, options);
+			if (importedId !== projectId) window.location.hash = `/projects/${importedId}`;
 			await loadData();
-		} catch (error) {
-			console.error('Failed to import project:', error);
-		} finally {
-			setIsImporting(false);
-			if (fileInputRef.current) {
-				fileInputRef.current.value = '';
-			}
-		}
+		} finally { setIsImporting(false); }
 	};
 
 	const handleDelete = async () => {
@@ -284,6 +283,7 @@ function ProjectDetailsPage() {
 
 	return (
 		<div className={`${isMobile ? 'h-[100dvh]' : 'h-screen'} flex flex-col overflow-hidden`}>
+			{importFile && <ArchiveImportDialog file={importFile} kind="project" targets={project ? [project] : []} onClose={() => setImportFile(null)} onImport={commitImport} />}
 			<AppHeader
 				className={isMobileSidebarOpen ? 'z-40' : undefined}
 				left={

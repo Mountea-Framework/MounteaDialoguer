@@ -52,7 +52,9 @@ export function CategoriesSection({ projectId, categories = [] }) {
 		});
 	};
 
-	const renderCategoryNode = (node) => {
+	const renderCategoryNode = (node, ancestors = new Set()) => {
+		if (ancestors.has(node.id)) return null;
+		const visited = new Set([...ancestors, node.id]);
 		const nodeChildren = (childrenByParent.get(node.id) || [])
 			.slice()
 			.sort((a, b) => a.name.localeCompare(b.name));
@@ -82,7 +84,7 @@ export function CategoriesSection({ projectId, categories = [] }) {
 
 						{nodeChildren.length > 0 && (
 							<div className="space-y-5 pl-4 -ml-4 border-l border-border/60">
-								{nodeChildren.map((child) => renderCategoryNode(child))}
+								{nodeChildren.map((child) => renderCategoryNode(child, visited))}
 							</div>
 						)}
 					</div>
