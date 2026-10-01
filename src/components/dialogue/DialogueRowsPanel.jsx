@@ -32,6 +32,7 @@ export function DialogueRowsPanel({
 	const audioRefs = useRef({}); // Store audio element references by row ID
 	const audioUrlsRef = useRef({}); // Store blob URLs by row ID for cleanup
 	const audioUrlOwnedRef = useRef({}); // Track if URL was created by this component
+	const audioSourcesRef = useRef({});
 	const [audioUrls, setAudioUrls] = useState({});
 
 	// Ensure each row has a stable ID to prevent audio collisions and bad rebinding.
@@ -59,6 +60,17 @@ export function DialogueRowsPanel({
 		dialogueRows.forEach((row) => {
 			if (row.audioFile) {
 				currentRowIds.add(row.id);
+				const source = row.audioFile.blob || row.audioFile.dataUrl || row.audioFile.url;
+				if (source && audioSourcesRef.current[row.id] === source && audioUrlsRef.current[row.id]) return;
+				const previousAudio = audioRefs.current[row.id];
+				if (previousAudio) {
+					previousAudio.pause();
+					previousAudio.src = '';
+				}
+				if (audioUrlOwnedRef.current[row.id] && audioUrlsRef.current[row.id]) URL.revokeObjectURL(audioUrlsRef.current[row.id]);
+				delete audioUrlsRef.current[row.id];
+				delete audioUrlOwnedRef.current[row.id];
+				audioSourcesRef.current[row.id] = source;
 				let url = null;
 				let isOwned = false;
 
@@ -118,12 +130,15 @@ export function DialogueRowsPanel({
 				}
 				delete audioUrlsRef.current[rowId];
 				delete audioUrlOwnedRef.current[rowId];
+				delete audioSourcesRef.current[rowId];
 			}
 		});
 
 		// Clean up stale audio element refs.
 		Object.keys(audioRefs.current).forEach((rowId) => {
 			if (!currentRowIds.has(rowId)) {
+				audioRefs.current[rowId]?.pause();
+				if (audioRefs.current[rowId]) audioRefs.current[rowId].src = '';
 				delete audioRefs.current[rowId];
 			}
 		});
@@ -135,12 +150,18 @@ export function DialogueRowsPanel({
 	useEffect(() => {
 		const urlsRef = audioUrlsRef.current;
 		const ownedRef = audioUrlOwnedRef.current;
+		const sourceRef = audioSourcesRef.current;
+		const players = audioRefs.current;
 		return () => {
+			Object.values(players).forEach((player) => { player?.pause(); if (player) player.src = ''; });
 			Object.keys(urlsRef).forEach((rowId) => {
 				const url = urlsRef[rowId];
 				if (url && ownedRef[rowId] && url.startsWith('blob:')) {
 					URL.revokeObjectURL(url);
 				}
+				delete urlsRef[rowId];
+				delete ownedRef[rowId];
+				delete sourceRef[rowId];
 			});
 		};
 	}, []); // Empty dependency array = only runs on mount/unmount
@@ -397,6 +418,7 @@ export function DialogueRowsPanel({
 			}
 			delete audioUrlsRef.current[row.id];
 			delete audioUrlOwnedRef.current[row.id];
+			delete audioSourcesRef.current[row.id];
 			setAudioUrls((prev) => {
 				const next = { ...prev };
 				delete next[row.id];

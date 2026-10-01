@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useReactFlow } from '@xyflow/react';
 import { Minus, Plus } from 'lucide-react';
 
@@ -11,6 +12,7 @@ export function ZoomSlider({
 	maxZoom = 2,
 	step = 0.1,
 }) {
+	const { t } = useTranslation();
 	const { setViewport, getZoom, getViewport } = useReactFlow();
 	const currentZoom = getZoom();
 
@@ -37,7 +39,7 @@ export function ZoomSlider({
 			<button
 				onClick={() => setZoom(currentZoom + step)}
 				className="w-6 h-6 flex items-center justify-center rounded border border-border bg-background hover:bg-accent transition-colors"
-				title="Zoom In"
+				aria-label={t('accessibility.zoomIn')}
 			>
 				<Plus className="w-4 h-4" />
 			</button>
@@ -53,13 +55,13 @@ export function ZoomSlider({
 					writingMode: 'vertical-lr',
 					direction: 'rtl',
 				}}
-				title={`Zoom: ${Math.round(currentZoom * 100)}%`}
+				aria-label={t('accessibility.zoom')} aria-valuetext={`${Math.round(currentZoom * 100)}%`}
 			/>
 
 			<button
 				onClick={() => setZoom(currentZoom - step)}
 				className="w-6 h-6 flex items-center justify-center rounded border border-border bg-background hover:bg-accent transition-colors"
-				title="Zoom Out"
+				aria-label={t('accessibility.zoomOut')}
 			>
 				<Minus className="w-4 h-4" />
 			</button>
