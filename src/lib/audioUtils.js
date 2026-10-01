@@ -55,6 +55,5 @@ export function restoreAudioFromStorage(storedAudio) {
 		name: sanitizeAudioFileName(storedAudio.name, 'Audio'),
 		size: storedAudio.size || blob.size,
 		blob: blob,
-		url: URL.createObjectURL(blob),
 	};
 }
