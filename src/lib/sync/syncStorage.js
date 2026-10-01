@@ -1,46 +1,39 @@
-import { db } from '@/lib/db';
+import { getRepositoryContext } from '@/lib/db';
+import { readAccount, writeAccount, removeAccount } from '@/lib/sync/credentialStore';
 import { getActiveProfileId } from '@/lib/profile/activeProfile';
 import { SYNC_TOMBSTONE_TTL_MS } from '@/lib/sync/core/constants';
 
-export async function getSyncAccount(provider) {
-	if (!provider) return null;
-	return await db.syncAccounts.get(provider);
+export async function getSyncAccount(provider, context = null) {
+	return provider ? readAccount(provider, context) : null;
 }
-
-export async function upsertSyncAccount(provider, data) {
-	if (!provider) return null;
-	const payload = {
-		provider,
-		...data,
-	};
-	await db.syncAccounts.put(payload);
-	return payload;
+export async function upsertSyncAccount(provider, data, context = null) {
+	return provider ? writeAccount(provider, data, context) : null;
 }
-
-export async function clearSyncAccount(provider) {
-	if (!provider) return;
-	await db.syncAccounts.delete(provider);
+export async function clearSyncAccount(provider, context = null) {
+	if (provider) await removeAccount(provider, context);
 }
-
 export async function getSyncProject(projectId, provider) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	if (!projectId || !provider) return null;
-	return await db.syncProjects.get([projectId, provider]);
+	return await context.db.syncProjects.get([projectId, provider]);
 }
 
 export async function upsertSyncProject(projectId, provider, data) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	if (!projectId || !provider) return null;
 	const payload = {
 		projectId,
 		provider,
 		...data,
 	};
-	await db.syncProjects.put(payload);
+	await context.db.syncProjects.put(payload);
 	return payload;
 }
 
 export async function clearSyncProject(projectId, provider) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	if (!projectId || !provider) return;
-	await db.syncProjects.delete([projectId, provider]);
+	await context.db.syncProjects.delete([projectId, provider]);
 }
 
 function sanitizeProfileId(value) {
@@ -69,18 +62,16 @@ function normalizeIsoDate(value, fallbackIso = '') {
 	return fallbackIso;
 }
 
-function isExpiredTombstone(entry, nowMs = Date.now()) {
-	const expiresAtMs = entry?.expiresAt ? Date.parse(entry.expiresAt) : 0;
-	return Boolean(expiresAtMs) && expiresAtMs <= nowMs;
-}
 
 export async function getSyncCatalogState(provider, profileId = '') {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	if (!provider) return null;
 	const normalizedProfileId = resolveProfileId(profileId);
-	return await db.syncCatalogState.get([provider, normalizedProfileId]);
+	return await context.db.syncCatalogState.get([provider, normalizedProfileId]);
 }
 
 export async function upsertSyncCatalogState(provider, profileId = '', data = {}) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	if (!provider) return null;
 	const normalizedProfileId = resolveProfileId(profileId);
 	const payload = {
@@ -88,27 +79,30 @@ export async function upsertSyncCatalogState(provider, profileId = '', data = {}
 		profileId: normalizedProfileId,
 		...data,
 	};
-	await db.syncCatalogState.put(payload);
+	await context.db.syncCatalogState.put(payload);
 	return payload;
 }
 
 export async function listSyncCatalogStates(provider = '') {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	const providerId = String(provider || '').trim();
 	if (!providerId) {
-		return await db.syncCatalogState.toArray();
+		return await context.db.syncCatalogState.toArray();
 	}
-	return await db.syncCatalogState.where('provider').equals(providerId).toArray();
+	return await context.db.syncCatalogState.where('provider').equals(providerId).toArray();
 }
 
 export async function getSyncTombstone({ provider, entityType, entityId } = {}) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	const providerId = String(provider || '').trim();
 	const normalizedEntityType = normalizeEntityType(entityType);
 	const normalizedEntityId = String(entityId || '').trim();
 	if (!providerId || !normalizedEntityType || !normalizedEntityId) return null;
-	return await db.syncTombstones.get([providerId, normalizedEntityType, normalizedEntityId]);
+	return await context.db.syncTombstones.get([providerId, normalizedEntityType, normalizedEntityId]);
 }
 
 export async function upsertSyncTombstone(input = {}) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	const providerId = String(input?.provider || '').trim();
 	const entityType = normalizeEntityType(input?.entityType);
 	const entityId = String(input?.entityId || '').trim();
@@ -135,7 +129,8 @@ export async function upsertSyncTombstone(input = {}) {
 		updatedAt: nowIso,
 	};
 
-	await db.syncTombstones.put(payload);
+	context.assertCurrent();
+	await context.db.syncTombstones.put(payload);
 	return payload;
 }
 
@@ -145,6 +140,7 @@ export async function acknowledgeSyncTombstone({
 	entityId,
 	acknowledgedAt = '',
 } = {}) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	const existing = await getSyncTombstone({ provider, entityType, entityId });
 	if (!existing) return null;
 	const ackAt =
@@ -155,60 +151,45 @@ export async function acknowledgeSyncTombstone({
 		acknowledgedAt: ackAt,
 		updatedAt: ackAt,
 	};
-	await db.syncTombstones.put(payload);
+	context.assertCurrent();
+	await context.db.syncTombstones.put(payload);
 	return payload;
 }
 
 export async function listSyncTombstones(options = {}) {
+	const context = await getRepositoryContext(); context.assertCurrent();
 	const providerId = String(options?.provider || '').trim();
 	const entityType = normalizeEntityType(options?.entityType);
 	const entityId = String(options?.entityId || '').trim();
 	const projectId = String(options?.projectId || '').trim();
 	const pendingOnly = Boolean(options?.pendingOnly);
-	const includeExpired = options?.includeExpired !== false;
 
 	let items = [];
 	if (providerId) {
-		items = await db.syncTombstones.where('provider').equals(providerId).toArray();
+		items = await context.db.syncTombstones.where('provider').equals(providerId).toArray();
 	} else if (entityType) {
-		items = await db.syncTombstones.where('entityType').equals(entityType).toArray();
+		items = await context.db.syncTombstones.where('entityType').equals(entityType).toArray();
 	} else if (entityId) {
-		items = await db.syncTombstones.where('entityId').equals(entityId).toArray();
+		items = await context.db.syncTombstones.where('entityId').equals(entityId).toArray();
 	} else {
-		items = await db.syncTombstones.toArray();
+		items = await context.db.syncTombstones.toArray();
 	}
 
-	const nowMs = Date.now();
 	return items.filter((item) => {
 		if (entityType && item.entityType !== entityType) return false;
 		if (entityId && item.entityId !== entityId) return false;
 		if (projectId && String(item.projectId || '').trim() !== projectId) return false;
 		if (pendingOnly && !item.pending) return false;
-		if (!includeExpired && isExpiredTombstone(item, nowMs)) return false;
 		return true;
 	});
 }
 
-export async function clearSyncTombstone({ provider, entityType, entityId } = {}) {
-	const providerId = String(provider || '').trim();
-	const normalizedEntityType = normalizeEntityType(entityType);
-	const normalizedEntityId = String(entityId || '').trim();
-	if (!providerId || !normalizedEntityType || !normalizedEntityId) return;
-	await db.syncTombstones.delete([providerId, normalizedEntityType, normalizedEntityId]);
+export async function clearSyncTombstone() {
+	throw new Error('Deletion evidence is retained indefinitely.');
 }
 
-export async function clearSyncTombstonesByEntity({ entityType, entityId } = {}) {
-	const normalizedEntityType = normalizeEntityType(entityType);
-	const normalizedEntityId = String(entityId || '').trim();
-	if (!normalizedEntityType || !normalizedEntityId) return;
-	const matches = await listSyncTombstones({
-		entityType: normalizedEntityType,
-		entityId: normalizedEntityId,
-	});
-	if (!matches.length) return;
-	await db.syncTombstones.bulkDelete(
-		matches.map((item) => [item.provider, item.entityType, item.entityId])
-	);
+export async function clearSyncTombstonesByEntity() {
+	throw new Error('Deletion evidence is retained indefinitely.');
 }
 
 export async function hasActiveTombstone({ entityType, entityId, providers = [] } = {}) {
