@@ -2,7 +2,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
 	isElectron: true,
+	credentialStatus: () => ipcRenderer.invoke('credentials:status'),
+	getCredential: (payload) => ipcRenderer.invoke('credentials:get', payload),
+	setCredential: (payload) => ipcRenderer.invoke('credentials:set', payload),
+	removeCredential: (payload) => ipcRenderer.invoke('credentials:remove', payload),
 	startGoogleOAuth: (payload) => ipcRenderer.invoke('auth:start-google-oauth', payload),
+	cancelGoogleOAuth: () => ipcRenderer.invoke('auth:cancel-google-oauth', {}),
 	openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
 	openPath: (targetPath) => ipcRenderer.invoke('shell:open-path', targetPath),
 	openContainingFolder: (filePath) =>

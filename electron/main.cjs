@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { URL, URLSearchParams } = require('node:url');
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, safeStorage } = require('electron');
 const {
 	initializeSteamRuntime,
 	prepareSteamOverlayForElectron,
@@ -12,7 +12,7 @@ const {
 	setRichPresence: setSteamRichPresence,
 	unlockAchievement: unlockSteamAchievement,
 	getSteamCloudStatus,
-	steamCloudFileExists,
+	listSteamCloudFileNames,
 	readSteamCloudFile,
 	writeSteamCloudFile,
 	shutdownSteamRuntime,
@@ -21,6 +21,17 @@ const {
 	initMainProcessSentry,
 	captureMainProcessException,
 } = require('./sentry.cjs');
+
+const { createTrustedIpc, isTrustedRendererUrl } = require('./security.cjs');
+const { createCredentialVault } = require('./credentials.cjs');
+const { createSteamFileTransport } = require('./steam-files.cjs');
+const { appendDiagnostic, sanitizeDiagnostics } = require('./diagnostics.cjs');
+let credentialVault;
+function getCredentialVault() {
+	if (!credentialVault) credentialVault = createCredentialVault({ safeStorage, directory: app.getPath('userData') });
+	return credentialVault;
+}
+function rendererPolicy() { return { distIndexPath: getDistIndexPath(), devServerUrl: process.env.VITE_DEV_SERVER_URL, isPackaged: app.isPackaged }; }
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -35,10 +46,6 @@ const SUPPORT_URL = 'https://discord.gg/hCjh8e3Y9r';
 const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues';
 const APP_DISPLAY_NAME = 'Mountea Dialoguer';
 const STEAM_SYNC_ROOT_FOLDER = 'steam-sync';
-const STEAM_SYNC_FILE_EXTENSION = '.json';
-const STEAM_SYNC_CLOUD_FILE_PREFIX = 'steam-sync__';
-const STEAM_SYNC_BUNDLE_FILE_BASENAME = 'bundle';
-const STEAM_SYNC_BUNDLE_CACHE_FILE_NAME = `${STEAM_SYNC_BUNDLE_FILE_BASENAME}${STEAM_SYNC_FILE_EXTENSION}`;
 
 let mainWindow = null;
 const DEFAULT_MENU_CONTEXT = Object.freeze({
@@ -346,11 +353,7 @@ function isAllowedExternalUrl(rawUrl) {
 }
 
 function isInternalNavigation(url) {
-	const devServerUrl = process.env.VITE_DEV_SERVER_URL;
-	if (devServerUrl && url.startsWith(devServerUrl)) {
-		return true;
-	}
-	return url.startsWith('file://');
+	return isTrustedRendererUrl(url, rendererPolicy());
 }
 
 function shouldBlockNativeShortcut(input = {}) {
@@ -380,7 +383,8 @@ function shouldBlockNativeShortcut(input = {}) {
 function sanitizeFileNameForSaveDialog(fileName, fallback = 'export.bin') {
 	const normalized = String(fileName || '')
 		.trim()
-		.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_');
+		.replace(/[<>:"/\\|?*]/g, '_')
+		.split('').map((character) => character.charCodeAt(0) < 32 ? '_' : character).join('');
 	return normalized || fallback;
 }
 
@@ -482,14 +486,14 @@ function getSteamSyncProfileDirectory(profileId) {
 
 function logSteamSyncEvent(eventName, details = {}) {
 	const safeEvent = String(eventName || 'event');
-	const safeDetails = details && typeof details === 'object' ? details : {};
+	const safeDetails = sanitizeDiagnostics(details && typeof details === 'object' ? details : {});
 	const timestamp = new Date().toISOString();
 	const logLine = `[${timestamp}] [steam-sync] ${safeEvent} ${JSON.stringify(safeDetails)}`;
 	console.log(logLine);
 	try {
 		if (app.isReady()) {
 			const diagnosticsPath = path.join(app.getPath('userData'), 'steam-sync-diagnostics.log');
-			fs.appendFileSync(diagnosticsPath, `${logLine}\n`, 'utf8');
+			appendDiagnostic(diagnosticsPath, safeEvent, safeDetails);
 		}
 	} catch (error) {
 		// Best-effort diagnostics logging only.
@@ -510,506 +514,38 @@ async function ensureSteamSyncProfileDirectory(profileId) {
 }
 
 async function ensureSteamSyncDirectoriesForRuntime(runtimeState = steamRuntimeState) {
-	const userDataPath = app.getPath('userData');
-	const rootDir = await ensureSteamSyncRootDirectory();
-	const cloudStatus = getSteamCloudRuntimeStatus();
-	logSteamSyncEvent('ROOT_READY', {
-		userDataPath,
-		rootDir,
-		cloud: cloudStatus,
-	});
-
-	const steamAvailable = Boolean(runtimeState?.available);
-	const steamId = String(runtimeState?.steamId || '').trim();
-	if (!steamAvailable || !steamId) return;
-
-	const profileId = sanitizeSteamSyncSegment(`steam-${steamId}`, 'local');
-	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
-	logSteamSyncEvent('PROFILE_READY', { profileId, profileDir });
-
-	// Seed local bundle cache immediately so Steam Auto-Cloud has a concrete file
-	// even before the first project write in this session.
-	const { bundle, source } = await readSteamSyncBundle(profileId);
-	let cloudWritten = false;
-	if (source !== 'steam-cloud') {
-		cloudWritten = writeSteamSyncBundleToCloud(profileId, bundle);
-	}
-	logSteamSyncEvent('PROFILE_SYNC_READY', {
-		profileId,
-		source,
-		entryCount: Array.isArray(bundle?.entries) ? bundle.entries.length : 0,
-		cloudWritten,
-		cloud: getSteamCloudRuntimeStatus(),
-	});
+	await ensureSteamSyncRootDirectory();
+	if (runtimeState?.available && runtimeState?.steamId) await ensureSteamSyncProfileDirectory(`steam-${runtimeState.steamId}`);
 }
-
-function getSteamSyncBundleCachePath(profileId) {
-	return path.join(
-		getSteamSyncProfileDirectory(profileId),
-		STEAM_SYNC_BUNDLE_CACHE_FILE_NAME
-	);
-}
-
-function getSteamSyncBundleCloudFileName(profileId) {
-	const safeProfileId = sanitizeSteamSyncSegment(profileId, 'local');
-	return `${STEAM_SYNC_CLOUD_FILE_PREFIX}${safeProfileId}__${STEAM_SYNC_BUNDLE_FILE_BASENAME}${STEAM_SYNC_FILE_EXTENSION}`;
-}
-
-function getSteamCloudRuntimeStatus() {
-	const status = getSteamCloudStatus();
-	const enabled = Boolean(
-		status?.available && status?.enabledForApp && status?.enabledForAccount
-	);
-	return {
-		available: Boolean(status?.available),
-		enabledForApp: Boolean(status?.enabledForApp),
-		enabledForAccount: Boolean(status?.enabledForAccount),
-		enabled,
-		error: String(status?.error || ''),
-	};
-}
-
-function normalizeSteamSyncAppProperties(rawValue) {
-	if (!rawValue || typeof rawValue !== 'object') return {};
-	const normalized = {};
-	for (const [key, value] of Object.entries(rawValue)) {
-		const safeKey = String(key || '').trim();
-		if (!safeKey) continue;
-		normalized[safeKey] = String(value ?? '');
-	}
-	return normalized;
-}
-
-function normalizeSteamSyncEntry(rawEntry, fallbackId = '') {
-	const id = sanitizeSteamSyncSegment(rawEntry?.id || fallbackId || crypto.randomUUID(), 'entry');
-	const name = String(rawEntry?.name || '').trim();
-	const parsedModified = Date.parse(String(rawEntry?.modifiedTime || ''));
-	const modifiedTime = Number.isFinite(parsedModified)
-		? new Date(parsedModified).toISOString()
-		: new Date().toISOString();
-
-	return {
-		id,
-		name,
-		content: typeof rawEntry?.content === 'string' ? rawEntry.content : '',
-		mimeType: String(rawEntry?.mimeType || 'application/json'),
-		appProperties: normalizeSteamSyncAppProperties(rawEntry?.appProperties),
-		modifiedTime,
-	};
-}
-
-function createEmptySteamSyncBundle(profileId) {
-	return {
-		schemaVersion: 1,
-		profileId: sanitizeSteamSyncSegment(profileId, 'local'),
-		modifiedTime: new Date().toISOString(),
-		entries: [],
-	};
-}
-
-function normalizeSteamSyncBundle(rawBundle, profileId) {
-	const fallbackProfileId = sanitizeSteamSyncSegment(profileId, 'local');
-	const rawEntries = Array.isArray(rawBundle?.entries) ? rawBundle.entries : [];
-	const deduped = new Map();
-
-	for (const rawEntry of rawEntries) {
-		const normalized = normalizeSteamSyncEntry(rawEntry, rawEntry?.id || '');
-		if (!normalized.name) continue;
-		const existing = deduped.get(normalized.id);
-		if (!existing) {
-			deduped.set(normalized.id, normalized);
-			continue;
-		}
-		const existingTs = Date.parse(existing.modifiedTime || '') || 0;
-		const normalizedTs = Date.parse(normalized.modifiedTime || '') || 0;
-		if (normalizedTs >= existingTs) {
-			deduped.set(normalized.id, normalized);
-		}
-	}
-
-	const entries = Array.from(deduped.values()).sort(
-		(a, b) => Date.parse(b.modifiedTime) - Date.parse(a.modifiedTime)
-	);
-	return {
-		schemaVersion: Number(rawBundle?.schemaVersion || 1),
-		profileId: sanitizeSteamSyncSegment(rawBundle?.profileId || fallbackProfileId, fallbackProfileId),
-		modifiedTime: new Date().toISOString(),
-		entries,
-	};
-}
-
-async function readLegacySteamSyncEntriesFromLocal(profileId) {
-	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
-	const dirItems = await fs.promises.readdir(profileDir, { withFileTypes: true });
-	const entries = [];
-
-	for (const item of dirItems) {
-		if (!item.isFile()) continue;
-		if (!item.name.endsWith(STEAM_SYNC_FILE_EXTENSION)) continue;
-		if (item.name === STEAM_SYNC_BUNDLE_CACHE_FILE_NAME) continue;
-
-		const fileId = item.name.slice(0, -STEAM_SYNC_FILE_EXTENSION.length);
-		const filePath = path.join(profileDir, item.name);
-		try {
-			const content = await fs.promises.readFile(filePath, 'utf8');
-			const parsed = JSON.parse(content);
-			const entry = normalizeSteamSyncEntry(parsed, fileId);
-			if (!entry.name) continue;
-			entries.push(entry);
-		} catch (error) {
-			console.warn('[steam-sync] Failed to parse legacy entry:', filePath, error?.message || error);
-		}
-	}
-
-	return entries;
-}
-
-async function cleanupLegacySteamSyncFiles(profileId) {
-	const profileDir = await ensureSteamSyncProfileDirectory(profileId);
-	const dirItems = await fs.promises.readdir(profileDir, { withFileTypes: true });
-	for (const item of dirItems) {
-		if (!item.isFile()) continue;
-		if (!item.name.endsWith(STEAM_SYNC_FILE_EXTENSION)) continue;
-		if (item.name === STEAM_SYNC_BUNDLE_CACHE_FILE_NAME) continue;
-		const fullPath = path.join(profileDir, item.name);
-		try {
-			await fs.promises.unlink(fullPath);
-		} catch (error) {
-			// Best-effort cleanup only.
-		}
-	}
-}
-
-async function readSteamSyncBundleFromLocal(profileId) {
-	const bundlePath = getSteamSyncBundleCachePath(profileId);
-	if (fs.existsSync(bundlePath)) {
-		try {
-			const content = await fs.promises.readFile(bundlePath, 'utf8');
-			return normalizeSteamSyncBundle(JSON.parse(content), profileId);
-		} catch (error) {
-			console.warn('[steam-sync] Failed to parse bundle cache:', bundlePath, error?.message || error);
-		}
-	}
-
-	const legacyEntries = await readLegacySteamSyncEntriesFromLocal(profileId);
-	if (legacyEntries.length === 0) {
-		const seededBundle = await writeSteamSyncBundleToLocal(
-			profileId,
-			createEmptySteamSyncBundle(profileId),
-			{ skipCleanup: true }
-		);
-		logSteamSyncEvent('BUNDLE_LOCAL_SEEDED', {
-			profileId,
-			bundlePath: getSteamSyncBundleCachePath(profileId),
-		});
-		return seededBundle;
-	}
-
-	const migrated = normalizeSteamSyncBundle(
-		{
-			schemaVersion: 1,
-			profileId,
-			entries: legacyEntries,
+let steamFileTransport;
+function getSteamFileTransport() {
+	if (!steamFileTransport) steamFileTransport = createSteamFileTransport({
+		directory: getSteamSyncRootDirectory(),
+		cloud: { status: getSteamCloudStatus, list: listSteamCloudFileNames, read: readSteamCloudFile, write: writeSteamCloudFile },
+		readLegacy: async (profileId) => {
+			const legacyName = `steam-sync__${profileId}__bundle.json`;
+			const names = listSteamCloudFileNames();
+			const entries = [];
+			if (names.includes(legacyName)) entries.push(...(JSON.parse(readSteamCloudFile(legacyName)).entries || []));
+			const folder = getSteamSyncProfileDirectory(profileId);
+			try {
+				for (const file of await fs.promises.readdir(folder)) {
+					if (!file.endsWith('.json')) continue;
+					const data = JSON.parse(await fs.promises.readFile(path.join(folder, file), 'utf8'));
+					entries.push(...(file === 'bundle.json' ? data.entries || [] : [data]));
+				}
+			} catch (error) { if (error.code !== 'ENOENT') throw error; }
+			return [...new Map(entries.filter((entry) => entry.id && entry.name).map((entry) => [entry.id, entry])).values()];
 		},
-		profileId
-	);
-	await writeSteamSyncBundleToLocal(profileId, migrated, { skipCleanup: true });
-	await cleanupLegacySteamSyncFiles(profileId);
-	logSteamSyncEvent('BUNDLE_MIGRATED', {
-		profileId,
-		entryCount: migrated.entries.length,
 	});
-	return migrated;
+	return steamFileTransport;
 }
-
-function readSteamSyncBundleFromCloud(profileId) {
-	const cloudStatus = getSteamCloudRuntimeStatus();
-	if (!cloudStatus.enabled) return null;
-
-	const storageName = getSteamSyncBundleCloudFileName(profileId);
-	if (!steamCloudFileExists(storageName)) return null;
-
-	try {
-		const rawContent = readSteamCloudFile(storageName);
-		return normalizeSteamSyncBundle(JSON.parse(rawContent), profileId);
-	} catch (error) {
-		console.warn('[steam-sync] Failed to parse cloud bundle:', error?.message || error);
-		return null;
-	}
-}
-
-async function writeSteamSyncBundleToLocal(profileId, bundle, options = {}) {
-	const normalized = normalizeSteamSyncBundle(bundle, profileId);
-	await ensureSteamSyncProfileDirectory(profileId);
-	const bundlePath = getSteamSyncBundleCachePath(profileId);
-	await fs.promises.writeFile(bundlePath, JSON.stringify(normalized, null, 2), 'utf8');
-	if (!options?.skipCleanup) {
-		await cleanupLegacySteamSyncFiles(profileId);
-	}
-	return normalized;
-}
-
-function writeSteamSyncBundleToCloud(profileId, bundle) {
-	const cloudStatus = getSteamCloudRuntimeStatus();
-	if (!cloudStatus.enabled) return false;
-	const storageName = getSteamSyncBundleCloudFileName(profileId);
-	const normalized = normalizeSteamSyncBundle(bundle, profileId);
-	return writeSteamCloudFile(storageName, JSON.stringify(normalized));
-}
-
-async function readSteamSyncBundle(profileId) {
-	const cloudBundle = readSteamSyncBundleFromCloud(profileId);
-	if (cloudBundle) {
-		await writeSteamSyncBundleToLocal(profileId, cloudBundle);
-		return { bundle: cloudBundle, source: 'steam-cloud' };
-	}
-
-	const localBundle = await readSteamSyncBundleFromLocal(profileId);
-	return { bundle: localBundle, source: 'local-cache' };
-}
-
-async function writeSteamSyncBundle(profileId, bundle) {
-	const normalized = await writeSteamSyncBundleToLocal(profileId, bundle);
-	const cloudWritten = writeSteamSyncBundleToCloud(profileId, normalized);
-	return { bundle: normalized, cloudWritten };
-}
-
-function toSteamSyncFileMetadata(entry) {
-	return {
-		id: entry.id,
-		name: entry.name,
-		modifiedTime: entry.modifiedTime,
-		appProperties: entry.appProperties,
-	};
-}
-
-async function listSteamSyncEntries(profileId) {
-	const { bundle, source } = await readSteamSyncBundle(profileId);
-	const entries = Array.isArray(bundle?.entries) ? bundle.entries : [];
-	logSteamSyncEvent('LIST_SOURCE', {
-		profileId,
-		source,
-		count: entries.length,
-	});
-	return entries;
-}
-
-async function steamSyncFindFile(payload = {}) {
-	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
-	const fileName = String(payload?.fileName || '').trim();
-	if (!fileName) return null;
-
-	const entries = await listSteamSyncEntries(profileId);
-	const match = entries.find((entry) => entry.name === fileName);
-	if (!match) return null;
-	logSteamSyncEvent('FIND', { profileId, fileName, found: true, fileId: match.id });
-	return toSteamSyncFileMetadata(match);
-}
-
-async function steamSyncListFiles(payload = {}) {
-	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
-	const namePrefix = String(payload?.namePrefix || '').trim();
-	const entries = await listSteamSyncEntries(profileId);
-	const mapped = entries
-		.filter((entry) => !namePrefix || entry.name.includes(namePrefix))
-		.map((entry) => toSteamSyncFileMetadata(entry));
-	logSteamSyncEvent('LIST', {
-		profileId,
-		namePrefix,
-		count: mapped.length,
-		directory: getSteamSyncProfileDirectory(profileId),
-	});
-	return mapped;
-}
-
-async function steamSyncDownloadFile(payload = {}) {
-	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
-	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
-	if (!fileId) {
-		throw new Error('Missing Steam sync file id');
-	}
-
-	const { bundle, source } = await readSteamSyncBundle(profileId);
-	const entry = (bundle?.entries || []).find((item) => item.id === fileId);
-	if (!entry) {
-		throw new Error(`Steam sync file not found: ${fileId}`);
-	}
-	logSteamSyncEvent('DOWNLOAD', {
-		profileId,
-		fileId,
-		name: entry.name,
-		source,
-	});
-	return entry.content;
-}
-
-async function steamSyncCreateFile(payload = {}) {
-	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
-	const name = String(payload?.name || '').trim();
-	if (!name) {
-		throw new Error('Missing Steam sync file name');
-	}
-
-	const entry = normalizeSteamSyncEntry(
-		{
-			id: crypto.randomUUID(),
-			name,
-			content: String(payload?.content || ''),
-			mimeType: payload?.mimeType || 'application/json',
-			appProperties: payload?.appProperties || {},
-			modifiedTime: new Date().toISOString(),
-		},
-		''
-	);
-
-	const { bundle } = await readSteamSyncBundle(profileId);
-	const nextBundle = normalizeSteamSyncBundle(
-		{
-			...bundle,
-			profileId,
-			modifiedTime: new Date().toISOString(),
-			entries: [...(bundle?.entries || []), entry],
-		},
-		profileId
-	);
-
-	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
-	if (!cloudWritten) {
-		logSteamSyncEvent('CREATE_CLOUD_SKIPPED', {
-			profileId,
-			fileId: entry.id,
-			name: entry.name,
-			cloud: getSteamCloudRuntimeStatus(),
-		});
-		const cloud = getSteamCloudRuntimeStatus();
-		const cloudError = String(cloud?.error || '').trim();
-		throw new Error(
-			`Steam Cloud write skipped during create: ${cloudError || 'cloud unavailable'}`
-		);
-	}
-
-	logSteamSyncEvent('CREATE', {
-		profileId,
-		fileId: entry.id,
-		name: entry.name,
-		bundlePath: getSteamSyncBundleCachePath(profileId),
-		cloudWritten,
-	});
-	return {
-		...toSteamSyncFileMetadata(entry),
-		cloudWritten,
-	};
-}
-
-async function steamSyncUpdateFile(payload = {}) {
-	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
-	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
-	if (!fileId) {
-		throw new Error('Missing Steam sync file id');
-	}
-
-	const { bundle } = await readSteamSyncBundle(profileId);
-	const existing = (bundle?.entries || []).find((item) => item.id === fileId);
-	if (!existing) {
-		throw new Error(`Steam sync file not found: ${fileId}`);
-	}
-	const updated = normalizeSteamSyncEntry(
-		{
-			...existing,
-			content: String(payload?.content || ''),
-			mimeType: payload?.mimeType || existing.mimeType || 'application/json',
-			appProperties: payload?.appProperties || existing.appProperties || {},
-			modifiedTime: new Date().toISOString(),
-		},
-		fileId
-	);
-
-	const nextEntries = (bundle?.entries || []).map((item) =>
-		item.id === fileId ? updated : item
-	);
-	const nextBundle = normalizeSteamSyncBundle(
-		{
-			...bundle,
-			profileId,
-			modifiedTime: new Date().toISOString(),
-			entries: nextEntries,
-		},
-		profileId
-	);
-	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
-	if (!cloudWritten) {
-		logSteamSyncEvent('UPDATE_CLOUD_SKIPPED', {
-			profileId,
-			fileId: updated.id,
-			name: updated.name,
-			cloud: getSteamCloudRuntimeStatus(),
-		});
-		const cloud = getSteamCloudRuntimeStatus();
-		const cloudError = String(cloud?.error || '').trim();
-		throw new Error(
-			`Steam Cloud write skipped during update: ${cloudError || 'cloud unavailable'}`
-		);
-	}
-	logSteamSyncEvent('UPDATE', {
-		profileId,
-		fileId: updated.id,
-		name: updated.name,
-		bundlePath: getSteamSyncBundleCachePath(profileId),
-		cloudWritten,
-	});
-	return {
-		...toSteamSyncFileMetadata(updated),
-		cloudWritten,
-	};
-}
-
-async function steamSyncDeleteFile(payload = {}) {
-	const profileId = sanitizeSteamSyncSegment(payload?.profileId, 'local');
-	const fileId = sanitizeSteamSyncSegment(payload?.fileId, '');
-	if (!fileId) {
-		throw new Error('Missing Steam sync file id');
-	}
-
-	const { bundle } = await readSteamSyncBundle(profileId);
-	const existing = (bundle?.entries || []).find((item) => item.id === fileId);
-	if (!existing) {
-		return { id: fileId, deleted: false };
-	}
-
-	const nextEntries = (bundle?.entries || []).filter((item) => item.id !== fileId);
-	const nextBundle = normalizeSteamSyncBundle(
-		{
-			...bundle,
-			profileId,
-			modifiedTime: new Date().toISOString(),
-			entries: nextEntries,
-		},
-		profileId
-	);
-	const { cloudWritten } = await writeSteamSyncBundle(profileId, nextBundle);
-	if (!cloudWritten) {
-		logSteamSyncEvent('DELETE_CLOUD_SKIPPED', {
-			profileId,
-			fileId: existing.id,
-			name: existing.name,
-			cloud: getSteamCloudRuntimeStatus(),
-		});
-		const cloud = getSteamCloudRuntimeStatus();
-		const cloudError = String(cloud?.error || '').trim();
-		throw new Error(
-			`Steam Cloud write skipped during delete: ${cloudError || 'cloud unavailable'}`
-		);
-	}
-	logSteamSyncEvent('DELETE', {
-		profileId,
-		fileId: existing.id,
-		name: existing.name,
-		bundlePath: getSteamSyncBundleCachePath(profileId),
-		cloudWritten,
-	});
-	return { id: fileId, deleted: true, cloudWritten };
-}
-
+const steamSyncFindFile = (payload) => getSteamFileTransport().find(payload);
+const steamSyncListFiles = (payload) => getSteamFileTransport().list(payload);
+const steamSyncDownloadFile = (payload) => getSteamFileTransport().download(payload);
+const steamSyncCreateFile = (payload) => getSteamFileTransport().create(payload);
+const steamSyncUpdateFile = (payload) => getSteamFileTransport().update(payload);
+const steamSyncDeleteFile = (payload) => getSteamFileTransport().remove(payload);
 function sendMenuCommand(command, payload = {}) {
 	const targetWindow = BrowserWindow.getFocusedWindow() || mainWindow;
 	if (!targetWindow || targetWindow.isDestroyed()) return;
@@ -1295,7 +831,7 @@ function createAppMenu(context = menuContext) {
 						accelerator: 'CmdOrCtrl+,',
 						click: () => sendMenuCommand('open-settings'),
 					},
-			  ]
+			]
 			: []),
 		...(canOpenSync
 			? [
@@ -1304,7 +840,7 @@ function createAppMenu(context = menuContext) {
 						accelerator: 'CmdOrCtrl+Shift+S',
 						click: () => sendMenuCommand('open-sync'),
 					},
-			  ]
+			]
 			: []),
 	]);
 
@@ -1353,7 +889,7 @@ function createAppMenu(context = menuContext) {
 							{ role: 'quit' },
 						],
 					},
-			  ]
+			]
 			: []),
 		{
 			label: 'File',
@@ -1477,6 +1013,7 @@ async function exchangeCodeForToken({
 	redirectUri,
 	codeVerifier,
 	clientSecret,
+	signal,
 }) {
 	const body = new URLSearchParams({
 		client_id: clientId,
@@ -1491,6 +1028,7 @@ async function exchangeCodeForToken({
 	}
 
 	const response = await fetch(TOKEN_ENDPOINT, {
+		signal,
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
@@ -1521,11 +1059,13 @@ async function exchangeCodeForToken({
 	return payload || {};
 }
 
+const oauthSession = require('./oauth-session.cjs').createOAuthSession();
 async function executeOAuthAttempt({
 	clientId,
 	clientSecret,
 	scopes,
 	responseType,
+	signal,
 }) {
 	console.log(`[oauth] Starting Google OAuth attempt (${responseType})`);
 	const oauthStartedAt = Date.now();
@@ -1545,6 +1085,7 @@ async function executeOAuthAttempt({
 	let timeoutHandle = null;
 	let rejectAuthResult = null;
 	const callbackSockets = new Set();
+	const cancelAttempt = () => rejectAuthResult(signal.reason);
 
 	const authResultPromise = new Promise((resolve, reject) => {
 		let settled = false;
@@ -1554,6 +1095,7 @@ async function executeOAuthAttempt({
 			handler(value);
 		};
 		rejectAuthResult = (reason) => settle(reject, reason);
+		signal.addEventListener('abort', cancelAttempt, { once: true });
 
 		server = http.createServer((req, res) => {
 			res.setHeader('Connection', 'close');
@@ -1668,12 +1210,16 @@ async function executeOAuthAttempt({
 		});
 	});
 
+	// Attach immediately: cancellation can precede the listen callback.
+	authResultPromise.catch(() => {});
 	try {
+		signal.throwIfAborted();
 		await new Promise((resolve, reject) => {
 			server.listen(0, LOOPBACK_HOST, resolve);
 			server.once('error', reject);
 		});
 
+		signal.throwIfAborted();
 		const address = server.address();
 		const port = typeof address === 'object' && address ? address.port : null;
 		if (!port) {
@@ -1746,7 +1292,9 @@ async function executeOAuthAttempt({
 			redirectUri,
 			codeVerifier,
 			clientSecret,
+			signal,
 		});
+		signal.throwIfAborted();
 		console.log(
 			`[oauth] Token exchange completed in ${Date.now() - tokenExchangeStartedAt}ms`
 		);
@@ -1766,6 +1314,7 @@ async function executeOAuthAttempt({
 			clientId: trimmedClientId,
 		};
 	} finally {
+		signal.removeEventListener('abort', cancelAttempt);
 		if (timeoutHandle) {
 			clearTimeout(timeoutHandle);
 		}
@@ -1799,7 +1348,7 @@ async function executeOAuthAttempt({
 	}
 }
 
-async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
+async function startGoogleOAuth({ clientId, clientSecret, scopes }, signal) {
 	const resolvedClientId = resolveDesktopOAuthClientId(clientId);
 	const resolvedClientSecret = resolveDesktopOAuthClientSecret(clientSecret);
 	console.log(
@@ -1814,8 +1363,10 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
 			clientSecret: resolvedClientSecret,
 			scopes,
 			responseType: 'code',
+			signal,
 		});
 	} catch (error) {
+		signal.throwIfAborted();
 		const message = String(error?.message || '').toLowerCase();
 		const allowImplicitFallback = process.env.MOUNTEA_OAUTH_ALLOW_IMPLICIT === '1';
 		const isRecoverableCodeFlowError =
@@ -1839,6 +1390,7 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }) {
 			clientSecret: '',
 			scopes,
 			responseType: 'token',
+			signal,
 		});
 	}
 }
@@ -1861,7 +1413,7 @@ function createMainWindow() {
 			preload: path.join(__dirname, 'preload.cjs'),
 			contextIsolation: true,
 			nodeIntegration: false,
-			sandbox: false,
+			sandbox: true,
 		},
 	});
 
@@ -1872,15 +1424,17 @@ function createMainWindow() {
 		return { action: 'deny' };
 	});
 
-	mainWindow.webContents.on('will-navigate', (event, url) => {
+	const guardNavigation = (event, url) => {
 		if (isInternalNavigation(url)) {
 			return;
 		}
+		event.preventDefault();
 		if (isAllowedExternalUrl(url)) {
-			event.preventDefault();
 			shell.openExternal(url);
 		}
-	});
+	};
+	mainWindow.webContents.on('will-navigate', guardNavigation);
+	mainWindow.webContents.on('will-redirect', guardNavigation);
 
 	mainWindow.webContents.on('before-input-event', (event, input) => {
 		if (shouldBlockNativeShortcut(input)) {
@@ -1903,10 +1457,10 @@ function createMainWindow() {
 	});
 
 	mainWindow.once('ready-to-show', () => {
-		mainWindow.show();
+		if (process.env.MOUNTEA_STARTUP_CHECK !== '1') mainWindow.show();
 	});
 
-	const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+	const devServerUrl = app.isPackaged ? null : process.env.VITE_DEV_SERVER_URL;
 	if (devServerUrl) {
 		mainWindow.loadURL(devServerUrl);
 		return;
@@ -1920,6 +1474,12 @@ function createMainWindow() {
 }
 
 function registerIpcHandlers() {
+	const trustedIpc = createTrustedIpc({ ipcMain, getWindow: () => mainWindow, getPolicy: rendererPolicy, getSteamStatus, onRejected: (channel) => logSteamSyncEvent('IPC_REJECTED', { channel }) });
+	for (const channel of ['credentials:status', 'credentials:get', 'credentials:set', 'credentials:remove']) ipcMain.removeHandler(channel);
+	trustedIpc.handle('credentials:status', () => getCredentialVault().status());
+	trustedIpc.handle('credentials:get', (_event, payload) => getCredentialVault().get(payload.profileId, payload.key));
+	trustedIpc.handle('credentials:set', (_event, payload) => getCredentialVault().set(payload.profileId, payload.key, payload.value));
+	trustedIpc.handle('credentials:remove', (_event, payload) => getCredentialVault().remove(payload.profileId, payload.key));
 	ipcMain.removeAllListeners('menu:set-context');
 	ipcMain.removeAllListeners('sync:trace');
 	ipcMain.removeHandler('shell:open-external');
@@ -1927,6 +1487,7 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('shell:open-containing-folder');
 	ipcMain.removeHandler('dialog:save-file');
 	ipcMain.removeHandler('auth:start-google-oauth');
+	ipcMain.removeHandler('auth:cancel-google-oauth');
 	ipcMain.removeHandler('steam:get-status');
 	ipcMain.removeHandler('steam:open-overlay');
 	ipcMain.removeHandler('steam:set-rich-presence');
@@ -1938,7 +1499,7 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('steam-sync:update-file');
 	ipcMain.removeHandler('steam-sync:delete-file');
 
-	ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
+	trustedIpc.handle('shell:open-external', async (_event, rawUrl) => {
 		if (!isAllowedExternalUrl(rawUrl)) {
 			return false;
 		}
@@ -1946,87 +1507,72 @@ function registerIpcHandlers() {
 		return true;
 	});
 
-	ipcMain.handle('shell:open-path', async (_event, rawPath) => {
+	trustedIpc.handle('shell:open-path', async (_event, rawPath) => {
 		return await openPathInShell(rawPath);
 	});
 
-	ipcMain.handle('shell:open-containing-folder', async (_event, rawFilePath) => {
+	trustedIpc.handle('shell:open-containing-folder', async (_event, rawFilePath) => {
 		return await openContainingFolderInShell(rawFilePath);
 	});
 
-	ipcMain.handle('dialog:save-file', async (_event, payload) => {
+	trustedIpc.handle('dialog:save-file', async (_event, payload) => {
 		return await saveFileFromRenderer(payload || {});
 	});
 
-	ipcMain.handle('auth:start-google-oauth', async (_event, payload) => {
-		return startGoogleOAuth(payload || {});
+	trustedIpc.handle('auth:cancel-google-oauth', () => { oauthSession.cancel(); return true; });
+	trustedIpc.handle('auth:start-google-oauth', async (_event, payload) => {
+		return oauthSession.run((signal) => startGoogleOAuth(payload, signal));
 	});
 
-	ipcMain.handle('steam:get-status', async () => {
+	trustedIpc.handle('steam:get-status', async () => {
 		return getSteamStatus();
 	});
 
-	ipcMain.handle('steam:open-overlay', async (_event, payload) => {
+	trustedIpc.handle('steam:open-overlay', async (_event, payload) => {
 		const dialog = payload?.dialog || 'Friends';
 		const ok = openSteamOverlay(dialog);
 		return { ok };
 	});
 
-	ipcMain.handle('steam:set-rich-presence', async (_event, payload) => {
+	trustedIpc.handle('steam:set-rich-presence', async (_event, payload) => {
 		const entries = payload?.entries || {};
 		return setSteamRichPresence(entries);
 	});
 
-	ipcMain.handle('steam:unlock-achievement', async (_event, payload) => {
+	trustedIpc.handle('steam:unlock-achievement', async (_event, payload) => {
 		const achievementId = payload?.achievementId || '';
 		return unlockSteamAchievement(achievementId);
 	});
 
-	ipcMain.handle('steam-sync:find-file', async (_event, payload) => {
+	trustedIpc.handle('steam-sync:find-file', async (_event, payload) => {
 		return await steamSyncFindFile(payload || {});
 	});
 
-	ipcMain.handle('steam-sync:list-files', async (_event, payload) => {
+	trustedIpc.handle('steam-sync:list-files', async (_event, payload) => {
 		return await steamSyncListFiles(payload || {});
 	});
 
-	ipcMain.handle('steam-sync:download-file', async (_event, payload) => {
+	trustedIpc.handle('steam-sync:download-file', async (_event, payload) => {
 		return await steamSyncDownloadFile(payload || {});
 	});
 
-	ipcMain.handle('steam-sync:create-file', async (_event, payload) => {
+	trustedIpc.handle('steam-sync:create-file', async (_event, payload) => {
 		return await steamSyncCreateFile(payload || {});
 	});
 
-	ipcMain.handle('steam-sync:update-file', async (_event, payload) => {
+	trustedIpc.handle('steam-sync:update-file', async (_event, payload) => {
 		return await steamSyncUpdateFile(payload || {});
 	});
 
-	ipcMain.handle('steam-sync:delete-file', async (_event, payload) => {
+	trustedIpc.handle('steam-sync:delete-file', async (_event, payload) => {
 		return await steamSyncDeleteFile(payload || {});
 	});
 
-	ipcMain.on('menu:set-context', (_event, payload) => {
+	trustedIpc.on('menu:set-context', (_event, payload) => {
 		updateMenuContext(payload || {});
 	});
 
-	ipcMain.on('sync:trace', (_event, payload) => {
-		const eventName = String(payload?.event || 'event');
-		const details = payload?.details && typeof payload.details === 'object'
-			? payload.details
-			: {};
-		const timestamp = new Date().toISOString();
-		const line = `[${timestamp}] [sync] ${eventName} ${JSON.stringify(details)}`;
-		console.log(line);
-		try {
-			if (app.isReady()) {
-				const diagnosticsPath = path.join(app.getPath('userData'), 'steam-sync-diagnostics.log');
-				fs.appendFileSync(diagnosticsPath, `${line}\n`, 'utf8');
-			}
-		} catch (error) {
-			// Best-effort diagnostics logging only.
-		}
-	});
+	trustedIpc.on('sync:trace', (_event, payload) => { logSteamSyncEvent(payload.event || 'event', payload.details || {}); });
 }
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -2051,6 +1597,7 @@ if (!gotSingleInstanceLock) {
 	});
 
 	app.whenReady().then(async () => {
+		if (process.env.MOUNTEA_STARTUP_CHECK === '1') require('electron').session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (_details, callback) => callback({ cancel: true }));
 		steamRuntimeState = initializeSteamRuntime();
 		if (steamRuntimeState.available) {
 			console.log(
@@ -2091,6 +1638,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+	oauthSession.cancel();
 	try {
 		shutdownSteamRuntime();
 	} catch (error) {
