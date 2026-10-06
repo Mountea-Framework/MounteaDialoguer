@@ -135,7 +135,8 @@ test('ZIP duplicate central names, path aliases and Unicode overrides are reject
 		const duplicate = new JSZip(); duplicate.file('first', 'a'); duplicate.file('other', 'b');
 		await inspect(duplicate, (bytes) => { for (let i = 0; i < bytes.length - 5; i++) if (new TextDecoder().decode(bytes.subarray(i, i + 5)) === 'other') bytes.set(new TextEncoder().encode('first'), i); return bytes; });
 		const localMismatch = new JSZip(); localMismatch.file('first', 'a'); localMismatch.file('other', 'b');
-		await inspect(localMismatch, (bytes) => { const view = new DataView(bytes.buffer); for (let i = 0; i < bytes.length - 35; i++) if (view.getUint32(i, true) === 0x04034b50 && new TextDecoder().decode(bytes.subarray(i + 30, i + 35)) === 'other') bytes.set(new TextEncoder().encode('first'), i + 30); return bytes; });
+		const { ZIP_LOCAL_SIG } = await import('/src/lib/persistence/zipConstants.js');
+		await inspect(localMismatch, (bytes) => { const view = new DataView(bytes.buffer); for (let i = 0; i < bytes.length - 35; i++) if (view.getUint32(i, true) === ZIP_LOCAL_SIG && new TextDecoder().decode(bytes.subarray(i + 30, i + 35)) === 'other') bytes.set(new TextEncoder().encode('first'), i + 30); return bytes; });
 		const alias = new JSZip(); alias.file('a//b', 'x'); await inspect(alias);
 		const unicode = new JSZip(); unicode.file('ééé', 'x');
 		await inspect(unicode, (bytes) => { const view = new DataView(bytes.buffer); for (let i = 0; i < bytes.length - 15; i++) if (view.getUint16(i, true) === 0x7075 && view.getUint16(i + 2, true) === 11) bytes.set(new TextEncoder().encode('../bad'), i + 9); return bytes; });

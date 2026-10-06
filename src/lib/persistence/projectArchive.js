@@ -3,6 +3,7 @@ import { canonicalizeProject, requireValidProject, RECORD_TABLES, decodeMediaBas
 import { remapProjectIdentities } from './projectRemap';
 import { getRepositoryContext } from '@/lib/db';
 import { readProjectState, prepareProjectCommit } from './projectRepository';
+import { ZIP_LOCAL_SIG, ZIP_CENTRAL_SIG, ZIP_EOCD_SIG, CRC32_POLY, CRC32_INIT } from './zipConstants';
 import { parseImportedStringTableData } from '@/lib/localization/stringTable';
 
 export const ARCHIVE_LIMITS = Object.freeze({ compressed: 25 * 1024 * 1024, json: 5 * 1024 * 1024, entries: 1000, dialogues: 250, expanded: 128 * 1024 * 1024 });
@@ -11,7 +12,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 const encode = (value) => new TextEncoder().encode(JSON.stringify(value));
 const crcTable = Uint32Array.from({ length: 256 }, (_, index) => {
 	let value = index;
-	for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
+	for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? CRC32_POLY : 0);
 	return value >>> 0;
 });
 function safePath(name) {
@@ -23,7 +24,7 @@ function safePath(name) {
 function inspectDirectory(bytes, budget) {
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	let end = -1;
-	for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65557); offset--) if (view.getUint32(offset, true) === 0x06054b50 && offset + 22 + view.getUint16(offset + 20, true) === bytes.length) { end = offset; break; }
+	for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65557); offset--) if (view.getUint32(offset, true) === ZIP_EOCD_SIG && offset + 22 + view.getUint16(offset + 20, true) === bytes.length) { end = offset; break; }
 	if (end < 0) fail('INVALID_ARCHIVE', 'ZIP directory is missing or truncated.');
 	const count = view.getUint16(end + 10, true), size = view.getUint32(end + 12, true), start = view.getUint32(end + 16, true);
 	if (view.getUint16(end + 4, true) || view.getUint16(end + 6, true) || count === 65535 || start + size !== end) fail('UNSUPPORTED_ARCHIVE', 'Multipart and ZIP64 archives are unsupported.');
@@ -31,14 +32,14 @@ function inspectDirectory(bytes, budget) {
 	if (budget.entries > ARCHIVE_LIMITS.entries) fail('ARCHIVE_ENTRY_LIMIT', 'Archive exceeds the cumulative entry count limit.');
 	const names = new Set(), checksums = new Map(); let cursor = start;
 	for (let index = 0; index < count; index++) {
-		if (cursor + 46 > end || view.getUint32(cursor, true) !== 0x02014b50) fail('INVALID_ARCHIVE', 'ZIP directory entry is invalid.');
+		if (cursor + 46 > end || view.getUint32(cursor, true) !== ZIP_CENTRAL_SIG) fail('INVALID_ARCHIVE', 'ZIP directory entry is invalid.');
 		const length = view.getUint16(cursor + 28, true), extra = view.getUint16(cursor + 30, true), comment = view.getUint16(cursor + 32, true);
 		if (cursor + 46 + length + extra + comment > end) fail('INVALID_ARCHIVE', 'ZIP directory entry is truncated.');
 		const name = safePath(decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + length)));
 		// JSZip takes the filename from the local header. Inspect it before the
 		// library can overwrite entries with mismatching effective identities.
 		const local = view.getUint32(cursor + 42, true);
-		if (local + 30 > start || view.getUint32(local, true) !== 0x04034b50) fail('INVALID_ARCHIVE', 'ZIP local header is invalid.');
+		if (local + 30 > start || view.getUint32(local, true) !== ZIP_LOCAL_SIG) fail('INVALID_ARCHIVE', 'ZIP local header is invalid.');
 		const localLength = view.getUint16(local + 26, true), localExtra = view.getUint16(local + 28, true);
 		if (local + 30 + localLength + localExtra > start) fail('INVALID_ARCHIVE', 'ZIP local header is truncated.');
 		const localName = safePath(decoder.decode(bytes.subarray(local + 30, local + 30 + localLength)));
@@ -65,7 +66,7 @@ function inspectDirectory(bytes, budget) {
 }
 async function boundedEntry(entry, budget, expectedCrc) {
 	return new Promise((resolve, reject) => {
-		const chunks = []; let length = 0, stopped = false, crc = 0xffffffff;
+		const chunks = []; let length = 0, stopped = false, crc = CRC32_INIT;
 		const stream = entry.internalStream('uint8array');
 		stream.on('data', (chunk) => {
 			if (stopped) return;
@@ -78,7 +79,7 @@ async function boundedEntry(entry, budget, expectedCrc) {
 			chunks.push(chunk);
 		}).on('error', reject).on('end', () => {
 			if (stopped) return;
-			if (((crc ^ 0xffffffff) >>> 0) !== expectedCrc) { chunks.length = 0; reject(new ProjectDataError('ARCHIVE_CHECKSUM_MISMATCH', 'Archive entry bytes do not match their checksum.', [{ path: entry.name }])); return; }
+			if (((crc ^ CRC32_INIT) >>> 0) !== expectedCrc) { chunks.length = 0; reject(new ProjectDataError('ARCHIVE_CHECKSUM_MISMATCH', 'Archive entry bytes do not match their checksum.', [{ path: entry.name }])); return; }
 			const bytes = new Uint8Array(length); let offset = 0;
 			for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
 			resolve(bytes);

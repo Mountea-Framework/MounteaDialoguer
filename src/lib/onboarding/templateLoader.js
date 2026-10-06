@@ -24,11 +24,34 @@ function toTemplateFile(blob, source) {
 	});
 }
 
+const ALLOWED_TEMPLATE_HOSTS = new Set(['github.com', 'raw.githubusercontent.com']);
+
+function assertAllowedTemplateUrl(value, sourceLabel) {
+	let url;
+	try {
+		url = new URL(String(value), globalThis.location?.href);
+	} catch (_error) {
+		url = null;
+	}
+	const sameOrigin = url && globalThis.location && url.origin === globalThis.location.origin;
+	const allowedRemote = url && url.protocol === 'https:' && ALLOWED_TEMPLATE_HOSTS.has(url.hostname);
+	if (!sameOrigin && !allowedRemote) {
+		throw new OnboardingTemplateError(
+			`${sourceLabel} URL is not allowed`,
+			ONBOARDING_TEMPLATE_ERROR_CODES.REMOTE_FETCH_FAILED,
+			{ url: String(value) }
+		);
+	}
+	return url.href;
+}
+
 async function fetchBlob(url, sourceLabel) {
+	const safeUrl = assertAllowedTemplateUrl(url, sourceLabel);
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 10000);
 	try {
-		const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+		const response = await fetch(safeUrl, { cache: 'no-store', signal: controller.signal });
+		if (response.url) assertAllowedTemplateUrl(response.url, sourceLabel);
 		if (!response.ok) throw new Error(`${sourceLabel} fetch failed with HTTP ${response.status}`);
 		const limit = 32 * 1024 * 1024;
 		if (Number(response.headers.get('content-length')) > limit) { controller.abort(); throw new Error('Onboarding template size is invalid'); }
