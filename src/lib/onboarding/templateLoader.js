@@ -26,14 +26,14 @@ function toTemplateFile(blob, source) {
 
 const ALLOWED_TEMPLATE_HOSTS = new Set(['github.com', 'raw.githubusercontent.com']);
 
-function assertAllowedTemplateUrl(value, sourceLabel) {
+function assertAllowedTemplateUrl(value, sourceLabel, { allowRelative = false } = {}) {
 	let url;
 	try {
-		url = new URL(String(value), globalThis.location?.href);
+		url = allowRelative ? new URL(String(value), globalThis.location?.href) : new URL(String(value));
 	} catch (_error) {
 		url = null;
 	}
-	const sameOrigin = url && globalThis.location && url.origin === globalThis.location.origin;
+	const sameOrigin = allowRelative && url && globalThis.location && url.origin === globalThis.location.origin;
 	const allowedRemote = url && url.protocol === 'https:' && ALLOWED_TEMPLATE_HOSTS.has(url.hostname);
 	if (!sameOrigin && !allowedRemote) {
 		throw new OnboardingTemplateError(
@@ -45,13 +45,13 @@ function assertAllowedTemplateUrl(value, sourceLabel) {
 	return url.href;
 }
 
-async function fetchBlob(url, sourceLabel) {
-	const safeUrl = assertAllowedTemplateUrl(url, sourceLabel);
+async function fetchBlob(url, sourceLabel, { allowRelative = false } = {}) {
+	const safeUrl = assertAllowedTemplateUrl(url, sourceLabel, { allowRelative });
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 10000);
 	try {
 		const response = await fetch(safeUrl, { cache: 'no-store', signal: controller.signal });
-		if (response.url) assertAllowedTemplateUrl(response.url, sourceLabel);
+		if (response.url) assertAllowedTemplateUrl(response.url, sourceLabel, { allowRelative });
 		if (!response.ok) throw new Error(`${sourceLabel} fetch failed with HTTP ${response.status}`);
 		const limit = 32 * 1024 * 1024;
 		if (Number(response.headers.get('content-length')) > limit) { controller.abort(); throw new Error('Onboarding template size is invalid'); }
@@ -152,7 +152,7 @@ export async function resolveOnboardingExampleTemplateFile() {
 	} catch (remoteError) {
 		const bundledUrl = bundledTemplateUrl;
 		try {
-			const blob = await fetchBlob(bundledUrl, 'Bundled onboarding template');
+			const blob = await fetchBlob(bundledUrl, 'Bundled onboarding template', { allowRelative: true });
 			return {
 				file: toTemplateFile(blob, 'bundled'),
 				source: 'onboarding-bundled',
