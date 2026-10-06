@@ -23,6 +23,14 @@ export default defineConfig(({ mode }) => ({
 		},
 	},
 	base: './',
+	// Electron's development profile lives in the repository so it can be
+	// inspected easily. Its transient Chromium files are often locked on
+	// Windows, so they must never be passed to Vite's file watcher.
+	server: {
+		watch: {
+			ignored: ['**/.mountea-user-data/**'],
+		},
+	},
 	build: {
 		sourcemap: 'hidden',
 		outDir: 'dist',
