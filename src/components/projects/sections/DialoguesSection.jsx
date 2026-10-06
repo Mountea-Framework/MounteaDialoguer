@@ -1,3 +1,4 @@
+import { ArchiveImportDialog } from '@/components/projects/ArchiveImportDialog';
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Upload, MessageCircle, MoreVertical } from "lucide-react";
@@ -21,6 +22,7 @@ export function DialoguesSection({ projectId, dialogues = [], onCreateDialogue }
   const { t } = useTranslation();
   const { importDialogue } = useDialogueStore();
   const [isImporting, setIsImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
   const fileInputRef = useRef(null);
   const isMobile = isMobileDevice();
 
@@ -28,21 +30,19 @@ export function DialoguesSection({ projectId, dialogues = [], onCreateDialogue }
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setImportFile(file);
+    event.target.value = '';
+  };
+
+  const commitImport = async (options) => {
     setIsImporting(true);
-    try {
-      await importDialogue(projectId, file);
-    } catch (error) {
-      console.error("Failed to import dialogue:", error);
-    } finally {
-      setIsImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+    try { await importDialogue(projectId, importFile, options); }
+    finally { setIsImporting(false); }
   };
 
   return (
     <div>
+      {importFile && <ArchiveImportDialog file={importFile} kind="dialogue" targets={dialogues} onClose={() => setImportFile(null)} onImport={commitImport} />}
       <div className="flex items-start justify-between mb-6">
         <h2 className="text-2xl font-bold">
           {t("dialogues.title")} ({dialogues.length})

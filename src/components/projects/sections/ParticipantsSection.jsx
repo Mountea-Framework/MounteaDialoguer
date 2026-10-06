@@ -48,18 +48,11 @@ export function ParticipantsSection({ projectId, participants = [] }) {
       children.sort((a, b) => a.name.localeCompare(b.name));
     });
 
-    const nameToCategory = new Map();
-    categories.forEach((category) => {
-      if (!nameToCategory.has(category.name)) {
-        nameToCategory.set(category.name, category);
-      }
-    });
-
     const participantsByCategoryName = new Map();
     const unmatched = [];
 
     participants.forEach((participant) => {
-      const category = nameToCategory.get(participant.category);
+      const category = categories.find((entry) => entry.id === participant.categoryId);
       if (!category) {
         unmatched.push(participant);
         return;
@@ -94,13 +87,17 @@ export function ParticipantsSection({ projectId, participants = [] }) {
     });
   };
 
-  const hasParticipantsInSubtree = (categoryId) => {
+  const hasParticipantsInSubtree = (categoryId, visited = new Set()) => {
+    if (visited.has(categoryId)) return false;
+    visited.add(categoryId);
     if (participantsByCategory.has(categoryId)) return true;
     const children = childrenByParent.get(categoryId) || [];
-    return children.some((child) => hasParticipantsInSubtree(child.id));
+    return children.some((child) => hasParticipantsInSubtree(child.id, visited));
   };
 
-  const renderCategoryNode = (category) => {
+  const renderCategoryNode = (category, ancestors = new Set()) => {
+    if (ancestors.has(category.id)) return null;
+    const visited = new Set([...ancestors, category.id]);
     const children = (childrenByParent.get(category.id) || []).filter((child) =>
       hasParticipantsInSubtree(child.id)
     );
@@ -137,7 +134,7 @@ export function ParticipantsSection({ projectId, participants = [] }) {
 
             {children.length > 0 && (
               <div className="space-y-5 pl-4 -ml-4 border-l border-border/60">
-                {children.map((child) => renderCategoryNode(child))}
+                {children.map((child) => renderCategoryNode(child, visited))}
               </div>
             )}
           </div>

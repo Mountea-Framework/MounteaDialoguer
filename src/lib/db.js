@@ -1,234 +1,139 @@
 import Dexie from 'dexie';
-import { getActiveProfileId } from '@/lib/profile/activeProfile';
+import { getActiveProfileId, getProfileGeneration, subscribeProfileChanges } from '@/lib/profile/activeProfile';
+import { DATABASE_SCHEMA, AUTHORING_TABLES } from '@/lib/persistence/schema';
+import { migrateLegacyDatabase } from '@/lib/persistence/migration';
+import { transformLegacyRecords } from '@/lib/persistence/migration';
 
-/**
- * Mountea Dialoguer IndexedDB Database
- * Manages local storage for projects, dialogues, participants, and categories
- */
 export class MounteaDialoguerDB extends Dexie {
-	constructor(databaseName = 'MounteaDialoguerDB') {
-		super(databaseName);
-
-		// Version 1 - Auto-increment IDs (deprecated)
-		this.version(1).stores({
-			projects: '++id, name, createdAt, modifiedAt',
-			dialogues: '++id, projectId, name, createdAt, modifiedAt',
-			participants: '++id, projectId, name, category',
-			categories: '++id, projectId, name',
-			decorators: '++id, projectId, name, type',
-			nodes: '++id, dialogueId, type, position',
-			edges: '++id, dialogueId, source, target',
-		});
-
-		// Version 2 - UUID-based IDs
-		this.version(2).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name',
-			decorators: 'id, projectId, name, type',
-			nodes: 'id, dialogueId, type, position',
-			edges: 'id, dialogueId, source, target',
-		});
-
-		// Version 3 - Add parent category support (hierarchical categories)
-		this.version(3).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			nodes: 'id, dialogueId, type, position',
-			edges: 'id, dialogueId, source, target',
-		});
-
-		// Version 4 - Use compound keys for nodes and edges (scoped by dialogue)
-		this.version(4).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			nodes: '[dialogueId+id], dialogueId, type',
-			edges: '[dialogueId+id], dialogueId, source, target',
-		}).upgrade(async (trans) => {
-			// Migrate existing nodes and edges to use compound keys
-			// Dexie will automatically handle the re-indexing with the new compound key
-			// We just need to ensure the data has both dialogueId and id fields
-			const nodes = await trans.table('nodes').toArray();
-			const edges = await trans.table('edges').toArray();
-
-			// Clear and re-add with compound keys
-			await trans.table('nodes').clear();
-			await trans.table('edges').clear();
-
-			// Re-add nodes (they should already have dialogueId and id)
-			if (nodes.length > 0) {
-				await trans.table('nodes').bulkAdd(nodes);
-			}
-
-			// Re-add edges (they should already have dialogueId and id)
-			if (edges.length > 0) {
-				await trans.table('edges').bulkAdd(edges);
-			}
-		});
-
-		// Version 5 - Add sync metadata tables
-		this.version(5).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			nodes: '[dialogueId+id], dialogueId, type',
-			edges: '[dialogueId+id], dialogueId, source, target',
-			syncAccounts: 'provider, accountId, email, expiresAt',
-			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
-		});
-
-		// Version 6 - Add condition definitions table
-		this.version(6).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			conditions: 'id, projectId, name, type',
-			nodes: '[dialogueId+id], dialogueId, type',
-			edges: '[dialogueId+id], dialogueId, source, target',
-			syncAccounts: 'provider, accountId, email, expiresAt',
-			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
-		});
-
-		// Version 7 - Add localized strings StringTable
-		this.version(7).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			conditions: 'id, projectId, name, type',
-			nodes: '[dialogueId+id], dialogueId, type',
-			edges: '[dialogueId+id], dialogueId, source, target',
-			syncAccounts: 'provider, accountId, email, expiresAt',
-			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
-			localizedStrings:
-				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
-		});
-
-		// Version 8 - Add sync deletions tombstone table
-		this.version(8).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			conditions: 'id, projectId, name, type',
-			nodes: '[dialogueId+id], dialogueId, type',
-			edges: '[dialogueId+id], dialogueId, source, target',
-			syncAccounts: 'provider, accountId, email, expiresAt',
-			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
-			syncDeletions: '[projectId+provider], projectId, provider, deletedAt',
-			localizedStrings:
-				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
-		});
-
-		// Version 9 - Add sync catalog state and tombstone ledger tables
-		this.version(9).stores({
-			projects: 'id, name, createdAt, modifiedAt',
-			dialogues: 'id, projectId, name, createdAt, modifiedAt',
-			participants: 'id, projectId, name, category',
-			categories: 'id, projectId, name, parentCategoryId',
-			decorators: 'id, projectId, name, type',
-			conditions: 'id, projectId, name, type',
-			nodes: '[dialogueId+id], dialogueId, type',
-			edges: '[dialogueId+id], dialogueId, source, target',
-			syncAccounts: 'provider, accountId, email, expiresAt',
-			syncProjects: '[projectId+provider], projectId, provider, revision, remoteFileId, lastSyncedAt',
-			syncDeletions: '[projectId+provider], projectId, provider, deletedAt',
-			syncCatalogState: '[provider+profileId], provider, profileId, catalogRevision, fetchedAt, status',
-			syncTombstones: '[provider+entityType+entityId], provider, entityType, entityId, projectId, deletedAt, expiresAt, pending, acknowledgedAt',
-			localizedStrings:
-				'[projectId+key], projectId, dialogueId, nodeId, rowId, field, modifiedAt',
-		});
-		this.projects = this.table('projects');
-		this.dialogues = this.table('dialogues');
-		this.participants = this.table('participants');
-		this.categories = this.table('categories');
-		this.decorators = this.table('decorators');
-		this.conditions = this.table('conditions');
-		this.nodes = this.table('nodes');
-		this.edges = this.table('edges');
-		this.syncAccounts = this.table('syncAccounts');
-		this.syncProjects = this.table('syncProjects');
-		this.syncDeletions = this.table('syncDeletions');
-		this.syncCatalogState = this.table('syncCatalogState');
-		this.syncTombstones = this.table('syncTombstones');
-		this.localizedStrings = this.table('localizedStrings');
+	constructor(sourceName = 'MounteaDialoguerDB', options = {}) {
+		super(`${sourceName}__generation2`);
+		this.sourceName = sourceName;
+		this.version(1).stores(DATABASE_SCHEMA);
+		for (const name of Object.keys(DATABASE_SCHEMA)) this[name] = this.table(name);
+		this.on('ready', () => migrateLegacyDatabase(this, sourceName, options), true);
 	}
 }
-
-function sanitizeProfileIdForDb(rawValue) {
-	const value = String(rawValue || '').trim();
-	if (!value) return 'local';
-	return value.replace(/[^a-zA-Z0-9_-]/g, '-');
+export function getDatabaseNameForProfile(profileId = getActiveProfileId()) {
+	const normalized = String(profileId || 'local');
+	if (!/^[a-zA-Z0-9_-]+$/.test(normalized)) throw new Error('Invalid profile identifier; refusing an ambiguous database name.');
+	return normalized === 'local' ? 'MounteaDialoguerDB' : `MounteaDialoguerDB__${normalized}`;
 }
-
-function getDatabaseNameForProfile(profileId) {
-	const normalizedProfileId = sanitizeProfileIdForDb(profileId);
-	if (normalizedProfileId === 'local') {
-		return 'MounteaDialoguerDB';
-	}
-	return `MounteaDialoguerDB__${normalizedProfileId}`;
+const instances = new Map();
+let activeController = new AbortController();
+subscribeProfileChanges(() => { activeController.abort(); activeController = new AbortController(); });
+function instanceFor(profileId = getActiveProfileId()) {
+	const name = getDatabaseNameForProfile(profileId);
+	if (!instances.has(name)) instances.set(name, new MounteaDialoguerDB(name));
+	return instances.get(name);
 }
-
-function resolveActiveProfileId() {
-	try {
-		return sanitizeProfileIdForDb(getActiveProfileId());
-	} catch (error) {
-		return 'local';
-	}
+// Legacy single-step access remains compatible. Multi-step callers capture a
+// context and use its database for the entire operation, never the moving proxy.
+export const db = new Proxy({}, {
+	get(_target, property) { const instance = instanceFor(); const value = instance[property]; return typeof value === 'function' ? value.bind(instance) : value; },
+	set(_target, property, value) { instanceFor()[property] = value; return true; },
+});
+export function getProfileScopedDbName() { return instanceFor().name; }
+export async function initializeRepository(profileId = getActiveProfileId()) {
+	const instance = instanceFor(profileId); await instance.open(); return instance;
 }
-
-let activeDbInstance = null;
-let activeDbProfileId = '';
-
-function ensureDbInstance() {
-	const profileId = resolveActiveProfileId();
-	if (!activeDbInstance || activeDbProfileId !== profileId) {
-		if (activeDbInstance) {
-			try {
-				activeDbInstance.close();
-			} catch (error) {
-				// Swallow close errors; switching profile should be best-effort.
-			}
+export async function getRepositoryContext() {
+	const profileId = getActiveProfileId(), generation = getProfileGeneration(), signal = activeController.signal;
+	const instance = instanceFor(profileId);
+	const assertCurrent = () => {
+		if (signal.aborted || generation !== getProfileGeneration() || profileId !== getActiveProfileId()) {
+			const error = new Error('The active profile changed. Retry this operation in the current profile.');
+			error.code = 'STALE_PROFILE'; throw error;
 		}
-		activeDbInstance = new MounteaDialoguerDB(getDatabaseNameForProfile(profileId));
-		activeDbProfileId = profileId;
-	}
-	return activeDbInstance;
+	};
+	await instance.open(); assertCurrent();
+	return Object.freeze({ db: instance, profileId, generation, signal, assertCurrent });
+}
+export async function readProjectRecords(projectId, context) {
+	const captured = context || await getRepositoryContext(); captured.assertCurrent();
+	const result = await captured.db.transaction('r', AUTHORING_TABLES.map((name) => captured.db.table(name)), async () => {
+		const project = await captured.db.projects.get(projectId);
+		const dialogues = await captured.db.dialogues.where('projectId').equals(projectId).toArray();
+		const dialogueIds = dialogues.map((row) => row.id);
+		const records = { projects: project ? [project] : [], dialogues };
+		for (const table of AUTHORING_TABLES.filter((name) => !['projects', 'dialogues'].includes(name))) records[table] = await (['nodes', 'edges'].includes(table) ? captured.db[table].where('dialogueId').anyOf(dialogueIds) : captured.db[table].where('projectId').equals(projectId)).toArray();
+		return records;
+	});
+	captured.assertCurrent(); return result;
+}
+export async function getRecoveryDiagnostics(projectId, context) {
+	const captured = context || await getRepositoryContext(); captured.assertCurrent();
+	const records = await captured.db.recoveryRecords.filter((record) => record.status !== 'resolved' && (!projectId || !record.projectId || record.projectId === projectId)).toArray();
+	captured.assertCurrent(); return records;
+}
+export async function assertProjectReady(projectId, context) {
+	const diagnostics = await getRecoveryDiagnostics(projectId, context);
+	if (diagnostics.length) { const error = new Error('Repair unresolved migration references before exporting or synchronizing this project.'); error.code = 'PROJECT_REPAIR_REQUIRED'; error.diagnostics = diagnostics; throw error; }
 }
 
-export const db = new Proxy(
-	{},
-	{
-		get(_target, property) {
-			const instance = ensureDbInstance();
-			const value = instance[property];
-			if (typeof value === 'function') {
-				return value.bind(instance);
-			}
-			return value;
-		},
-		set(_target, property, value) {
-			const instance = ensureDbInstance();
-			instance[property] = value;
-			return true;
-		},
-	}
-);
-
-export function getProfileScopedDbName() {
-	return ensureDbInstance().name;
+/** After repairing references through the normal authoring UI, revalidate them
+ * atomically. Historical diagnostics/originals remain available for recovery;
+ * callers cannot simply dismiss a still-invalid reference. Quarantined records
+ * require explicit restoration before their diagnostic can be cleared. */
+export async function revalidateProjectRecovery(projectId, context) {
+	const captured = context || await getRepositoryContext(); captured.assertCurrent();
+	const result = await captured.db.transaction('rw', [...AUTHORING_TABLES, 'recoveryRecords'].map((name) => captured.db.table(name)), async () => {
+		const records = await readProjectRecords(projectId, captured);
+		const { diagnostics } = transformLegacyRecords(records);
+		const previous = await captured.db.recoveryRecords.where('projectId').equals(projectId).toArray();
+		const locationKey = (record) => JSON.stringify([record.table, record.recordKey ?? (['nodes', 'edges'].includes(record.table) ? [record.original?.dialogueId, record.original?.id] : record.original?.id), record.path, record.rowId || null]);
+		const unresolved = new Map(diagnostics.map((record) => [locationKey(record), record]));
+		for (const record of previous) {
+			if (['duplicate_identity', 'unknown_table', 'missing_project', 'missing_dialogue'].includes(record.code)) continue;
+			const key = record.recordKey ?? (['nodes', 'edges'].includes(record.table) ? [record.original?.dialogueId, record.original?.id] : record.original?.id);
+			const candidates = records[record.table] || [];
+			const candidate = candidates.find((candidate) => Array.isArray(key) ? candidate.id === key[1] && candidate.dialogueId === key[0] : candidate.id === key);
+			if (!candidate || (record.rowId && !candidate.data?.dialogueRows?.some((row) => row.id === record.rowId))) continue;
+			const location = locationKey(record);
+			if (unresolved.has(location)) { unresolved.delete(location); continue; }
+			if (record.status !== 'resolved') await captured.db.recoveryRecords.update(record.id, { status: 'resolved', resolvedAt: new Date().toISOString() });
+		}
+		if (unresolved.size) await captured.db.recoveryRecords.bulkAdd([...unresolved.values()]);
+		captured.assertCurrent(); return diagnostics;
+	});
+	captured.assertCurrent(); return result;
 }
 
+export async function restoreQuarantinedNode(diagnosticId, restoredNode, context) {
+	const captured = context || await getRepositoryContext(); captured.assertCurrent();
+	const diagnostic = await captured.db.recoveryRecords.get(diagnosticId); captured.assertCurrent();
+	if (diagnostic?.code !== 'duplicate_identity' || diagnostic.table !== 'nodes' || diagnostic.status === 'resolved') throw new Error('Select an unresolved quarantined node.');
+	const node = structuredClone(restoredNode);
+	const { mutateProject } = await import('@/lib/persistence/projectRepository'); captured.assertCurrent();
+	await mutateProject(diagnostic.projectId, { context: captured, recoveryResolutions: [{ id: diagnosticId, restoredKey: [node.dialogueId, node.id] }], transform: (snapshot) => {
+		if (!node.id || !node.type || !node.data || !snapshot.dialogues.some((dialogue) => dialogue.id === node.dialogueId)) throw new Error('The restored node must have an identity, type, data, and a dialogue in the affected project.');
+		if (['start', 'startNode'].includes(node.type)) throw new Error('The dialogue already has a Start node. Choose the intended non-Start type for the recovered node.');
+		if (snapshot.nodes.some((existing) => existing.dialogueId === node.dialogueId && existing.id === node.id)) throw new Error('Choose a distinct node identity before restoring this record.');
+		snapshot.nodes.push(node);
+	} });
+	return revalidateProjectRecovery(diagnostic.projectId, captured);
+}
+
+/** Explicit target selection; never guess between equal display names. */
+export async function repairIdentityReference(diagnosticId, targetId, context) {
+	const captured = context || await getRepositoryContext();
+	const diagnostic = await captured.db.recoveryRecords.get(diagnosticId); captured.assertCurrent();
+	if (!diagnostic || diagnostic.status === 'resolved' || !['missing_reference', 'ambiguous_reference'].includes(diagnostic.code)) throw new Error('Select an unresolved identity reference.');
+	const { mutateProject } = await import('@/lib/persistence/projectRepository');
+	const { normalizeParticipant } = await import('@/lib/domainIntegrity'); captured.assertCurrent();
+	await mutateProject(diagnostic.projectId, { context: captured, transform: (snapshot) => {
+		if (diagnostic.table === 'participants' && diagnostic.path === 'categoryId') {
+			const record = snapshot.participants.find((item) => item.id === (diagnostic.recordKey || diagnostic.original.id));
+			if (!record) throw new Error('The original participant is unavailable; retain the evidence for recovery.');
+			Object.assign(record, normalizeParticipant({ ...record, categoryId: targetId }, snapshot, record.id));
+		} else if (diagnostic.table === 'nodes' && (diagnostic.path === 'participantId' || diagnostic.rowId)) {
+			const key = diagnostic.recordKey || [diagnostic.original.dialogueId, diagnostic.original.id];
+			const node = snapshot.nodes.find((item) => item.id === key[1] && item.dialogueId === key[0]);
+			const target = snapshot.participants.find((item) => item.id === targetId);
+			if (!node || !target) throw new Error('Choose a participant and node in this project.');
+			const data = diagnostic.rowId ? node.data.dialogueRows?.find((row) => row.id === diagnostic.rowId) : node.data;
+			if (!data) throw new Error('The affected row is unavailable; retain the evidence for recovery.');
+			data.participantId = target.id; data.participant = target.name;
+		} else throw new Error('Repair this reference in its authoring editor, then revalidate.');
+	} });
+	return revalidateProjectRecovery(diagnostic.projectId, captured);
+}

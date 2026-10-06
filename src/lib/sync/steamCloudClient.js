@@ -1,4 +1,4 @@
-import { getActiveProfileId, setActiveProfileId } from '@/lib/profile/activeProfile';
+import { getRepositoryContext } from '@/lib/db';
 
 function getElectronApi() {
 	if (typeof window === 'undefined') return null;
@@ -29,46 +29,13 @@ function assertSteamSyncApi() {
 	return electronApi;
 }
 
-function sanitizeProfileId(rawValue) {
-	const value = String(rawValue || '').trim();
-	if (!value) return 'local';
-	return value.replace(/[^a-zA-Z0-9_-]/g, '-');
-}
-
-function buildSteamProfileId(steamId) {
-	const normalizedSteamId = String(steamId || '').trim();
-	if (!normalizedSteamId) return '';
-	return sanitizeProfileId(`steam-${normalizedSteamId}`);
-}
-
 async function resolveSteamSyncProfileId(electronApi) {
-	const activeProfileId = sanitizeProfileId(getActiveProfileId());
-	if (activeProfileId.startsWith('steam-') && activeProfileId !== 'steam-') {
-		return activeProfileId;
-	}
-
-	try {
-		if (typeof electronApi?.getSteamStatus === 'function') {
-			const steamStatus = await electronApi.getSteamStatus();
-			const isAvailable = Boolean(steamStatus?.available);
-			const steamProfileId = buildSteamProfileId(steamStatus?.steamId);
-			if (isAvailable && steamProfileId) {
-				if (activeProfileId !== steamProfileId) {
-					setActiveProfileId(steamProfileId);
-					console.info(
-						`[steam-sync] Corrected active profile from "${activeProfileId}" to "${steamProfileId}"`
-					);
-				}
-				return steamProfileId;
-			}
-		}
-	} catch (error) {
-		console.warn('[steam-sync] Failed to resolve Steam profile id:', error);
-	}
-
-	return activeProfileId;
+	const context = await getRepositoryContext();
+	const status = await electronApi.getSteamStatus();
+	context.assertCurrent();
+	if (!status?.available || context.profileId !== `steam-${status.steamId}`) throw new Error('Steam profile is not active');
+	return context.profileId;
 }
-
 export async function findSteamCloudFile(fileName) {
 	const electronApi = assertSteamSyncApi();
 	const profileId = await resolveSteamSyncProfileId(electronApi);
@@ -100,8 +67,8 @@ export async function createSteamCloudFile(payload) {
 	const electronApi = assertSteamSyncApi();
 	const profileId = await resolveSteamSyncProfileId(electronApi);
 	return await electronApi.steamSyncCreateFile({
-		profileId,
 		...payload,
+		profileId,
 	});
 }
 
@@ -109,8 +76,8 @@ export async function updateSteamCloudFile(payload) {
 	const electronApi = assertSteamSyncApi();
 	const profileId = await resolveSteamSyncProfileId(electronApi);
 	return await electronApi.steamSyncUpdateFile({
-		profileId,
 		...payload,
+		profileId,
 	});
 }
 

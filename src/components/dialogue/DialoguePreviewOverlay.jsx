@@ -84,10 +84,13 @@ export function DialoguePreviewOverlay({
 	const [isVisible, setIsVisible] = useState(open);
 	const [isClosing, setIsClosing] = useState(false);
 	const [speaker, setSpeaker] = useState('');
+	const [speakerId, setSpeakerId] = useState('');
 	const [lineText, setLineText] = useState('');
 	const [choiceOptions, setChoiceOptions] = useState([]);
 	const [currentNodeRef, setCurrentNodeRef] = useState(null);
 	const [volume, setVolume] = useState(100);
+	const volumeRef = useRef(volume);
+	volumeRef.current = volume;
 	const [hasCurrentAudio, setHasCurrentAudio] = useState(false);
 	const [visitedNodeKeys, setVisitedNodeKeys] = useState([]);
 	const [selectedBranches, setSelectedBranches] = useState({});
@@ -115,7 +118,9 @@ export function DialoguePreviewOverlay({
 		closeTimeout: null,
 		isClosingLocked: false,
 	});
-	const wasOpenRef = useRef(false);
+	const sessionRef = useRef(0);
+	nodesRef.current = nodes;
+	edgesRef.current = edges;
 
 	const safeRootDialogueId = useMemo(() => String(rootDialogueId || '').trim(), [rootDialogueId]);
 	const currentNodeId = currentNodeRef?.nodeId || null;
@@ -235,26 +240,16 @@ export function DialoguePreviewOverlay({
 		return Math.min(100, Math.round((visitedPlayableCount / selectedRouteNodeKeys.length) * 100));
 	}, [visitedPlayableCount, selectedRouteNodeKeys]);
 
-	const participantThumbnailByName = useMemo(() => {
-		const map = new Map();
-		participants.forEach((participant) => {
-			const name = String(participant?.name || '').trim();
-			if (!name || map.has(name)) return;
-			const thumbnailUrl = resolveParticipantThumbnailDataUrl(participant?.thumbnail);
-			if (thumbnailUrl) {
-				map.set(name, thumbnailUrl);
-			}
-		});
-		return map;
-	}, [participants]);
-
 	const speakerThumbnailUrl = useMemo(() => {
-		const speakerName = String(speaker || '').trim();
-		if (!speakerName) return '';
-		return participantThumbnailByName.get(speakerName) || '';
-	}, [participantThumbnailByName, speaker]);
+		const matches = participants.filter((participant) => speakerId ? participant.id === speakerId : participant.name === speaker);
+		return matches.length === 1 ? resolveParticipantThumbnailDataUrl(matches[0].thumbnail) || '' : '';
+	}, [participants, speaker, speakerId]);
 
 	const clearTimer = useCallback(() => {
+		if (runtimeRef.current.animationFrame) {
+			window.cancelAnimationFrame(runtimeRef.current.animationFrame);
+			runtimeRef.current.animationFrame = null;
+		}
 		if (runtimeRef.current.timer) {
 			window.clearTimeout(runtimeRef.current.timer);
 			runtimeRef.current.timer = null;
@@ -315,6 +310,7 @@ export function DialoguePreviewOverlay({
 	const closePreview = useCallback(
 		({ withAnimation = true } = {}) => {
 			if (runtimeRef.current.isClosingLocked) return;
+			sessionRef.current += 1;
 			runtimeRef.current.isClosingLocked = true;
 			clearTimer();
 			stopAudio();
@@ -327,6 +323,7 @@ export function DialoguePreviewOverlay({
 			setCurrentNodeRef(null);
 			setLineText('');
 			setSpeaker('');
+			setSpeakerId('');
 			setHasCurrentAudio(false);
 			setCurrentRowIndex(0);
 			setCurrentRowCount(0);
@@ -439,6 +436,7 @@ export function DialoguePreviewOverlay({
 
 	const ensureGraphLoaded = useCallback(
 		async (dialogueId) => {
+			const session = sessionRef.current;
 			const targetDialogueId = String(dialogueId || '').trim();
 			if (!targetDialogueId) return null;
 
@@ -448,6 +446,7 @@ export function DialoguePreviewOverlay({
 
 			try {
 				const loaded = await loadDialogueGraphForPreview(targetDialogueId);
+				if (session !== sessionRef.current) return null;
 				const runtime = buildPreviewGraphRuntime(loaded?.nodes || [], loaded?.edges || []);
 				graphCacheRef.current = {
 					...graphCacheRef.current,
@@ -482,6 +481,7 @@ export function DialoguePreviewOverlay({
 	);
 	const goToNode = useCallback(
 		(nodeRef) => {
+			const session = sessionRef.current;
 			const dialogueKey = String(nodeRef?.dialogueId || '').trim();
 			const nodeKey = String(nodeRef?.nodeId || '').trim();
 			if (!dialogueKey || !nodeKey) {
@@ -532,6 +532,7 @@ export function DialoguePreviewOverlay({
 				setCurrentRowProgressPercent(0);
 				runtimeRef.current.timer = window.setTimeout(async () => {
 					await ensureGraphLoaded(targetDialogueId);
+					if (session !== sessionRef.current) return;
 					const childStartRef = getStartPreviewNodeRef(
 						targetDialogueId,
 						scenarioContextRef.current
@@ -551,6 +552,7 @@ export function DialoguePreviewOverlay({
 				const branchOptions = getBranchChoiceOptions(activeNodeRef);
 
 				setSpeaker(getSpeakerForPreview(node, t));
+				setSpeakerId(node.data?.participantId || '');
 				setLineText(
 					t('editor.nodes.delayDescription', {
 						count: Number(node.data?.duration) || 1,
@@ -576,7 +578,8 @@ export function DialoguePreviewOverlay({
 							setChoiceOptions(branchOptions);
 							return;
 						}
-						window.requestAnimationFrame(() => {
+						runtimeRef.current.animationFrame = window.requestAnimationFrame(() => {
+							if (session !== sessionRef.current) return;
 							goToNode(nextNodeRefs[0]);
 						});
 					}, ROW_COMPLETION_HOLD_MS);
@@ -614,6 +617,7 @@ export function DialoguePreviewOverlay({
 			if (rows.length === 0) {
 				setLineText('');
 				setSpeaker(getSpeakerForPreview(node, t));
+				setSpeakerId(node.data?.participantId || '');
 				setHasCurrentAudio(false);
 				setCurrentRowIndex(0);
 				setCurrentRowCount(0);
@@ -627,6 +631,7 @@ export function DialoguePreviewOverlay({
 			setChoiceOptions([]);
 			setCurrentRowCount(rows.length);
 			const renderNextRow = () => {
+				if (session !== sessionRef.current) return;
 				const row = rows[index];
 				if (!row) {
 					setCurrentRowProgressPercent(0);
@@ -636,6 +641,7 @@ export function DialoguePreviewOverlay({
 
 				stopAudio();
 				setSpeaker(getSpeakerForPreview(node, t));
+				setSpeakerId(node.data?.participantId || '');
 				setLineText(row.text || '');
 				setCurrentRowIndex(index + 1);
 
@@ -643,7 +649,7 @@ export function DialoguePreviewOverlay({
 				setHasCurrentAudio(Boolean(audioSource?.url));
 				if (audioSource?.url) {
 					const audio = new Audio(audioSource.url);
-					audio.volume = Math.max(0, Math.min(1, volume / 100));
+					audio.volume = Math.max(0, Math.min(1, volumeRef.current / 100));
 					runtimeRef.current.audio = audio;
 					if (audioSource.revokeOnCleanup) {
 						runtimeRef.current.audioObjectUrl = audioSource.url;
@@ -658,7 +664,7 @@ export function DialoguePreviewOverlay({
 				runtimeRef.current.timer = window.setTimeout(() => {
 					finishRowProgress(progressToken);
 					runtimeRef.current.timer = window.setTimeout(() => {
-						window.requestAnimationFrame(renderNextRow);
+						runtimeRef.current.animationFrame = window.requestAnimationFrame(renderNextRow);
 					}, ROW_COMPLETION_HOLD_MS);
 				}, durationMs);
 			};
@@ -675,7 +681,6 @@ export function DialoguePreviewOverlay({
 			onNodeFocus,
 			stopAudio,
 			t,
-			volume,
 			ensureGraphLoaded,
 			startRowProgress,
 			finishRowProgress,
@@ -738,9 +743,15 @@ export function DialoguePreviewOverlay({
 		return cache;
 	}, [safeRootDialogueId, loadDialogueGraphForPreview]);
 
+	// A playback session owns timers/audio. Changing volume or callback identities
+	// must not tear it down; StrictMode cleanup/setup must always start it afresh.
+	const sessionCallbacksRef = useRef(null);
+	sessionCallbacksRef.current = { clearTimer, closePreview, goToNode, getStartPreviewNodeRef, preloadGraphCache, stopAudio };
 	useEffect(() => {
+		const { clearTimer, closePreview, goToNode, getStartPreviewNodeRef, preloadGraphCache, stopAudio } = sessionCallbacksRef.current;
+		const runtime = runtimeRef.current;
+		sessionRef.current += 1;
 		if (!open) {
-			wasOpenRef.current = false;
 			if (runtimeRef.current.closeTimeout) {
 				window.clearTimeout(runtimeRef.current.closeTimeout);
 				runtimeRef.current.closeTimeout = null;
@@ -751,9 +762,6 @@ export function DialoguePreviewOverlay({
 			setIsVisible(false);
 			return;
 		}
-		if (wasOpenRef.current) return;
-		wasOpenRef.current = true;
-
 		let cancelled = false;
 		setIsVisible(true);
 		setIsClosing(false);
@@ -830,24 +838,14 @@ export function DialoguePreviewOverlay({
 
 		return () => {
 			cancelled = true;
+			sessionRef.current += 1;
 			clearTimer();
 			stopAudio();
+			window.clearTimeout(runtime.closeTimeout);
+			runtime.closeTimeout = null;
+			runtime.isClosingLocked = false;
 		};
-	}, [
-		open,
-		clearTimer,
-		closePreview,
-		goToNode,
-		getStartPreviewNodeRef,
-		preloadGraphCache,
-		safeRootDialogueId,
-		stopAudio,
-	]);
-
-	useEffect(() => {
-		nodesRef.current = nodes;
-		edgesRef.current = edges;
-	}, [nodes, edges]);
+	}, [open, safeRootDialogueId]);
 
 	useEffect(() => {
 		scenarioContextRef.current = scenarioContext;
@@ -1060,7 +1058,7 @@ export function DialoguePreviewOverlay({
 														}
 													}
 													setActiveBranchNodeRef(null);
-													window.setTimeout(() => {
+													runtimeRef.current.timer = window.setTimeout(() => {
 														goToNode(choice.nodeRef);
 													}, NODE_TRANSITION_DELAY_MS);
 												}}

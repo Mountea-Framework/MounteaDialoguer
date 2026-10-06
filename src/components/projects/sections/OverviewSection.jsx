@@ -109,12 +109,13 @@ export function OverviewSection({
 				setProjectSizeBytes(size);
 			}
 		};
-		loadProjectSize();
+		loadProjectSize().catch(() => { if (isActive) setProjectSizeBytes(false); });
 		return () => {
 			isActive = false;
 		};
 	}, [
 		project.id,
+		project.modifiedAt,
 		dialogues.length,
 		participants.length,
 		categories.length,
@@ -125,8 +126,8 @@ export function OverviewSection({
 	const metricCards = [
 		{
 			id: 'file-size',
-			label: 'File Size',
-			value: projectSizeBytes == null ? t('common.loading') : formatFileSize(projectSizeBytes),
+			label: t('metrics.payloadEstimate'),
+			value: projectSizeBytes === false ? t('metrics.unavailable') : projectSizeBytes == null ? t('common.loading') : formatFileSize(projectSizeBytes),
 			meta: `${totalNodes} ${t('dialogues.nodes')}`,
 			icon: <FolderOpen className="h-4 w-4" />,
 			iconContainerClass: 'bg-blue-50 dark:bg-blue-900/20 text-primary',
@@ -135,7 +136,7 @@ export function OverviewSection({
 			id: 'modified',
 			label: t('projects.modified'),
 			value: formatDistanceToNow(project.modifiedAt),
-			meta: 'Current User',
+			meta: t('metrics.currentUser'),
 			icon: <Clock className="h-4 w-4" />,
 			iconContainerClass: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
 		},

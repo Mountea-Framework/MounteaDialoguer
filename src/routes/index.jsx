@@ -1,3 +1,4 @@
+import { ArchiveImportDialog } from '@/components/projects/ArchiveImportDialog';
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -506,6 +507,7 @@ function ProjectsDashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
   const [isImportDragOver, setIsImportDragOver] = useState(false);
   const [diskUsageBytes, setDiskUsageBytes] = useState(0);
   const { runTour, finishTour, resetTour } = useOnboarding("dashboard");
@@ -597,45 +599,28 @@ function ProjectsDashboard() {
     }
   };
 
-  const handleImportFileChange = async (event) => {
+  const handleImportFileChange = (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (file) setImportFile(file);
+  };
+
+  const commitImport = async (options) => {
     setIsImporting(true);
     try {
-      const newId = await importProject(file);
-      if (newId) {
-        await loadProjects();
-        await loadDialogues();
-        navigate({ to: "/projects/$projectId", params: { projectId: newId } });
-      }
-    } finally {
-      setIsImporting(false);
-    }
+      const newId = await importProject(importFile, options);
+      await loadDialogues();
+      navigate({ to: "/projects/$projectId", params: { projectId: newId } });
+    } finally { setIsImporting(false); }
   };
 
-  const handleImport = () => {
-    importFileInputRef.current?.click();
-  };
+  const handleImport = () => { importFileInputRef.current?.click(); };
 
-  const handleImportDrop = async (event) => {
+  const handleImportDrop = (event) => {
     event.preventDefault();
     setIsImportDragOver(false);
-    const file = Array.from(event.dataTransfer.files).find((f) =>
-      f.name.endsWith(".mnteadlgproj")
-    );
-    if (!file || isImporting) return;
-    setIsImporting(true);
-    try {
-      const newId = await importProject(file);
-      if (newId) {
-        await loadProjects();
-        await loadDialogues();
-        navigate({ to: "/projects/$projectId", params: { projectId: newId } });
-      }
-    } finally {
-      setIsImporting(false);
-    }
+    const file = Array.from(event.dataTransfer.files).find((entry) => entry.name.endsWith(".mnteadlgproj"));
+    if (file && !isImporting) setImportFile(file);
   };
 
   const filteredProjects = projects.filter((project) =>
@@ -649,7 +634,7 @@ function ProjectsDashboard() {
   }, [dialogues]);
 
   const totalDialogues = dialogues.length;
-  const diskUsage = formatFileSize(diskUsageBytes);
+  const diskUsage = diskUsageBytes == null ? t('metrics.unavailable') : formatFileSize(diskUsageBytes);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 overflow-x-clip">
@@ -658,6 +643,8 @@ function ProjectsDashboard() {
         onFinish={finishTour}
         tourType="dashboard"
       />
+
+      {importFile && <ArchiveImportDialog file={importFile} kind="project" targets={projects} onClose={() => setImportFile(null)} onImport={commitImport} />}
 
       <CreateProjectDialog
         open={isCreateDialogOpen}

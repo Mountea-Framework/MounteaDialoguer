@@ -1,30 +1,25 @@
+import { describeError, errorToast } from '@/lib/errorPresentation';
+import { exportProjectArchive, prepareArchiveImport } from '@/lib/persistence/projectArchive';
+import { buildProjectSnapshot } from '@/lib/sync/snapshot';
+import { commitPreparedProject, mutateProject, readProjectState } from '@/lib/persistence/projectRepository';
+import { assertUnreferenced } from '@/lib/domainIntegrity';
+import { changeDomainRecords, findDomainRecord } from './domainStoreSupport';
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '@/lib/db';
+import { db, getRepositoryContext } from '@/lib/db';
 import { toast } from '@/components/ui/toaster';
 import { openContainingFolder, saveExportBlob } from '@/lib/export/exportFile';
 import { useSyncStore } from '@/stores/syncStore';
 import {
 	DEFAULT_LOCALE,
-	buildStringTableV2Payload,
-	ensureDialogueLocalizationSlug,
+	allocateDialogueLocalizationSlug,
 	filterLocalizedEntriesByDialogue,
 	materializeLocalizedNodes,
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
-	parseImportedStringTableData,
 	prepareLocalizedNodesAndEntries,
-	remapLocalizedEntriesForImportedDialogue,
 	validateLocalizedEntriesForDialogue,
 } from '@/lib/localization/stringTable';
-import {
-	blobToStoredParticipantThumbnail,
-	buildParticipantImageId,
-	storedParticipantThumbnailToBlob,
-} from '@/lib/participantThumbnails';
-import { sanitizeAudioFileName } from '@/lib/assetNaming';
-import { resolveRowAudioImportSelection } from '@/lib/dialogueImportAudio';
-
 const normalizeDialogueRow = (row = {}) => ({
 	...row,
 	id: row.id || uuidv4(),
@@ -63,17 +58,9 @@ function getProjectLocalizationState(project) {
 	};
 }
 
-async function loadDialogueLocalizedEntries(projectId, dialogueId) {
-	const allEntries = await db.localizedStrings.where('projectId').equals(projectId).toArray();
+async function loadDialogueLocalizedEntries(projectId, dialogueId, database = db) {
+	const allEntries = await database.localizedStrings.where('projectId').equals(projectId).toArray();
 	return filterLocalizedEntriesByDialogue(allEntries, dialogueId);
-}
-
-function stripLocalizedTextFromRows(rows = []) {
-	return normalizeDialogueRows(rows).map((row) => {
-		const next = { ...row };
-		delete next.text;
-		return next;
-	});
 }
 
 function buildPersistedNodesWithoutLocalizedText(nodes = [], dialogueId = '') {
@@ -97,25 +84,18 @@ function summarizeLocalizationValidationErrors(errors = [], limit = 3) {
 	return remainder > 0 ? `${parts.join(', ')} (+${remainder} more)` : parts.join(', ');
 }
 
-async function ensureDialogueLocalizationMetadata(dialogue = null) {
-	if (!dialogue?.id) return dialogue;
-	const nextSlug = ensureDialogueLocalizationSlug(dialogue);
-	const nextVersion = 2;
-	const shouldUpdate =
-		String(dialogue.localizationSlug || '').trim() !== nextSlug ||
-		Number(dialogue.localizationVersion || 0) < nextVersion;
-	if (!shouldUpdate) return dialogue;
-	await db.dialogues.update(dialogue.id, {
-		localizationSlug: nextSlug,
-		localizationVersion: nextVersion,
-		modifiedAt: new Date().toISOString(),
-	});
-	return {
-		...dialogue,
-		localizationSlug: nextSlug,
-		localizationVersion: nextVersion,
-	};
+function assertLocalizedDialogue({ dialogue, nodes, entries, defaultLocale, projectEntries }) {
+	const validation = validateLocalizedEntriesForDialogue({ nodes, entries, defaultLocale,
+		projectId: dialogue.projectId, dialogueId: dialogue.id, dialogueSlug: dialogue.localizationSlug, projectEntries });
+	if (!validation.valid) {
+		const error = new Error(`Localization requires repair: ${summarizeLocalizationValidationErrors(validation.errors)}`);
+		error.code = 'LOCALIZATION_REPAIR_REQUIRED';
+		error.diagnostics = validation.errors;
+		throw error;
+	}
 }
+
+const loadRequests = {};
 
 /**
  * Dialogue Store
@@ -133,16 +113,19 @@ export const useDialogueStore = create((set, get) => ({
 	 * Load dialogues for a project (or all dialogues if no projectId)
 	 */
 	loadDialogues: async (projectId) => {
+		const request = loadRequests.loadDialogues = (loadRequests.loadDialogues || 0) + 1;
 		set({ isLoading: true, error: null });
 		try {
+			const context = await getRepositoryContext();
+			const database = context.db;
 			const dialogues = projectId
-				? await db.dialogues.where('projectId').equals(projectId).toArray()
-				: await db.dialogues.toArray();
+				? await database.dialogues.where('projectId').equals(projectId).toArray()
+				: await database.dialogues.toArray();
 
 			// Load node counts for each dialogue
 			const dialoguesWithCounts = await Promise.all(
 				dialogues.map(async (dialogue) => {
-					const nodeCount = await db.nodes
+					const nodeCount = await database.nodes
 						.where('dialogueId')
 						.equals(dialogue.id)
 						.count();
@@ -150,15 +133,15 @@ export const useDialogueStore = create((set, get) => ({
 				})
 			);
 
+			context.assertCurrent();
+			if (request !== loadRequests.loadDialogues) return;
 			set({ dialogues: dialoguesWithCounts, isLoading: false });
 		} catch (error) {
+			if (error.code === 'STALE_PROFILE') throw error;
+			if (request !== loadRequests.loadDialogues) return;
 			console.error('Error loading dialogues:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Load Dialogues',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			toast(errorToast(error, 'load'));
+			set({ error: describeError(error), isLoading: false });
 		}
 	},
 
@@ -168,21 +151,15 @@ export const useDialogueStore = create((set, get) => ({
 		createDialogue: async (dialogueData) => {
 			set({ isLoading: true, error: null });
 			try {
-				const now = new Date().toISOString();
-				const id = uuidv4();
-				const localizationSlug = ensureDialogueLocalizationSlug({
-					id,
-					name: dialogueData?.name,
-				});
-				const newDialogue = {
-					id,
-					...dialogueData,
-					localizationSlug,
-					localizationVersion: 2,
-					createdAt: now,
-					modifiedAt: now,
-				};
-			await db.dialogues.add(newDialogue);
+			const context = await getRepositoryContext();
+			const now = new Date().toISOString();
+			const id = uuidv4();
+			let newDialogue;
+			await mutateProject(dialogueData.projectId, { context, transform: (snapshot) => {
+				newDialogue = { ...dialogueData, id, localizationSlug: allocateDialogueLocalizationSlug({ ...dialogueData, id }, snapshot.dialogues), localizationVersion: 2, createdAt: now, modifiedAt: now };
+				snapshot.dialogues.push(newDialogue);
+			} });
+			context.assertCurrent();
 			await get().loadDialogues(dialogueData.projectId);
 			useSyncStore.getState().schedulePush(dialogueData.projectId);
 			toast({
@@ -192,13 +169,10 @@ export const useDialogueStore = create((set, get) => ({
 			});
 			return newDialogue;
 		} catch (error) {
+			if (error.code === 'STALE_PROFILE') throw error;
 			console.error('Error creating dialogue:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Create Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			toast(errorToast(error, 'create'));
+			set({ error: describeError(error), isLoading: false });
 			throw error;
 		}
 	},
@@ -209,11 +183,14 @@ export const useDialogueStore = create((set, get) => ({
 	updateDialogue: async (id, updates) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.dialogues.update(id, {
-				...updates,
-				modifiedAt: new Date().toISOString(),
-			});
-			const dialogue = await db.dialogues.get(id);
+			const context = await getRepositoryContext(), dialogue = await context.db.dialogues.get(id);
+			context.assertCurrent();
+			if (!dialogue) throw new Error('Dialogue not found');
+			await mutateProject(dialogue.projectId, { context, transform: (snapshot) => {
+				const original = snapshot.dialogues.find((row) => row.id === id);
+				Object.assign(original, updates, { id, projectId: dialogue.projectId, modifiedAt: new Date().toISOString() });
+			} });
+			context.assertCurrent();
 			await get().loadDialogues(dialogue.projectId);
 			useSyncStore.getState().schedulePush(dialogue.projectId);
 			toast({
@@ -222,13 +199,10 @@ export const useDialogueStore = create((set, get) => ({
 				description: 'Dialogue has been updated successfully',
 			});
 		} catch (error) {
+			if (error.code === 'STALE_PROFILE') throw error;
 			console.error('Error updating dialogue:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Update Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			toast(errorToast(error, 'update'));
+			set({ error: describeError(error), isLoading: false });
 			throw error;
 		}
 	},
@@ -237,56 +211,30 @@ export const useDialogueStore = create((set, get) => ({
 	 * Delete a dialogue and all its nodes/edges
 	 */
 	deleteDialogue: async (id) => {
-		set({ isLoading: true, error: null });
-		try {
-			const dialogue = await db.dialogues.get(id);
-			if (!dialogue) {
-				throw new Error('Dialogue not found');
-			}
-			const syncedProviders = Array.from(
-				new Set(
-					(await db.syncProjects.where('projectId').equals(dialogue.projectId).toArray())
-						.map((entry) => String(entry?.provider || '').trim())
-						.filter(Boolean)
-				)
-			);
-			await db.transaction('rw', [db.dialogues, db.nodes, db.edges, db.localizedStrings], async () => {
-				await db.dialogues.delete(id);
-				await db.nodes.where('dialogueId').equals(id).delete();
-				await db.edges.where('dialogueId').equals(id).delete();
-				await db.localizedStrings.where('dialogueId').equals(id).delete();
-			});
-			await get().loadDialogues(dialogue.projectId);
-			await useSyncStore.getState().scheduleDialogueDeletion(id, dialogue.projectId, {
-				providers: syncedProviders,
-			});
-			useSyncStore.getState().schedulePush(dialogue.projectId);
-			toast({
-				variant: 'success',
-				title: 'Dialogue Deleted',
-				description: 'Dialogue and all nodes have been deleted',
-			});
-		} catch (error) {
-			console.error('Error deleting dialogue:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Delete Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
-			throw error;
-		}
+		const { context, record } = await findDomainRecord('dialogues', id);
+		await changeDomainRecords({ context, projectId: record.projectId, set, table: 'dialogues', message: 'Dialogue Deleted', transform: (snapshot) => {
+			assertUnreferenced(snapshot, 'dialogues', record);
+			snapshot.dialogues = snapshot.dialogues.filter((entry) => entry.id !== id);
+			for (const table of ['nodes', 'edges', 'localizedStrings']) snapshot[table] = snapshot[table].filter((entry) => entry.dialogueId !== id);
+		} });
+		context.assertCurrent();
+		if (get().currentDialogue?.id === id) set({ currentDialogue: null, nodes: [], edges: [] });
 	},
 
 	/**
 	 * Set current active dialogue and load its nodes/edges
 	 */
 	setCurrentDialogue: async (id) => {
+		const request = loadRequests.setCurrentDialogue = (loadRequests.setCurrentDialogue || 0) + 1;
 		set({ isLoading: true, error: null });
 		try {
-			const dialogue = await db.dialogues.get(id);
-			const nodes = await db.nodes.where('dialogueId').equals(id).toArray();
-			const edges = await db.edges.where('dialogueId').equals(id).toArray();
+			const context = await getRepositoryContext();
+			const database = context.db;
+			const dialogue = await database.dialogues.get(id);
+			const nodes = await database.nodes.where('dialogueId').equals(id).toArray();
+			const edges = await database.edges.where('dialogueId').equals(id).toArray();
+			context.assertCurrent();
+			if (request !== loadRequests.setCurrentDialogue) return;
 			set({
 				currentDialogue: dialogue,
 				nodes,
@@ -294,13 +242,11 @@ export const useDialogueStore = create((set, get) => ({
 				isLoading: false
 			});
 		} catch (error) {
+			if (error.code === 'STALE_PROFILE') throw error;
+			if (request !== loadRequests.setCurrentDialogue) return;
 			console.error('Error setting current dialogue:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Load Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			toast(errorToast(error, 'load'));
+			set({ error: describeError(error), isLoading: false });
 			throw error;
 		}
 	},
@@ -309,14 +255,16 @@ export const useDialogueStore = create((set, get) => ({
 	 * Update nodes for current dialogue
 	 */
 	updateNodes: async (dialogueId, nodes, options = {}) => {
-		const dialogue = await db.dialogues.get(dialogueId);
-		const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
+		const context = await getRepositoryContext();
+		const dialogue = await context.db.dialogues.get(dialogueId);
+		const edges = await context.db.edges.where('dialogueId').equals(dialogueId).toArray();
+		context.assertCurrent();
 		return get().saveDialogueGraph(
 			dialogueId,
 			nodes,
 			edges,
 			dialogue?.viewport || { x: 0, y: 0, zoom: 1 },
-			options
+			{ ...options, context }
 		);
 	},
 
@@ -326,21 +274,17 @@ export const useDialogueStore = create((set, get) => ({
 	updateEdges: async (dialogueId, edges) => {
 		set({ isLoading: true, error: null });
 		try {
-			await db.transaction('rw', db.edges, async () => {
-				await db.edges.where('dialogueId').equals(dialogueId).delete();
-				await db.edges.bulkAdd(
-					edges.map(edge => ({ ...edge, dialogueId }))
-				);
-			});
+			const context = await getRepositoryContext(), dialogue = await context.db.dialogues.get(dialogueId);
+			context.assertCurrent();
+			if (!dialogue) throw new Error('Dialogue not found');
+			await mutateProject(dialogue.projectId, { context, transform: (snapshot) => { snapshot.edges = snapshot.edges.filter((edge) => edge.dialogueId !== dialogueId).concat(edges.map((edge) => ({ ...edge, dialogueId }))); } });
+			context.assertCurrent();
 			set({ edges, isLoading: false });
 		} catch (error) {
+			if (error.code === 'STALE_PROFILE') throw error;
 			console.error('Error updating edges:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Update Edges',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			toast(errorToast(error, 'update'));
+			set({ error: describeError(error), isLoading: false });
 			throw error;
 		}
 	},
@@ -349,119 +293,42 @@ export const useDialogueStore = create((set, get) => ({
 	 * Save both nodes and edges for a dialogue
 	 */
 		saveDialogueGraph: async (dialogueId, nodes, edges, viewport, options = {}) => {
-			set({ isLoading: true, error: null });
-			try {
-				const { prepareAudioForStorage } = await import('@/lib/audioUtils');
-				const dialogue = await ensureDialogueLocalizationMetadata(await db.dialogues.get(dialogueId));
-				const project = dialogue?.projectId ? await db.projects.get(dialogue.projectId) : null;
-				const localizationState = getProjectLocalizationState(project);
-				const activeLocale = normalizeLocaleTag(
-					options?.activeLocale,
-					localizationState.defaultLocale
-				);
-
-				if (!dialogue?.projectId) {
-					throw new Error('Dialogue has no project scope for localization.');
-				}
-
-				const existingEntries = await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId);
-				const prepared = prepareLocalizedNodesAndEntries({
-					projectId: dialogue.projectId,
-					dialogueId,
-					dialogueSlug: dialogue.localizationSlug,
-					nodes,
-					locale: activeLocale,
-					existingEntries,
-				});
-				const sourceNodesForPersistence = prepared.nodes;
-				const localizedEntriesToUpsert = prepared.entries;
-
-				if (prepared.diagnostics.some((item) => item.type === 'duplicate_key')) {
-					throw new Error('Localization key collision detected. Please rename duplicated items.');
-				}
-				const validation = validateLocalizedEntriesForDialogue({
-					nodes: sourceNodesForPersistence,
-					entries: localizedEntriesToUpsert,
-					defaultLocale: localizationState.defaultLocale,
-				});
-				if (!validation.valid) {
-					console.error('[localization] Validation errors', validation.errors);
-					throw new Error(
-						`Localization integrity validation failed for this dialogue: ${summarizeLocalizationValidationErrors(
-							validation.errors
-						)}`
-					);
-				}
-
-				// Convert audio blobs to base64 for storage
-				const processedNodes = await Promise.all(
-					sourceNodesForPersistence.map(async (node) => {
-						if (node.data?.dialogueRows) {
-							const processedRows = await Promise.all(
-								node.data.dialogueRows.map(async (row) => {
-									if (row.audioFile?.blob) {
-										const storedAudio = await prepareAudioForStorage(row.audioFile);
-										return { ...row, audioFile: storedAudio, text: undefined };
-									}
-									return row;
-								})
-							);
-							return {
-								...node,
-								data: {
-									...node.data,
-									dialogueRows: stripLocalizedTextFromRows(processedRows),
-								},
-							};
-						}
-						return node;
-					})
-				);
-
-				await db.transaction('rw', [db.nodes, db.edges, db.dialogues, db.localizedStrings], async () => {
-					await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
-					if (localizedEntriesToUpsert.length > 0) {
-						await db.localizedStrings.bulkPut(localizedEntriesToUpsert);
-					}
-
-				// Delete existing nodes and edges
-				await db.nodes.where('dialogueId').equals(dialogueId).delete();
-				await db.edges.where('dialogueId').equals(dialogueId).delete();
-
-				// Add new nodes and edges with processed audio.
-				const persistedNodes = buildPersistedNodesWithoutLocalizedText(
-					processedNodes,
-					dialogueId
-				);
-				if (persistedNodes.length > 0) {
-					await db.nodes.bulkAdd(persistedNodes);
-				}
-				if (edges.length > 0) {
-					await db.edges.bulkAdd(
-						edges.map(edge => ({ ...edge, dialogueId }))
-					);
-				}
-
-					// Update dialogue modified time and viewport
-					await db.dialogues.update(dialogueId, {
-						modifiedAt: new Date().toISOString(),
-						viewport: viewport || { x: 0, y: 0, zoom: 1 },
-						localizationSlug: dialogue.localizationSlug,
-						localizationVersion: 2,
-					});
-				});
+		set({ isLoading: true, error: null });
+		try {
+			const context = options.context || await getRepositoryContext();
+			context.assertCurrent();
+			const database = context.db;
+			const { prepareAudioForStorage } = await import('@/lib/audioUtils');
+			// Binary conversion happens before the transaction; IDB must not wait on FileReader.
+			const processedNodes = await Promise.all(nodes.map(async (node) => {
+				if (!node.data?.dialogueRows) return node;
+				const rows = await Promise.all(node.data.dialogueRows.map(async (row) => row.audioFile?.blob ? { ...row, audioFile: await prepareAudioForStorage(row.audioFile) } : row));
+				return { ...node, data: { ...node.data, dialogueRows: rows } };
+			}));
+			context.assertCurrent();
+			const original = await database.dialogues.get(dialogueId);
+			if (!original?.projectId) throw new Error('Dialogue not found');
+			const projectId = original.projectId;
+			await mutateProject(projectId, { context, transform: (snapshot) => {
+				const dialogue = snapshot.dialogues.find((row) => row.id === dialogueId);
+				dialogue.localizationSlug = allocateDialogueLocalizationSlug(dialogue, snapshot.dialogues);
+				const { defaultLocale } = getProjectLocalizationState(snapshot.project);
+				const projectEntries = snapshot.localizedStrings, existingEntries = projectEntries.filter((row) => row.dialogueId === dialogueId);
+				const prepared = prepareLocalizedNodesAndEntries({ projectId, dialogueId, dialogueSlug: dialogue.localizationSlug, nodes: processedNodes, locale: normalizeLocaleTag(options.activeLocale, defaultLocale), existingEntries });
+				assertLocalizedDialogue({ dialogue, nodes: prepared.nodes, entries: prepared.entries, defaultLocale, projectEntries });
+				snapshot.localizedStrings = projectEntries.filter((entry) => entry.dialogueId !== dialogueId).concat(prepared.entries);
+				snapshot.nodes = snapshot.nodes.filter((node) => node.dialogueId !== dialogueId).concat(buildPersistedNodesWithoutLocalizedText(prepared.nodes, dialogueId));
+				snapshot.edges = snapshot.edges.filter((edge) => edge.dialogueId !== dialogueId).concat(edges.map((edge) => ({ ...edge, dialogueId })));
+				Object.assign(dialogue, { modifiedAt: new Date().toISOString(), viewport: viewport || dialogue.viewport || { x: 0, y: 0, zoom: 1 }, localizationVersion: 2 });
+			} });
+			context.assertCurrent();
 			set({ nodes, edges, isLoading: false });
-			if (dialogue?.projectId) {
-				useSyncStore.getState().schedulePush(dialogue.projectId);
-			}
+			useSyncStore.getState().schedulePush(projectId);
 		} catch (error) {
-			console.error('Error saving dialogue graph:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Save Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			if (error.code !== 'STALE_PROFILE') {
+				toast(errorToast(error, 'save'));
+				set({ error: describeError(error), isLoading: false });
+			}
 			throw error;
 		}
 	},
@@ -470,129 +337,57 @@ export const useDialogueStore = create((set, get) => ({
 	 * Load dialogue graph (nodes and edges)
 	 */
 		loadDialogueGraph: async (dialogueId, options = {}) => {
-			set({ isLoading: true, error: null });
-			try {
-				const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
-
-				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
-				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
-				const dialogue = await ensureDialogueLocalizationMetadata(await db.dialogues.get(dialogueId));
-				const project = dialogue?.projectId ? await db.projects.get(dialogue.projectId) : null;
-				const viewport = dialogue?.viewport || { x: 0, y: 0, zoom: 1 };
-				const localizationState = getProjectLocalizationState(project);
-				const activeLocale = normalizeLocaleTag(
-					options?.activeLocale,
-					localizationState.defaultLocale
-				);
-				const defaultLocale = localizationState.defaultLocale;
-				let entries = dialogue?.projectId
-					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
-					: [];
-				let didPersistMigration = false;
-
-				// Convert base64 back to blobs for audio playback and export
-				let nodes = loadedNodes.map((node) => {
-					if (node.data?.dialogueRows) {
-						const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
-						if (row.audioFile?.base64) {
-							const restoredAudio = restoreAudioFromStorage(row.audioFile);
-							return { ...row, audioFile: restoredAudio };
-						}
-						return row;
-					});
-					return { ...node, data: { ...node.data, dialogueRows: restoredRows } };
-					}
-					return node;
-				});
-
-				nodes = materializeLocalizedNodes({
-					nodes,
-					dialogueId,
-					dialogueSlug: dialogue?.localizationSlug,
-					locale: activeLocale,
-					defaultLocale,
-					stringEntries: entries,
-				});
-
-				const hasMissingRefs = nodes.some((node) => {
-					const nodeData = node?.data || {};
-					if (Object.prototype.hasOwnProperty.call(nodeData, 'displayName') && !nodeData.displayNameKey) {
-						return true;
-					}
-					if (
-						Object.prototype.hasOwnProperty.call(nodeData, 'selectionTitle') &&
-						!nodeData.selectionTitleKey
-					) {
-						return true;
-					}
-					return Array.isArray(nodeData.dialogueRows)
-						? nodeData.dialogueRows.some((row) => !row?.textKey)
-						: false;
-				});
-
-				if (dialogue?.projectId && (Number(dialogue.localizationVersion || 0) < 2 || hasMissingRefs)) {
-					const migrated = prepareLocalizedNodesAndEntries({
-						projectId: dialogue.projectId,
-						dialogueId,
-						dialogueSlug: dialogue.localizationSlug,
-						nodes,
-						locale: defaultLocale,
-						existingEntries: entries,
-					});
-					if (migrated.entries.length > 0) {
-						const validation = validateLocalizedEntriesForDialogue({
-							nodes: migrated.nodes,
-							entries: migrated.entries,
-							defaultLocale,
-						});
-						if (validation.valid) {
-							await db.transaction('rw', [db.nodes, db.localizedStrings, db.dialogues], async () => {
-								await db.nodes.where('dialogueId').equals(dialogueId).delete();
-								const migratedPersistedNodes = buildPersistedNodesWithoutLocalizedText(
-									migrated.nodes,
-									dialogueId
-								);
-								if (migratedPersistedNodes.length > 0) {
-									await db.nodes.bulkAdd(migratedPersistedNodes);
-								}
-								await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
-								await db.localizedStrings.bulkPut(migrated.entries);
-								await db.dialogues.update(dialogueId, {
-									localizationSlug: dialogue.localizationSlug,
-									localizationVersion: 2,
-									modifiedAt: new Date().toISOString(),
-								});
-							});
-							didPersistMigration = true;
-							entries = migrated.entries;
-							nodes = materializeLocalizedNodes({
-								nodes: migrated.nodes,
-								dialogueId,
-								dialogueSlug: dialogue.localizationSlug,
-								locale: activeLocale,
-								defaultLocale,
-								stringEntries: entries,
-							});
-						} else {
-							console.error('[localization] Migration validation failed', validation.errors);
-						}
-					}
-				}
-
-				if (didPersistMigration && dialogue?.projectId) {
-					useSyncStore.getState().schedulePush(dialogue.projectId);
-				}
-
-				set({ nodes, edges, isLoading: false });
-				return { nodes, edges, viewport };
+		const request = loadRequests.loadDialogueGraph = (loadRequests.loadDialogueGraph || 0) + 1;
+		set({ isLoading: true, error: null });
+		let capturedContext;
+		try {
+			const context = await getRepositoryContext();
+			capturedContext = context;
+			const database = context.db;
+			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
+			context.assertCurrent();
+			const initial = await database.dialogues.get(dialogueId);
+			if (!initial?.projectId) throw new Error('Dialogue not found');
+			let state = await readProjectState(initial.projectId, context), migrated = false;
+			const needsMigration = (snapshot) => {
+				const dialogue = snapshot.dialogues.find((row) => row.id === dialogueId);
+				const slug = allocateDialogueLocalizationSlug(dialogue, snapshot.dialogues);
+				const validation = validateLocalizedEntriesForDialogue({ nodes: snapshot.nodes.filter((node) => node.dialogueId === dialogueId), entries: snapshot.localizedStrings.filter((entry) => entry.dialogueId === dialogueId), defaultLocale: getProjectLocalizationState(snapshot.project).defaultLocale, projectId: initial.projectId, dialogueId, dialogueSlug: slug, projectEntries: snapshot.localizedStrings });
+				return Number(dialogue.localizationVersion || 0) < 2 || dialogue.localizationSlug !== slug || !validation.valid;
+			};
+			if (needsMigration(state.snapshot)) {
+				const result = await mutateProject(initial.projectId, { context, transform: (snapshot) => {
+					const dialogue = snapshot.dialogues.find((row) => row.id === dialogueId);
+					dialogue.localizationSlug = allocateDialogueLocalizationSlug(dialogue, snapshot.dialogues);
+					const defaultLocale = getProjectLocalizationState(snapshot.project).defaultLocale;
+					const prepared = prepareLocalizedNodesAndEntries({ projectId: initial.projectId, dialogueId, dialogueSlug: dialogue.localizationSlug, nodes: snapshot.nodes.filter((node) => node.dialogueId === dialogueId), locale: defaultLocale, existingEntries: snapshot.localizedStrings.filter((entry) => entry.dialogueId === dialogueId) });
+					assertLocalizedDialogue({ dialogue, nodes: prepared.nodes, entries: prepared.entries, defaultLocale, projectEntries: snapshot.localizedStrings });
+					snapshot.nodes = snapshot.nodes.filter((node) => node.dialogueId !== dialogueId).concat(buildPersistedNodesWithoutLocalizedText(prepared.nodes, dialogueId));
+					snapshot.localizedStrings = snapshot.localizedStrings.filter((entry) => entry.dialogueId !== dialogueId).concat(prepared.entries);
+					dialogue.localizationVersion = 2;
+				} });
+				state = result; migrated = true;
+			}
+			const loaded = { nodes: state.snapshot.nodes.filter((node) => node.dialogueId === dialogueId), edges: state.snapshot.edges.filter((edge) => edge.dialogueId === dialogueId), entries: state.snapshot.localizedStrings.filter((entry) => entry.dialogueId === dialogueId), dialogue: state.snapshot.dialogues.find((row) => row.id === dialogueId), defaultLocale: getProjectLocalizationState(state.snapshot.project).defaultLocale, migrated };
+			context.assertCurrent();
+			let nodes = materializeLocalizedNodes({ nodes: loaded.nodes, dialogueId, dialogueSlug: loaded.dialogue.localizationSlug, locale: normalizeLocaleTag(options.activeLocale, loaded.defaultLocale), defaultLocale: loaded.defaultLocale, stringEntries: loaded.entries });
+			nodes = nodes.map((node) => !node.data?.dialogueRows ? node : { ...node, data: { ...node.data, dialogueRows: normalizeDialogueRows(node.data.dialogueRows).map((row) => row.audioFile?.base64 ? { ...row, audioFile: restoreAudioFromStorage(row.audioFile) } : row) } });
+			context.assertCurrent();
+			if (request !== loadRequests.loadDialogueGraph) return { nodes, edges: loaded.edges, viewport: loaded.dialogue.viewport };
+			if (loaded.migrated) useSyncStore.getState().schedulePush(loaded.dialogue.projectId);
+			set({ nodes, edges: loaded.edges, isLoading: false });
+			return { nodes, edges: loaded.edges, viewport: loaded.dialogue.viewport || { x: 0, y: 0, zoom: 1 } };
 		} catch (error) {
-			console.error('Error loading dialogue graph:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Load Dialogue Graph',
-				description: error.message || 'An unexpected error occurred',
-			});
-			set({ error: error.message, isLoading: false });
+			if (error.code === 'LOCALIZATION_REPAIR_REQUIRED' && capturedContext && !capturedContext.signal.aborted) {
+				const database = capturedContext.db;
+				const originalDialogue = await database.dialogues.get(dialogueId);
+				capturedContext.assertCurrent();
+				await database.recoveryRecords.put({ id: `localization:${dialogueId}`, projectId: originalDialogue?.projectId, table: 'localizedStrings', code: error.code, status: 'unresolved', path: `dialogues.${dialogueId}`, message: error.message, diagnostics: error.diagnostics, original: originalDialogue });
+			}
+			if (error.code !== 'STALE_PROFILE') {
+				toast(errorToast(error, 'load'));
+				set({ error: describeError(error), isLoading: false });
+			}
 			throw error;
 		}
 	},
@@ -604,23 +399,22 @@ export const useDialogueStore = create((set, get) => ({
 			try {
 				const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
 
-				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
-				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
-				const dialogue = await db.dialogues.get(dialogueId);
-				if (!dialogue) {
-					return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
-				}
-
-				const project = dialogue.projectId ? await db.projects.get(dialogue.projectId) : null;
-				const localizationState = getProjectLocalizationState(project);
-				const activeLocale = normalizeLocaleTag(
-					options?.activeLocale,
-					localizationState.defaultLocale
-				);
-				const defaultLocale = localizationState.defaultLocale;
-				const entries = dialogue.projectId
-					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
-					: [];
+				const context = await getRepositoryContext();
+				const database = context.db;
+				const loaded = await database.transaction('r', [database.nodes, database.edges, database.dialogues, database.projects, database.localizedStrings], async () => {
+					const dialogue = await database.dialogues.get(dialogueId);
+					if (!dialogue) return null;
+					const loadedNodes = await database.nodes.where('dialogueId').equals(dialogueId).toArray();
+					const edges = await database.edges.where('dialogueId').equals(dialogueId).toArray();
+					const project = await database.projects.get(dialogue.projectId);
+					const entries = await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId, database);
+					return { dialogue, loadedNodes, edges, project, entries };
+				});
+				context.assertCurrent();
+				if (!loaded) return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
+				const { dialogue, loadedNodes, edges, project, entries } = loaded;
+				const { defaultLocale } = getProjectLocalizationState(project);
+				const activeLocale = normalizeLocaleTag(options.activeLocale, defaultLocale);
 
 				let nodes = loadedNodes.map((node) => {
 					if (!node.data?.dialogueRows) return node;
@@ -674,14 +468,17 @@ export const useDialogueStore = create((set, get) => ({
 	 */
 	exportDialogue: async (dialogueId) => {
 		try {
+			const context = await getRepositoryContext();
+			const database = context.db;
 			// Get dialogue name for the file
-			const dialogue = await db.dialogues.get(dialogueId);
+			const dialogue = await database.dialogues.get(dialogueId);
 			if (!dialogue) {
 				throw new Error('Dialogue not found');
 			}
 
 			// Use the shared blob export function
-			const blob = await get().exportDialogueAsBlob(dialogueId);
+			const blob = await get().exportDialogueAsBlob(dialogueId, { context });
+			context.assertCurrent();
 			const defaultFileName = `${dialogue.name}.mnteadlg`;
 
 			const saveResult = await saveExportBlob({
@@ -689,15 +486,17 @@ export const useDialogueStore = create((set, get) => ({
 				defaultFileName,
 				filters: [{ name: 'Dialogue Export', extensions: ['mnteadlg'] }],
 			});
+			context.assertCurrent();
 			if (saveResult.canceled) {
 				return;
 			}
 
 			if (saveResult.filePath) {
-				await db.dialogues.update(dialogueId, {
+				await database.dialogues.update(dialogueId, {
 					lastExportPath: saveResult.filePath,
 				});
-				set((state) => ({
+				context.assertCurrent();
+			set((state) => ({
 					dialogues: state.dialogues.map((entry) =>
 						entry.id === dialogueId
 							? { ...entry, lastExportPath: saveResult.filePath }
@@ -725,866 +524,38 @@ export const useDialogueStore = create((set, get) => ({
 				duration: saveResult.filePath ? 8000 : 3000,
 			});
 		} catch (error) {
+			if (error.code === 'STALE_PROFILE') throw error;
 			console.error('Error exporting dialogue:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Export Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
+			toast(errorToast(error, 'export'));
 			throw error;
 		}
 	},
 
 	// Export dialogue as Blob (for direct export and nested project exports)
-		exportDialogueAsBlob: async (dialogueId, options = {}) => {
-			try {
-				console.log(`[exportDialogueAsBlob] Starting export for dialogue: ${dialogueId}`);
-				const JSZip = (await import('jszip')).default;
-
-				const dialogue = await ensureDialogueLocalizationMetadata(await db.dialogues.get(dialogueId));
-				if (!dialogue) {
-					throw new Error(`Dialogue not found: ${dialogueId}`);
-				}
-				console.log(`[exportDialogueAsBlob] Found dialogue: ${dialogue.name}`);
-
-				const project = dialogue.projectId ? await db.projects.get(dialogue.projectId) : null;
-				const localizationState = getProjectLocalizationState(project);
-				const loadedNodes = await db.nodes.where('dialogueId').equals(dialogueId).toArray();
-				const edges = await db.edges.where('dialogueId').equals(dialogueId).toArray();
-				const stringTableEntries = dialogue.projectId
-					? await loadDialogueLocalizedEntries(dialogue.projectId, dialogueId)
-					: [];
-
-			// Restore audio from base64 to blobs for export
-			const { restoreAudioFromStorage } = await import('@/lib/audioUtils');
-				const nodes = loadedNodes.map((node) => {
-					if (node.data?.dialogueRows) {
-						const restoredRows = normalizeDialogueRows(node.data.dialogueRows).map((row) => {
-							if (row.audioFile?.base64) {
-								const restoredAudio = restoreAudioFromStorage(row.audioFile);
-							return { ...row, audioFile: restoredAudio };
-						}
-						return row;
-					});
-					return { ...node, data: { ...node.data, dialogueRows: restoredRows } };
-					}
-					return node;
-				});
-				// Export must operate on the restored node graph so audio blobs are available.
-				let persistedNodes = nodes;
-				let effectiveStringTableEntries = stringTableEntries;
-				let localizedPreviewNodes = materializeLocalizedNodes({
-					nodes: persistedNodes,
-					dialogueId,
-					dialogueSlug: dialogue.localizationSlug,
-					locale: localizationState.defaultLocale,
-					defaultLocale: localizationState.defaultLocale,
-					stringEntries: effectiveStringTableEntries,
-				});
-				let exportValidation = validateLocalizedEntriesForDialogue({
-					nodes: localizedPreviewNodes,
-					entries: effectiveStringTableEntries,
-					defaultLocale: localizationState.defaultLocale,
-				});
-				if (!exportValidation.valid && dialogue.projectId) {
-					const repaired = prepareLocalizedNodesAndEntries({
-						projectId: dialogue.projectId,
-						dialogueId,
-						dialogueSlug: dialogue.localizationSlug,
-						nodes: localizedPreviewNodes,
-						locale: localizationState.defaultLocale,
-						existingEntries: effectiveStringTableEntries,
-					});
-					const repairedValidation = validateLocalizedEntriesForDialogue({
-						nodes: repaired.nodes,
-						entries: repaired.entries,
-						defaultLocale: localizationState.defaultLocale,
-					});
-					if (!repairedValidation.valid) {
-						throw new Error(
-							`Dialogue export blocked by invalid localization references: ${summarizeLocalizationValidationErrors(
-								repairedValidation.errors
-							)}`
-						);
-					}
-					await db.transaction('rw', [db.nodes, db.localizedStrings, db.dialogues], async () => {
-						await db.nodes.where('dialogueId').equals(dialogueId).delete();
-						const repairedPersistedNodes = buildPersistedNodesWithoutLocalizedText(
-							repaired.nodes,
-							dialogueId
-						);
-						if (repairedPersistedNodes.length > 0) {
-							await db.nodes.bulkAdd(repairedPersistedNodes);
-						}
-						await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
-						await db.localizedStrings.bulkPut(repaired.entries);
-						await db.dialogues.update(dialogueId, {
-							localizationSlug: dialogue.localizationSlug,
-							localizationVersion: 2,
-							modifiedAt: new Date().toISOString(),
-						});
-					});
-					useSyncStore.getState().schedulePush(dialogue.projectId);
-					persistedNodes = repaired.nodes;
-					effectiveStringTableEntries = repaired.entries;
-					localizedPreviewNodes = materializeLocalizedNodes({
-						nodes: persistedNodes,
-						dialogueId,
-						dialogueSlug: dialogue.localizationSlug,
-						locale: localizationState.defaultLocale,
-						defaultLocale: localizationState.defaultLocale,
-						stringEntries: effectiveStringTableEntries,
-					});
-					exportValidation = repairedValidation;
-				}
-				if (!exportValidation.valid) {
-					throw new Error(
-						`Dialogue export blocked by invalid localization references: ${summarizeLocalizationValidationErrors(
-							exportValidation.errors
-						)}`
-					);
-				}
-
-				console.log(`[exportDialogueAsBlob] Found ${nodes.length} nodes and ${edges.length} edges`);
-				// Validate Start Node exists
-				const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
-			if (!startNode) {
-				throw new Error('Export failed: Start Node (00000000-0000-0000-0000-000000000001) is missing from the dialogue');
-			}
-
-			// Collect unique participants and used decorator/condition references from nodes/edges.
-			const participantSet = new Set();
-			const usedDecoratorIds = new Set();
-			const usedDecoratorNames = new Set();
-			const usedConditionIds = new Set();
-			const usedConditionNames = new Set();
-			const allDialogueRows = [];
-
-				localizedPreviewNodes.forEach((node) => {
-					// Extract participant
-					if (node.data?.participant) {
-						participantSet.add(node.data.participant);
-					}
-
-					// Extract dialogue rows
-					if (node.data?.dialogueRows) {
-						normalizeDialogueRows(node.data.dialogueRows).forEach((row) => {
-							allDialogueRows.push({
-								id: row.id,
-								textKey: row.textKey || '',
-								audioPath: row.audioFile?.blob ? `audio/${row.id}/` : null,
-								nodeId: node.id,
-								duration: row.duration || 0,
-							});
-						});
-				}
-
-				// Track used decorators from node instances.
-				if (Array.isArray(node.data?.decorators)) {
-					node.data.decorators.forEach((decorator) => {
-						const decoratorId = String(decorator?.id || '').trim();
-						const decoratorName = String(decorator?.name || '').trim();
-						if (decoratorId) usedDecoratorIds.add(decoratorId);
-						if (decoratorName) usedDecoratorNames.add(decoratorName);
-					});
-				}
-			});
-
-			// Track used conditions from edge instances.
-			(edges || []).forEach((edge) => {
-				const rules = Array.isArray(edge?.data?.conditions?.rules) ? edge.data.conditions.rules : [];
-				rules.forEach((rule) => {
-					const conditionId = String(rule?.id || '').trim();
-					const conditionName = String(rule?.name || '').trim();
-					if (conditionId) usedConditionIds.add(conditionId);
-					if (conditionName) usedConditionNames.add(conditionName);
-				});
-			});
-
-			// Load participants and categories from database
-			const categories = await db.categories
-				.where('projectId')
-				.equals(dialogue.projectId)
-				.toArray();
-
-			const participants = await db.participants
-				.where('projectId')
-				.equals(dialogue.projectId)
-				.toArray();
-			const decorators = await db.decorators.where('projectId').equals(dialogue.projectId).toArray();
-			const conditions = await db.conditions.where('projectId').equals(dialogue.projectId).toArray();
-
-			// Filter to only used participants
-			const usedParticipants = participants.filter((p) =>
-				participantSet.has(p.name)
-			);
-
-			// Get categories for used participants
-			const usedCategoryNames = new Set(usedParticipants.map((p) => p.category));
-			const usedCategories = categories.filter((c) =>
-				usedCategoryNames.has(c.name)
-			);
-
-			// Build category path map
-			const { useCategoryStore } = await import('./categoryStore');
-			const categoryPathMap = new Map();
-			categories.forEach((cat) => {
-				const fullPath = useCategoryStore.getState().buildCategoryPath(cat.id, categories);
-				categoryPathMap.set(cat.name, fullPath);
-			});
-
-				// Prepare export data
-				const dialogueData = {
-					dialogueGuid: dialogue.id,
-					id: dialogue.id,
-					dialogueName: dialogue.name,
-					localizationSlug: dialogue.localizationSlug,
-					localizationVersion: dialogue.localizationVersion || 2,
-					modifiedOnDate: dialogue.modifiedAt || new Date().toISOString(),
-				};
-
-			const categoriesExport = usedCategories.map((cat) => ({
-				name: cat.name,
-				fullPath: categoryPathMap.get(cat.name) || cat.name,
-			}));
-
-			const participantsExport = usedParticipants.map((p) => ({
-				name: p.name,
-				fullPath: categoryPathMap.get(p.category) || p.category,
-				participantImage: p.thumbnail
-					? buildParticipantImageId({
-						participantName: p.name,
-						categoryPath: categoryPathMap.get(p.category) || p.category,
-					})
-					: null,
-			}));
-
-			const exportDefinition = (entry) => {
-				const exported = { ...(entry || {}) };
-				delete exported.projectId;
-				delete exported.createdAt;
-				delete exported.modifiedAt;
-				return exported;
-			};
-			const decoratorsExport = decorators
-				.filter((definition) => {
-					const definitionId = String(definition?.id || '').trim();
-					const definitionName = String(definition?.name || '').trim();
-					return usedDecoratorIds.has(definitionId) || usedDecoratorNames.has(definitionName);
-				})
-				.map(exportDefinition);
-			const conditionsExport = conditions
-				.filter((definition) => {
-					const definitionId = String(definition?.id || '').trim();
-					const definitionName = String(definition?.name || '').trim();
-					return usedConditionIds.has(definitionId) || usedConditionNames.has(definitionName);
-				})
-				.map(exportDefinition);
-
-				// Create ZIP file
-				const zip = new JSZip();
-
-				// Strip audio data from nodes for JSON serialization
-				// (actual audio files go in the audio/ folder)
-				const nodesForExport = persistedNodes.map((node) => {
-					if (!node.data?.dialogueRows) {
-						return node;
-					}
-					const rowsWithoutAudio = node.data.dialogueRows.map((row) => {
-						const rowWithoutAudio = { ...(row || {}) };
-						delete rowWithoutAudio.audioFile;
-						delete rowWithoutAudio.text;
-						return rowWithoutAudio;
-					});
-					return { ...node, data: { ...node.data, dialogueRows: rowsWithoutAudio } };
-				});
-
-			// Add JSON files
-				zip.file('dialogueData.json', JSON.stringify(dialogueData, null, 2));
-				zip.file('categories.json', JSON.stringify(categoriesExport, null, 2));
-				zip.file('participants.json', JSON.stringify(participantsExport, null, 2));
-				zip.file('nodes.json', JSON.stringify(nodesForExport, null, 2));
-				zip.file('edges.json', JSON.stringify(edges, null, 2));
-				zip.file('dialogueRows.json', JSON.stringify(allDialogueRows, null, 2));
-				zip.file('decorators.json', JSON.stringify(decoratorsExport, null, 2));
-				zip.file('conditions.json', JSON.stringify(conditionsExport, null, 2));
-				zip.file(
-					'stringTable.json',
-					JSON.stringify(
-						buildStringTableV2Payload({
-							dialogueId,
-							defaultLocale: localizationState.defaultLocale,
-							locales: localizationState.supportedLocales,
-							entries: effectiveStringTableEntries,
-						}),
-						null,
-						2
-					)
-				);
-
-			// Add audio files
-			const audioFolder = zip.folder('audio');
-				for (const row of allDialogueRows) {
-					if (row.audioPath) {
-						// Find the actual audio file from nodes
-						const node = localizedPreviewNodes.find((n) =>
-							n.data?.dialogueRows?.some((r) => r.id === row.id)
-						);
-						if (node) {
-							const dialogueRow = node.data.dialogueRows.find((r) => r.id === row.id);
-						if (dialogueRow?.audioFile?.blob) {
-							const rowFolder = audioFolder.folder(row.id);
-							const safeAudioName = sanitizeAudioFileName(dialogueRow.audioFile.name, 'Audio');
-							rowFolder.file(safeAudioName, dialogueRow.audioFile.blob);
-						}
-					}
-				}
-			}
-
-			// Add participant thumbnail files unless explicitly disabled (used by project export).
-			const includeThumbnails = options?.includeThumbnails !== false;
-			if (includeThumbnails) {
-				const thumbnailsFolder = zip.folder('Thumbnails');
-				participantsExport.forEach((entry, index) => {
-					const participantImageId = String(entry?.participantImage || '').trim();
-					if (!participantImageId) return;
-					const participant = usedParticipants[index];
-					try {
-						const thumbnailBlob = storedParticipantThumbnailToBlob(participant?.thumbnail);
-						if (!thumbnailBlob) return;
-						thumbnailsFolder.file(`${participantImageId}.png`, thumbnailBlob);
-					} catch (error) {
-						console.warn(
-							`Skipping invalid participant thumbnail for ${participant?.name || participantImageId}`
-						);
-					}
-				});
-			}
-
-			// Generate and return blob
-			const blob = await zip.generateAsync({ type: 'blob' });
-			return blob;
-		} catch (error) {
-			console.error('Error exporting dialogue as blob:', error);
-			throw error;
-		}
+	exportDialogueAsBlob: async (dialogueId, options = {}) => {
+		const context = options.context || await getRepositoryContext();
+		context.assertCurrent();
+		const dialogue = await context.db.dialogues.get(dialogueId);
+		context.assertCurrent();
+		if (!dialogue) throw new Error('Dialogue not found');
+		const snapshot = await buildProjectSnapshot(dialogue.projectId, { context, requireReady: true });
+		// Include child graphs transitively so every target is resolvable on import.
+		const selected = new Set([dialogueId]);
+		let changed = true;
+		while (changed) { changed = false; for (const node of snapshot.nodes) if (selected.has(node.dialogueId) && node.data?.targetDialogue && !selected.has(node.data.targetDialogue)) { selected.add(node.data.targetDialogue); changed = true; } }
+		for (const table of ['dialogues', 'nodes', 'edges', 'localizedStrings']) snapshot[table] = snapshot[table].filter((row) => selected.has(table === 'dialogues' ? row.id : row.dialogueId));
+		return exportProjectArchive(snapshot, { kind: 'dialogue', dialogueId });
 	},
-
-	// Import dialogue from .mnteadlg file
-	importDialogue: async (projectId, file) => {
+	importDialogue: async (projectId, file, options = {}) => {
+		const context = await getRepositoryContext();
 		try {
-			// Load JSZip dynamically
-			const JSZip = (await import('jszip')).default;
-
-			// Read the ZIP file
-			const zip = await JSZip.loadAsync(file);
-
-			// Extract all JSON files
-			const dialogueDataStr = await zip.file('dialogueData.json')?.async('text');
-			const categoriesStr = await zip.file('categories.json')?.async('text');
-			const participantsStr = await zip.file('participants.json')?.async('text');
-			const decoratorsStr = await zip.file('decorators.json')?.async('text');
-			const nodesStr = await zip.file('nodes.json')?.async('text');
-			const edgesStr = await zip.file('edges.json')?.async('text');
-			const dialogueRowsStr = await zip.file('dialogueRows.json')?.async('text');
-			const stringTableStr = await zip.file('stringTable.json')?.async('text');
-
-			// Validate all required files exist
-			if (!dialogueDataStr || !nodesStr || !edgesStr) {
-				throw new Error('Invalid dialogue file: missing required files');
-			}
-
-			// Parse JSON
-			const dialogueData = JSON.parse(dialogueDataStr);
-			const categories = categoriesStr ? JSON.parse(categoriesStr) : [];
-			const participants = participantsStr ? JSON.parse(participantsStr) : [];
-			const decorators = decoratorsStr ? JSON.parse(decoratorsStr) : [];
-			const nodes = JSON.parse(nodesStr);
-			const edges = JSON.parse(edgesStr);
-				const dialogueRows = dialogueRowsStr ? JSON.parse(dialogueRowsStr) : [];
-				const stringTableData = stringTableStr ? JSON.parse(stringTableStr) : null;
-				const importedStringEntries = parseImportedStringTableData(stringTableData);
-			// Validate Start Node exists
-			const startNode = nodes.find((n) => n.id === '00000000-0000-0000-0000-000000000001');
-			if (!startNode) {
-				throw new Error('Import failed: Start Node (00000000-0000-0000-0000-000000000001) is missing from the dialogue file');
-			}
-
-			// Step 1: Import categories with deduplication
-			const { useCategoryStore } = await import('./categoryStore');
-			const categoryStore = useCategoryStore.getState();
-			const existingCategories = await db.categories
-				.where('projectId')
-				.equals(projectId)
-				.toArray();
-
-			// Build map of existing category paths
-			const existingCategoryPaths = new Map();
-			existingCategories.forEach((cat) => {
-				const fullPath = categoryStore.buildCategoryPath(cat.id, existingCategories);
-				existingCategoryPaths.set(fullPath, cat);
-			});
-
-			// Import categories that don't exist - directly into DB to avoid conflicts
-			const categoryMapping = new Map(); // fullPath -> categoryName
-			const now = new Date().toISOString();
-			for (const catData of categories) {
-				const fullPath = catData.fullPath;
-				if (!existingCategoryPaths.has(fullPath)) {
-					// Create the category hierarchy
-					const pathParts = fullPath.split('.');
-					let parentId = null;
-					let currentPath = '';
-
-					for (const part of pathParts) {
-						currentPath = currentPath ? `${currentPath}.${part}` : part;
-
-						// Check if this level already exists
-						if (!existingCategoryPaths.has(currentPath)) {
-							const newCat = {
-								id: uuidv4(),
-								name: part,
-								parentCategoryId: parentId,
-								projectId,
-								createdAt: now,
-								modifiedAt: now,
-							};
-							await db.categories.add(newCat);
-							existingCategoryPaths.set(currentPath, newCat);
-							parentId = newCat.id;
-						} else {
-							parentId = existingCategoryPaths.get(currentPath).id;
-						}
-					}
-				}
-				categoryMapping.set(fullPath, catData.name);
-			}
-
-			// Step 2: Import participants with deduplication
-			const participantThumbnailById = new Map();
-			for (const partData of participants) {
-				const participantImageId = String(partData?.participantImage || '').trim();
-				if (!participantImageId) continue;
-				const thumbnailEntry =
-					zip.file(`Thumbnails/${participantImageId}.png`) ||
-					zip.file(`thumbnails/${participantImageId}.png`);
-				if (!thumbnailEntry) continue;
-				try {
-					const thumbnailBlob = await thumbnailEntry.async('blob');
-					const thumbnail = await blobToStoredParticipantThumbnail(thumbnailBlob);
-					participantThumbnailById.set(participantImageId, thumbnail);
-				} catch (error) {
-					console.warn(
-						`Skipping invalid participant thumbnail in dialogue import (${participantImageId})`
-					);
-				}
-			}
-
-			const existingParticipants = await db.participants
-				.where('projectId')
-				.equals(projectId)
-				.toArray();
-
-			const existingParticipantsByName = new Map(
-				existingParticipants.map((participant) => [participant.name, participant])
-			);
-			const existingParticipantNames = new Set(existingParticipants.map((p) => p.name));
-			const participantMapping = new Map(); // old name -> new name
-
-			for (const partData of participants) {
-				const participantImageId = String(partData?.participantImage || '').trim();
-				const importedThumbnail = participantImageId
-					? participantThumbnailById.get(participantImageId) || null
-					: null;
-
-				if (!existingParticipantNames.has(partData.name)) {
-					// Find the category by fullPath
-					const categoryName = categoryMapping.get(partData.fullPath) ||
-						existingCategoryPaths.get(partData.fullPath)?.name;
-
-					if (!categoryName) {
-						throw new Error(`Category not found for participant ${partData.name}: ${partData.fullPath}`);
-					}
-
-					// Directly insert to avoid conflicts
-					const newParticipant = {
-						id: uuidv4(),
-						name: partData.name,
-						category: categoryName,
-						thumbnail: importedThumbnail,
-						projectId,
-						createdAt: now,
-						modifiedAt: now,
-					};
-					await db.participants.add(newParticipant);
-					existingParticipantNames.add(partData.name);
-					existingParticipantsByName.set(partData.name, newParticipant);
-				} else if (importedThumbnail) {
-					const existingParticipant = existingParticipantsByName.get(partData.name);
-					if (existingParticipant && !existingParticipant.thumbnail) {
-						await db.participants.update(existingParticipant.id, {
-							thumbnail: importedThumbnail,
-							modifiedAt: now,
-						});
-						existingParticipantsByName.set(partData.name, {
-							...existingParticipant,
-							thumbnail: importedThumbnail,
-							modifiedAt: now,
-						});
-					}
-				}
-				participantMapping.set(partData.name, partData.name);
-			}
-
-			// Step 3: Import decorators with deduplication
-			const existingDecorators = await db.decorators
-				.where('projectId')
-				.equals(projectId)
-				.toArray();
-
-			// Build map of existing decorators by name
-			const existingDecoratorMap = new Map();
-			existingDecorators.forEach((dec) => {
-				existingDecoratorMap.set(dec.name, dec);
-			});
-
-			// Track unique decorator names from instances
-			const decoratorNames = new Set();
-			decorators.forEach((dec) => {
-				decoratorNames.add(dec.name);
-			});
-
-			// Import decorator definitions that don't exist
-			for (const name of decoratorNames) {
-				if (!existingDecoratorMap.has(name)) {
-					// Create a basic decorator definition (properties will be empty since we only have instances)
-					const newDec = {
-						id: uuidv4(),
-						name: name,
-						type: '',
-						properties: [],
-						projectId,
-						createdAt: now,
-						modifiedAt: now,
-					};
-					await db.decorators.add(newDec);
-					existingDecoratorMap.set(name, newDec);
-				}
-			}
-
-			// Step 4: Validate dialogue name
-			if (!dialogueData.dialogueName || !dialogueData.dialogueName.trim()) {
-				throw new Error('Invalid dialogue name');
-			}
-
-			// Check for name conflicts
-			const existingDialogues = await db.dialogues
-				.where('projectId')
-				.equals(projectId)
-				.toArray();
-
-			let finalName = dialogueData.dialogueName;
-			let counter = 1;
-			const dialogueGuid = String(dialogueData?.dialogueGuid || '').trim();
-			const fallbackDialogueId = String(dialogueData?.id || '').trim();
-			if (dialogueGuid && fallbackDialogueId && dialogueGuid !== fallbackDialogueId) {
-				console.warn('[importDialogue] dialogueGuid/id mismatch; using dialogueGuid', {
-					dialogueGuid,
-					id: fallbackDialogueId,
-				});
-			}
-			const dialogueId = dialogueGuid || fallbackDialogueId;
-			if (!dialogueId) {
-				throw new Error('Invalid dialogue file: missing dialogue GUID');
-			}
-
-			const otherDialogues = existingDialogues.filter((d) => d.id !== dialogueId);
-			while (otherDialogues.some((d) => d.name === finalName)) {
-				finalName = `${dialogueData.dialogueName} (${counter})`;
-				counter++;
-			}
-
-			// Step 5: Create the dialogue — preserve the original ID so cross-dialogue
-			// references (e.g. openChildGraphNode.targetDialogue) remain valid after import.
-				const newDialogue = {
-					id: dialogueId,
-					projectId,
-					name: finalName,
-					description: '',
-					nodeCount: nodes.length,
-					localizationSlug: ensureDialogueLocalizationSlug({
-						localizationSlug: dialogueData?.localizationSlug,
-						name: finalName,
-						id: dialogueId,
-					}),
-					localizationVersion: 2,
-					createdAt: now,
-					modifiedAt: now,
-				};
-
-			await db.dialogues.put(newDialogue);
-
-			// Step 6: Import nodes
-			// Build a map of old node IDs to new node IDs
-			const nodeIdMapping = new Map();
-			const rowIdMapping = new Map();
-			const mapNodeReference = (rawNodeId) => {
-				const nodeId = String(rawNodeId || '').trim();
-				if (!nodeId) return '';
-				return (
-					nodeIdMapping.get(nodeId) ||
-					nodeIdMapping.get(nodeId.toLowerCase()) ||
-					nodeIdMapping.get(nodeId.toUpperCase()) ||
-					''
-				);
-			};
-			const mapRowReference = (rawNodeId, rawRowId) => {
-				const nodeId = String(rawNodeId || '').trim();
-				const rowId = String(rawRowId || '').trim();
-				if (!nodeId || !rowId) return '';
-				const composite = `${nodeId}:${rowId}`;
-				const lowerComposite = `${nodeId.toLowerCase()}:${rowId.toLowerCase()}`;
-				const upperComposite = `${nodeId.toUpperCase()}:${rowId.toUpperCase()}`;
-				return (
-					rowIdMapping.get(composite) ||
-					rowIdMapping.get(lowerComposite) ||
-					rowIdMapping.get(upperComposite) ||
-					''
-				);
-			};
-			const importedNodesForLocalization = [];
-
-			for (const node of nodes) {
-				const oldNodeId = String(node.id || '').trim();
-				const newNodeId = node.type === 'startNode'
-					? '00000000-0000-0000-0000-000000000001'
-					: oldNodeId;
-
-				nodeIdMapping.set(oldNodeId, newNodeId);
-				nodeIdMapping.set(oldNodeId.toLowerCase(), newNodeId);
-				nodeIdMapping.set(oldNodeId.toUpperCase(), newNodeId);
-
-				// Process node data
-				const nodeData = { ...node.data };
-
-				// Update participant reference
-				if (nodeData.participant) {
-					// participant might be a string or an object
-					if (typeof nodeData.participant === 'object' && nodeData.participant.name) {
-						nodeData.participant = nodeData.participant.name;
-					}
-				}
-
-				// Update decorators - remove nodeId as it's stored in node data
-				if (nodeData.decorators) {
-					nodeData.decorators = nodeData.decorators.map((dec) => {
-						// Find matching decorator definition
-						const existingDec = existingDecoratorMap.get(dec.name);
-						return {
-							id: existingDec?.id || dec.id,
-							name: dec.name,
-							values: dec.values || {},
-						};
-					});
-				}
-				// Normalize node references (legacy exports may differ only by UUID casing).
-				if (typeof nodeData.targetNode === 'string' && nodeData.targetNode.trim()) {
-					const remappedTargetNode = mapNodeReference(nodeData.targetNode);
-					if (remappedTargetNode) {
-						nodeData.targetNode = remappedTargetNode;
-					}
-				}
-
-				// Normalize rows so each row has a stable ID for audio rebinding.
-				if (nodeData.dialogueRows) {
-					const rawRows = nodeData.dialogueRows;
-					nodeData.dialogueRows = normalizeDialogueRows(rawRows).map((row, idx) => {
-						const rawRow = rawRows[idx] || {};
-						const oldRowId = String(rawRow.id || row.id || '').trim();
-						const newRowId = uuidv4();
-						rowIdMapping.set(`${oldNodeId}:${oldRowId}`, newRowId);
-						rowIdMapping.set(`${oldNodeId.toLowerCase()}:${oldRowId.toLowerCase()}`, newRowId);
-						rowIdMapping.set(`${oldNodeId.toUpperCase()}:${oldRowId.toUpperCase()}`, newRowId);
-						const nextRow = { ...row, id: newRowId };
-						// Remove synthetic empty text added by normalizeDialogueRow when the original
-						// row uses textKey (text lives in the string table, not inline). Without this,
-						// prepareLocalizedNodesAndEntries would overwrite the default-locale string
-						// table value with an empty string, causing EN rows to appear blank after import.
-						if (nextRow.textKey && !Object.prototype.hasOwnProperty.call(rawRow, 'text')) {
-							delete nextRow.text;
-						}
-						return nextRow;
-					});
-				}
-
-				const newNode = {
-					id: newNodeId,
-					dialogueId,
-					type: node.type,
-					position: node.position,
-					data: nodeData,
-				};
-
-				importedNodesForLocalization.push(newNode);
-			}
-
-			// Step 7: Import edges with updated node IDs
-			const remappedEdges = [];
-			for (const edge of edges) {
-				const newEdge = {
-					id: uuidv4(),
-					dialogueId,
-					source: mapNodeReference(edge.source),
-					target: mapNodeReference(edge.target),
-					sourceHandle: edge.sourceHandle,
-					targetHandle: edge.targetHandle,
-					markerEnd: edge.markerEnd,
-				};
-
-				remappedEdges.push(newEdge);
-			}
-
-				// Step 8: Import optional StringTable data and remap to current dialogue metadata
-				let localizedEntriesToUpsert = [];
-				if (importedStringEntries.length > 0) {
-					const remappedEntries = remapLocalizedEntriesForImportedDialogue({
-						entries: importedStringEntries,
-						newProjectId: projectId,
-						newDialogueId: dialogueId,
-						newDialogueSlug: newDialogue.localizationSlug,
-						nodeIdMap: nodeIdMapping,
-						rowIdMap: rowIdMapping,
-					});
-					if (remappedEntries.length > 0) {
-						localizedEntriesToUpsert = remappedEntries;
-					}
-				}
-
-				const project = await db.projects.get(projectId);
-				const localizationState = getProjectLocalizationState(project);
-				const preparedImport = prepareLocalizedNodesAndEntries({
-					projectId,
-					dialogueId,
-					dialogueSlug: newDialogue.localizationSlug,
-					nodes: importedNodesForLocalization,
-					locale: localizationState.defaultLocale,
-					existingEntries: localizedEntriesToUpsert,
-				});
-				const validation = validateLocalizedEntriesForDialogue({
-					nodes: preparedImport.nodes,
-					entries: preparedImport.entries,
-					defaultLocale: localizationState.defaultLocale,
-				});
-				if (!validation.valid) {
-					throw new Error('Imported dialogue contains invalid localization references.');
-				}
-				await db.transaction('rw', [db.nodes, db.edges, db.localizedStrings], async () => {
-					const importPersistedNodes = buildPersistedNodesWithoutLocalizedText(
-						preparedImport.nodes,
-						dialogueId
-					);
-					if (importPersistedNodes.length > 0) {
-						await db.nodes.bulkPut(importPersistedNodes);
-					}
-					await db.edges.where('dialogueId').equals(dialogueId).delete();
-					if (remappedEdges.length > 0) {
-						await db.edges.bulkAdd(remappedEdges);
-					}
-					await db.localizedStrings.where('dialogueId').equals(dialogueId).delete();
-					if (preparedImport.entries.length > 0) {
-						await db.localizedStrings.bulkPut(preparedImport.entries);
-					}
-				});
-			// Step 9: Process audio files from dialogueRows
-			// Note: Audio files in the export are stored as blobs in the ZIP
-			// We'll need to extract them if they exist
-			const audioFolder = zip.folder('audio');
-			if (audioFolder) {
-				// Process each dialogue row's audio
-				for (const row of dialogueRows) {
-					if (row.audioPath) {
-						// The audioPath is like "audio/rowId/"
-						// Look for audio files in that subfolder
-						const rowFolder = audioFolder.folder(row.id);
-						if (rowFolder) {
-							const { selectedPath: selectedAudioPath, warnings } =
-								resolveRowAudioImportSelection(rowFolder, row.id);
-							warnings.forEach((warning) => {
-								console.warn('[importDialogue:audio]', warning);
-							});
-
-							if (selectedAudioPath) {
-								const audioFile = rowFolder.files[selectedAudioPath];
-								if (!audioFile) {
-									console.warn('[importDialogue:audio]', {
-										code: 'selected_audio_not_found',
-										rowId: row.id,
-										selectedAudioPath,
-									});
-									continue;
-								}
-								const audioBlob = await audioFile.async('blob');
-								const importedFileName = selectedAudioPath.split('/').pop();
-								const safeImportedFileName = sanitizeAudioFileName(importedFileName, 'Audio');
-
-								// Store audio in IndexedDB
-								// We'll need to update the node's dialogue row with audio data
-								const nodeId = mapNodeReference(row.nodeId);
-									const remappedRowId =
-										mapRowReference(row.nodeId, row.id) || row.id;
-									if (nodeId) {
-										const nodePrimaryKey = [dialogueId, nodeId];
-										const node = await db.nodes.get(nodePrimaryKey);
-										if (node && node.data.dialogueRows) {
-											const normalizedRows = node.data.dialogueRows.map((item) => ({
-												...(item || {}),
-											}));
-											const rowIndex = normalizedRows.findIndex((r) => r.id === remappedRowId);
-											if (rowIndex !== -1) {
-											// Create audio file data
-											const audioFileData = {
-												id: uuidv4(),
-												name: safeImportedFileName,
-												type: audioBlob.type,
-												size: audioBlob.size,
-												blob: audioBlob,
-												path: `audio/${remappedRowId}/${safeImportedFileName}`,
-											};
-
-												normalizedRows[rowIndex].audioFile = audioFileData;
-												normalizedRows[rowIndex].duration = row.duration;
-												delete normalizedRows[rowIndex].text;
-												node.data.dialogueRows = normalizedRows;
-
-											await db.nodes.update(nodePrimaryKey, { data: node.data });
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			// Reload dialogues
-			await get().loadDialogues(projectId);
+			const imported = await prepareArchiveImport(file, { ...options, projectId, context });
+			if (imported.projectId !== projectId) throw new Error('Choose a dialogue archive for this destination.');
+			await commitPreparedProject(imported.prepared); context.assertCurrent();
+			await get().loadDialogues(projectId); context.assertCurrent();
 			useSyncStore.getState().schedulePush(projectId);
-
-			toast({
-				variant: 'success',
-				title: 'Dialogue Imported',
-				description: `${finalName} has been imported successfully`,
-			});
-
-			return newDialogue;
-		} catch (error) {
-			console.error('Error importing dialogue:', error);
-			toast({
-				variant: 'error',
-				title: 'Failed to Import Dialogue',
-				description: error.message || 'An unexpected error occurred',
-			});
-			// Don't re-throw - error has been handled with toast
-		}
+			toast({ variant: 'success', title: 'Dialogue Imported', description: 'Dialogue imported successfully' });
+			return imported.prepared.revision.snapshot.dialogues.find((row) => row.id === imported.firstDialogueId);
+		} catch (error) { if (error.code !== 'STALE_PROFILE') toast(errorToast(error, 'import')); throw error; }
 	},
 }));

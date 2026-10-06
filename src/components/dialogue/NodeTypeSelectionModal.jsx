@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { MessageCircle, User, CornerUpLeft, CheckCircle2, Clock, ExternalLink, Link2 } from 'lucide-react';
 import {
 	Drawer,
@@ -16,6 +17,7 @@ import { getCreatableNodeDefinitions } from '@/config/dialogueNodes';
  * Uses a bottom Drawer so the list is never clipped on small screens.
  */
 export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType, onConnectExisting }) {
+	const { t } = useTranslation();
 	const iconMap = {
 		messageCircle: MessageCircle,
 		user: User,
@@ -37,9 +39,9 @@ export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType, onCon
 			<DrawerContent className="max-h-[92vh] flex flex-col">
 				{/* Static header */}
 				<DrawerHeader className="text-left">
-					<DrawerTitle>Select Node Type</DrawerTitle>
+					<DrawerTitle>{t('accessibility.nodeType')}</DrawerTitle>
 					<DrawerDescription>
-						Choose the type of node you want to add to the dialogue
+						{t('accessibility.nodeTypeDescription')}
 					</DrawerDescription>
 				</DrawerHeader>
 
@@ -82,9 +84,9 @@ export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType, onCon
 								<Link2 className="h-5 w-5" />
 							</div>
 							<div className="flex flex-col items-start gap-1 text-left">
-								<span className="font-semibold">Connect to Existing</span>
+								<span className="font-semibold">{t('accessibility.connectExisting')}</span>
 								<span className="text-xs text-muted-foreground">
-									Link to a node already in this dialogue
+									{t('accessibility.chooseConnection')}
 								</span>
 							</div>
 						</Button>
@@ -94,7 +96,7 @@ export function NodeTypeSelectionModal({ open, onOpenChange, onSelectType, onCon
 				{/* Static footer with dismiss */}
 				<DrawerFooter className="border-t border-border/60 bg-background">
 					<Button variant="ghost" onClick={() => onOpenChange(false)}>
-						Cancel
+						{t('common.cancel')}
 					</Button>
 				</DrawerFooter>
 			</DrawerContent>

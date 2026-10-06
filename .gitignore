@@ -52,3 +52,6 @@ dist-ssr
 /tmp
 /.mountea-user-data
 /.steamcmd_probe
+
+# Local browser automation artifacts
+/.playwright-cli

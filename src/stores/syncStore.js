@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { getRepositoryContext } from '@/lib/db';
+import { credentialCapabilities, readSecret, writeSecret } from '@/lib/sync/credentialStore';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
 	startGoogleDriveAuth,
@@ -8,24 +10,11 @@ import {
 	setStoredClientId,
 	getConfiguredClientId,
 } from '@/lib/sync/googleDriveAuth';
-import {
-	checkRemoteDiff as checkRemoteDiffEngine,
-	diffRemoteLocal as diffRemoteLocalEngine,
-	previewPullFromFile,
-	previewPushProject,
-	pullProjectFromFile,
-	pullProject,
-	deleteLocalProject as deleteLocalProjectEngine,
-	pushProject as pushProjectToRemote,
-	publishTombstone as publishTombstoneEngine,
-	syncAllProjects as syncAllProjectsEngine,
-} from '@/lib/sync/syncEngine';
+import { syncRevisions, resolveRevisionConflict } from '@/lib/sync/core/revisionProtocol';
 import {
 	getSyncAccount,
 	upsertSyncAccount,
 	clearSyncAccount,
-	upsertSyncTombstone,
-	listPendingSyncTombstones,
 } from '@/lib/sync/syncStorage';
 import {
 	SYNC_PROVIDER_IDS,
@@ -39,7 +28,7 @@ const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
 const DEFAULT_PROVIDER_INPUT = Object.freeze({
 	accountLabel: '',
 	passphrase: '',
-	rememberPassphrase: true,
+	rememberPassphrase: false,
 });
 const DEFAULT_PULL_STATE = Object.freeze({
 	active: false,
@@ -51,11 +40,28 @@ const DEFAULT_PULL_STATE = Object.freeze({
 	total: 0,
 });
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pushQueue = new Map();
+
+// One mounted worker retries durable intent. A busy/offline interval never queues
+// another run, and reconnect bursts share the same minimum retry interval.
+export function startSyncRetryWorker({ eventTarget = window, intervalMs = 30000, syncOptions = {} } = {}) {
+	let stopped = false, inFlight = false, lastAttempt = -Infinity;
+	const tick = async () => {
+		const state = useSyncStore.getState();
+		if (stopped || inFlight || navigator.onLine === false || !['connected', 'error'].includes(state.status) || state.syncMode === 'list' || Date.now() - lastAttempt < intervalMs) return;
+		lastAttempt = Date.now(); inFlight = true;
+		try { await state.syncAllProjects({ ...syncOptions, mode: state.syncMode, trigger: 'durable-retry' }); }
+		finally { inFlight = false; }
+	};
+	const timer = setInterval(() => { void tick(); }, intervalMs);
+	eventTarget.addEventListener('online', tick);
+	return () => { stopped = true; clearInterval(timer); eventTarget.removeEventListener('online', tick); };
+}
+
 const STEAM_CONNECT_SYNC_COOLDOWN_MS = 5000;
 let steamConnectSyncInFlight = false;
 let lastSteamConnectSyncAt = 0;
+let activeAuthController = null;
 
 const NOOP_PROFILE_STORAGE = Object.freeze({
 	getItem: () => null,
@@ -111,7 +117,7 @@ function createProviderInput(input = {}) {
 		accountLabel: String(input?.accountLabel || ''),
 		passphrase: String(input?.passphrase || ''),
 		rememberPassphrase:
-			input?.rememberPassphrase === undefined ? true : Boolean(input.rememberPassphrase),
+			input?.rememberPassphrase === undefined ? false : Boolean(input.rememberPassphrase),
 	};
 }
 
@@ -178,7 +184,7 @@ function createPersistedProviderInputs(providerInputs) {
 		const input = normalized[providerId];
 		persisted[providerId] = {
 			...input,
-			passphrase: input.rememberPassphrase ? input.passphrase : '',
+			passphrase: '',
 		};
 	}
 	return persisted;
@@ -195,15 +201,6 @@ function canUseCloudSyncProvider(providerId) {
 	return Boolean(providerId) && supportsCloudSync(providerId);
 }
 
-function canRunSyncForStatus(providerId, status) {
-	const normalizedProvider = normalizeProviderId(providerId);
-	if (normalizedProvider === 'steam') {
-		// Steam provider should remain usable even if Google auth set a global error.
-		return status !== 'syncing';
-	}
-	return status === 'connected';
-}
-
 export const useSyncStore = create(
 	persist(
 		(set, get) => ({
@@ -217,6 +214,7 @@ export const useSyncStore = create(
 			loginDialogOpen: false,
 			syncMode: 'pull',
 			hasHydrated: false,
+			canRememberCredentials: false,
 			pullState: createResetPullState('project'),
 
 			getProviderInput: (providerId) => {
@@ -260,10 +258,21 @@ export const useSyncStore = create(
 			clearError: () => set({ error: null }),
 			setHasHydrated: () => set({ hasHydrated: true }),
 			setHideLoginPrompt: (value) => set({ hideLoginPrompt: value }),
-			setLoginDialogOpen: (value) => set({ loginDialogOpen: value }),
+			cancelAuthentication: () => activeAuthController?.abort(),
+			setLoginDialogOpen: (value) => { if (!value) activeAuthController?.abort(); set({ loginDialogOpen: value }); },
 			setSyncMode: (value) => set({ syncMode: value }),
 
 			loadAccount: async (options = {}) => {
+				const context = options.context || await getRepositoryContext();
+				const capability = await credentialCapabilities();
+				context.assertCurrent();
+				const legacyPassphrase = getProviderPassphraseFromState(get(), 'googleDrive');
+				if (legacyPassphrase && capability.canRemember && getProviderInputFromState(get(), 'googleDrive').rememberPassphrase) {
+					await writeSecret('googleDrive-passphrase', legacyPassphrase, { remember: true, context });
+				}
+				const savedPassphrase = await readSecret('googleDrive-passphrase', context);
+				context.assertCurrent();
+				set((state) => ({ canRememberCredentials: capability.canRemember, providerInputs: withProviderInput(state, 'googleDrive', { passphrase: savedPassphrase || legacyPassphrase, rememberPassphrase: capability.canRemember && getProviderInputFromState(state, 'googleDrive').rememberPassphrase }) }));
 				const steamStatus = options?.steamStatus || null;
 				const preferredProvider = normalizeProviderId(get().provider);
 				const steamAvailable = Boolean(steamStatus?.available);
@@ -272,7 +281,8 @@ export const useSyncStore = create(
 				const steamIdentity = String(
 					steamStatus?.personaName || steamStatus?.steamId || ''
 				);
-				const account = await getSyncAccount('googleDrive');
+				const account = await getSyncAccount('googleDrive', context);
+				context.assertCurrent();
 				const shouldPreferSteam =
 					steamAvailable && (steamChannel || preferredProvider === 'steam');
 
@@ -384,6 +394,7 @@ export const useSyncStore = create(
 			},
 
 			connectGoogleDrive: async () => {
+				const context = await getRepositoryContext();
 				const stateBeforeAuth = get();
 				const passphrase = getProviderPassphraseFromState(get(), 'googleDrive');
 				try {
@@ -404,17 +415,25 @@ export const useSyncStore = create(
 					return false;
 				}
 
+				activeAuthController?.abort();
+				const controller = new AbortController();
+				activeAuthController = controller;
+				const abortForProfile = () => controller.abort();
+				context.signal.addEventListener('abort', abortForProfile, { once: true });
 				set({ status: 'connecting', error: null });
 				try {
 					traceSyncEvent('AUTH_START', { provider: 'googleDrive' });
-					const authResult = await startGoogleDriveAuth();
+					const authResult = await startGoogleDriveAuth({ signal: controller.signal });
+					context.assertCurrent();
 					const accessToken = authResult.accessToken;
 					const expiresIn = Number(authResult.expiresIn || 3600);
 					const expiresAt = Date.now() + expiresIn * 1000;
 
 					const userInfo = await fetchUserInfo(accessToken);
+					context.assertCurrent();
+					if (controller.signal.aborted) throw new DOMException('Authentication cancelled', 'AbortError');
 
-					const existing = await getSyncAccount('googleDrive');
+					const existing = await getSyncAccount('googleDrive', context);
 					await upsertSyncAccount('googleDrive', {
 						accountId: userInfo.sub || userInfo.id || '',
 						email: userInfo.email || '',
@@ -423,7 +442,9 @@ export const useSyncStore = create(
 						expiresAt,
 						scope: authResult.scope,
 						tokenType: authResult.tokenType,
-					});
+					}, context);
+					await writeSecret('googleDrive-passphrase', passphrase, { remember: get().canRememberCredentials && getProviderInputFromState(get(), 'googleDrive').rememberPassphrase, context });
+					context.assertCurrent();
 
 					set((state) => ({
 						provider: 'googleDrive',
@@ -439,7 +460,8 @@ export const useSyncStore = create(
 					});
 					return true;
 				} catch (error) {
-					console.error('Google Drive connect failed:', error);
+					if (context.signal.aborted) return false;
+					if (controller.signal.aborted) { set({ status: stateBeforeAuth.status, error: null }); return false; }
 					const message = (error?.message || '').toLowerCase();
 					let errorCode = 'oauthFailed';
 					if (message.includes('popup')) errorCode = 'popupBlocked';
@@ -457,6 +479,9 @@ export const useSyncStore = create(
 						};
 					});
 					return false;
+				} finally {
+					context.signal.removeEventListener('abort', abortForProfile);
+					if (activeAuthController === controller) activeAuthController = null;
 				}
 			},
 
@@ -478,813 +503,72 @@ export const useSyncStore = create(
 				}));
 			},
 
-			processPendingTombstones: async (providerId = null) => {
-				const state = get();
-				const resolvedProviderId = normalizeProviderId(
-					providerId || resolveCloudProviderId(state)
-				);
-				if (!resolvedProviderId || !canUseCloudSyncProvider(resolvedProviderId)) {
-					return { processed: 0, pending: 0 };
-				}
+            // Deletion intent is committed with authoring data by the repository.
+            // These compatibility hooks only wake the durable revision worker.
+            processPendingTombstones: async () => get().syncAllProjects({ mode: 'push' }),
+            scheduleProjectDeletion: (projectId) => get().schedulePush(projectId),
+            scheduleDialogueDeletion: (_dialogueId, projectId) => get().schedulePush(projectId),
 
-				const pending = await listPendingSyncTombstones(resolvedProviderId);
-				if (!pending.length) {
-					return { processed: 0, pending: 0 };
-				}
-
-				traceSyncEvent('TOMBSTONE_SWEEP_START', {
-					provider: resolvedProviderId,
-					count: pending.length,
-				});
-
-				let processed = 0;
-				for (const entry of pending) {
-					const entityType = String(entry?.entityType || 'project').trim().toLowerCase();
-					const entityId = String(entry?.entityId || entry?.projectId || '').trim();
-					if (!entityId) continue;
-					try {
-						await publishTombstoneEngine({
-							provider: resolvedProviderId,
-							entityType,
-							entityId,
-							projectId: String(entry?.projectId || '').trim() || '',
-							deletedAt: entry?.deletedAt,
-							expiresAt: entry?.expiresAt,
-						});
-						processed += 1;
-						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_DONE', {
-							provider: resolvedProviderId,
-							entityType,
-							entityId,
-						});
-					} catch (error) {
-						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
-							provider: resolvedProviderId,
-							entityType,
-							entityId,
-							message: String(error?.message || error),
-						});
-					}
-				}
-
-				traceSyncEvent('TOMBSTONE_SWEEP_DONE', {
-					provider: resolvedProviderId,
-					processed,
-					pending: pending.length - processed,
-				});
-				return { processed, pending: pending.length - processed };
-			},
-
-			scheduleProjectDeletion: async (projectId, options = {}) => {
-				const normalizedProjectId = String(projectId || '').trim();
-				if (!normalizedProjectId) return;
-
-				const currentState = get();
-				const explicitProviders = Array.isArray(options?.providers)
-					? options.providers.map((id) => normalizeProviderId(id)).filter(Boolean)
-					: [];
-				const activeCloudProviderId = resolveCloudProviderId(currentState);
-				const providers = Array.from(
-					new Set([
-						...explicitProviders,
-						...(activeCloudProviderId ? [activeCloudProviderId] : []),
-					])
-				).filter((id) => canUseCloudSyncProvider(id));
-
-				if (!providers.length) {
-					traceSyncEvent('DELETE_QUEUE_SKIP', {
-						projectId: normalizedProjectId,
-						reason: 'no-provider',
-					});
-					return;
-				}
-
-				const deletedAt = new Date().toISOString();
-				for (const providerId of providers) {
-					await upsertSyncTombstone({
-						provider: providerId,
-						entityType: 'project',
-						entityId: normalizedProjectId,
-						projectId: normalizedProjectId,
-						deletedAt,
-						pending: true,
-					});
-					traceSyncEvent('TOMBSTONE_QUEUED', {
-						entityType: 'project',
-						entityId: normalizedProjectId,
-						provider: providerId,
-					});
-				}
-
-				for (const providerId of providers) {
-					try {
-						await get().processPendingTombstones(providerId);
-					} catch (error) {
-						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
-							provider: providerId,
-							entityType: 'project',
-							entityId: normalizedProjectId,
-							message: String(error?.message || error),
-						});
-					}
-				}
-
-				if (
-					activeCloudProviderId &&
-					providers.includes(activeCloudProviderId) &&
-					canRunSyncForStatus(activeCloudProviderId, currentState.status)
-				) {
-					await get().syncAllProjects({
-						mode: 'full',
-						trigger: 'project-delete',
-					});
-				}
-			},
-
-			scheduleDialogueDeletion: async (dialogueId, projectId, options = {}) => {
-				const normalizedDialogueId = String(dialogueId || '').trim();
-				const normalizedProjectId = String(projectId || '').trim();
-				if (!normalizedDialogueId || !normalizedProjectId) return;
-
-				const currentState = get();
-				const explicitProviders = Array.isArray(options?.providers)
-					? options.providers.map((id) => normalizeProviderId(id)).filter(Boolean)
-					: [];
-				const activeCloudProviderId = resolveCloudProviderId(currentState);
-				const providers = Array.from(
-					new Set([
-						...explicitProviders,
-						...(activeCloudProviderId ? [activeCloudProviderId] : []),
-					])
-				).filter((id) => canUseCloudSyncProvider(id));
-
-				if (!providers.length) {
-					traceSyncEvent('TOMBSTONE_QUEUE_SKIP', {
-						entityType: 'dialogue',
-						entityId: normalizedDialogueId,
-						reason: 'no-provider',
-					});
-					return;
-				}
-
-				const deletedAt = new Date().toISOString();
-				for (const providerId of providers) {
-					await upsertSyncTombstone({
-						provider: providerId,
-						entityType: 'dialogue',
-						entityId: normalizedDialogueId,
-						projectId: normalizedProjectId,
-						deletedAt,
-						pending: true,
-					});
-					traceSyncEvent('TOMBSTONE_QUEUED', {
-						entityType: 'dialogue',
-						entityId: normalizedDialogueId,
-						provider: providerId,
-					});
-				}
-
-				for (const providerId of providers) {
-					try {
-						await get().processPendingTombstones(providerId);
-					} catch (error) {
-						traceSyncEvent('TOMBSTONE_SWEEP_ITEM_ERROR', {
-							provider: providerId,
-							entityType: 'dialogue',
-							entityId: normalizedDialogueId,
-							message: String(error?.message || error),
-						});
-					}
-				}
-
-				if (
-					activeCloudProviderId &&
-					providers.includes(activeCloudProviderId) &&
-					canRunSyncForStatus(activeCloudProviderId, currentState.status)
-				) {
-					await get().syncAllProjects({
-						mode: 'full',
-						trigger: 'dialogue-delete',
-					});
-				}
-			},
-
-			syncAllProjects: async (options = {}) => {
-				const syncStartedAt = Date.now();
-				const currentState = get();
-				const { status, provider, pullState, syncMode } = currentState;
-				const cloudProviderId = resolveCloudProviderId(currentState);
-				const passphrase = resolveSyncPassphrase(currentState, provider);
-				const providerConfig = getSyncProviderConfig(provider);
-				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
-				if (!provider) {
-					traceSyncEvent('SKIP', { reason: 'missing-provider' });
-					return;
-				}
-				if (!cloudProviderId) {
-					traceSyncEvent('SKIP', {
-						reason: 'provider-not-cloud-capable',
-						provider,
-					});
-					return;
-				}
-				if (status === 'syncing') {
-					traceSyncEvent('SKIP', {
-						reason: 'already-syncing',
-						provider: cloudProviderId,
-					});
-					return;
-				}
-				if (!canRunSyncForStatus(cloudProviderId, status)) {
-					traceSyncEvent('SKIP', {
-						reason: 'provider-not-connected',
-						provider: cloudProviderId,
-						status,
-					});
-					return;
-				}
-				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
-					traceSyncEvent('SKIP', {
-						reason: 'missing-passphrase',
-						provider: cloudProviderId,
-					});
-					return;
-				}
-				if (pullState?.active && pullState?.mode === 'project') {
-					traceSyncEvent('SKIP', {
-						reason: 'project-pull-active',
-						provider: cloudProviderId,
-					});
-					return;
-				}
-				const { mode = syncMode || 'full', trigger = 'unknown' } = options;
-				traceSyncEvent('START', {
-					mode,
-					trigger,
-					provider: cloudProviderId,
-				});
-
-				set({ status: 'syncing' });
-				const resetPullState = createResetPullState('bulk');
-				let shouldShow = false;
-				let total = 0;
-				const providerPassphrases = cloudProviderId
-					? { [cloudProviderId]: resolveSyncPassphrase(currentState, cloudProviderId) }
-					: {};
-				const engineProviders = cloudProviderId ? [cloudProviderId] : [];
-				try {
-					await get().processPendingTombstones(cloudProviderId);
-
-					if (mode === 'list') {
-						console.log('[sync] Listing remote projects (debug)');
-						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
-						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
-						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
-							([projectId, items]) => ({
-								projectId,
-								count: items.length,
-							})
-						);
-						if (duplicateInfo.length > 0) {
-							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
-						}
-
-						console.log('[sync] Remote/local comparison', diff.comparisons);
-						console.log('[sync] Actions (would pull/push)', diff.actions);
-						const previewPulls = [];
-						const previewPushes = [];
-						for (const item of diff.comparisons) {
-							if (item.decision === 'pull' && item.remote?.fileId) {
-								try {
-									const preview = await previewPullFromFile({
-										projectId: item.projectId,
-										fileId: item.remote.fileId,
-										revision: item.remote.revision,
-										passphrase,
-										provider: cloudProviderId,
-									});
-									previewPulls.push(preview);
-								} catch (error) {
-									console.error('[sync] Preview pull failed', item.projectId, error);
-								}
-							}
-						}
-
-						for (const projectId of diff.actions.toPush) {
-							try {
-								const preview = await previewPushProject({ projectId });
-								previewPushes.push(preview);
-							} catch (error) {
-								console.error('[sync] Preview push failed', projectId, error);
-							}
-						}
-
-						if (previewPulls.length > 0) {
-							console.log('[sync] Preview pulled snapshots', previewPulls);
-						} else {
-							console.log('[sync] No pull previews available');
-						}
-
-						if (previewPushes.length > 0) {
-							console.log('[sync] Preview push snapshots', previewPushes);
-						} else {
-							console.log('[sync] No push previews available');
-						}
-						set({ status: 'connected', pullState: resetPullState });
-						return;
-					}
-
-					if (mode === 'push') {
-						console.log('[sync] Push-only sync start');
-						const diffStartedAt = Date.now();
-						traceSyncEvent('PUSH_DIFF_START', { provider: cloudProviderId });
-						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
-						traceSyncEvent('PUSH_DIFF_DONE', {
-							elapsedMs: Date.now() - diffStartedAt,
-							toPull: diff.actions.toPull.length,
-							toPush: diff.actions.toPush.length,
-							remoteOnly: diff.actions.remoteOnly.length,
-							localOnly: diff.actions.localOnly.length,
-						});
-						console.log('[sync] Remote projects (raw)', diff.remoteRaw);
-						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
-							([projectId, items]) => ({
-								projectId,
-								count: items.length,
-							})
-						);
-						if (duplicateInfo.length > 0) {
-							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
-						}
-						if (diff.actions.toPull.length > 0) {
-							console.log('[sync] Remote is newer for', diff.actions.toPull);
-						}
-						if (diff.actions.toPush.length === 0) {
-							console.log('[sync] No projects to push');
-							traceSyncEvent('NOOP', {
-								mode: 'push',
-								reason: 'nothing-to-push',
-								elapsedMs: Date.now() - syncStartedAt,
-							});
-							set({ status: 'connected', pullState: resetPullState });
-							return;
-						}
-
-						for (const projectId of diff.actions.toPush) {
-							try {
-								console.log('[sync] Pushing project', projectId);
-								traceSyncEvent('PUSH_PROJECT_START', { projectId });
-								await pushProjectToRemote({
-									projectId,
-									passphrase,
-									provider: cloudProviderId,
-								});
-								traceSyncEvent('PUSH_PROJECT_DONE', { projectId });
-							} catch (error) {
-								console.error('[sync] Push failed', projectId, error);
-								traceSyncEvent('PUSH_PROJECT_ERROR', {
-									projectId,
-									message: String(error?.message || error),
-								});
-							}
-						}
-						console.log('[sync] Push-only sync complete');
-						traceSyncEvent('COMPLETE', {
-							mode: 'push',
-							elapsedMs: Date.now() - syncStartedAt,
-						});
-						set({
-							status: 'connected',
-							lastSyncedAt: new Date().toISOString(),
-							pullState: resetPullState,
-						});
-						return;
-					}
-
-					if (mode === 'pull') {
-						console.log('[sync] Pull-only sync start');
-						const diffStartedAt = Date.now();
-						traceSyncEvent('PULL_DIFF_START', { provider: cloudProviderId });
-						const diff = await diffRemoteLocalEngine({ provider: cloudProviderId });
-						const localDeletes = Array.isArray(diff.actions.toDeleteLocal)
-							? diff.actions.toDeleteLocal
-							: [];
-						traceSyncEvent('PULL_DIFF_DONE', {
-							elapsedMs: Date.now() - diffStartedAt,
-							toPull: diff.actions.toPull.length,
-							toPush: diff.actions.toPush.length,
-							toDeleteLocal: localDeletes.length,
-							remoteOnly: diff.actions.remoteOnly.length,
-							localOnly: diff.actions.localOnly.length,
-						});
-						const duplicateInfo = Array.from(diff.duplicates.entries()).map(
-							([projectId, items]) => ({
-								projectId,
-								count: items.length,
-							})
-						);
-						if (duplicateInfo.length > 0) {
-							console.warn('[sync] Duplicate remote files detected', duplicateInfo);
-						}
-
-						if (diff.actions.toPull.length === 0 && localDeletes.length === 0) {
-							console.log('[sync] No projects to pull or prune locally');
-							traceSyncEvent('NOOP', {
-								mode: 'pull',
-								reason: 'nothing-to-pull',
-								elapsedMs: Date.now() - syncStartedAt,
-							});
-							set({ status: 'connected', pullState: resetPullState });
-							return;
-						}
-
-						const comparisonMap = new Map(
-							diff.comparisons.map((item) => [item.projectId, item])
-						);
-						const startedAt = Date.now();
-						const total = diff.actions.toPull.length + localDeletes.length;
-						let index = 0;
-
-						set({
-							pullState: {
-								active: true,
-								step: 'checking',
-								progress: 10,
-								projectId: null,
-								mode: 'bulk',
-								current: 0,
-								total,
-							},
-						});
-
-						for (const projectId of localDeletes) {
-							index += 1;
-							const deleteStartedAt = Date.now();
-							traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_START', {
-								projectId,
-								index,
-								total,
-							});
-
-							set({
-								pullState: {
-									active: true,
-									step: 'applying',
-									progress: Math.min(95, Math.round((index / total) * 90)),
-									projectId,
-									mode: 'bulk',
-									current: index,
-									total,
-								},
-							});
-
-							try {
-								const result = await deleteLocalProjectEngine({
-									projectId,
-									provider: cloudProviderId,
-								});
-								console.log('[sync] Pruned local project missing remotely', result);
-								traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_DONE', {
-									projectId,
-									index,
-									total,
-									elapsedMs: Date.now() - deleteStartedAt,
-								});
-							} catch (error) {
-								console.error('[sync] Local prune failed', projectId, error);
-								traceSyncEvent('PULL_PROJECT_DELETE_LOCAL_ERROR', {
-									projectId,
-									index,
-									total,
-									elapsedMs: Date.now() - deleteStartedAt,
-									message: String(error?.message || error),
-								});
-							}
-						}
-
-						for (const projectId of diff.actions.toPull) {
-							index += 1;
-							const comparison = comparisonMap.get(projectId);
-							const remote = comparison?.remote;
-							const pullProjectStartedAt = Date.now();
-							traceSyncEvent('PULL_PROJECT_START', {
-								projectId,
-								index,
-								total,
-							});
-
-							set({
-								pullState: {
-									active: true,
-									step: 'downloading',
-									progress: Math.min(95, Math.round((index / total) * 90)),
-									projectId,
-									mode: 'bulk',
-									current: index,
-									total,
-								},
-							});
-
-							if (!remote?.fileId) {
-								console.warn('[sync] Missing remote file for pull', projectId);
-								continue;
-							}
-
-							try {
-								const result = await pullProjectFromFile({
-									projectId,
-									fileId: remote.fileId,
-									revision: remote.revision,
-									passphrase,
-									provider: cloudProviderId,
-								});
-								console.log('[sync] Pulled project', result);
-								traceSyncEvent('PULL_PROJECT_DONE', {
-									projectId,
-									index,
-									total,
-									elapsedMs: Date.now() - pullProjectStartedAt,
-								});
-							} catch (error) {
-								console.error('[sync] Pull failed', projectId, error);
-								traceSyncEvent('PULL_PROJECT_ERROR', {
-									projectId,
-									index,
-									total,
-									elapsedMs: Date.now() - pullProjectStartedAt,
-									message: String(error?.message || error),
-								});
-							}
-						}
-
-						const elapsed = Date.now() - startedAt;
-						if (elapsed < 2000) {
-							await delay(2000 - elapsed);
-						}
-
-						set({
-							status: 'connected',
-							lastSyncedAt: new Date().toISOString(),
-							pullState: resetPullState,
-						});
-						console.log('[sync] Pull-only sync complete');
-						traceSyncEvent('COMPLETE', {
-							mode: 'pull',
-							elapsedMs: Date.now() - syncStartedAt,
-						});
-						return;
-					}
-
-					traceSyncEvent('FULL_SYNC_ENGINE_START', { provider: cloudProviderId });
-					await syncAllProjectsEngine({
-						mode: 'full',
-						passphrase,
-						passphrases: providerPassphrases,
-						provider: cloudProviderId,
-						providers: engineProviders,
-						onProgress: (info) => {
-							if (info?.phase === 'start') {
-								total = info.total || 0;
-								traceSyncEvent('FULL_SYNC_ENGINE_PROGRESS', {
-									phase: 'start',
-									total: info.total || 0,
-									remoteCount: info.remoteCount || 0,
-									localCount: info.localCount || 0,
-								});
-								if (info.remoteCount > 0) {
-									shouldShow = true;
-									set({
-										pullState: {
-											active: true,
-											step: 'checking',
-											progress: 5,
-											projectId: null,
-											mode: 'bulk',
-											current: 0,
-											total,
-										},
-									});
-								}
-								return;
-							}
-
-							if (!shouldShow || !total) return;
-							const progress = Math.min(100, Math.round((info.index / total) * 100));
-							traceSyncEvent('FULL_SYNC_ENGINE_PROGRESS', {
-								phase: info.phase || 'sync',
-								index: info.index || 0,
-								total,
-								projectId: info.projectId || null,
-								progress,
-							});
-							set({
-								pullState: {
-									active: true,
-									step: info.phase === 'pull' ? 'downloading' : 'applying',
-									progress,
-									projectId: info.projectId || null,
-									mode: 'bulk',
-									current: info.index || 0,
-									total,
-								},
-							});
-						},
-					});
-					traceSyncEvent('FULL_SYNC_ENGINE_DONE', {
-						elapsedMs: Date.now() - syncStartedAt,
-					});
-					set({ status: 'connected', lastSyncedAt: new Date().toISOString() });
-					set({ pullState: resetPullState });
-					traceSyncEvent('COMPLETE', {
-						mode,
-						elapsedMs: Date.now() - syncStartedAt,
-					});
-				} catch (error) {
-					console.error('Sync all failed:', error);
-					traceSyncEvent('ERROR', {
-						mode,
-						elapsedMs: Date.now() - syncStartedAt,
-						message: String(error?.message || error),
-					});
-					const message = (error?.message || '').toLowerCase();
-					if (message.includes('tokenexpired')) {
-						set({ status: 'error', error: 'tokenExpired' });
-					} else {
-						set({ status: 'error', error: 'syncFailed' });
-					}
-					set({ pullState: resetPullState });
-				}
-			},
-
-			schedulePush: (projectId) => {
-				const state = get();
-				const { status, provider, syncMode } = state;
-				const cloudProviderId = resolveCloudProviderId(state);
-				if (!provider) return;
-				if (!canRunSyncForStatus(cloudProviderId, status)) return;
-				if (!cloudProviderId) return;
-				if (!projectId) return;
-				if (syncMode === 'list') {
-					console.log('[sync] Skip auto-push (list mode)');
-					return;
-				}
-
-				const existing = pushQueue.get(projectId);
-				if (existing) {
-					clearTimeout(existing);
-				}
-
-				const timer = setTimeout(() => {
-					console.log('[sync] Auto-push project', projectId);
-					pushQueue.delete(projectId);
-					get().pushProject(projectId);
-				}, 1500);
-				pushQueue.set(projectId, timer);
-			},
-
-			checkRemoteDiff: async (projectId) => {
-				const currentState = get();
-				const { status, provider } = currentState;
-				const cloudProviderId = resolveCloudProviderId(currentState);
-				if (status !== 'connected' || !provider) return false;
-				if (!cloudProviderId) return false;
-
-				try {
-					return await checkRemoteDiffEngine(projectId, { provider: cloudProviderId });
-				} catch (error) {
-					console.error('Remote diff check failed:', error);
-					const message = (error?.message || '').toLowerCase();
-					if (message.includes('tokenexpired')) {
-						set({ status: 'error', error: 'tokenExpired' });
-					} else {
-						set({ error: 'syncFailed' });
-					}
-					return false;
-				}
-			},
-
-			startPull: async (projectId, options = {}) => {
-				const { simulate = false } = options;
-				const currentState = get();
-				const { syncMode, provider } = currentState;
-				const cloudProviderId = resolveCloudProviderId(currentState);
-				const passphrase = resolveSyncPassphrase(currentState, provider);
-				const providerConfig = getSyncProviderConfig(provider);
-				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
-				if (syncMode !== 'full') {
-					console.log('[sync] Skip pull (non-full mode)');
-					return;
-				}
-				if (!cloudProviderId) return;
-				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
-					set({ error: 'passphraseRequired', status: 'error' });
-					return;
-				}
-
-				set({
-					status: 'syncing',
-					error: null,
-					pullState: {
-						active: true,
-						step: 'checking',
-						progress: 10,
-						projectId,
-						mode: 'project',
-						current: 0,
-						total: 0,
-					},
-				});
-
-				let didError = false;
-
-				if (simulate) {
-					const steps = [
-						{ step: 'checking', progress: 20 },
-						{ step: 'downloading', progress: 45 },
-						{ step: 'decrypting', progress: 70 },
-						{ step: 'applying', progress: 95 },
-					];
-
-					for (const item of steps) {
-						await delay(450);
-						set({
-							pullState: {
-								active: true,
-								step: item.step,
-								progress: item.progress,
-								projectId,
-							},
-						});
-					}
-
-					await delay(300);
-				}
-
-				try {
-					await pullProject({
-						projectId,
-						passphrase,
-						provider: cloudProviderId,
-						onProgress: (step, progress) =>
-							set({
-								pullState: {
-									active: true,
-									step,
-									progress,
-									projectId,
-									mode: 'project',
-									current: 0,
-									total: 0,
-								},
-							}),
-					});
-				} catch (error) {
-					console.error('Pull failed:', error);
-					didError = true;
-					const message = (error?.message || '').toLowerCase();
-					if (message.includes('tokenexpired')) {
-						set({ status: 'error', error: 'tokenExpired' });
-					} else {
-						set({ status: 'error', error: 'syncFailed' });
-					}
-				}
-
-				if (!didError) {
-					set({
-						status: 'connected',
-						lastSyncedAt: new Date().toISOString(),
-						pullState: createResetPullState('project'),
-					});
-				} else {
-					set({
-						pullState: createResetPullState('project'),
-					});
-				}
-			},
-
-			pushProject: async (projectId) => {
-				const currentState = get();
-				const { syncMode, provider } = currentState;
-				const cloudProviderId = resolveCloudProviderId(currentState);
-				const passphrase = resolveSyncPassphrase(currentState, provider);
-				const providerConfig = getSyncProviderConfig(provider);
-				const requiresPassphrase = providerConfig?.requiresPassphrase !== false;
-				if (syncMode === 'list') {
-					console.log('[sync] Skip push (list mode)');
-					return;
-				}
-				if (!cloudProviderId) return;
-				if (requiresPassphrase && (!passphrase || !passphrase.trim())) {
-					set({ error: 'passphraseRequired' });
-					return;
-				}
-				try {
-					await pushProjectToRemote({ projectId, passphrase, provider: cloudProviderId });
-				} catch (error) {
-					console.error('Push failed:', error);
-					set({ error: 'syncFailed' });
-				}
-			},
+            conflicts: [],
+            syncResults: null,
+            queueState: null,
+            refreshConflicts: async () => {
+                const context = await getRepositoryContext();
+                const conflicts = await context.db.syncConflicts.where('status').equals('unresolved').toArray();
+                context.assertCurrent(); set({ conflicts }); return conflicts;
+            },
+            resolveConflict: async (id, choice, revisionId) => {
+                const context = await getRepositoryContext();
+                const result = await resolveRevisionConflict(id, choice, { context, revisionId });
+                context.assertCurrent(); await get().refreshConflicts();
+                get().schedulePush(result.projectId);
+                if (result.copiedProjectId) get().schedulePush(result.copiedProjectId);
+                return result;
+            },
+            syncAllProjects: async (options = {}) => {
+                const state = get(), provider = resolveCloudProviderId(state);
+                const mode = options.mode || state.syncMode || 'full';
+                if (!provider || !['connected', 'syncing', 'error'].includes(state.status)) return;
+                const passphrase = resolveSyncPassphrase(state, provider);
+                if (getSyncProviderConfig(provider)?.requiresPassphrase !== false && !passphrase?.trim()) {
+                    set({ error: 'passphraseRequired' }); return;
+                }
+                const context = await getRepositoryContext();
+                set({ status: 'syncing', error: null });
+                try {
+                    const result = await syncRevisions({ ...options, provider, passphrase, context, mode });
+                    context.assertCurrent();
+                    set({ status: 'connected', error: result.failures.length ? 'syncFailed' : null, syncResults: result, queueState: result.queue,
+                        ...(mode !== 'list' && !result.failures.length ? { lastSyncedAt: new Date().toISOString() } : {}), pullState: createResetPullState() });
+                    await get().refreshConflicts();
+                    traceSyncEvent('COMPLETE', { provider, mode, failures: result.failures.length, conflicts: result.conflicts.length, queue: result.queue });
+                    return result;
+                } catch (failure) {
+                    if (!context.signal.aborted) set({ status: 'error', error: 'syncFailed', pullState: createResetPullState() });
+                    traceSyncEvent('FAILED', { provider, mode, code: failure.code || 'SYNC_FAILED' });
+                    return { failures: [{ code: failure.code || 'SYNC_FAILED', message: failure.message }] };
+                }
+            },
+            schedulePush: (projectId) => {
+                if (!projectId) return;
+                const profileId = getActiveProfileId(), key = `${profileId}:${projectId}`;
+                clearTimeout(pushQueue.get(key));
+                pushQueue.set(key, setTimeout(() => {
+                    pushQueue.delete(key);
+                    if (getActiveProfileId() !== profileId) return;
+                    const state = get();
+                    if (['full', 'push'].includes(state.syncMode)) void state.syncAllProjects({ mode: state.syncMode, projectId });
+                }, 1500));
+            },
+            checkRemoteDiff: async (projectId) => {
+                const result = await get().syncAllProjects({ mode: 'list', projectId });
+                return !!result?.comparisons?.some(item => item.projectId === projectId && item.remoteRevisionIds.some(id => id !== item.localRevisionId));
+            },
+            startPull: async (projectId) => get().syncAllProjects({ mode: 'pull', projectId }),
+            pushProject: async (projectId) => {
+                if (!['full', 'push'].includes(get().syncMode)) return;
+                return get().syncAllProjects({ mode: 'push', projectId });
+            },
 		}),
 		{
 			name: SYNC_STORAGE_KEY,

@@ -1,3 +1,6 @@
+import { toast } from '@/components/ui/toaster';
+import { errorToast } from '@/lib/errorPresentation';
+import { assertGraphNodesRemovable, categoryAncestors } from '@/lib/domainIntegrity';
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
@@ -8,14 +11,14 @@ import {
 	Background,
 	MiniMap,
 	addEdge,
-	useNodesState,
-	useEdgesState,
 	MarkerType,
 	Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
 import { ZoomSlider } from '@/components/dialogue/ZoomSlider';
+import { useEditorDraft } from '@/hooks/useEditorDraft';
+import { createDecoratorInstance, createEditorSaveQueue } from '@/lib/editorDraft';
 import {
 	ArrowLeft,
 	MessageCircle,
@@ -356,7 +359,7 @@ function DialogueEditorPage() {
 		() => normalizeProjectLocalizationConfig(project?.localization || {}),
 		[project?.localization]
 	);
-	const localizationEnabled = Boolean(projectLocalization.enabled);
+	const localizationEnabled = true;
 	const contentLocale = useMemo(() => {
 		const savedLocale = normalizeLocaleTag(contentLocaleByProject?.[projectId], '');
 		if (
@@ -376,8 +379,12 @@ function DialogueEditorPage() {
 		[loadDialogueGraphForPreviewFromStore, contentLocale]
 	);
 
-	const [nodes, setNodes, onNodesChangeBase] = useNodesState(getInitialNodes(t));
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	const {
+		nodes, edges, setNodes, setEdges, onNodesChange: onNodesChangeBase, onEdgesChange,
+		hasUnsavedChanges, markUnsaved, saveToHistory, resetDraft,
+		updateNodeData: updateDraftNodeData, captureSave, acknowledgeSave,
+		undo, redo,
+	} = useEditorDraft(getInitialNodes(t), initialEdges);
 
 	// Prevent deletion of Start Node
 	const onNodesChange = useCallback((changes) => {
@@ -387,8 +394,9 @@ function DialogueEditorPage() {
 			}
 			return true;
 		});
+		try { assertGraphNodesRemovable(nodes, new Set(filteredChanges.filter((change) => change.type === 'remove').map((change) => change.id))); } catch (error) { toast(errorToast(error, 'delete')); return; }
 		onNodesChangeBase(filteredChanges);
-	}, [onNodesChangeBase]);
+	}, [nodes, onNodesChangeBase]);
 	const [selectedNodeId, setSelectedNodeId] = useState(null);
 	const selectedNode = useMemo(
 		() => nodes.find((node) => node.id === selectedNodeId) || null,
@@ -396,15 +404,13 @@ function DialogueEditorPage() {
 	);
 	const [selectedEdge, setSelectedEdge] = useState(null);
 	const [, setIsSaving] = useState(false);
+	const saveInFlightRef = useRef(false);
+	const saveQueueRef = useRef(null);
+	if (!saveQueueRef.current) saveQueueRef.current = createEditorSaveQueue();
 	const [saveStatus, setSaveStatus] = useState('saved');
 	const [lastSaved, setLastSaved] = useState(null);
 	const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
 	const [reactFlowInstance, setReactFlowInstance] = useState(null);
-	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-	const markUnsaved = useCallback(() => {
-		setHasUnsavedChanges(true);
-		setSaveStatus((prev) => (prev === 'saving' ? prev : 'unsaved'));
-	}, []);
 
 	// Onboarding tour
 	const { runTour, finishTour, resetTour } = useOnboarding('dialogue-editor');
@@ -439,7 +445,8 @@ function DialogueEditorPage() {
 		};
 		updateDeviceType();
 		window.addEventListener('resize', updateDeviceType);
-		return () => window.removeEventListener('resize', updateDeviceType);
+		window.addEventListener('device-override', updateDeviceType);
+		return () => { window.removeEventListener('resize', updateDeviceType); window.removeEventListener('device-override', updateDeviceType); };
 	}, []);
 
 	useLayoutEffect(() => {
@@ -507,12 +514,6 @@ function DialogueEditorPage() {
 		};
 	}, [deviceType, isMobilePanelOpen]);
 
-	// History for undo/redo
-	const [history, setHistory] = useState([
-		{ nodes: getInitialNodes(t), edges: initialEdges },
-	]);
-	const [historyIndex, setHistoryIndex] = useState(0);
-
 	// Load data
 	useEffect(() => {
 		loadProjects();
@@ -570,10 +571,7 @@ function DialogueEditorPage() {
 					const { nodes: loadedNodes, edges: loadedEdges, viewport: loadedViewport } = result;
 
 					if (loadedNodes.length > 0 || loadedEdges.length > 0) {
-						setNodes(loadedNodes);
-						setEdges(loadedEdges);
-						setHistory([{ nodes: loadedNodes, edges: loadedEdges }]);
-						setHistoryIndex(0);
+						resetDraft(loadedNodes, loadedEdges);
 					}
 
 					// Restore viewport if saved and ReactFlow instance is available
@@ -592,7 +590,7 @@ function DialogueEditorPage() {
 			}
 		};
 		loadGraph();
-	}, [dialogueId, loadDialogueGraph, setNodes, setEdges, reactFlowInstance, contentLocale]);
+	}, [dialogueId, loadDialogueGraph, resetDraft, reactFlowInstance, contentLocale]);
 
 	const isMobileGraphLoading =
 		deviceType !== 'desktop' &&
@@ -758,25 +756,6 @@ function DialogueEditorPage() {
 	]);
 
 
-	// Save to history for undo/redo
-	const saveToHistory = useCallback(
-		(newNodes, newEdges) => {
-			setHistory((prev) => {
-				const newHistory = prev.slice(0, historyIndex + 1);
-				newHistory.push({ nodes: newNodes, edges: newEdges });
-				// Keep only last 50 states to avoid memory issues
-				if (newHistory.length > 50) {
-					newHistory.shift();
-					setHistoryIndex(newHistory.length - 1);
-					return newHistory;
-				}
-				setHistoryIndex(newHistory.length - 1);
-				return newHistory;
-			});
-		},
-		[historyIndex]
-	);
-
 	// Save to history when selected node changes (user clicked away after editing)
 	const prevSelectedNodeRef = useRef(selectedNodeId);
 	useEffect(() => {
@@ -794,7 +773,7 @@ function DialogueEditorPage() {
 	}, [selectedNodeId, nodes, edges, saveToHistory]);
 
 	// Warn before leaving with unsaved changes
-	const shouldWarnOnLeave = hasUnsavedChanges && saveStatus !== 'saved';
+	const shouldWarnOnLeave = hasUnsavedChanges;
 
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
@@ -879,22 +858,13 @@ function DialogueEditorPage() {
 			case 'select':
 				if (field.options === 'participants') {
 					const groups = new Map();
-					const getCategoryPath = (categoryName) => {
-						const category = projectCategories.find((c) => c.name === categoryName);
-						if (!category) return categoryName;
-						const path = [];
-						let current = category;
-						while (current) {
-							path.unshift(current.name);
-							current = projectCategories.find(
-								(c) => c.id === current.parentCategoryId
-							);
-						}
-						return path.join(' > ');
+					const getCategoryPath = (participant) => {
+						try { return categoryAncestors(participant.categoryId, projectCategories).reverse().map((item) => item.name).join(' > ') || participant.category; }
+						catch { return participant.category || ''; }
 					};
 					participants.forEach((participant) => {
 						const categoryName = participant.category || t('categories.title');
-						const categoryPath = getCategoryPath(categoryName);
+						const categoryPath = getCategoryPath(participant);
 						const root = categoryPath.split(' > ')[0] || categoryName;
 						if (!groups.has(root)) {
 							groups.set(root, []);
@@ -917,9 +887,9 @@ function DialogueEditorPage() {
 							<Label htmlFor={field.id}>{labelContent}</Label>
 							<NativeSelect
 								id={field.id}
-								value={selectedNode.data[field.id] || ''}
+								value={selectedNode.data.participantId || ''}
 								onChange={(e) =>
-									updateNodeData(selectedNode.id, { [field.id]: e.target.value })
+									updateNodeData(selectedNode.id, { participantId: e.target.value, [field.id]: participants.find((participant) => participant.id === e.target.value)?.name || '' })
 								}
 							>
 								<option value="" disabled>
@@ -928,7 +898,7 @@ function DialogueEditorPage() {
 								{groupedParticipants.map((group) => (
 									<optgroup key={group.label} label={group.label}>
 										{group.options.map((option) => (
-											<option key={option.id} value={option.name}>
+											<option key={option.id} value={option.id}>
 												{option.label}
 											</option>
 										))}
@@ -1206,6 +1176,7 @@ function DialogueEditorPage() {
 
 	const deleteNodeById = useCallback((nodeId) => {
 		if (!nodeId || nodeId === START_NODE_ID) return;
+		try { assertGraphNodesRemovable(nodes, new Set([nodeId])); } catch (error) { toast(errorToast(error, 'delete')); return; }
 
 		setNodes((nds) => {
 			const placeholderIdsToRemove = nds
@@ -1237,7 +1208,7 @@ function DialogueEditorPage() {
 		});
 
 		setSelectedNodeId((current) => (current === nodeId ? null : current));
-	}, [setNodes, setEdges, saveToHistory, markUnsaved]);
+	}, [nodes, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	const deleteEdgeById = useCallback((edgeId) => {
 		if (!edgeId) return;
@@ -1274,6 +1245,8 @@ function DialogueEditorPage() {
 			});
 		}
 
+		try { assertGraphNodesRemovable(nodes, nodeIdsToRemove); } catch (error) { toast(errorToast(error, 'delete')); return; }
+
 		setNodes((nds) => {
 			const placeholderIdsToRemove = nds
 				.filter(
@@ -1301,7 +1274,7 @@ function DialogueEditorPage() {
 		});
 
 		setSelectedNodeId(null);
-	}, [selectedNode, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
+	}, [selectedNode, nodes, edges, setNodes, setEdges, saveToHistory, markUnsaved]);
 
 	// Checks if edge is the only incoming connection to its target, then either
 	// opens cascade-delete dialog or deletes the edge directly.
@@ -1567,37 +1540,41 @@ function DialogueEditorPage() {
 
 	// Handle save
 	const handleSave = useCallback(async () => {
+		if (saveInFlightRef.current) return;
+		saveInFlightRef.current = true;
 		setIsSaving(true);
 		setSaveStatus('saving');
 		try {
+			const ticket = captureSave();
 			clearToasts();
 			// Filter out placeholder nodes and their edges before saving
-			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
-			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
+			const regularNodes = ticket.nodes;
+			const regularEdges = ticket.edges;
 
 			const missingRequiredNodes = getMissingRequiredNodes();
 			logMissingRequiredNodes();
 			showValidationToasts(missingRequiredNodes);
 
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
+			await saveQueueRef.current(() => saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
 				activeLocale: contentLocale,
-			});
+			}));
 			const now = new Date();
 			setLastSaved(now);
-			setSaveStatus('saved');
-			setHasUnsavedChanges(false);
-			hasPendingNodeDataEditsRef.current = false;
+			const fullySaved = acknowledgeSave(ticket);
+			setSaveStatus(fullySaved ? 'saved' : 'unsaved');
+			if (fullySaved) hasPendingNodeDataEditsRef.current = false;
 			celebrateSuccess();
 		} catch (error) {
 			console.error('Failed to save dialogue:', error);
 			setSaveStatus('error');
 			setTimeout(() => setSaveStatus('unsaved'), 3000);
 		} finally {
+			saveInFlightRef.current = false;
 			setIsSaving(false);
 		}
 	}, [
-		edges,
-		nodes,
+		captureSave,
+		acknowledgeSave,
 		viewport,
 		dialogueId,
 		saveDialogueGraph,
@@ -1607,37 +1584,17 @@ function DialogueEditorPage() {
 		showValidationToasts,
 		setIsSaving,
 		setSaveStatus,
-		setHasUnsavedChanges,
 		setLastSaved,
 	]);
 
 	// Update node data (without saving to history on every keystroke)
 	const updateNodeData = useCallback(
 		(nodeId, newData) => {
-			let didChange = false;
-			setNodes((nds) =>
-				nds.map((node) =>
-					node.id === nodeId
-						? (() => {
-								const currentData = node.data || {};
-								const hasValueChange = Object.entries(newData || {}).some(
-									([key, value]) => currentData[key] !== value
-								);
-								if (!hasValueChange) {
-									return node;
-								}
-								didChange = true;
-								return { ...node, data: { ...currentData, ...newData } };
-						})()
-						: node
-				)
-			);
-			if (didChange) {
+			if (updateDraftNodeData(nodeId, newData || {})) {
 				hasPendingNodeDataEditsRef.current = true;
-				markUnsaved();
 			}
 		},
-		[setNodes, markUnsaved]
+		[updateDraftNodeData]
 	);
 
 	// Add decorator to node
@@ -1647,18 +1604,7 @@ function DialogueEditorPage() {
 				const updatedNodes = nds.map((node) => {
 					if (node.id === nodeId) {
 						// Create decorator instance with default values
-						const decoratorInstance = {
-							id: decoratorDef.id,
-							name: decoratorDef.name,
-							values: {},
-						};
-
-						// Populate default values from decorator properties
-						if (decoratorDef.properties && decoratorDef.properties.length > 0) {
-							decoratorDef.properties.forEach((prop) => {
-								decoratorInstance.values[prop.name] = prop.defaultValue || '';
-							});
-						}
+						const decoratorInstance = createDecoratorInstance(decoratorDef);
 
 						return {
 							...node,
@@ -2130,25 +2076,18 @@ function DialogueEditorPage() {
 
 	// Undo
 	const handleUndo = useCallback(() => {
-		if (historyIndex > 0) {
-			const newIndex = historyIndex - 1;
-			const { nodes: prevNodes, edges: prevEdges } = history[newIndex];
-			setNodes(prevNodes);
-			setEdges(prevEdges);
-			setHistoryIndex(newIndex);
+		if (hasPendingNodeDataEditsRef.current) {
+			const draft = captureSave();
+			saveToHistory(draft.nodes, draft.edges);
+			hasPendingNodeDataEditsRef.current = false;
 		}
-	}, [historyIndex, history, setNodes, setEdges]);
+		undo();
+	}, [undo, captureSave, saveToHistory]);
 
 	// Redo
 	const handleRedo = useCallback(() => {
-		if (historyIndex < history.length - 1) {
-			const newIndex = historyIndex + 1;
-			const { nodes: nextNodes, edges: nextEdges } = history[newIndex];
-			setNodes(nextNodes);
-			setEdges(nextEdges);
-			setHistoryIndex(newIndex);
-		}
-	}, [historyIndex, history, setNodes, setEdges]);
+		redo();
+	}, [redo]);
 
 	// Handle keyboard events
 	useEffect(() => {
@@ -2225,7 +2164,8 @@ function DialogueEditorPage() {
 	// Handle viewport change
 	const onMove = useCallback((event, newViewport) => {
 		setViewport(newViewport);
-	}, []);
+		if (event) markUnsaved();
+	}, [markUnsaved]);
 
 	const getMinimapColor = useCallback((node) => {
 		return getNodeDefinition(node.type)?.minimapColor || '#6b7280';
@@ -2306,20 +2246,20 @@ function DialogueEditorPage() {
 	// Handle export
 	const handleExport = useCallback(async () => {
 		try {
-			// Filter out placeholder nodes and their edges before saving
-			const regularNodes = nodes.filter((n) => n.type !== 'placeholderNode');
-			const regularEdges = edges.filter((e) => !e.data?.isPlaceholder);
-
-			// Save first to ensure we export the latest version
-			await saveDialogueGraph(dialogueId, regularNodes, regularEdges, viewport, {
-				activeLocale: contentLocale,
+			const ticket = captureSave();
+			// Save/export share the same commit queue: an older pending save must
+			// never overwrite this draft or interleave between its save and export.
+			await saveQueueRef.current(async () => {
+				await saveDialogueGraph(dialogueId, ticket.nodes, ticket.edges, viewport, { activeLocale: contentLocale });
+				const fullySaved = acknowledgeSave(ticket);
+				setSaveStatus(fullySaved ? 'saved' : 'unsaved');
+				setLastSaved(new Date());
+				await exportDialogue(dialogueId);
 			});
-			// Then export
-			await exportDialogue(dialogueId);
 		} catch (error) {
 			console.error('Failed to export dialogue:', error);
 		}
-	}, [nodes, edges, saveDialogueGraph, dialogueId, viewport, contentLocale, exportDialogue]);
+	}, [captureSave, acknowledgeSave, saveDialogueGraph, dialogueId, viewport, contentLocale, exportDialogue]);
 
 	const handleOpenLastExportPath = useCallback(async () => {
 		const lastExportPath = String(dialogue?.lastExportPath || '').trim();
@@ -2520,7 +2460,7 @@ function DialogueEditorPage() {
 					left={
 						<>
 							<Link to="/projects/$projectId" params={{ projectId }}>
-								<Button variant="ghost" size="icon" className="rounded-full shrink-0">
+								<Button aria-label={t('common.back')} variant="ghost" size="icon" className="rounded-full shrink-0">
 									<ArrowLeft className="h-5 w-5" />
 								</Button>
 							</Link>
@@ -2545,6 +2485,7 @@ function DialogueEditorPage() {
 									variant="ghost"
 									size="icon"
 									className="rounded-full"
+									aria-label={t('accessibility.editorCommands')}
 									data-tour="save-button"
 									onClick={() => setCommandPaletteOpen(true)}
 								>
@@ -2566,6 +2507,8 @@ function DialogueEditorPage() {
 				>
 					<NodeContextMenuProvider value={nodeContextMenuValue}>
 						<ReactFlow
+							aria-label={t('accessibility.dialogueGraph')}
+							nodesFocusable edgesFocusable
 							nodes={previewDisplayNodes}
 							edges={previewDisplayEdges}
 							onNodesChange={onNodesChange}
@@ -2601,7 +2544,7 @@ function DialogueEditorPage() {
 									variant="ghost"
 									size="icon"
 									className="h-8 w-8 rounded-full"
-									onClick={handleRecenterGraph}
+									aria-label={t('editor.nodeToolbar.recenter')} onClick={handleRecenterGraph}
 								>
 									<Crosshair className="h-4 w-4" />
 								</Button>
@@ -2611,7 +2554,7 @@ function DialogueEditorPage() {
 									variant="ghost"
 									size="icon"
 									className="h-8 w-8 rounded-full"
-									onClick={handleFocusStartNode}
+									aria-label={t('editor.nodeToolbar.backToStart')} onClick={handleFocusStartNode}
 								>
 									<LocateFixed className="h-4 w-4" />
 								</Button>
@@ -2664,7 +2607,7 @@ function DialogueEditorPage() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 rounded-full"
-								onClick={() => setIsMobilePanelOpen(true)}
+								aria-label={t('accessibility.editSelection')} onClick={() => setIsMobilePanelOpen(true)}
 							>
 								<PanelRightOpen className="h-4 w-4" />
 							</Button>
@@ -2673,7 +2616,7 @@ function DialogueEditorPage() {
 									variant="ghost"
 									size="icon"
 									className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-									onClick={() => setIsCascadeDeleteOpen(true)}
+									aria-label={t('common.delete')} onClick={() => setIsCascadeDeleteOpen(true)}
 								>
 									<Trash2 className="h-4 w-4" />
 								</Button>
@@ -2682,7 +2625,7 @@ function DialogueEditorPage() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 rounded-full"
-								onClick={() => setSelectedNodeId(null)}
+								aria-label={t('common.close')} onClick={() => setSelectedNodeId(null)}
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -2733,7 +2676,7 @@ function DialogueEditorPage() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 rounded-full"
-								onClick={() => setIsMobilePanelOpen(true)}
+								aria-label={t('accessibility.editSelection')} onClick={() => setIsMobilePanelOpen(true)}
 							>
 								<PanelRightOpen className="h-4 w-4" />
 							</Button>
@@ -2741,7 +2684,7 @@ function DialogueEditorPage() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-								onClick={handleMobileEdgeDelete}
+								aria-label={t('common.delete')} onClick={handleMobileEdgeDelete}
 							>
 								<Trash2 className="h-4 w-4" />
 							</Button>
@@ -2749,7 +2692,7 @@ function DialogueEditorPage() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 rounded-full"
-								onClick={() => setSelectedEdge(null)}
+								aria-label={t('common.close')} onClick={() => setSelectedEdge(null)}
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -3040,7 +2983,7 @@ function DialogueEditorPage() {
 							href="https://reactflow.dev"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="hover:text-primary transition-colors"
+							className="text-foreground underline-offset-4 hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground rounded-sm"
 						>
 							React Flow
 						</a>

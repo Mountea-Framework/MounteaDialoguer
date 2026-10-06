@@ -34,11 +34,18 @@ const RIGHT_DRAWER_SIZE_CLASS = {
 	full: 'max-w-full',
 };
 
-const DrawerContent = React.forwardRef(({ className, children, side = 'bottom', size = 'md', ...props }, ref) => (
+const DrawerContent = React.forwardRef(({ className, children, side = 'bottom', size = 'md', onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+	const returnFocus = React.useRef(null);
+	return (
 	<DrawerPortal>
 		<DrawerOverlay />
 		<DrawerPrimitive.Content
 			ref={ref}
+			onOpenAutoFocus={(event) => { returnFocus.current = document.activeElement; onOpenAutoFocus?.(event); }}
+			onCloseAutoFocus={(event) => {
+				onCloseAutoFocus?.(event);
+				if (!event.defaultPrevented && returnFocus.current?.isConnected) { event.preventDefault(); returnFocus.current.focus(); }
+			}}
 			className={cn(
 				side === 'right'
 					? 'fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l bg-background'
@@ -52,7 +59,8 @@ const DrawerContent = React.forwardRef(({ className, children, side = 'bottom', 
 			{children}
 		</DrawerPrimitive.Content>
 	</DrawerPortal>
-));
+);
+});
 DrawerContent.displayName = DrawerPrimitive.Content.displayName;
 
 const DrawerHeader = ({ className, ...props }) => (

@@ -31,7 +31,8 @@
 			"minutesAgo_plural": "vor {{count}} Min",
 			"hoursAgo": "vor {{count}} Std",
 			"hoursAgo_plural": "vor {{count}} Std"
-		}
+		},
+		"retry": "Erneut versuchen"
 	},
 	"navigation": {
 		"dashboard": "Dashboard",
@@ -43,7 +44,7 @@
 		"settings": "Einstellungen"
 	},
 	"dashboard": {
-		"diskUsage": "Speichernutzung"
+		"diskUsage": "Speichernutzung dieser Website"
 	},
 	"decorators": {
 		"title": "Dekoratoren",
@@ -172,7 +173,11 @@
 			"addCompleteTooltip": "Abschluss-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
 			"delay": "Verzögerung",
 			"addDelayTooltip": "Verzögerungs-Knoten hinzufügen – auf die Leinwand ziehen oder klicken",
-			"poweredBy": "Bereitgestellt von"
+			"poweredBy": "Bereitgestellt von",
+			"recenter": "Graph zentrieren",
+			"backToStart": "Startknoten fokussieren",
+			"recenterTooltip": "Gesamten Graph anzeigen",
+			"startFocusTooltip": "Startknoten fokussieren"
 		},
 		"nodes": {
 			"start": "Start",
@@ -452,5 +457,104 @@
 		"required": "Dieses Feld ist erforderlich",
 		"invalidName": "Ungültiger Name",
 		"nameTaken": "Dieser Name wird bereits verwendet"
+	},
+	"errors": {
+		"unexpectedTitle": "Unerwarteter Fehler",
+		"unexpectedDescription": "Ein unerwarteter Fehler ist aufgetreten. Starten Sie die App neu und versuchen Sie es erneut.",
+		"storageInitialization": "Der lokale Speicher konnte nicht sicher geöffnet werden. Ihre ursprüngliche Datenbank wurde beibehalten.",
+		"actions": {
+			"load": "Daten konnten nicht geladen werden",
+			"create": "Element konnte nicht erstellt werden",
+			"update": "Element konnte nicht aktualisiert werden",
+			"save": "Änderungen konnten nicht gespeichert werden",
+			"delete": "Element konnte nicht gelöscht werden",
+			"import": "Archiv konnte nicht importiert werden",
+			"export": "Archiv konnte nicht exportiert werden"
+		},
+		"details": {
+			"unexpected": "Der Vorgang ist fehlgeschlagen. Versuchen Sie es erneut; sichern Sie bei weiteren Fehlern Ihre Sicherung und melden Sie das Problem.",
+			"stale": "Profil oder Projekt wurde geändert. Laden Sie die Daten neu und versuchen Sie es erneut.",
+			"exists": "Das Ziel existiert bereits. Wählen Sie eine neue Kopie oder ausdrücklich das Ersetzen.",
+			"missing": "Das referenzierte Element ist nicht verfügbar. Prüfen Sie das ausgewählte Projekt.",
+			"referenced": "Entfernen oder ändern Sie diese Verweise, bevor Sie das Element ändern oder löschen.",
+			"categoryCycle": "Eine Kategorie darf nicht ihr eigener Vorfahr sein. Wählen Sie ein anderes übergeordnetes Element.",
+			"categoryDepth": "Kategorien unterstützen höchstens fünf Ebenen. Wählen Sie eine höhere Ebene.",
+			"reference": "Wählen Sie ein eindeutiges Element dieses Projekts.",
+			"name": "Verwenden Sie 1–16 Buchstaben oder Ziffern für den Namen.",
+			"duplicateName": "Wählen Sie einen innerhalb dieses Kategoriebaums eindeutigen Namen.",
+			"definition": "Prüfen Sie Eigenschaftsnamen, Typen und Standardwerte; verwendete Typen müssen kompatibel bleiben.",
+			"repair": "Reparieren Sie Projektverweise und Übersetzungen und versuchen Sie es erneut.",
+			"media": "Stellen Sie die ursprünglichen Mediendaten wieder her und prüfen Sie den Anhang.",
+			"duplicateIdentity": "Wählen Sie eine andere Identität für den doppelten Datensatz.",
+			"quota": "Der Speicher ist voll. Exportieren Sie eine Sicherung und geben Sie Speicherplatz frei.",
+			"archiveLimit": "Verkleinern Sie das Archiv oder teilen Sie das Projekt: maximal 25 MiB komprimiert, 128 MiB entpackt, 5 MiB pro JSON-Eintrag, 1.000 Einträge und 250 Dialoge.",
+			"archiveCorrupt": "Das Archiv ist beschädigt oder enthält ungültige Pfade oder Datensätze. Verwenden Sie eine geprüfte Sicherung oder exportieren Sie es erneut.",
+			"archiveUnsupported": "Dieses Archivformat wird nicht unterstützt. Exportieren Sie ein Standardarchiv für Projekte oder Dialoge mit einer kompatiblen App-Version."
+		}
+	},
+	"metrics": {
+		"payloadEstimate": "Geschätzte Nutzdaten",
+		"unavailable": "Nicht verfügbar",
+		"currentUser": "Aktueller Benutzer"
+	},
+	"accessibility": {
+		"editorCommands": "Editorbefehle",
+		"editSelection": "Auswahl bearbeiten",
+		"dialogueGraph": "Dialoggraph",
+		"zoom": "Zoom",
+		"zoomIn": "Vergrößern",
+		"zoomOut": "Verkleinern",
+		"connectExisting": "Mit vorhandenem Knoten verbinden",
+		"chooseConnection": "Zielknoten auswählen",
+		"noConnections": "Keine verbindbaren Knoten verfügbar",
+		"chooseNode": "Knoten auswählen…",
+		"connect": "Verbinden",
+		"nodeType": "Knotentyp auswählen",
+		"nodeTypeDescription": "Wählen Sie den Knotentyp für den Dialog"
+	},
+	"archive": {
+		"importTitle": "Archiv importieren",
+		"copy": "Als neue Kopie importieren",
+		"replace": "Vorhandenes Element ersetzen",
+		"target": "Zu ersetzendes Element",
+		"replaceWarning": "Das ausgewählte Element und sein Graph werden ersetzt. Exportieren Sie vorher eine Sicherung, um die aktuelle Version zu behalten.",
+		"confirmReplace": "Ausgewähltes Element ersetzen",
+		"failed": "Import fehlgeschlagen. Prüfen Sie das Archiv und versuchen Sie es erneut."
+	},
+	"recovery": {
+		"title": "Projektwiederherstellung",
+		"description": "Korrigieren Sie diese Verweise vor dem Export oder der Synchronisierung. Originaldatensätze bleiben erhalten. Fehlende Texte oder Medien müssen aus einer Sicherung wiederhergestellt werden; die App kann sie nicht rekonstruieren.",
+		"failed": "Wiederherstellung fehlgeschlagen. Prüfen Sie die Details und versuchen Sie es erneut.",
+		"details": "Technische Details",
+		"revalidate": "Reparierte Datensätze erneut prüfen",
+		"record": "Datensatz",
+		"unknown": "unbekannt",
+		"download": "Originaldaten herunterladen",
+		"replacement": "Ersatz für {{id}} {{row}}",
+		"choose": "Ersatz auswählen",
+		"assign": "Zuweisen",
+		"restoreDescription": "Stellen Sie diesen Knoten mit einer eigenen Identität und dem vorgesehenen Typ (nicht Start) wieder her. Prüfen Sie vorher Dialog und Inhalte.",
+		"prepare": "Wiederhergestellten Knoten vorbereiten",
+		"nodeJson": "JSON des wiederhergestellten Knotens",
+		"restore": "Geprüften Knoten wiederherstellen",
+		"globalTitle": "Wiederherstellungsbericht",
+		"globalDescription": "Einige gespeicherte Datensätze müssen geprüft werden. Die Originaldaten bleiben erhalten.",
+		"orphanGuidance": "Für diese Datensätze ist kein zugehöriges Projekt verfügbar. Laden Sie die Originaldaten herunter und vergleichen Sie sie mit einer Sicherung, bevor Sie sie manuell in einem Projekt wiederherstellen. Die Zuordnung wurde nicht automatisch vorgenommen.",
+		"openProject": "Wiederherstellungseinstellungen des Projekts öffnen",
+		"reportDownload": "Wiederherstellungsbericht herunterladen",
+		"refresh": "Bericht aktualisieren"
+	},
+	"syncConflicts": {
+		"title": "Synchronisierungskonflikte",
+		"description": "Beide Versionen bleiben erhalten. Wählen Sie die Version, die Sie behalten möchten.",
+		"incomplete": "Ein Teil des Versionsverlaufs ist nicht verfügbar. Synchronisieren Sie erneut, bevor Sie den Konflikt lösen.",
+		"keepLocal": "Lokale Version behalten",
+		"keepRemote": "Remoteversion behalten",
+		"keepBoth": "Beide Projekte behalten",
+		"refresh": "Konflikte aktualisieren",
+		"selectRevision": "Konkurrierende Version",
+		"revision": "Version {{id}}",
+		"deleted": "Gelöschtes Projekt",
+		"resolveError": "Dieser Konflikt konnte nicht gelöst werden."
 	}
 }

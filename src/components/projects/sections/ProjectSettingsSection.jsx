@@ -1,3 +1,4 @@
+import { ProjectRecoveryPanel } from '@/components/projects/ProjectRecoveryPanel';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, Download, Trash2, AlertTriangle, Info, Plus, X, FolderOpen } from 'lucide-react';
@@ -157,10 +158,10 @@ export function ProjectSettingsSection({
 	};
 
 	const handleRemoveLocale = (locale) => {
-		if (localizationData.enabled && locale === localizationData.defaultLocale) {
+		if (locale === localizationData.defaultLocale) {
 			setLocalizationError(
 				t('settings.localization.removeDefaultBlocked', {
-					defaultValue: 'You cannot remove the default locale while localization is enabled.',
+					defaultValue: 'Choose another default locale before removing this one.',
 				})
 			);
 			return;
@@ -222,6 +223,7 @@ export function ProjectSettingsSection({
 
 	return (
 		<div className="space-y-6">
+			<ProjectRecoveryPanel projectId={project.id} />
 			{showHeader ? (
 				<div>
 					<h2 className="text-2xl font-bold">{t('settings.title')}</h2>

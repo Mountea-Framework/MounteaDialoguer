@@ -44,6 +44,7 @@ async function deriveKey(passphrase, salt) {
 }
 
 export async function encryptPayload(passphrase, data) {
+	if (typeof passphrase !== 'string' || !passphrase.trim()) throw new Error('Encryption passphrase is required');
 	const salt = crypto.getRandomValues(new Uint8Array(16));
 	const iv = crypto.getRandomValues(new Uint8Array(12));
 	const key = await deriveKey(passphrase, salt);
@@ -64,13 +65,14 @@ export async function encryptPayload(passphrase, data) {
 }
 
 export async function decryptPayload(passphrase, payload) {
-	if (!payload?.salt || !payload?.iv || !payload?.ciphertext) {
+	if (payload?.version !== 1 || typeof passphrase !== 'string' || !passphrase.trim() || !['salt', 'iv', 'ciphertext'].every((field) => typeof payload[field] === 'string' && /^[A-Za-z0-9_-]+$/.test(payload[field])) || payload.ciphertext.length > 32 * 1024 * 1024) {
 		throw new Error('Invalid encrypted payload');
 	}
 
 	const salt = fromBase64Url(payload.salt);
 	const iv = fromBase64Url(payload.iv);
 	const ciphertext = fromBase64Url(payload.ciphertext);
+	if (salt.byteLength !== 16 || iv.byteLength !== 12 || ciphertext.byteLength < 16) throw new Error('Invalid encrypted payload parameters');
 	const key = await deriveKey(passphrase, salt);
 
 	const plainBuffer = await crypto.subtle.decrypt(

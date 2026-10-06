@@ -23,7 +23,7 @@ export function sanitizeAudioFileName(fileName, fallbackBase = 'Audio') {
 	const extRaw = hasExt ? raw.slice(lastDot + 1) : '';
 
 	const safeBase = sanitizeUnrealIdentifier(base, fallbackBase);
-	const safeExt = sanitizeUnrealIdentifier(extRaw, '').toLowerCase();
+	const safeExt = hasExt ? toAscii(extRaw).replace(/[^A-Za-z0-9]/g, '').toLowerCase() : '';
 	return safeExt ? `${safeBase}.${safeExt}` : safeBase;
 }
 
