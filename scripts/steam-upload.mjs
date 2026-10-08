@@ -27,7 +27,11 @@ async function filesUnder(directory, prefix = '') {
 }
 async function codeSignatureMappings(source) {
 	const files = await filesUnder(source);
-	return files.filter((name) => name.includes('/_CodeSignature/CodeResources')).map((name) => `   "FileMapping" { "LocalPath" "${name.replaceAll('\\', '/')}" "DepotPath" "${name.replaceAll('\\', '/')}" }\n`).join('');
+	return files.filter((name) => name.includes('/_CodeSignature/CodeResources')).map((name) => {
+		const normalizedName = name.replaceAll('\\', '/');
+		const depotDirectory = path.posix.dirname(normalizedName);
+		return `   "FileMapping" { "LocalPath" "${normalizedName}" "DepotPath" "${depotDirectory}" }\n`;
+	}).join('');
 }
 export async function planSteamUpload(options) {
 	for (const key of ['source', 'staging-root', 'username', 'app-id', 'depot-id', 'platform']) if (!options[key]) throw new Error(`Required argument: --${key}`);
