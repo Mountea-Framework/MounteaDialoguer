@@ -124,13 +124,46 @@ test('ISS-011 referenced categories and participants cannot be deleted', async (
   const {db}=await import('/src/lib/db.js'); const {useDecoratorStore}=await import('/src/stores/decoratorStore.js'); const {useConditionStore}=await import('/src/stores/conditionStore.js');
   await db.dialogues.put({id:'dialogue',projectId:'p',name:'Graph'});
   const decorator=await useDecoratorStore.getState().createDecorator({projectId:'p',name:'Gate',properties:[{name:'active',type:'boolean',defaultValue:false}]});
-  const condition=await useConditionStore.getState().createCondition({projectId:'p',name:'Test',properties:[{name:'score',type:'number',defaultValue:0}]});
+ const condition=await useConditionStore.getState().createCondition({projectId:'p',name:'Test',properties:[{name:'score',type:'number',defaultValue:0}]});
+  const {validateDefinition}=await import('/src/lib/domainIntegrity.js');
+  const legacy={name:'Legacy',properties:[{name:'flag',type:'bool',defaultValue:'false'},{name:'blankFlag',type:'bool',defaultValue:''},{name:'ratio',type:'float',defaultValue:'1.5'},{name:'count',type:'int',defaultValue:''}]};
+  validateDefinition(legacy);
   await db.nodes.bulkPut([{id:'a',dialogueId:'dialogue',type:'leadNode',data:{decorators:[{id:decorator.id,properties:{active:false}}]}},{id:'b',dialogueId:'dialogue',type:'completeNode',data:{}}]);
   await db.edges.put({id:'e',dialogueId:'dialogue',source:'a',target:'b',data:{conditions:{rules:[{id:condition.id}]}}});
   await useDecoratorStore.getState().updateDecorator(decorator.id,{properties:[...decorator.properties,{name:'count',type:'number',defaultValue:0}]});
   const errors=[];for(const action of [()=>useDecoratorStore.getState().deleteDecorator(decorator.id),()=>useConditionStore.getState().deleteCondition(condition.id),()=>useDecoratorStore.getState().updateDecorator(decorator.id,{properties:[]}),()=>useConditionStore.getState().createCondition({projectId:'p',name:'Bad',properties:[{name:'x',type:'number',defaultValue:'wrong'}]})]){try{await action();}catch(e){errors.push({code:e.code,refs:e.references?.length||0});}}
-  return {errors,count:(await db.decorators.get(decorator.id)).properties.length};
- });expect(result).toEqual({count:2,errors:[{code:'RECORD_REFERENCED',refs:1},{code:'RECORD_REFERENCED',refs:1},{code:'DEFINITION_REFERENCED',refs:1},{code:'INVALID_PROPERTY_DEFAULT',refs:0}]});
+  return {errors,count:(await db.decorators.get(decorator.id)).properties.length,legacy:legacy.properties.map(property=>[property.type,property.defaultValue])};
+ });expect(result).toEqual({count:2,legacy:[['boolean',false],['boolean',false],['number',1.5],['number',0]],errors:[{code:'RECORD_REFERENCED',refs:1},{code:'RECORD_REFERENCED',refs:1},{code:'DEFINITION_REFERENCED',refs:1},{code:'INVALID_PROPERTY_DEFAULT',refs:0}]});
+ });
+ test('ISS-012 strict commits repair legacy participant names and missing localization keys', async ({ page }) => {
+ await seedDomain(page);
+ const result=await page.evaluate(async()=>{
+  const {getRepositoryContext}=await import('/src/lib/db.js');const {prepareProjectCommit}=await import('/src/lib/persistence/projectRepository.js');
+  const context=await getRepositoryContext();
+  const prepared=await prepareProjectCommit({
+   project:{id:'legacy-sync',name:'Legacy Sync',localization:{defaultLocale:'en',supportedLocales:['en','cs']}},
+   dialogues:[{id:'dialogue',projectId:'legacy-sync',name:'Legacy Dialogue'}],
+   categories:[{id:'root',projectId:'legacy-sync',name:'Root'}],
+   participants:[{id:'speaker',projectId:'legacy-sync',name:'Speaker',category:'Root'}],
+   decorators:[],conditions:[],
+   nodes:[
+    {id:'00000000-0000-0000-0000-000000000001',dialogueId:'dialogue',type:'startNode',data:{displayName:'Start'}},
+    {id:'line',dialogueId:'dialogue',type:'leadNode',data:{participant:'Speaker',displayName:'Line',dialogueRows:[{id:'row',participant:'Speaker',text:'Hello'}]}},
+   ],
+   edges:[],localizedStrings:[],
+  },{context,expectedSequence:0,operation:'create'});
+  const node=prepared.revision.snapshot.nodes.find(row=>row.id==='line');
+  const start=prepared.revision.snapshot.nodes.find(row=>row.id==='00000000-0000-0000-0000-000000000001');
+  return {participantId:node.data.participantId,rowParticipantId:node.data.dialogueRows[0].participantId,categoryId:prepared.revision.snapshot.participants[0].categoryId,dialogue:prepared.revision.snapshot.dialogues[0],startKey:start.data.displayNameKey,rowKey:node.data.dialogueRows[0].textKey,strings:prepared.revision.snapshot.localizedStrings.map(row=>[row.field,row.values.en]).sort()};
+ });
+ expect(result.participantId).toBe('speaker');
+ expect(result.rowParticipantId).toBe('speaker');
+ expect(result.categoryId).toBe('root');
+ expect(result.dialogue.localizationVersion).toBe(2);
+ expect(result.dialogue.localizationSlug).toBe('legacy_dialogue');
+ expect(result.startKey).toContain('.display_name');
+ expect(result.rowKey).toContain('.text');
+ expect(result.strings).toEqual([['displayName','Line'],['displayName','Start'],['rowText','Hello'],['selectionTitle','']]);
  });
  test('ISS-011 child dialogue and return node destinations are protected',async({page})=>{
  await seedDomain(page);const result=await page.evaluate(async()=>{

@@ -81,6 +81,25 @@ export function normalizeParticipant(record, snapshot, excludeId) {
 	}
 	return { ...record, name, categoryId: category.id, category: category.name };
 }
+export function normalizePropertyType(type) {
+	if (type === 'bool') return 'boolean';
+	if (type === 'int' || type === 'float') return 'number';
+	return type;
+}
+export function normalizePropertyDefault(type, value) {
+	if (value === undefined || value === null) return value;
+	if (type === 'boolean' && typeof value === 'string') {
+		const normalized = value.trim().toLowerCase();
+		if (['true', '1', 'yes'].includes(normalized)) return true;
+		if (['', 'false', '0', 'no'].includes(normalized)) return false;
+	}
+	if (type === 'number' && typeof value === 'string') {
+		if (value.trim() === '') return 0;
+		const parsed = Number(value);
+		if (Number.isFinite(parsed)) return parsed;
+	}
+	return value;
+}
 export function validateDefinition(definition) {
 	if (!String(definition.name || '').trim()) fail('INVALID_DEFINITION', 'Definition name is required.');
 	if (!Array.isArray(definition.properties || [])) fail('INVALID_DEFINITION', 'Definition properties must be an array.');
@@ -89,6 +108,8 @@ export function validateDefinition(definition) {
 		const name = String(property.name || '').trim();
 		if (!name || name !== property.name || seen.has(name) || ['__proto__', 'constructor', 'prototype'].includes(name)) fail('INVALID_PROPERTY_NAME', 'Property names must be nonempty, unique, and safe object keys.');
 		seen.add(name);
+		property.type = normalizePropertyType(property.type);
+		property.defaultValue = normalizePropertyDefault(property.type, property.defaultValue);
 		if (!['string', 'number', 'boolean'].includes(property.type)) fail('INVALID_PROPERTY_TYPE', `Unsupported property type: ${property.type}`);
 		if (property.defaultValue !== undefined && property.defaultValue !== null && (typeof property.defaultValue !== property.type || (property.type === 'number' && !Number.isFinite(property.defaultValue)))) fail('INVALID_PROPERTY_DEFAULT', `Default for ${name} must have type ${property.type}.`);
 	}
@@ -120,7 +141,7 @@ export function assertCompatibleDefinition(snapshot, kind, previous, next) {
 	validateDefinition(next);
 	const references = findEntityReferences(snapshot, kind, previous);
 	if (!references.length) return;
-	const changed = (previous.properties || []).some((property) => !next.properties?.some((candidate) => candidate.name === property.name && candidate.type === property.type));
+	const changed = (previous.properties || []).some((property) => !next.properties?.some((candidate) => candidate.name === property.name && normalizePropertyType(candidate.type) === normalizePropertyType(property.type)));
 	if (changed) fail('DEFINITION_REFERENCED', `Remove or reassign ${references.length} reference(s) before removing, renaming or changing property types. ${references.map((ref) => `${ref.table}/${ref.id}`).join(', ')}`, references);
 }
 export function projectIdentityLabels(snapshot, { strict = true } = {}) {

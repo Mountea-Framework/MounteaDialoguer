@@ -520,9 +520,14 @@ export const useSyncStore = create(
             resolveConflict: async (id, choice, revisionId) => {
                 const context = await getRepositoryContext();
                 const result = await resolveRevisionConflict(id, choice, { context, revisionId });
-                context.assertCurrent(); await get().refreshConflicts();
-                get().schedulePush(result.projectId);
-                if (result.copiedProjectId) get().schedulePush(result.copiedProjectId);
+                context.assertCurrent();
+                await get().refreshConflicts();
+                try {
+                    get().schedulePush(result.projectId);
+                    if (result.copiedProjectId) get().schedulePush(result.copiedProjectId);
+                } catch (failure) {
+                    traceSyncEvent('CONFLICT_RESOLUTION_PUSH_SCHEDULE_FAILED', { code: failure.code || 'SYNC_FAILED' });
+                }
                 return result;
             },
             syncAllProjects: async (options = {}) => {
@@ -624,7 +629,6 @@ export const useSyncStore = create(
 		}
 	)
 );
-
 
 
 

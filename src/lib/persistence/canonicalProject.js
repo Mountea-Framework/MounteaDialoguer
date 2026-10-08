@@ -1,5 +1,10 @@
 import { AUTHORING_TABLES } from './schema';
-import { normalizeProjectLocalizationConfig, validateLocalizedEntriesForDialogue } from '@/lib/localization/stringTable';
+import {
+	allocateDialogueLocalizationSlug,
+	normalizeProjectLocalizationConfig,
+	prepareLocalizedNodesAndEntries,
+	validateLocalizedEntriesForDialogue,
+} from '@/lib/localization/stringTable';
 import { validateCategoryTree, normalizeParticipant, validateDefinition } from '@/lib/domainIntegrity';
 
 export const PROJECT_FORMAT = 'mountea.project.v3';
@@ -12,6 +17,79 @@ export class ProjectDataError extends Error {
 }
 export function recordsToSnapshot(records) { return { version: 3, format: PROJECT_FORMAT, project: records.projects?.[0], ...Object.fromEntries(RECORD_TABLES.map((table) => [table, records[table] || []])) }; }
 export function snapshotToRecords(snapshot) { return { projects: snapshot.project ? [snapshot.project] : [], ...Object.fromEntries(RECORD_TABLES.map((table) => [table, snapshot[table] || []])) }; }
+
+function uniqueByName(records = []) {
+	const grouped = new Map();
+	for (const record of records) {
+		const name = String(record?.name || '').trim();
+		if (!name) continue;
+		if (!grouped.has(name)) grouped.set(name, []);
+		grouped.get(name).push(record);
+	}
+	return new Map([...grouped.entries()].filter(([, matches]) => matches.length === 1).map(([name, matches]) => [name, matches[0]]));
+}
+
+function repairLegacyIdentityReferences(snapshot) {
+	const participantsByName = uniqueByName(snapshot.participants || []);
+	const categoriesByName = uniqueByName(snapshot.categories || []);
+	for (const participant of snapshot.participants || []) {
+		const categoryName = String(participant?.category || '').trim();
+		if (!participant.categoryId && categoryName && categoriesByName.has(categoryName)) {
+			participant.categoryId = categoriesByName.get(categoryName).id;
+		}
+	}
+	for (const node of snapshot.nodes || []) {
+		const data = node.data || {};
+		const participantName = String(data.participant || '').trim();
+		if (!data.participantId && participantName && participantsByName.has(participantName)) {
+			data.participantId = participantsByName.get(participantName).id;
+		}
+		for (const row of data.dialogueRows || []) {
+			const rowParticipantName = String(row?.participant || '').trim();
+			if (!row.participantId && rowParticipantName && participantsByName.has(rowParticipantName)) {
+				row.participantId = participantsByName.get(rowParticipantName).id;
+			}
+		}
+	}
+}
+
+function repairLegacyLocalization(snapshot) {
+	const projectId = String(snapshot.project?.id || '').trim();
+	if (!projectId) return;
+	const defaultLocale = snapshot.project?.localization?.defaultLocale || 'en';
+	const allocatedDialogues = [];
+	for (const dialogue of snapshot.dialogues || []) {
+		dialogue.localizationSlug = allocateDialogueLocalizationSlug(dialogue, allocatedDialogues);
+		allocatedDialogues.push(dialogue);
+	}
+	for (const dialogue of snapshot.dialogues || []) {
+		const dialogueId = String(dialogue.id || '').trim();
+		if (!dialogueId) continue;
+		const nodes = (snapshot.nodes || []).filter((node) => node.dialogueId === dialogueId);
+		const existingEntries = (snapshot.localizedStrings || []).filter((entry) => entry.dialogueId === dialogueId);
+		const prepared = prepareLocalizedNodesAndEntries({
+			projectId,
+			dialogueId,
+			dialogueSlug: dialogue.localizationSlug,
+			nodes,
+			locale: defaultLocale,
+			existingEntries,
+		});
+		const preparedKeys = new Set(prepared.entries.map((entry) => entry.key));
+		const unusedEntries = existingEntries.filter((entry) => entry.key && !preparedKeys.has(entry.key));
+		snapshot.nodes = (snapshot.nodes || []).filter((node) => node.dialogueId !== dialogueId).concat(prepared.nodes);
+		snapshot.localizedStrings = (snapshot.localizedStrings || [])
+			.filter((entry) => entry.dialogueId !== dialogueId)
+			.concat(prepared.entries, unusedEntries);
+		dialogue.localizationVersion = 2;
+	}
+}
+
+function repairLegacySnapshot(snapshot) {
+	repairLegacyIdentityReferences(snapshot);
+	repairLegacyLocalization(snapshot);
+	return snapshot;
+}
 
 function bytesToBase64(bytes) {
 	let value = '';
@@ -104,6 +182,7 @@ export async function canonicalizeProject(input, { allowIncompleteMedia = false 
 	}));
 	const originalPlaceholderIds = new Set((input.nodes || []).filter((node) => node.type === 'placeholderNode').map((node) => compoundIdentity(node.dialogueId, node.id)));
 	snapshot.edges = snapshot.edges.filter((edge) => !originalPlaceholderIds.has(compoundIdentity(edge.dialogueId, edge.source)) && !originalPlaceholderIds.has(compoundIdentity(edge.dialogueId, edge.target))).map((edge) => { const result = { ...edge }; delete result.selected; return result; });
+	repairLegacySnapshot(snapshot);
 	// IndexedDB returns primary-key order, whereas imported arrays may use any
 	// order. Canonicalize record sets while preserving authored embedded order.
 	for (const table of RECORD_TABLES) {

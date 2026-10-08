@@ -149,6 +149,47 @@ test('ISS-015 keep both creates an independent project with both authored versio
  expect(result).toEqual({ names: ['Left (conflict copy)', 'Right'], copied: true, parents: 2 });
 });
 
+test('ISS-015 conflict resolution repairs legacy references and localization in selected revision', async ({ page }) => {
+ await setup(page);
+ const result = await page.evaluate(async () => {
+  const { a, create, protocol } = window.rig;
+  const base = await create();
+  const legacyRevision = {
+   id: 'legacy-remote',
+   projectId: 'p',
+   parentRevisionIds: [base.revisionId],
+   deviceId: 'legacy-device',
+   payloadHash: 'legacy',
+   operation: 'update',
+   createdAt: new Date().toISOString(),
+   snapshot: {
+    project: { id: 'p', name: 'Legacy Remote', localization: { defaultLocale: 'en', supportedLocales: ['en'] } },
+    dialogues: [{ id: 'd', projectId: 'p', name: 'Legacy Dialogue' }],
+    categories: [{ id: 'root', projectId: 'p', name: 'Root' }],
+    participants: [{ id: 'speaker', projectId: 'p', name: 'Speaker', category: 'Root' }],
+    decorators: [],
+    conditions: [],
+    nodes: [
+     { id: '00000000-0000-0000-0000-000000000001', dialogueId: 'd', type: 'startNode', data: { displayName: 'Start' } },
+     { id: 'line', dialogueId: 'd', type: 'leadNode', data: { participant: 'Speaker', displayName: 'Line', dialogueRows: [{ id: 'row', participant: 'Speaker', text: 'Hello' }] } },
+    ],
+    edges: [],
+    localizedStrings: [],
+   },
+  };
+  await a.db.projectRevisions.put(legacyRevision);
+  await a.db.syncConflicts.put({ id: 'conflict', provider: 'steam', projectId: 'p', localRevisionId: base.revisionId, revisionIds: [base.revisionId, legacyRevision.id], status: 'unresolved', createdAt: new Date().toISOString() });
+  const resolved = await protocol.resolveRevisionConflict('conflict', 'remote', { context: a.context });
+  const state = await a.db.projectState.get('p');
+  const node = await a.db.nodes.get(['d', 'line']);
+  const participant = await a.db.participants.get('speaker');
+  const strings = await a.db.localizedStrings.where('projectId').equals('p').toArray();
+  return { resolved: !!resolved.revisionId, conflictStatus: (await a.db.syncConflicts.get('conflict')).status, state: state.revisionId === resolved.revisionId, participantId: node.data.participantId, rowParticipantId: node.data.dialogueRows[0].participantId, categoryId: participant.categoryId, keyCount: strings.length, rowKey: node.data.dialogueRows[0].textKey };
+ });
+ expect(result).toMatchObject({ resolved: true, conflictStatus: 'resolved', state: true, participantId: 'speaker', rowParticipantId: 'speaker', categoryId: 'root', keyCount: 4 });
+ expect(result.rowKey).toMatch(/^dlg\.legacy_dialogue\.n_.+\.r_.+\.text$/);
+});
+
 test('ISS-021 offline restart and local acknowledgement quota retry exact uploaded revisions', async ({ page }) => {
  await setup(page);
  const result = await page.evaluate(async () => {
