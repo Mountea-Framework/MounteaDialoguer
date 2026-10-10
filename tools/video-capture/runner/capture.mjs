@@ -67,6 +67,8 @@ async function captureGraphBeat(session, scenario, scene, view, beat, index, tmp
 	const frames = frameCount(beat, scenario.fps);
 	const trackIds = (beat.track || []).map((ref) => resolveNodeId(scene, ref));
 	const tracks = Object.fromEntries(trackIds.map((id) => [id, []]));
+	// Node labels per tracked id, so the composition can reference a track by the label the scenario used.
+	const trackLabels = Object.fromEntries(trackIds.map((id, i) => [id, String(scene.nodes.find((n) => n.id === id)?.data?.label || beat.track[i])]));
 	let previous = null;
 	for (let i = 0; i < frames; i++) {
 		const t = i / scenario.fps;
@@ -88,7 +90,7 @@ async function captureGraphBeat(session, scenario, scene, view, beat, index, tmp
 			tracks[id].push(rect && [rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width, rect.height]);
 		}
 	}
-	return { frames, tracks };
+	return { frames, tracks, trackLabels };
 }
 
 async function capturePreviewBeat(session, scenario, scene, view, beat, index, tmpDir, dialogueId) {
@@ -157,7 +159,8 @@ async function captureStillsBeat(session, scenario, scene, view, beat, index, tm
 	} finally {
 		await session.page.evaluate((before) => document.body.classList.toggle('opaque', before), wasOpaque).catch(() => {});
 	}
-	return { frames: 1, stills };
+	// Optional duration: how long the composition holds the stills (it plays the theme morph over them).
+	return { frames: beat.duration > 0 ? frameCount(beat, scenario.fps) : 1, stills };
 }
 
 function lastGraphIndex(scenario, before) {
@@ -204,10 +207,10 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 			await fs.rm(tmpDir, { recursive: true, force: true });
 			await fs.mkdir(tmpDir, { recursive: true });
 			try {
-				const { frames, tracks, text, stills } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
+				const { frames, tracks, trackLabels, text, stills } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
 				await fs.rm(finalDir, { recursive: true, force: true });
 				await fs.rename(tmpDir, finalDir);
-				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(text && { text }), ...(stills && { stills }) });
+				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(trackLabels && { trackLabels }), ...(text && { text }), ...(stills && { stills }) });
 			} catch (error) {
 				await fs.rm(tmpDir, { recursive: true, force: true });
 				throw error;

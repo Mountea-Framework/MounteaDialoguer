@@ -23,6 +23,7 @@ test('capturing the same beat twice yields byte-identical frames', { timeout: 24
 	assert.equal(a.beats[0].frames, 5);
 	assert.equal(await hashDir(path.join(toolRoot, 'out/det-a/move')), await hashDir(path.join(toolRoot, 'out/det-b/move')));
 	assert.equal(a.beats[0].tracks[START].length, 5);
+	assert.ok(typeof a.beats[0].trackLabels?.[START] === 'string' && a.beats[0].trackLabels[START].length > 0, 'graph beats record a label per tracked node');
 });
 
 test('a missing fixture fails with its path and leaves no partial beat directory', { timeout: 120000 }, async () => {

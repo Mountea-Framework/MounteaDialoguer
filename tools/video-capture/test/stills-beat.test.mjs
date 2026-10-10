@@ -43,10 +43,13 @@ test('theme stills share identical geometry but differ in colour', { timeout: 24
 		beats: [
 			{ id: 'g', kind: 'graph', theme: 'dark', duration: 0.2 },
 			{ id: 'theme', kind: 'stills', of: 'g', from: 'dark', to: 'light' },
+			{ id: 'theme-hold', kind: 'stills', of: 'g', from: 'dark', to: 'light', duration: 1.2 },
 		],
 	}, { force: true });
 	const entry = manifest.beats.find((b) => b.id === 'theme');
 	assert.equal(entry.frames, 1);
+	// An optional duration holds the stills on the timeline (the composition plays the morph over it).
+	assert.equal(manifest.beats.find((b) => b.id === 'theme-hold').frames, 12);
 	assert.equal(entry.kind, 'stills');
 	assert.deepEqual(entry.stills, { dark: 'theme/dark.png', light: 'theme/light.png' });
 	const dir = path.join(toolRoot, 'out/stills/theme');

@@ -1,0 +1,52 @@
+{
+	"background": { "dark": "#0d0d0d", "light": "#f5f4f0" },
+	"music": { "src": "assets/music/relentless-iros-young-30s.mp3", "volume": 0.029512, "fadeIn": 0.6, "fadeOut": 0.68 },
+	"captions": [
+		{ "text": "That was one branch.", "emphasis": "one", "at": 3.6, "until": 5.2 },
+		{ "text": "Branch. Loop. Return. Done.", "at": 5.4, "until": 7.2 }
+	],
+	"toolbar": {
+		"top": 985, "at": 5.3, "stagger": 0.12,
+		"chips": [
+			{ "id": "autoLayout", "label": "Auto Layout", "primary": true },
+			{ "id": "preview", "label": "Preview" },
+			{ "id": "npc", "label": "NPC", "color": "#3b82f6" },
+			{ "id": "player", "label": "Player", "color": "#a855f7" },
+			{ "id": "return", "label": "Return", "color": "#f97316" },
+			{ "id": "child", "label": "Open Child Graph", "color": "#14b8a6" },
+			{ "id": "complete", "label": "Complete", "color": "#dc2626" },
+			{ "id": "delay", "label": "Delay", "color": "#06b6d4" }
+		]
+	},
+	"themeToggle": { "x": 1802, "y": 84, "w": 132, "h": 64, "at": 5.5 },
+	"reveal": { "duration": 1 },
+	"ui": { "autoLayout": [360, 1006] },
+	"cursorStart": [1500, 800],
+	"cursor": [
+		{ "at": 6.6, "to": [1792, 76], "duration": 0.82, "press": true },
+		{ "at": 7.9, "to": { "track": "drag:Sell Apples", "offset": [-24, -10] }, "duration": 0.7, "press": "down" },
+		{ "at": 8.7, "to": { "track": "drag:Sell Apples", "offset": [-24, -10] }, "duration": 0.8, "ease": "power3.inOut", "press": "up" },
+		{ "at": 9.75, "to": { "ui": "autoLayout" }, "duration": 0.7, "press": true, "flash": "chip-autoLayout" }
+	],
+	"sfx": [
+		{ "src": "assets/sfx/rollover2.ogg", "at": 0.2, "duration": 0.06, "volume": 0.1 },
+		{ "src": "assets/sfx/click_005.ogg", "at": 2.17, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_002.ogg", "at": 3.0, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/click_002.ogg", "at": 3.7, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/click_002.ogg", "at": 4.4, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/click_002.ogg", "at": 5.1, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/impactSoft_medium_001.ogg", "at": 5.85, "duration": 0.18, "volume": 0.177828 },
+		{ "src": "assets/sfx/click_005.ogg", "at": 5.3, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_005.ogg", "at": 5.54, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_005.ogg", "at": 5.78, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_005.ogg", "at": 6.02, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_003.ogg", "at": 7.42, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_002.ogg", "at": 8.6, "duration": 0.01, "volume": 0.12 },
+		{ "src": "assets/sfx/impactSoft_medium_001.ogg", "at": 9.5, "duration": 0.18, "volume": 0.1 },
+		{ "src": "assets/sfx/click_003.ogg", "at": 10.45, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/rollover2.ogg", "at": 10.6, "duration": 0.06, "volume": 0.1 },
+		{ "src": "assets/sfx/rollover2.ogg", "at": 10.95, "duration": 0.06, "volume": 0.1 },
+		{ "src": "assets/sfx/impactBell_heavy_000.ogg", "at": 12.6, "duration": 1.48, "volume": 0.177828 }
+	],
+	"endCard": { "at": 12.4, "duration": 3.6, "title": "Mountea Dialoguer", "tagline": "Dialogue manager made easy.", "logo": "assets/img/logo.png" }
+}

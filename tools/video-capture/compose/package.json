@@ -1,0 +1,11 @@
+{
+	"name": "mountea-dialoguer-brag",
+	"private": true,
+	"type": "module",
+	"description": "Generated HyperFrames project: run `npm run build` in tools/video-capture to (re)write index.html.",
+	"scripts": {
+		"dev": "npx --yes hyperframes@0.8.145 preview",
+		"check": "npx --yes hyperframes@0.8.145 check",
+		"render": "npx --yes hyperframes@0.8.145 render"
+	}
+}
