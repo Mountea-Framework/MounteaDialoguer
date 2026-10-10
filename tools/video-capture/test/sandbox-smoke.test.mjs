@@ -43,3 +43,15 @@ test('fake clock: page timers only advance when the runner advances the clock', 
 		await session.close();
 	}
 });
+
+test('page errors are collected and rethrown by idle() instead of crashing the process', { timeout: 120000 }, async () => {
+	const session = await openSession({ size: [320, 180], port: 5196 });
+	try {
+		const { page } = session;
+		await page.evaluate(() => { queueMicrotask(() => { throw new Error('boom'); }); });
+		await assert.rejects(() => idle(page, { timeoutMs: 2000 }), /boom/);
+		assert.equal(session.errors.length, 1);
+	} finally {
+		await session.close();
+	}
+});
