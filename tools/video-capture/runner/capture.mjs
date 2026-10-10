@@ -6,6 +6,7 @@ import { openSession, idle } from './session.mjs';
 import { sourceDigest } from './digest.mjs';
 import { frameCount } from '../shared/scenario.js';
 import { sceneBounds, graphFrame, resolveNodeId, endPositions, initialPositions } from '../shared/graphState.js';
+import { escapeRegExp } from '../shared/escapeRegExp.js';
 import { beatHash, buildManifest } from '../shared/manifest.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -94,7 +95,11 @@ async function capturePreviewBeat(session, scenario, scene, view, beat, index, t
 	const gi = lastGraphIndex(scenario, index);
 	const positions = scenario.beats[gi]?.kind === 'graph' && gi < index ? endPositions(scene, scenario.beats, gi) : initialPositions(scene);
 	const frame = { positions, nodeOpacity: Object.fromEntries(scene.nodes.map((n) => [n.id, 1])) };
-	await session.page.evaluate((opaque) => document.body.classList.toggle('opaque', Boolean(opaque)), beat.opaque);
+	const wasOpaque = await session.page.evaluate((opaque) => {
+		const before = document.body.classList.contains('opaque');
+		document.body.classList.toggle('opaque', Boolean(opaque));
+		return before;
+	}, beat.opaque);
 	await session.page.evaluate(({ scene, view, theme, language, dialogueId }) => {
 		window.__capture.setState({ language, theme, scene, view, dialogueId, preview: false });
 	}, { scene: { nodes: reactNodes(scene, frame), edges: reactEdges(scene, frame), participants: scene.participants }, view, theme: beat.theme || 'dark', language: scenario.language || 'en', dialogueId });
@@ -110,7 +115,7 @@ async function capturePreviewBeat(session, scenario, scene, view, beat, index, t
 			const t = i / scenario.fps;
 			while (actions.length && actions[0].at <= t) {
 				const { click } = actions.shift();
-				await session.page.getByRole('button', { name: new RegExp(click, 'i') }).first().click();
+				await session.page.getByRole('button', { name: new RegExp(escapeRegExp(click), 'i') }).first().click();
 			}
 			await session.page.clock.runFor(1000 / scenario.fps);
 			await idle(session.page);
@@ -118,7 +123,10 @@ async function capturePreviewBeat(session, scenario, scene, view, beat, index, t
 			text.push(await session.page.evaluate(() => window.__capture.previewText()));
 		}
 	} finally {
-		await session.page.evaluate(() => window.__capture.setState({ preview: false })).catch(() => {});
+		await session.page.evaluate((before) => {
+			window.__capture.setState({ preview: false });
+			document.body.classList.toggle('opaque', before);
+		}, wasOpaque).catch(() => {});
 	}
 	return { frames, text };
 }
