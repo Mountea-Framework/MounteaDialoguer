@@ -131,6 +131,32 @@ async function capturePreviewBeat(session, scenario, scene, view, beat, index, t
 	return { frames, text };
 }
 
+/** Same final layout and viewport rendered once per theme (only the dark/light class differs). */
+async function captureStillsBeat(session, scenario, scene, view, beat, index, tmpDir) {
+	const sourceIndex = scenario.beats.findIndex((b) => b.id === beat.of);
+	if (scenario.beats[sourceIndex]?.kind !== 'graph') throw new Error(`Beat "${beat.id}": "of" must reference a graph beat (got "${beat.of}")`);
+	const positions = endPositions(scene, scenario.beats, sourceIndex);
+	const frame = { positions, nodeOpacity: Object.fromEntries(scene.nodes.map((n) => [n.id, 1])) };
+	const stills = {};
+	const wasOpaque = await session.page.evaluate((opaque) => {
+		const before = document.body.classList.contains('opaque');
+		document.body.classList.toggle('opaque', Boolean(opaque));
+		return before;
+	}, beat.opaque);
+	try {
+		for (const theme of [beat.from, beat.to]) {
+			await pushFrame(session, scenario, scene, view, beat, index, frame, theme);
+			await session.page.clock.runFor(1000 / scenario.fps);
+			await idle(session.page);
+			await session.page.screenshot({ path: path.join(tmpDir, `${theme}.png`), omitBackground: !beat.opaque });
+			stills[theme] = `${beat.id}/${theme}.png`;
+		}
+	} finally {
+		await session.page.evaluate((before) => document.body.classList.toggle('opaque', before), wasOpaque).catch(() => {});
+	}
+	return { frames: 1, stills };
+}
+
 function lastGraphIndex(scenario, before) {
 	for (let i = before - 1; i >= 0; i--) if (scenario.beats[i].kind === 'graph') return i;
 	return 0;
@@ -169,16 +195,16 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 				if (cached) entries.push(cached);
 				continue;
 			}
-			if (beat.kind !== 'graph' && beat.kind !== 'preview') throw new Error(`Beat kind "${beat.kind}" is not implemented yet (beat "${beat.id}")`);
+			const capture = { graph: captureGraphBeat, preview: capturePreviewBeat, stills: captureStillsBeat }[beat.kind];
+			if (!capture) throw new Error(`Beat kind "${beat.kind}" is not implemented yet (beat "${beat.id}")`);
 			const tmpDir = path.join(outDir, `.tmp-${beat.id}-${process.pid}`);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 			await fs.mkdir(tmpDir, { recursive: true });
 			try {
-				const capture = beat.kind === 'preview' ? capturePreviewBeat : captureGraphBeat;
-				const { frames, tracks, text } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
+				const { frames, tracks, text, stills } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
 				await fs.rm(finalDir, { recursive: true, force: true });
 				await fs.rename(tmpDir, finalDir);
-				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(text && { text }) });
+				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(text && { text }), ...(stills && { stills }) });
 			} catch (error) {
 				await fs.rm(tmpDir, { recursive: true, force: true });
 				throw error;
