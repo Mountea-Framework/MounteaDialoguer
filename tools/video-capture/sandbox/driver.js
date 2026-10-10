@@ -17,6 +17,20 @@ export function installDriver() {
 			}
 			flushSync(() => storeSetState(partial));
 		},
+		async loadFixture(bytes) {
+			const { parseProjectArchive } = await import('@/lib/persistence/projectArchive.js');
+			const { buildScene } = await import('../shared/graphState.js');
+			const parsed = await parseProjectArchive(new Uint8Array(bytes));
+			const { snapshot } = parsed;
+			const dialogueId = parsed.dialogueId || snapshot.dialogues[0]?.id;
+			if (!dialogueId) throw new Error('Fixture contains no dialogue');
+			window.__fixture = { snapshot, dialogueId };
+			return { dialogueId, scene: buildScene(snapshot, dialogueId), dialogues: snapshot.dialogues.map((d) => ({ id: d.id, name: d.name })) };
+		},
+		async viewportFor(bounds, size) {
+			const { getViewportForBounds } = await import('@xyflow/react');
+			return getViewportForBounds(bounds, size[0], size[1], 0.05, 2, 0.08);
+		},
 		isIdle() {
 			const { scene } = getState();
 			if (!scene) return false;
