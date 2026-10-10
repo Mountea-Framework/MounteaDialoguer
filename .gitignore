@@ -55,3 +55,6 @@ dist-ssr
 
 # Local browser automation artifacts
 /.playwright-cli
+
+# Video capture output
+tools/video-capture/out/
