@@ -6,7 +6,7 @@ Every file in this folder was copied from the hand-built brag video (`brag-outpu
 | --- | --- | --- |
 | `fonts/inter-latin-{400,600,700}-normal.woff2` | Inter typeface (Latin subset, weights 400/600/700). These are the same files the sandbox uses (`sandbox/fonts/`). | Inter by Rasmus Andersson, SIL Open Font License 1.1. |
 | `gsap.min.js` | GSAP 3.14.2 animation runtime, loaded by `template.html`. | Copyright GreenSock. The file header says "Subject to the terms at https://gsap.com/standard-license". |
-| `img/logo.png` | Mountea Dialoguer product logo, shown on the end card. | The project's own logo. Its source file and licence are not recorded here. |
+| `img/logo.png` | Mountea Dialoguer product logo, shown on the end card. | The project's own logo: byte-identical to the app's `public/mounteaDialoguerIcon.png` (verified with a file comparison). |
 | `sfx/click_002.ogg`, `sfx/click_003.ogg`, `sfx/click_005.ogg`, `sfx/impactBell_heavy_000.ogg`, `sfx/impactSoft_medium_001.ogg`, `sfx/rollover2.ogg` | UI click, impact and rollover sound effects, cued in `video-design.json`. | **Provenance not recorded.** The file names resemble public CC0 game-audio packs, but this is not confirmed. Verify before publishing. |
 
 ## Not committed

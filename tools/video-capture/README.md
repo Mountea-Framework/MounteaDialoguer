@@ -4,6 +4,13 @@ Captures the **real** Mountea Dialoguer components (node types, edges, the Dialo
 
 Nothing renders automatically. Capturing and building produce files; turning them into an MP4 is a separate, explicit step you run after reviewing the result.
 
+## Prerequisites
+
+- Root dependencies: `npm ci` at the repository root.
+- Chromium for Playwright: `npx playwright install chromium`.
+- `ffmpeg` with libvpx-vp9 on PATH (the build encodes each beat to an alpha WebM; it fails with a clear message when ffmpeg is missing).
+- Network access the first time `npx hyperframes@0.8.145` runs (it downloads the pinned CLI). Capturing itself is offline.
+
 ## Quick start
 
 From the repository root:
@@ -111,7 +118,12 @@ Music is user-supplied and not committed: `compose/assets/music/` is git-ignored
 
 ## Known limits
 
-- The theme toggle is drawn by the composition, not captured (the app's theme switch is not on the editor canvas). Its position lives in `video-design.json`; the Auto Layout button rectangle comes from the captured UI.
+- The theme toggle is drawn by the composition, not captured (the app's theme switch is not on the editor canvas). Its position lives in `video-design.json`.
+- The toolbar and chips in the composition are drawn by `build.mjs` and `video-design.json`, not captured from the real toolbar. The Auto Layout button rectangle (`ui.autoLayout`) is a hand-measured constant in `video-design.json`, not read from the captured UI.
+- Cursor, SFX and caption cue times are absolute seconds in `video-design.json`. Changing a beat duration desynchronises them; beat-relative cues are a follow-up.
+- The manifest records track positions only for tracked nodes (`track`); it holds no viewport or per-frame positions for all nodes.
+- Fonts: only Inter 400, 600 and 700 (latin subset) are bundled in `sandbox/fonts/`. The app also uses weight 500 (`font-medium`) and Czech/Polish text needs latin-ext glyphs; neither is available offline here and nothing is downloaded. Those cases fall back to the nearest bundled weight or a system font, which can differ between machines (cs/pl in particular). The capture fails before the first frame if any of the bundled 400/600/700 faces fails to load. Adding the missing files means extra `@font-face` rules (with `unicode-range` for latin-ext) in `sandbox/capture.css`.
+- Cache validity: each beat directory carries a `.hash` marker and is reused only if it matches the current source/scenario hash (everything under `src/`, the Tailwind and lock files, and the tool itself), so a failed run cannot leave frames that a later run trusts.
 - The real preview overlay has no typewriter, so the `preview` beat shows each line as the app renders it.
 - The brag scenario renders the real 38-node onboarding dialogue, so nodes are small at 1920x1080. Visual tuning (camera focus or zoom, or a smaller dialogue) is a known follow-up.
 - Sandbox is hermetic: no network, no Electron or Dexie; fonts are bundled from `sandbox/fonts/`.

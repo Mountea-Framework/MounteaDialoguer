@@ -1,7 +1,7 @@
 # Video Capture Pipeline: Design
 
 Date: 2026-10-10
-Status: Draft for review
+Status: Implemented (see notes)
 Branch context: `dev`
 
 ## 1. Purpose
@@ -79,7 +79,7 @@ export default {
 
 Beat kinds:
 
-- `preview`: the real `DialoguePreviewOverlay` against the fixture; typing and answer reveal come from the app's own timers on the fake clock.
+- `preview`: the real `DialoguePreviewOverlay` against the fixture; answer reveal and row progress come from the app's own timers on the fake clock. The real overlay has no typewriter, so the beat shows each line as the app renders it.
 - `graph`: the real React Flow canvas. Node positions come from the scenario (drag target, or `graphLayout` output for Auto Layout). Easing is applied by the driver, not by React Flow.
 - `stills`: one capture per theme with identical layout, for the dark-to-light morph built in HyperFrames.
 
@@ -127,3 +127,14 @@ Runner steps:
 - **Frame volume.** About 700 frames at 1080p/30 fps for the brag scenario; 60 fps or 2x scale multiplies this. Mitigated by git-ignored `out/` and per-beat caching.
 - **Image-sequence clip format.** Whether HyperFrames is best fed PNG sequences, a pre-encoded transparent WebM, or scrubbed `<img>` is confirmed in step 7's spike.
 - **Provider surface.** Components may depend on more context (zustand stores, tooltips, context menus) than the sandbox's fixed providers; any such dependency is stubbed in `sandbox/main.jsx`, not changed in the app.
+
+## 8. Implementation notes and deviations
+
+- The Auto Layout button rectangle is a hand-measured constant in `compose/video-design.json` (`ui.autoLayout`), not taken from the captured UI.
+- The toolbar and chips in the composition are drawn by `build.mjs` and `video-design.json`, not captured from the real toolbar.
+- Cursor, SFX and caption cue times are absolute seconds in `video-design.json`; changing a beat duration desynchronises them (beat-relative cues are a follow-up).
+- The manifest records track positions only for tracked nodes; it has no viewport and no positions for all nodes.
+- The theme toggle is drawn by the composition (the app's theme switch is not on the editor canvas).
+- Music is user-supplied and untracked (`compose/assets/music/` is git-ignored); the build warns and omits music if absent.
+- A `stills` beat may carry a `duration`: how long the composition holds the stills while it plays the theme morph.
+- Translation keys are checked against the requested language itself (the `en` fallback is disabled during capture), per beat and before a beat is stored.
