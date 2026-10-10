@@ -1,0 +1,13 @@
+{
+	"name": "mountea-video-capture",
+	"private": true,
+	"type": "module",
+	"description": "Captures the real Mountea Dialoguer components as video layers for HyperFrames.",
+	"scripts": {
+		"test": "node --test test/",
+		"capture": "node runner/cli.mjs",
+		"build": "node compose/build.mjs",
+		"preview": "npx --yes hyperframes@0.8.145 preview compose",
+		"render": "npx --yes hyperframes@0.8.145 render compose"
+	}
+}
