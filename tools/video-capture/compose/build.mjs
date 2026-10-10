@@ -103,7 +103,7 @@ function resolveTarget(to, arrival, manifest, design) {
 	throw new Error(`Cursor target must be [x, y], { track } or { ui } (got ${js(to)})`);
 }
 
-function beatMarkup(entry, index, mode, size, themeOf) {
+function beatMarkup(entry, index, mode, size, themeOf, fadeOut = false) {
 	const { beat, start, duration } = entry;
 	const timing = `data-start="${sec(start)}" data-duration="${sec(duration)}" data-track-index="${index + 1}"`;
 	if (beat.kind === 'stills') {
@@ -116,10 +116,11 @@ function beatMarkup(entry, index, mode, size, themeOf) {
 			</div>
 		</div>`;
 	}
-	if (mode === 'images') {
-		return `		<img id="beat-${beat.id}" class="clip layer" ${timing} src="assets/beats/${beat.id}/frame-0001.png" alt="" width="${size[0]}" height="${size[1]}">`;
-	}
-	return `		<video id="beat-${beat.id}" class="clip layer" ${timing} muted playsinline src="assets/beats/${beat.id}.webm"></video>`;
+	const media = mode === 'images'
+		? `<img id="beat-${beat.id}" class="clip layer" ${timing} src="assets/beats/${beat.id}/frame-0001.png" alt="" width="${size[0]}" height="${size[1]}">`
+		: `<video id="beat-${beat.id}" class="clip layer" ${timing} muted playsinline src="assets/beats/${beat.id}.webm"></video>`;
+	// A clip's own opacity belongs to the framework, so a fade-out animates an untimed wrapper instead.
+	return fadeOut ? `		<div id="fade-${beat.id}" class="layer">${media}</div>` : `		${media}`;
 }
 
 /**
@@ -145,7 +146,19 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 
 	// ---------- markup ----------
 	body.push(`		<div id="bg" class="backdrop" style="--bgc: ${startTheme.bgc}; --dots: ${startTheme.dots}"><div class="grid"></div></div>`);
-	beats.forEach((entry, i) => body.push(beatMarkup(entry, i, mode, manifest.size, themeOf)));
+	const fades = new Map((design.beatFades || []).map((f) => [f.beat, { in: f.in || 0, out: f.out || 0, crossfade: !!f.crossfade }]));
+	for (const [id, f] of fades) {
+		const at = beats.findIndex((b) => b.beat.id === id);
+		if (at < 0) throw new Error(`beatFades names unknown beat "${id}"`);
+		// A crossfade starts the next beat early so it shows through while this one fades out.
+		if (f.crossfade && f.out) {
+			const next = beats[at + 1];
+			if (!next) throw new Error(`beatFades crossfade on "${id}" needs a following beat`);
+			next.start -= f.out;
+			next.duration += f.out;
+		}
+	}
+	beats.forEach((entry, i) => body.push(beatMarkup(entry, i, mode, manifest.size, themeOf, fades.has(entry.beat.id))));
 
 	(design.captions || []).forEach((c, i) => {
 		let text = esc(c.text);
@@ -208,6 +221,11 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 			tl(`tl.fromTo("#chip-${c.id || i}", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(1.6)", immediateRender: false }, ${sec(toolbar.at + i * (toolbar.stagger ?? 0.12))});`);
 		});
 	}
+	// Windows where the composition's own chrome hides (e.g. while a captured overlay covers the screen).
+	for (const [from, to] of toolbar?.hide || []) {
+		tl(`tl.to("#toolbar", { opacity: 0, duration: 0.25, ease: "power1.in" }, ${sec(from)});`);
+		tl(`tl.to("#toolbar", { opacity: 1, duration: 0.3, ease: "power1.out" }, ${sec(to)});`);
+	}
 	if (toggle) tl(`tl.fromTo("#toggle", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.6)", immediateRender: false }, ${sec(toggle.at ?? 0)});`);
 
 	if (stillsBeat) {
@@ -251,6 +269,8 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 		tl(`tl.set("#cursor", { x: ${px(sx)}, y: ${px(sy)}, transformOrigin: "12% 8%" }, 0);`);
 		tl(`tl.to("#cursor", { opacity: 1, duration: 0.2 }, ${sec(Math.max(0, first.at - 0.2))});`);
 		for (const w of design.cursor) {
+			if (w !== first && w.fadeIn) tl(`tl.to("#cursor", { opacity: 1, duration: 0.2 }, ${sec(Math.max(0, w.at - 0.2))});`);
+			if (w.fadeOutAt != null) tl(`tl.to("#cursor", { opacity: 0, duration: 0.2 }, ${sec(w.fadeOutAt)});`);
 			const arrival = w.at + w.duration;
 			const { x, y } = resolveTarget(w.to, arrival, manifest, design);
 			tl(`tl.to("#cursor", { x: ${px(x)}, y: ${px(y)}, duration: ${sec(w.duration)}, ease: ${js(w.ease || 'power2.inOut')} }, ${sec(w.at)});`);
@@ -262,6 +282,13 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 		}
 		const hideAt = design.cursorHide ?? (endCard ? endCard.at : total - 0.3);
 		tl(`tl.to("#cursor", { opacity: 0, duration: 0.2 }, ${sec(hideAt)});`);
+	}
+
+	for (const [id, f] of fades) {
+		const e = beats.find((b) => b.beat.id === id);
+		const end = e.start + e.duration;
+		if (f.in) tl(`tl.fromTo("#fade-${id}", { opacity: 0 }, { opacity: 1, duration: ${f.in}, ease: "power1.inOut", immediateRender: false }, ${sec(e.start)});`);
+		if (f.out) tl(`tl.to("#fade-${id}", { opacity: 0, duration: ${f.out}, ease: "power1.inOut" }, ${sec(end - f.out)});`);
 	}
 
 	if (endCard) {
