@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { ReactFlow, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { getState, subscribe } from './captureStore.js';
+import { DialoguePreviewOverlay } from '@/components/dialogue/DialoguePreviewOverlay';
 import { nodeTypes, edgeTypes } from './nodeTypes.js';
 
 function Canvas({ scene, view }) {
@@ -40,6 +41,19 @@ export default function Stage() {
 			<ReactFlowProvider>
 				<Canvas scene={state.scene} view={state.view} />
 			</ReactFlowProvider>
+			{state.preview && (
+				<DialoguePreviewOverlay
+					open
+					nodes={state.previewGraph?.nodes ?? state.scene.nodes}
+					edges={state.previewGraph?.edges ?? state.scene.edges}
+					participants={state.scene.participants}
+					rootDialogueId={state.dialogueId || ''}
+					loadDialogueGraphForPreview={async (id) => window.__capture.graphForPreview(id)}
+					onStop={() => {}}
+					onNodeFocus={() => {}}
+					onNodeChange={() => {}}
+				/>
+			)}
 		</div>
 	);
 }

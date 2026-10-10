@@ -4,7 +4,7 @@
 	"type": "module",
 	"description": "Captures the real Mountea Dialoguer components as video layers for HyperFrames.",
 	"scripts": {
-		"test": "node --test \"test/**/*.test.mjs\"",
+		"test": "node --test --test-concurrency=1 \"test/**/*.test.mjs\"",
 		"capture": "node runner/cli.mjs",
 		"build": "node compose/build.mjs",
 		"preview": "npx --yes hyperframes@0.8.145 preview compose",

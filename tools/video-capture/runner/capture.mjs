@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { openSession, idle } from './session.mjs';
 import { sourceDigest } from './digest.mjs';
 import { frameCount } from '../shared/scenario.js';
-import { sceneBounds, graphFrame, resolveNodeId } from '../shared/graphState.js';
+import { sceneBounds, graphFrame, resolveNodeId, endPositions, initialPositions } from '../shared/graphState.js';
 import { beatHash, buildManifest } from '../shared/manifest.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -88,6 +88,46 @@ async function captureGraphBeat(session, scenario, scene, view, beat, index, tmp
 	return { frames, tracks };
 }
 
+async function capturePreviewBeat(session, scenario, scene, view, beat, index, tmpDir, dialogueId) {
+	const frames = frameCount(beat, scenario.fps);
+	// Show the graph as the previous graph beat left it (initial layout if there is none).
+	const gi = lastGraphIndex(scenario, index);
+	const positions = scenario.beats[gi]?.kind === 'graph' && gi < index ? endPositions(scene, scenario.beats, gi) : initialPositions(scene);
+	const frame = { positions, nodeOpacity: Object.fromEntries(scene.nodes.map((n) => [n.id, 1])) };
+	await session.page.evaluate((opaque) => document.body.classList.toggle('opaque', Boolean(opaque)), beat.opaque);
+	await session.page.evaluate(({ scene, view, theme, language, dialogueId }) => {
+		window.__capture.setState({ language, theme, scene, view, dialogueId, preview: false });
+	}, { scene: { nodes: reactNodes(scene, frame), edges: reactEdges(scene, frame), participants: scene.participants }, view, theme: beat.theme || 'dark', language: scenario.language || 'en', dialogueId });
+	// The overlay plays the stored graph with localized text materialized (as the editor does).
+	await session.page.evaluate(async (id) => {
+		const previewGraph = await window.__capture.graphForPreview(id);
+		window.__capture.setState({ previewGraph, preview: true });
+	}, dialogueId);
+	const actions = [...(beat.actions || [])].sort((a, b) => a.at - b.at);
+	const text = [];
+	try {
+		for (let i = 0; i < frames; i++) {
+			const t = i / scenario.fps;
+			while (actions.length && actions[0].at <= t) {
+				const { click } = actions.shift();
+				await session.page.getByRole('button', { name: new RegExp(click, 'i') }).first().click();
+			}
+			await session.page.clock.runFor(1000 / scenario.fps);
+			await idle(session.page);
+			await session.page.screenshot({ path: path.join(tmpDir, `frame-${padded(i)}.png`), omitBackground: !beat.opaque });
+			text.push(await session.page.evaluate(() => window.__capture.previewText()));
+		}
+	} finally {
+		await session.page.evaluate(() => window.__capture.setState({ preview: false })).catch(() => {});
+	}
+	return { frames, text };
+}
+
+function lastGraphIndex(scenario, before) {
+	for (let i = before - 1; i >= 0; i--) if (scenario.beats[i].kind === 'graph') return i;
+	return 0;
+}
+
 export async function captureScenario(scenario, { lang = null, beat: onlyBeat = null, force = false, scale = 1 } = {}) {
 	const effective = { ...scenario, language: lang || scenario.language || 'en' };
 	const outDir = path.join(toolRoot, 'out', effective.id);
@@ -109,7 +149,7 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 	const session = await openSession({ size: effective.size, scale });
 	const entries = [];
 	try {
-		const { scene } = await loadScene(session, effective, fixtureBytes);
+		const { scene, dialogueId } = await loadScene(session, effective, fixtureBytes);
 		const view = await viewportFor(session, effective, scene);
 		for (let index = 0; index < effective.beats.length; index++) {
 			const beat = effective.beats[index];
@@ -121,15 +161,16 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 				if (cached) entries.push(cached);
 				continue;
 			}
-			if (beat.kind !== 'graph') throw new Error(`Beat kind "${beat.kind}" is not implemented yet (beat "${beat.id}")`);
+			if (beat.kind !== 'graph' && beat.kind !== 'preview') throw new Error(`Beat kind "${beat.kind}" is not implemented yet (beat "${beat.id}")`);
 			const tmpDir = path.join(outDir, `.tmp-${beat.id}-${process.pid}`);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 			await fs.mkdir(tmpDir, { recursive: true });
 			try {
-				const { frames, tracks } = await captureGraphBeat(session, effective, scene, view, beat, index, tmpDir);
+				const capture = beat.kind === 'preview' ? capturePreviewBeat : captureGraphBeat;
+				const { frames, tracks, text } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
 				await fs.rm(finalDir, { recursive: true, force: true });
 				await fs.rename(tmpDir, finalDir);
-				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, tracks });
+				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(text && { text }) });
 			} catch (error) {
 				await fs.rm(tmpDir, { recursive: true, force: true });
 				throw error;

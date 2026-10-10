@@ -31,6 +31,36 @@ export function installDriver() {
 			const { getViewportForBounds } = await import('@xyflow/react');
 			return getViewportForBounds(bounds, size[0], size[1], 0.05, 2, 0.08);
 		},
+		// Mirrors dialogueStore.loadDialogueGraphForPreview: { nodes, edges, viewport }.
+		// nodes are the dialogue's stored records with localized text materialized for the
+		// active locale; edges are the stored records; viewport defaults to { x: 0, y: 0, zoom: 1 }.
+		async graphForPreview(dialogueId) {
+			const { snapshot } = window.__fixture;
+			const dialogue = snapshot.dialogues.find((d) => d.id === dialogueId);
+			if (!dialogue) return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
+			const { materializeLocalizedNodes, filterLocalizedEntriesByDialogue, normalizeProjectLocalizationConfig, normalizeLocaleTag, DEFAULT_LOCALE } = await import('@/lib/localization/stringTable');
+			const project = snapshot.project || snapshot.projects?.find((p) => p.id === dialogue.projectId);
+			const defaultLocale = normalizeProjectLocalizationConfig(project?.localization || {}).defaultLocale || DEFAULT_LOCALE;
+			const entries = filterLocalizedEntriesByDialogue(snapshot.localizedStrings || [], dialogueId);
+			const nodes = materializeLocalizedNodes({
+				nodes: snapshot.nodes.filter((n) => n.dialogueId === dialogueId),
+				dialogueId,
+				dialogueSlug: dialogue.localizationSlug,
+				locale: normalizeLocaleTag(i18n.language, defaultLocale),
+				defaultLocale,
+				stringEntries: entries,
+			});
+			return {
+				nodes,
+				edges: snapshot.edges.filter((e) => e.dialogueId === dialogueId),
+				viewport: dialogue.viewport || { x: 0, y: 0, zoom: 1 },
+			};
+		},
+		previewText() {
+			const el = document.querySelector('[data-testid="preview-line"]');
+			// The empty-line placeholder is not dialogue text.
+			return el && el.textContent !== i18n.t('editor.preview.waiting') ? el.textContent : '';
+		},
 		isIdle() {
 			const { scene } = getState();
 			if (!scene) return false;

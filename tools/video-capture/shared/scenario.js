@@ -32,6 +32,9 @@ export function validateScenario(scenario) {
 		} else if (!(beat?.duration > 0)) {
 			problems.push(`${at}: duration must be > 0`);
 		}
+		if (beat?.kind === 'preview' && beat.actions !== undefined) {
+			if (!Array.isArray(beat.actions) || beat.actions.some((a) => !(a?.at >= 0) || typeof a?.click !== 'string' || !a.click)) problems.push(`${at}: actions must be [{ at: seconds >= 0, click: button name }]`);
+		}
 		if (beat?.ease && !EASES.includes(beat.ease)) problems.push(`${at}: unknown ease "${beat.ease}"`);
 		if (beat?.theme && !THEMES.includes(beat.theme)) problems.push(`${at}: theme must be ${THEMES.join('/')}`);
 	});
