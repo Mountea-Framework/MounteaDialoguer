@@ -63,3 +63,11 @@ test('a clicked ui waypoint resolves design.ui and can flash the clicked chip', 
 	assert.match(html, /tl\.to\("#cursor", \{ x: 360, y: 1006, duration: 0\.5/);
 	assert.match(html, /tl\.to\("#chip-autoLayout", \{ backgroundColor: "#f97316"[^)]*\}, 0\.72\)/);
 });
+
+test('without a music file the composition still builds with its SFX and end card', () => {
+	const html = buildComposition({ manifest, design, mode: 'webm', withMusic: false });
+	assert.doesNotMatch(html, /id="music"/);
+	assert.doesNotMatch(html, /data-fade-in/);
+	assert.match(html, /<audio id="sfx-0" src="assets\/sfx\/click_002\.ogg"/);
+	assert.match(html, /data-composition-id="brag"[^>]*data-duration="2.5"/);
+});

@@ -4,6 +4,13 @@
 //  - 'webm'   (default): each frame-sequence beat is one transparent VP9 WebM (yuva420p) in a <video> clip.
 //             HyperFrames 0.8.145 keeps the alpha channel in both `snapshot` and `render`, and seeks the clip per frame.
 //  - 'images' (fallback): one <img> per beat whose src is swapped from a GSAP onUpdate (frames preloaded first).
+//
+// compose/hyperframes.json sets media.autoProxy to false on purpose: the preview proxy transcodes the beat WebMs
+// to H.264 (yuv420p, no alpha), so Studio preview would show a different video than the render. The alpha WebM
+// path stays authoritative in preview, snapshot and render.
+//
+// Music is user-supplied and not committed (assets/music/ is git-ignored): when design.music.src is missing,
+// buildProject warns and builds without the music track.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -108,9 +115,10 @@ function beatMarkup(entry, index, mode, size, themeOf) {
 
 /**
  * Pure: returns the full index.html for a manifest and a video design.
- * @param {{ manifest: object, design: object, mode?: 'webm' | 'images', compositionId?: string }} options
+ * @param {{ manifest: object, design: object, mode?: 'webm' | 'images', compositionId?: string, withMusic?: boolean }} options
+ *   withMusic: false omits the music track (used when the user-supplied music file is absent).
  */
-export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compositionId = 'brag' }) {
+export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compositionId = 'brag', withMusic = true }) {
 	if (!MODES.includes(mode)) throw new Error(`Unknown mode "${mode}". Use one of ${MODES.join(', ')}`);
 	const [width, height] = manifest.size;
 	const fps = manifest.fps;
@@ -166,7 +174,7 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 		</div>`);
 	}
 
-	const music = design.music;
+	const music = withMusic ? design.music : null;
 	if (music) {
 		body.push(`		<audio id="music" src="${esc(music.src)}" data-start="0" data-duration="${sec(total)}" data-track-index="20" data-volume="${music.volume}" data-fade-in="${music.fadeIn}" data-fade-out="${music.fadeOut}"></audio>`);
 	}
@@ -307,7 +315,9 @@ export function buildProject({ scenario = 'brag', mode = DEFAULT_MODE, toolRoot 
 			execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(manifest.fps), '-i', path.join(out, beat.dir, 'frame-%04d.png'), '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-b:v', '0', '-crf', '24', path.join(beatsDir, `${beat.id}.webm`)], { stdio: 'inherit' });
 		}
 	}
-	const html = buildComposition({ manifest, design, mode });
+	const withMusic = !design.music || fs.existsSync(path.join(composeDir, design.music.src));
+	if (!withMusic) console.warn(`music "${design.music.src}" not found; building without music. Put an audio file there to enable it.`);
+	const html = buildComposition({ manifest, design, mode, withMusic });
 	fs.writeFileSync(path.join(composeDir, 'index.html'), html);
 	return { manifest, file: path.join(composeDir, 'index.html') };
 }

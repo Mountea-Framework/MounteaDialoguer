@@ -7,6 +7,6 @@
 		"assets": "assets"
 	},
 	"media": {
-		"autoProxy": true
+		"autoProxy": false
 	}
 }
