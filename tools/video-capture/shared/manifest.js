@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 
 export const MANIFEST_VERSION = 1;
 
-export function beatHash(scenario, index, sourceDigest) {
+export function beatHash(scenario, index, sourceDigest, scale = 1) {
 	const { beats, ...settings } = scenario;
-	const payload = JSON.stringify({ settings, beats: beats.slice(0, index + 1), sourceDigest });
+	const payload = JSON.stringify({ settings, scale, beats: beats.slice(0, index + 1), sourceDigest });
 	return createHash('sha1').update(payload).digest('hex');
 }
 

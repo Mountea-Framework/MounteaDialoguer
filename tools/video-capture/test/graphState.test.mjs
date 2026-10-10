@@ -35,7 +35,7 @@ test('resolveNodeId matches ids and unique labels and explains failures', () => 
 	assert.equal(resolveNodeId(s, 'sell goods'), 'b');
 	assert.throws(() => resolveNodeId(s, 'nope'), /No node "nope".*Greeting.*Sell Goods/s);
 	const dup = buildScene({ ...snapshot, nodes: [...snapshot.nodes, { id: 'b2', dialogueId: 'd', type: 'answerNode', position: { x: 0, y: 0 }, data: { label: 'Sell Goods' } }] }, 'd');
-	assert.throws(() => resolveNodeId(dup, 'Sell Goods'), /ambiguous/i);
+	assert.throws(() => resolveNodeId(dup, 'Sell Goods'), /ambiguous.*matches: b, b2.*Labels:.*Greeting.*Leave/is);
 });
 
 test('move then auto layout: end positions fold across beats', () => {

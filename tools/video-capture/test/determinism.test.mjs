@@ -36,3 +36,12 @@ test('an unknown node reference names the available labels', { timeout: 120000 }
 	s.beats[0].move.node = 'Nonexistent Node';
 	await assert.rejects(() => captureScenario(s, { force: true }), /No node "Nonexistent Node".*Labels:/s);
 });
+
+test('--beat refuses to run when a sibling beat has no cached capture', { timeout: 120000 }, async () => {
+	const s = scenario('det-beat-uncached');
+	s.beats.push({ id: 'other', kind: 'graph', theme: 'dark', duration: 0.2 });
+	await fs.rm(path.join(toolRoot, 'out/det-beat-uncached'), { recursive: true, force: true });
+	await assert.rejects(() => captureScenario(s, { beat: 'move' }), /Beat "other" has no cached capture; run the whole scenario once before using --beat/);
+	const entries = await fs.readdir(path.join(toolRoot, 'out/det-beat-uncached')).catch(() => []);
+	assert.deepEqual(entries, []);
+});

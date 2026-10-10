@@ -23,6 +23,12 @@ test('beatHash is stable and changes with the beat, earlier beats, source digest
 	assert.notEqual(beatHash(cs, 1, 'src1'), base);
 });
 
+test('beatHash changes with scale', () => {
+	const s = scenario();
+	assert.equal(beatHash(s, 1, 'src1', 1), beatHash(s, 1, 'src1'));
+	assert.notEqual(beatHash(s, 1, 'src1', 2), beatHash(s, 1, 'src1', 1));
+});
+
 test('buildManifest lists beats in order with start frames', () => {
 	const s = scenario();
 	const manifest = buildManifest(s, [

@@ -24,8 +24,7 @@ async function readFixture(scenario) {
 	}
 }
 
-async function loadScene(session, scenario) {
-	const bytes = await readFixture(scenario);
+async function loadScene(session, scenario, bytes) {
 	try {
 		return await session.page.evaluate((b) => window.__capture.loadFixture(b), bytes);
 	} catch (error) {
@@ -93,17 +92,28 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 	const effective = { ...scenario, language: lang || scenario.language || 'en' };
 	const outDir = path.join(toolRoot, 'out', effective.id);
 	await fs.mkdir(outDir, { recursive: true });
-	const digest = await sourceDigest(repoRoot);
+	const fixtureBytes = await readFixture(effective);
+	const digest = digestOf(`${await sourceDigest(repoRoot)}:${digestOf(Buffer.from(fixtureBytes))}`);
 	const previous = await fs.readFile(path.join(outDir, 'manifest.json'), 'utf8').then(JSON.parse).catch(() => null);
+
+	if (onlyBeat) {
+		if (!effective.beats.some((b) => b.id === onlyBeat)) throw new Error(`Unknown beat "${onlyBeat}"`);
+		for (const b of effective.beats) {
+			if (b.id === onlyBeat) continue;
+			const cachedEntry = previous?.beats.find((entry) => entry.id === b.id);
+			const present = cachedEntry && await fs.stat(path.join(outDir, b.id)).then(() => true).catch(() => false);
+			if (!present) throw new Error(`Beat "${b.id}" has no cached capture; run the whole scenario once before using --beat`);
+		}
+	}
 
 	const session = await openSession({ size: effective.size, scale });
 	const entries = [];
 	try {
-		const { scene } = await loadScene(session, effective);
+		const { scene } = await loadScene(session, effective, fixtureBytes);
 		const view = await viewportFor(session, effective, scene);
 		for (let index = 0; index < effective.beats.length; index++) {
 			const beat = effective.beats[index];
-			const hash = beatHash(effective, index, digest);
+			const hash = beatHash(effective, index, digest, scale);
 			const cached = previous?.beats.find((b) => b.id === beat.id);
 			const finalDir = path.join(outDir, beat.id);
 			const skip = !force && cached?.hash === hash && await fs.stat(finalDir).then(() => true).catch(() => false);

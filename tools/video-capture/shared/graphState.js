@@ -39,7 +39,7 @@ export function resolveNodeId(scene, ref) {
 	const matches = scene.nodes.filter((n) => String(n.data?.label || '').trim().toLowerCase() === wanted);
 	if (matches.length === 1) return matches[0].id;
 	const labels = scene.nodes.map((n) => n.data?.label).filter(Boolean).join(', ');
-	if (matches.length > 1) throw new Error(`Node reference "${ref}" is ambiguous (${matches.length} matches). Use an id.`);
+	if (matches.length > 1) throw new Error(`Node reference "${ref}" is ambiguous (${matches.length} matches: ${matches.map((n) => n.id).join(', ')}). Use an id. Labels: ${labels}`);
 	throw new Error(`No node "${ref}" in this graph. Labels: ${labels}`);
 }
 
