@@ -4,6 +4,9 @@ import { getState, setState as storeSetState } from './captureStore.js';
 
 const missingKeys = [];
 i18n.options.saveMissing = true;
+// Keys must exist in the requested language itself: with the app's default `fallbackLng: 'en'`
+// a key missing from e.g. cs would silently render English and never emit missingKey.
+i18n.options.fallbackLng = false;
 i18n.on('missingKey', (_languages, _namespace, key) => {
 	if (!missingKeys.includes(key)) missingKeys.push(key);
 });
@@ -11,6 +14,22 @@ i18n.on('missingKey', (_languages, _namespace, key) => {
 export function installDriver() {
 	window.__capture = {
 		missingKeys,
+		// Test hook: delete every key equal to or starting with `prefix_` (plural forms) from a language bundle.
+		dropKeys(lang, prefix) {
+			const bundle = JSON.parse(JSON.stringify(i18n.getResourceBundle(lang, 'translation')));
+			const dropped = [];
+			const walk = (node, trail) => {
+				for (const k of Object.keys(node)) {
+					const full = trail ? `${trail}.${k}` : k;
+					if (node[k] && typeof node[k] === 'object') walk(node[k], full);
+					else if (full === prefix || full.startsWith(`${prefix}_`)) { delete node[k]; dropped.push(full); }
+				}
+			};
+			walk(bundle, '');
+			i18n.removeResourceBundle(lang, 'translation');
+			i18n.addResourceBundle(lang, 'translation', bundle, false, true);
+			return dropped;
+		},
 		setState(partial) {
 			if (partial.language && partial.language !== i18n.language) {
 				i18n.changeLanguage(partial.language);

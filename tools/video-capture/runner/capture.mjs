@@ -7,6 +7,7 @@ import { sourceDigest } from './digest.mjs';
 import { frameCount } from '../shared/scenario.js';
 import { sceneBounds, graphFrame, resolveNodeId, endPositions, initialPositions } from '../shared/graphState.js';
 import { escapeRegExp } from '../shared/escapeRegExp.js';
+import appLanguages from '../../../electron/shared/app-languages.json' with { type: 'json' };
 import { beatHash, buildManifest } from '../shared/manifest.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -168,8 +169,12 @@ function lastGraphIndex(scenario, before) {
 	return 0;
 }
 
-export async function captureScenario(scenario, { lang = null, beat: onlyBeat = null, force = false, scale = 1 } = {}) {
+export async function captureScenario(scenario, { lang = null, beat: onlyBeat = null, force = false, scale = 1, onSession = null } = {}) {
 	const effective = { ...scenario, language: lang || scenario.language || 'en' };
+	const supported = appLanguages.map((l) => l.code);
+	if (!supported.includes(effective.language)) {
+		throw new Error(`Unsupported language "${effective.language}". Supported languages: ${supported.join(', ')}`);
+	}
 	const outDir = path.join(toolRoot, 'out', effective.id);
 	await fs.mkdir(outDir, { recursive: true });
 	const fixtureBytes = await readFixture(effective);
@@ -188,7 +193,9 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 
 	const session = await openSession({ size: effective.size, scale });
 	const entries = [];
+	let rendered = false;
 	try {
+		if (onSession) await onSession(session);
 		const { scene, dialogueId } = await loadScene(session, effective, fixtureBytes);
 		const view = await viewportFor(session, effective, scene);
 		for (let index = 0; index < effective.beats.length; index++) {
@@ -206,6 +213,7 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 			const tmpDir = path.join(outDir, `.tmp-${beat.id}-${process.pid}`);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 			await fs.mkdir(tmpDir, { recursive: true });
+			rendered = true;
 			try {
 				const { frames, tracks, trackLabels, text, stills } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
 				await fs.rm(finalDir, { recursive: true, force: true });
@@ -214,6 +222,14 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 			} catch (error) {
 				await fs.rm(tmpDir, { recursive: true, force: true });
 				throw error;
+			}
+		}
+		if (!rendered) {
+			// Every beat came from cache, so nothing exercised the locale: render one throwaway frame so keys are collected.
+			const probeIndex = effective.beats.findIndex((b) => b.kind === 'graph');
+			if (probeIndex >= 0) {
+				const probeBeat = effective.beats[probeIndex];
+				await pushFrame(session, effective, scene, view, probeBeat, probeIndex, graphFrame(scene, effective.beats, probeIndex, 0), probeBeat.theme || 'dark');
 			}
 		}
 		const missing = await session.page.evaluate(() => window.__capture.missingKeys);
