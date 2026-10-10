@@ -21,11 +21,21 @@ function createCredentialVault({ safeStorage, directory, platform = process.plat
 		finally { await fs.rm(temporary, { force: true }); }
 	};
 	return {
-		status: () => ({ canRemember: available() }),
+		status: () => {
+			try {
+				return { canRemember: available() };
+			} catch {
+				return { canRemember: false };
+			}
+		},
 		get: (profileId, key) => serialize(async () => {
-			if (!available()) return null;
-			const value = (await read())[`${profileId}:${key}`];
-			return value ? safeStorage.decryptString(Buffer.from(value, 'base64')) : null;
+			try {
+				if (!available()) return null;
+				const value = (await read())[`${profileId}:${key}`];
+				return value ? safeStorage.decryptString(Buffer.from(value, 'base64')) : null;
+			} catch {
+				return null;
+			}
 		}),
 		set: (profileId, key, value) => serialize(async () => {
 			if (!available()) throw new Error('Secure credential storage is unavailable; remembering is disabled');

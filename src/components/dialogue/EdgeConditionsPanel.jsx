@@ -16,6 +16,11 @@ const asBoolean = (value) => {
 	if (typeof value === 'string') return value.toLowerCase() === 'true';
 	return Boolean(value);
 };
+const normalizedPropertyType = (type) => {
+	if (type === 'bool') return 'boolean';
+	if (type === 'int' || type === 'float') return 'number';
+	return type;
+};
 
 export function EdgeConditionsPanel({
 	conditionGroup,
@@ -148,14 +153,17 @@ export function EdgeConditionsPanel({
 
 								{properties.map((property) => (
 									<div key={property.name} className="space-y-2">
+										{(() => {
+											const propertyType = normalizedPropertyType(property.type);
+											return <>
 										<Label>
 											{property.name}
 											<span className="ml-2 text-xs text-muted-foreground">
-												({property.type})
+												({propertyType})
 											</span>
 										</Label>
 
-										{property.type === 'string' && (
+										{propertyType === 'string' && (
 											<Input
 												value={values[property.name] ?? ''}
 												onChange={(event) =>
@@ -164,7 +172,7 @@ export function EdgeConditionsPanel({
 											/>
 										)}
 
-										{(property.type === 'int' || property.type === 'float') && (
+										{propertyType === 'number' && (
 											<Input
 												type="number"
 												step={property.type === 'int' ? 1 : 0.01}
@@ -184,7 +192,7 @@ export function EdgeConditionsPanel({
 											/>
 										)}
 
-										{property.type === 'bool' && (
+										{propertyType === 'boolean' && (
 											<div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
 												<Label className="text-sm font-medium">
 													{asBoolean(values[property.name])
@@ -199,6 +207,8 @@ export function EdgeConditionsPanel({
 												/>
 											</div>
 										)}
+											</>;
+										})()}
 									</div>
 								))}
 							</div>

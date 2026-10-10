@@ -1000,7 +1000,7 @@ export function DialoguePreviewOverlay({
 					{!scenarioSetupRequired && (
 						<>
 							<div className="min-h-[130px] rounded-xl border border-border bg-background/70 p-4">
-								<p className="text-base leading-relaxed whitespace-pre-wrap">
+								<p data-testid="preview-line" className="text-base leading-relaxed whitespace-pre-wrap">
 									{lineText || t('editor.preview.waiting')}
 								</p>
 								{currentRowCount > 0 && (

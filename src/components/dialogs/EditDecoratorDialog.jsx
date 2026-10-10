@@ -53,12 +53,44 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 		}));
 	};
 
+	const asBoolean = (value) => {
+		if (typeof value === 'boolean') return value;
+		if (typeof value === 'string') return value.toLowerCase() === 'true';
+		return Boolean(value);
+	};
+	const normalizePropertyType = (type) => {
+		if (type === 'bool') return 'boolean';
+		if (type === 'int' || type === 'float') return 'number';
+		return type;
+	};
+	const coerceDefaultValue = (type, value) => {
+		const normalizedType = normalizePropertyType(type);
+		if (normalizedType === 'boolean') return asBoolean(value);
+		if (normalizedType === 'number') {
+			const parsed = typeof value === 'number' ? value : parseFloat(value);
+			return Number.isFinite(parsed) ? parsed : 0;
+		}
+		return value == null ? '' : String(value);
+	};
+
 	const updateProperty = (index, field, value) => {
 		const updatedProperties = [...formData.properties];
-		updatedProperties[index] = {
-			...updatedProperties[index],
-			[field]: value,
-		};
+		const current = updatedProperties[index];
+		if (field === 'type') {
+			const nextType = normalizePropertyType(value);
+			updatedProperties[index] = {
+				...current,
+				type: nextType,
+				defaultValue: coerceDefaultValue(nextType, current.defaultValue),
+			};
+		} else {
+			updatedProperties[index] = {
+				...current,
+				[field]: field === 'defaultValue'
+					? coerceDefaultValue(current.type, value)
+					: value,
+			};
+		}
 		setFormData({ ...formData, properties: updatedProperties });
 	};
 
@@ -69,11 +101,7 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 		}));
 	};
 
-	const asBoolean = (value) => {
-		if (typeof value === 'boolean') return value;
-		if (typeof value === 'string') return value.toLowerCase() === 'true';
-		return Boolean(value);
-	};
+	const isBooleanProperty = (property) => normalizePropertyType(property.type) === 'boolean';
 
 	const validate = () => {
 		const newErrors = {};
@@ -213,9 +241,8 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 											>
 												{[
 													{ value: 'string', label: t('decorators.types.string') },
-													{ value: 'int', label: t('decorators.types.integer') },
-													{ value: 'float', label: t('decorators.types.float') },
-													{ value: 'bool', label: t('decorators.types.boolean') },
+													{ value: 'number', label: t('decorators.types.float') },
+													{ value: 'boolean', label: t('decorators.types.boolean') },
 												].map((type) => (
 													<option key={type.value} value={type.value}>
 														{type.label}
@@ -228,7 +255,7 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 											<Label className="text-xs">
 												{t('decorators.properties.defaultValue')}
 											</Label>
-											{property.type === 'bool' ? (
+											{isBooleanProperty(property) ? (
 												<div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
 													<Label className="text-xs font-medium">
 														{asBoolean(property.defaultValue)
@@ -244,11 +271,17 @@ export function EditDecoratorDialog({ open, onOpenChange, decorator, projectId }
 												</div>
 											) : (
 												<Input
+													type={normalizePropertyType(property.type) === 'number' ? 'number' : 'text'}
+													step="any"
 													value={property.defaultValue}
 													onChange={(e) =>
 														updateProperty(index, 'defaultValue', e.target.value)
 													}
-													placeholder={t('decorators.properties.placeholders.value')}
+													placeholder={
+														normalizePropertyType(property.type) === 'number'
+															? t('decorators.properties.placeholders.float')
+															: t('decorators.properties.placeholders.value')
+													}
 													size="sm"
 												/>
 											)}

@@ -1,0 +1,40 @@
+{
+	"background": { "dark": "#0d0d0d", "light": "#f5f4f0" },
+	"music": { "src": "assets/music/relentless-iros-young-30s.mp3", "volume": 0.029512, "fadeIn": 0.6, "fadeOut": 0.68 },
+	"captions": [
+		{ "text": "Preview any dialogue, instantly.", "emphasis": "instantly", "at": 10, "until": 11.7 },
+		{ "text": "Dark or light. Your call.", "at": 11.9, "until": 13.6 }
+	],
+	"toolbar": {
+		"top": 985, "at": 0.2, "hide": [[2.5, 9.2]], "stagger": 0.12,
+		"chips": [
+			{ "id": "autoLayout", "label": "Auto Layout", "primary": true },
+			{ "id": "preview", "label": "Preview" }
+		]
+	},
+	"themeToggle": { "x": 1802, "y": 84, "w": 132, "h": 64, "at": 11.9 },
+	"reveal": { "duration": 1 },
+	"beatFades": [{ "beat": "preview", "in": 0.25, "out": 0.4, "crossfade": true }],
+	"ui": { "autoLayout": [862, 1006], "preview": [1048, 1006] },
+	"cursorStart": [1500, 800],
+	"cursor": [
+		{ "at": 1.0, "to": { "ui": "preview" }, "duration": 0.8, "press": true, "fadeOutAt": 2.3 },
+		{ "at": 13, "fadeIn": true, "to": [1792, 76], "duration": 0.82, "press": true },
+		{ "at": 14.3, "to": { "track": "drag:Sell Apples", "offset": [-24, -10] }, "duration": 0.7, "press": "down" },
+		{ "at": 15.1, "to": { "track": "drag:Sell Apples", "offset": [-24, -10] }, "duration": 0.8, "ease": "power3.inOut", "press": "up" },
+		{ "at": 16.15, "to": { "ui": "autoLayout" }, "duration": 0.7, "press": true, "flash": "chip-autoLayout" }
+	],
+	"sfx": [
+		{ "src": "assets/sfx/click_003.ogg", "at": 1.82, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/rollover2.ogg", "at": 2.6, "duration": 0.06, "volume": 0.1 },
+		{ "src": "assets/sfx/click_005.ogg", "at": 4.57, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_003.ogg", "at": 13.82, "duration": 0.01, "volume": 0.1 },
+		{ "src": "assets/sfx/click_002.ogg", "at": 15, "duration": 0.01, "volume": 0.12 },
+		{ "src": "assets/sfx/impactSoft_medium_001.ogg", "at": 15.9, "duration": 0.18, "volume": 0.1 },
+		{ "src": "assets/sfx/click_003.ogg", "at": 16.85, "duration": 0.01, "volume": 0.177828 },
+		{ "src": "assets/sfx/rollover2.ogg", "at": 17, "duration": 0.06, "volume": 0.1 },
+		{ "src": "assets/sfx/rollover2.ogg", "at": 17.35, "duration": 0.06, "volume": 0.1 },
+		{ "src": "assets/sfx/impactBell_heavy_000.ogg", "at": 19, "duration": 1.48, "volume": 0.177828 }
+	],
+	"endCard": { "at": 18.8, "duration": 3.6, "title": "Mountea Dialoguer", "tagline": "Dialogue manager made easy.", "logo": "assets/img/logo.png" }
+}

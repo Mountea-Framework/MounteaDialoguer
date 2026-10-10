@@ -33,7 +33,9 @@
 		"test:e2e:production": "playwright test --config playwright.production.config.js",
 		"validate:artifact": "node scripts/release-artifact.mjs finalize && npm run test:e2e:production && node scripts/release-artifact.mjs attest",
 		"validate:native-package": "node scripts/validate-native-package.mjs",
-		"steam:upload": "node scripts/steam-upload.mjs"
+		"steam:upload": "node scripts/steam-upload.mjs",
+		"video:capture": "node tools/video-capture/runner/cli.mjs",
+		"video:test": "npm test --prefix tools/video-capture"
 	},
 	"build": {
 		"appId": "com.mountea.dialoguer",

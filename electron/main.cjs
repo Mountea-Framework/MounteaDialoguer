@@ -500,6 +500,23 @@ function logSteamSyncEvent(eventName, details = {}) {
 	}
 }
 
+function logStartupEvent(eventName, details = {}) {
+	const safeEvent = String(eventName || 'event');
+	const safeDetails = sanitizeDiagnostics(details && typeof details === 'object' ? details : {});
+	console.log(`[startup] ${safeEvent}`, safeDetails);
+	try {
+		if (app.isReady()) {
+			appendDiagnostic(
+				path.join(app.getPath('userData'), 'startup-diagnostics.log'),
+				safeEvent,
+				safeDetails
+			);
+		}
+	} catch {
+		// Best-effort diagnostics logging only.
+	}
+}
+
 async function ensureSteamSyncRootDirectory() {
 	const rootDir = getSteamSyncRootDirectory();
 	await fs.promises.mkdir(rootDir, { recursive: true });
@@ -1443,6 +1460,10 @@ function createMainWindow() {
 	});
 
 	mainWindow.webContents.on('render-process-gone', (_event, details) => {
+		logStartupEvent('render-process-gone', {
+			reason: details?.reason || 'unknown',
+			exitCode: details?.exitCode ?? null,
+		});
 		reportMainProcessError(new Error('Renderer process terminated unexpectedly'), {
 			event: 'render-process-gone',
 			reason: details?.reason || 'unknown',
@@ -1451,13 +1472,36 @@ function createMainWindow() {
 	});
 
 	mainWindow.webContents.on('unresponsive', () => {
+		logStartupEvent('renderer-unresponsive');
 		reportMainProcessError(new Error('Renderer became unresponsive'), {
 			event: 'renderer-unresponsive',
 		});
 	});
 
 	mainWindow.once('ready-to-show', () => {
+		logStartupEvent('ready-to-show', { isVisible: mainWindow.isVisible() });
 		if (process.env.MOUNTEA_STARTUP_CHECK !== '1') mainWindow.show();
+	});
+
+	mainWindow.webContents.on('did-finish-load', () => {
+		logStartupEvent('did-finish-load', {
+			url: mainWindow.webContents.getURL(),
+			isVisible: mainWindow.isVisible(),
+		});
+		if (process.env.MOUNTEA_STARTUP_CHECK !== '1' && !mainWindow.isVisible()) {
+			mainWindow.show();
+		}
+	});
+
+	mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+		logStartupEvent('did-fail-load', {
+			errorCode,
+			errorDescription,
+			validatedURL,
+		});
+		if (process.env.MOUNTEA_STARTUP_CHECK !== '1' && !mainWindow.isVisible()) {
+			mainWindow.show();
+		}
 	});
 
 	const devServerUrl = app.isPackaged ? null : process.env.VITE_DEV_SERVER_URL;
@@ -1470,6 +1514,17 @@ function createMainWindow() {
 	if (!fs.existsSync(distIndexPath)) {
 		throw new Error(`Missing renderer build at ${distIndexPath}. Run "npm run build".`);
 	}
+	logStartupEvent('load-file', {
+		distIndexPath,
+		isPackaged: app.isPackaged,
+		steam: {
+			channel: steamRuntimeState.channel,
+			available: steamRuntimeState.available,
+			launchedViaSteam: steamRuntimeState.launchedViaSteam,
+			appId: steamRuntimeState.appId,
+			error: steamRuntimeState.error,
+		},
+	});
 	mainWindow.loadFile(distIndexPath);
 }
 
@@ -1592,6 +1647,9 @@ if (!gotSingleInstanceLock) {
 		if (!mainWindow) return;
 		if (mainWindow.isMinimized()) {
 			mainWindow.restore();
+		}
+		if (!mainWindow.isVisible()) {
+			mainWindow.show();
 		}
 		mainWindow.focus();
 	});

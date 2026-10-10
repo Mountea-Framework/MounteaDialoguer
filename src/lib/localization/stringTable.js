@@ -534,6 +534,9 @@ export function prepareLocalizedNodesAndEntries({
 			if (hasRawValue) {
 				values[normalizedLocale] = toStringSafe(rawNode?.data?.[valueField]);
 			}
+			if (!Object.prototype.hasOwnProperty.call(values, normalizedLocale)) {
+				values[normalizedLocale] = '';
+			}
 
 			entriesByKey.set(key, {
 				...existing,
@@ -642,6 +645,9 @@ export function prepareLocalizedNodesAndEntries({
 					: null;
 				if (rawSourceRow && Object.prototype.hasOwnProperty.call(rawSourceRow, 'text')) {
 					values[normalizedLocale] = toStringSafe(rawSourceRow.text);
+				}
+				if (!Object.prototype.hasOwnProperty.call(values, normalizedLocale)) {
+					values[normalizedLocale] = '';
 				}
 
 				entriesByKey.set(rowTextKey, {
