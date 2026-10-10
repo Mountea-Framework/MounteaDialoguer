@@ -5,8 +5,8 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { captureScenario, toolRoot } from '../runner/capture.mjs';
 
-/** Decodes an 8-bit RGBA PNG and returns its alpha channel (enough to compare footprints). */
-function alphaOf(png) {
+/** Decodes an 8-bit RGBA PNG to a raw RGBA buffer. */
+function rgbaOf(png) {
 	const width = png.readUInt32BE(16);
 	const height = png.readUInt32BE(20);
 	assert.equal(png[24], 8, 'bit depth');
@@ -33,9 +33,7 @@ function alphaOf(png) {
 			out[y * stride + x] = (v + [0, a, b, (a + b) >> 1, paeth][filter]) & 255;
 		}
 	}
-	const alpha = new Uint8Array(width * height);
-	for (let i = 0; i < alpha.length; i++) alpha[i] = out[i * 4 + 3];
-	return alpha;
+	return out;
 }
 
 test('theme stills share identical geometry but differ in colour', { timeout: 240000 }, async () => {
@@ -58,10 +56,21 @@ test('theme stills share identical geometry but differ in colour', { timeout: 24
 	assert.deepEqual(size(dark), size(light));
 	assert.deepEqual(size(dark), [960, 540]);
 	// Same layout: the non-transparent footprint (nodes, edges) coincides pixel for pixel.
-	const [da, la] = [alphaOf(dark), alphaOf(light)];
-	const covered = da.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
+	const [dp, lp] = [rgbaOf(dark), rgbaOf(light)];
+	const total = 960 * 540;
+	let covered = 0, mismatched = 0, common = 0, recoloured = 0;
+	for (let i = 0; i < total; i++) {
+		const a = dp[i * 4 + 3] > 0, b = lp[i * 4 + 3] > 0;
+		if (a) covered++;
+		if (a !== b) mismatched++;
+		if (a && b) {
+			common++;
+			const diff = Math.abs(dp[i * 4] - lp[i * 4]) + Math.abs(dp[i * 4 + 1] - lp[i * 4 + 1]) + Math.abs(dp[i * 4 + 2] - lp[i * 4 + 2]);
+			if (diff > 30) recoloured++;
+		}
+	}
 	assert.ok(covered > 1000, 'stills contain graph content');
-	let mismatched = 0;
-	for (let i = 0; i < da.length; i++) if ((da[i] > 0) !== (la[i] > 0)) mismatched++;
+	assert.ok(covered < 0.9 * total, `background must stay transparent (covered ${covered} of ${total} px)`);
 	assert.ok(mismatched / covered < 0.02, `footprints differ: ${mismatched} of ${covered} px`);
+	assert.ok(recoloured / common > 0.5, `theme must change colours (${recoloured} of ${common} px recoloured)`);
 });

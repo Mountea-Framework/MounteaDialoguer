@@ -29,6 +29,7 @@ export function validateScenario(scenario) {
 			const earlier = scenario.beats.slice(0, index);
 			if (!beat.of || !earlier.some((b) => b.id === beat.of && b.kind === 'graph')) problems.push(`${at}: "of" must name an earlier graph beat`);
 			if (!THEMES.includes(beat.from) || !THEMES.includes(beat.to)) problems.push(`${at}: stills needs from and to themes (${THEMES.join('/')})`);
+			else if (beat.from === beat.to) problems.push(`${at}: stills from and to themes must differ`);
 		} else if (!(beat?.duration > 0)) {
 			problems.push(`${at}: duration must be > 0`);
 		}

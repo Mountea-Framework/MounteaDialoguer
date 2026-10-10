@@ -13,6 +13,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const toolRoot = path.resolve(here, '..');
 export const repoRoot = path.resolve(toolRoot, '../..');
 
+/** Fake-clock time stepped after a theme switch so CSS colour transitions finish before capture. */
+export const THEME_SETTLE_MS = 600;
 const padded = (n) => String(n + 1).padStart(4, '0');
 const digestOf = (bytes) => crypto.createHash('sha1').update(bytes).digest('hex');
 
@@ -146,7 +148,8 @@ async function captureStillsBeat(session, scenario, scene, view, beat, index, tm
 	try {
 		for (const theme of [beat.from, beat.to]) {
 			await pushFrame(session, scenario, scene, view, beat, index, frame, theme);
-			await session.page.clock.runFor(1000 / scenario.fps);
+			// Step well past any CSS colour transition so neither theme is captured mid-fade.
+			await session.page.clock.runFor(THEME_SETTLE_MS);
 			await idle(session.page);
 			await session.page.screenshot({ path: path.join(tmpDir, `${theme}.png`), omitBackground: !beat.opaque });
 			stills[theme] = `${beat.id}/${theme}.png`;

@@ -45,3 +45,9 @@ test('negative duration and empty beats are rejected', () => {
 	t.beats[0].duration = -1;
 	assert.throws(() => validateScenario(t), /duration must be > 0/);
 });
+
+test('stills beat with identical from and to themes is rejected', () => {
+	const s = base();
+	s.beats[1].to = 'dark';
+	assert.throws(() => validateScenario(s), /beats\[1\] \(st\): stills from and to themes must differ/);
+});
