@@ -22,7 +22,7 @@ export async function openSession({ size = [1920, 1080], scale = 1, port = 5199 
 		browser = await chromium.launch();
 		const context = await browser.newContext({ viewport: { width: size[0], height: size[1] }, deviceScaleFactor: scale });
 		// Hermetic: only the local Vite origin may be reached (fonts.googleapis.com etc. are blocked).
-		await context.route('**/*', (route) => (route.request().url().startsWith(baseUrl) ? route.continue() : route.abort()));
+		await context.route('**/*', (route) => (new URL(route.request().url()).origin === new URL(baseUrl).origin ?route.continue() : route.abort()));
 		const page = await context.newPage();
 		await page.clock.install({ time: 0 });
 		const errors = [];

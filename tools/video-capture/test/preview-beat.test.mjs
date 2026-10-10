@@ -14,6 +14,6 @@ test('preview beat advances the overlay on the fake clock and captures each line
 	// The real overlay has no typewriter: a row's whole line appears at once and the clock advances rows.
 	assert.ok(manifest.beats[0].text[0].length > 0, 'the first NPC line is visible from the first frame');
 	assert.ok(new Set(manifest.beats[0].text).size >= 2, 'the fake clock must advance the overlay to a later line');
-	const files = await fs.readdir(path.join(toolRoot, 'out/prev/preview'));
+	const files = (await fs.readdir(path.join(toolRoot, 'out/prev/preview'))).filter((name) => name.endsWith('.png'));
 	assert.equal(files.length, 30);
 });

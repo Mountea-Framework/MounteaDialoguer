@@ -8,6 +8,7 @@ import { frameCount } from '../shared/scenario.js';
 import { sceneBounds, graphFrame, resolveNodeId, endPositions, initialPositions } from '../shared/graphState.js';
 import { escapeRegExp } from '../shared/escapeRegExp.js';
 import appLanguages from '../../../electron/shared/app-languages.json' with { type: 'json' };
+import { REQUIRED_FONT_WEIGHTS, missingFontFaces } from '../shared/fonts.js';
 import { beatHash, buildManifest } from '../shared/manifest.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -17,6 +18,16 @@ export const repoRoot = path.resolve(toolRoot, '../..');
 /** Fake-clock time stepped after a theme switch so CSS colour transitions finish before capture. */
 export const THEME_SETTLE_MS = 600;
 const padded = (n) => String(n + 1).padStart(4, '0');
+const HASH_MARKER = '.hash';
+/** Hash of the capture that produced a beat directory (written into the directory itself, so it cannot outlive its frames). */
+const markerOf = (dir) => fs.readFile(path.join(dir, HASH_MARKER), 'utf8').catch(() => null);
+const pageTheme = (page) => page.evaluate(() => (document.documentElement.classList.contains('light') ? 'light' : document.documentElement.classList.contains('dark') ? 'dark' : null));
+/** Steps the fake clock past any CSS colour transition when the page is not yet showing `theme`, so full and --beat runs agree. */
+async function settleTheme(session, previousTheme, theme) {
+	if (previousTheme === theme) return;
+	await session.page.clock.runFor(THEME_SETTLE_MS);
+	await idle(session.page);
+}
 const digestOf = (bytes) => crypto.createHash('sha1').update(bytes).digest('hex');
 
 async function readFixture(scenario) {
@@ -71,10 +82,12 @@ async function captureGraphBeat(session, scenario, scene, view, beat, index, tmp
 	// Node labels per tracked id, so the composition can reference a track by the label the scenario used.
 	const trackLabels = Object.fromEntries(trackIds.map((id, i) => [id, String(scene.nodes.find((n) => n.id === id)?.data?.label || beat.track[i])]));
 	let previous = null;
+	const themeBefore = await pageTheme(session.page);
 	for (let i = 0; i < frames; i++) {
 		const t = i / scenario.fps;
 		const frame = graphFrame(scene, scenario.beats, index, t);
 		await pushFrame(session, scenario, scene, view, beat, index, frame, beat.theme || 'dark');
+		if (i === 0) await settleTheme(session, themeBefore, beat.theme || 'dark');
 		await session.page.clock.runFor(1000 / scenario.fps);
 		await idle(session.page);
 		const file = path.join(tmpDir, `frame-${padded(i)}.png`);
@@ -100,6 +113,7 @@ async function capturePreviewBeat(session, scenario, scene, view, beat, index, t
 	const gi = lastGraphIndex(scenario, index);
 	const positions = scenario.beats[gi]?.kind === 'graph' && gi < index ? endPositions(scene, scenario.beats, gi) : initialPositions(scene);
 	const frame = { positions, nodeOpacity: Object.fromEntries(scene.nodes.map((n) => [n.id, 1])) };
+	const themeBefore = await pageTheme(session.page);
 	const wasOpaque = await session.page.evaluate((opaque) => {
 		const before = document.body.classList.contains('opaque');
 		document.body.classList.toggle('opaque', Boolean(opaque));
@@ -113,6 +127,7 @@ async function capturePreviewBeat(session, scenario, scene, view, beat, index, t
 		const previewGraph = await window.__capture.graphForPreview(id);
 		window.__capture.setState({ previewGraph, preview: true });
 	}, dialogueId);
+	await settleTheme(session, themeBefore, beat.theme || 'dark');
 	const actions = [...(beat.actions || [])].sort((a, b) => a.at - b.at);
 	const text = [];
 	try {
@@ -164,6 +179,11 @@ async function captureStillsBeat(session, scenario, scene, view, beat, index, tm
 	return { frames: beat.duration > 0 ? frameCount(beat, scenario.fps) : 1, stills };
 }
 
+async function assertNoMissingKeys(session, scenario) {
+	const missing = await session.page.evaluate(() => window.__capture.missingKeys);
+	if (missing.length) throw new Error(`Missing translation keys for "${scenario.language}": ${missing.join(', ')}`);
+}
+
 function lastGraphIndex(scenario, before) {
 	for (let i = before - 1; i >= 0; i--) if (scenario.beats[i].kind === 'graph') return i;
 	return 0;
@@ -186,7 +206,7 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 		for (const b of effective.beats) {
 			if (b.id === onlyBeat) continue;
 			const cachedEntry = previous?.beats.find((entry) => entry.id === b.id);
-			const present = cachedEntry && await fs.stat(path.join(outDir, b.id)).then(() => true).catch(() => false);
+			const present = cachedEntry && await markerOf(path.join(outDir, b.id)) === cachedEntry.hash;
 			if (!present) throw new Error(`Beat "${b.id}" has no cached capture; run the whole scenario once before using --beat`);
 		}
 	}
@@ -195,6 +215,9 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 	const entries = [];
 	let rendered = false;
 	try {
+		const faces = await session.page.evaluate((weights) => window.__capture.fontFaces(weights), REQUIRED_FONT_WEIGHTS);
+		const missingFaces = missingFontFaces(faces);
+		if (missingFaces.length) throw new Error(`Inter font face(s) not loaded in the sandbox: weight ${missingFaces.join(', ')}. Check sandbox/capture.css and sandbox/fonts/.`);
 		if (onSession) await onSession(session);
 		const { scene, dialogueId } = await loadScene(session, effective, fixtureBytes);
 		const view = await viewportFor(session, effective, scene);
@@ -203,7 +226,7 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 			const hash = beatHash(effective, index, digest, scale);
 			const cached = previous?.beats.find((b) => b.id === beat.id);
 			const finalDir = path.join(outDir, beat.id);
-			const skip = !force && cached?.hash === hash && await fs.stat(finalDir).then(() => true).catch(() => false);
+			const skip = !force && cached?.hash === hash && await markerOf(finalDir) === hash;
 			if (skip || (onlyBeat && onlyBeat !== beat.id)) {
 				if (cached) entries.push(cached);
 				continue;
@@ -216,6 +239,9 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 			rendered = true;
 			try {
 				const { frames, tracks, trackLabels, text, stills } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
+				// Keys are checked per beat, before the beat lands in out/, so a bad beat never replaces a good one.
+				await assertNoMissingKeys(session, effective);
+				await fs.writeFile(path.join(tmpDir, HASH_MARKER), hash);
 				await fs.rm(finalDir, { recursive: true, force: true });
 				await fs.rename(tmpDir, finalDir);
 				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(trackLabels && { trackLabels }), ...(text && { text }), ...(stills && { stills }) });
@@ -232,8 +258,7 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 				await pushFrame(session, effective, scene, view, probeBeat, probeIndex, graphFrame(scene, effective.beats, probeIndex, 0), probeBeat.theme || 'dark');
 			}
 		}
-		const missing = await session.page.evaluate(() => window.__capture.missingKeys);
-		if (missing.length) throw new Error(`Missing translation keys for "${effective.language}": ${missing.join(', ')}`);
+		await assertNoMissingKeys(session, effective);
 	} finally {
 		await session.close();
 	}

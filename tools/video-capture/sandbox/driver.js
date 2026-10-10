@@ -14,6 +14,11 @@ i18n.on('missingKey', (_languages, _namespace, key) => {
 export function installDriver() {
 	window.__capture = {
 		missingKeys,
+		// Loads the bundled Inter weights and reports every FontFace, so the runner can fail on a missing face.
+		async fontFaces(weights) {
+			await Promise.all(weights.map((w) => document.fonts.load(`${w} 16px Inter`).catch(() => [])));
+			return [...document.fonts].map((f) => ({ family: f.family, weight: f.weight, status: f.status }));
+		},
 		// Test hook: delete every key equal to or starting with `prefix_` (plural forms) from a language bundle.
 		dropKeys(lang, prefix) {
 			const bundle = JSON.parse(JSON.stringify(i18n.getResourceBundle(lang, 'translation')));

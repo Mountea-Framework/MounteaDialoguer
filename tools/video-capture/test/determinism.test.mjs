@@ -13,7 +13,7 @@ const scenario = (id, fixture = 'ExampleProject/OnboardingExample.mnteadlgproj')
 
 const hashDir = async (dir) => {
 	const hash = crypto.createHash('sha1');
-	for (const name of (await fs.readdir(dir)).sort()) hash.update(await fs.readFile(path.join(dir, name)));
+	for (const name of (await fs.readdir(dir)).filter((n) => n.endsWith('.png')).sort()) hash.update(await fs.readFile(path.join(dir, name)));
 	return hash.digest('hex');
 };
 

@@ -19,7 +19,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = fs.readFileSync(path.join(here, 'template.html'), 'utf8');
 
-export const MODES = ['webm', 'images'];
+function encodeBeat(args, options) {
+	try {
+		execFileSync('ffmpeg', args, options);
+	} catch (error) {
+		if (error.code === 'ENOENT') throw new Error('ffmpeg not found on PATH. Install ffmpeg with libvpx-vp9 support (https://ffmpeg.org/download.html) and re-run the build.');
+		throw error;
+	}
+}
+
+export const MODES =['webm', 'images'];
 export const DEFAULT_MODE = 'webm';
 
 /** Colours of the HyperFrames-drawn chrome (captions, toggle, toolbar, end card), mirroring the app themes. */
@@ -312,7 +321,7 @@ export function buildProject({ scenario = 'brag', mode = DEFAULT_MODE, toolRoot 
 		} else if (mode === 'images') {
 			fs.cpSync(path.join(out, beat.dir), path.join(beatsDir, beat.id), { recursive: true });
 		} else {
-			execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(manifest.fps), '-i', path.join(out, beat.dir, 'frame-%04d.png'), '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-b:v', '0', '-crf', '24', path.join(beatsDir, `${beat.id}.webm`)], { stdio: 'inherit' });
+			encodeBeat(['-y', '-loglevel', 'error', '-framerate', String(manifest.fps), '-i', path.join(out, beat.dir, 'frame-%04d.png'), '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-b:v', '0', '-crf', '24', path.join(beatsDir, `${beat.id}.webm`)], { stdio: 'inherit' });
 		}
 	}
 	const withMusic = !design.music || fs.existsSync(path.join(composeDir, design.music.src));

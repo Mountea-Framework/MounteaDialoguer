@@ -2,6 +2,7 @@ import { EASES } from './ease.js';
 
 export const BEAT_KINDS = ['preview', 'graph', 'stills'];
 const THEMES = ['dark', 'light'];
+const SAFE_ID = /^[a-z0-9][a-z0-9_-]*$/i;
 
 export function frameCount(beat, fps) {
 	return Math.max(1, Math.round(beat.duration * fps));
@@ -10,6 +11,7 @@ export function frameCount(beat, fps) {
 export function validateScenario(scenario) {
 	const problems = [];
 	if (!scenario?.id) problems.push('scenario.id is required');
+	else if (!SAFE_ID.test(scenario.id)) problems.push(`scenario.id "${scenario.id}" must match ${SAFE_ID} (it becomes a directory name)`);
 	if (!Number.isInteger(scenario?.fps) || scenario.fps < 1 || scenario.fps > 120) problems.push('scenario.fps must be an integer from 1 to 120');
 	const size = scenario?.size;
 	if (!Array.isArray(size) || size.length !== 2 || size.some((n) => !Number.isInteger(n) || n < 1)) problems.push('scenario.size must be [width, height] integers');
@@ -20,6 +22,7 @@ export function validateScenario(scenario) {
 	(scenario?.beats || []).forEach((beat, index) => {
 		const at = `beats[${index}] (${beat?.id ?? 'no id'})`;
 		if (!beat?.id) problems.push(`${at}: id is required`);
+		else if (!SAFE_ID.test(beat.id)) problems.push(`${at}: id must match ${SAFE_ID} (it becomes a directory name)`);
 		else if (seen.has(beat.id)) problems.push(`${at}: duplicate id`);
 		else seen.add(beat.id);
 
