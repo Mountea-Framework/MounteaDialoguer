@@ -1,0 +1,8 @@
+@font-face { font-family: "Inter"; font-weight: 400; src: url("./fonts/inter-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; src: url("./fonts/inter-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 700; src: url("./fonts/inter-latin-700-normal.woff2") format("woff2"); }
+
+/* Layers are exported transparent; the video supplies background and grid. */
+html, body, #root, .react-flow, .react-flow__renderer, .react-flow__pane { background: transparent !important; }
+body.opaque, body.opaque #root { background: hsl(var(--background)) !important; }
+.react-flow__attribution { display: none; }
