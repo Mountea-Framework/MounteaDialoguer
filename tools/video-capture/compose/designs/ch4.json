@@ -1,0 +1,42 @@
+{
+	"canvas": [
+		1920,
+		1080
+	],
+	"captionBar": {
+		"fontSize": 44
+	},
+	"background": {
+		"dark": "#0d0d0d",
+		"light": "#f5f4f0"
+	},
+	"intro": {
+		"duration": 2.4,
+		"title": "Connect and write",
+		"subtitle": "Bring the conversation to life",
+		"logo": "assets/img/logo.png"
+	},
+	"endCard": {
+		"duration": 2.2,
+		"title": "Next: try it out",
+		"titleSize": 76,
+		"top": 330
+	},
+	"sfxFromCues": {
+		"click": {
+			"src": "assets/sfx/click_003.ogg",
+			"duration": 0.15,
+			"volume": 0.18
+		},
+		"select": {
+			"src": "assets/sfx/click_003.ogg",
+			"duration": 0.15,
+			"volume": 0.18
+		},
+		"press": {
+			"src": "assets/sfx/click_002.ogg",
+			"duration": 0.15,
+			"volume": 0.12
+		}
+	}
+}

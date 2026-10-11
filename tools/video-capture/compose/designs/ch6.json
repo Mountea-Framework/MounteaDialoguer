@@ -1,0 +1,43 @@
+{
+	"canvas": [
+		1920,
+		1080
+	],
+	"captionBar": {
+		"fontSize": 44
+	},
+	"background": {
+		"dark": "#0d0d0d",
+		"light": "#f5f4f0"
+	},
+	"intro": {
+		"duration": 2.4,
+		"title": "Save, share, make it yours",
+		"subtitle": "Wrap up your project",
+		"logo": "assets/img/logo.png",
+		"titleSize": 72
+	},
+	"endCard": {
+		"duration": 3.4,
+		"title": "Mountea Dialoguer",
+		"tagline": "Dialogue manager made easy.",
+		"logo": "assets/img/logo.png"
+	},
+	"sfxFromCues": {
+		"click": {
+			"src": "assets/sfx/click_003.ogg",
+			"duration": 0.15,
+			"volume": 0.18
+		},
+		"select": {
+			"src": "assets/sfx/click_003.ogg",
+			"duration": 0.15,
+			"volume": 0.18
+		},
+		"press": {
+			"src": "assets/sfx/click_002.ogg",
+			"duration": 0.15,
+			"volume": 0.12
+		}
+	}
+}
