@@ -63,8 +63,37 @@ const js = (v) => JSON.stringify(v);
 const cssVars = (theme) => Object.fromEntries(Object.entries(theme).map(([k, v]) => [`--${k}`, v]));
 const varStyle = (theme) => Object.entries(cssVars(theme)).map(([k, v]) => `${k}: ${v}`).join('; ');
 
-function beatTimes(manifest) {
-	return manifest.beats.map((beat) => ({ beat, start: beat.startFrame / manifest.fps, duration: beat.duration }));
+function beatTimes(manifest, offset = 0) {
+	return manifest.beats.map((beat) => ({ beat, start: offset + beat.startFrame / manifest.fps, duration: beat.duration }));
+}
+
+/** Seconds the intro card and the first beat overlap, so the card dissolves into the app instead of cutting. */
+const INTRO_OVERLAP = 0.3;
+
+/**
+ * Captions, click sounds and zooms derived from the cues an `app` beat recorded.
+ * Cue times are relative to the beat, so a step that gets longer moves its caption with it.
+ */
+function cueEvents(beats, design) {
+	const captions = [];
+	const sfx = [];
+	const zooms = [];
+	for (const { beat, start } of beats) {
+		for (const cue of beat.cues || []) {
+			if (cue.caption) captions.push({ text: cue.caption, at: start + cue.start, hold: cue.captionFor ?? Math.max(2, cue.end - cue.start + 0.6) });
+			const sound = design.sfxFromCues?.[cue.kind];
+			if (sound && cue.at !== undefined) sfx.push({ src: sound.src, at: start + cue.at + 1 / 30, duration: sound.duration ?? 0.2, volume: sound.volume ?? 0.15 });
+			if (cue.zoom) zooms.push({ level: cue.zoom.level, rect: cue.zoom.rect, at: start + cue.start, until: start + cue.end + cue.zoom.hold });
+		}
+	}
+	captions.sort((a, b) => a.at - b.at);
+	// A caption never outlives the start of the next one.
+	const timed = captions.map((c, i) => {
+		const next = captions[i + 1];
+		const until = Math.min(c.at + c.hold, next ? next.at - 0.05 : Infinity);
+		return { text: c.text, at: c.at, until: Math.max(c.at + 0.9, until) };
+	});
+	return { captions: timed, sfx, zooms };
 }
 
 /** Every reference a cursor waypoint may use, as "beatId:key" (node ids and their labels). */
@@ -130,11 +159,19 @@ function beatMarkup(entry, index, mode, size, themeOf, fadeOut = false) {
  */
 export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compositionId = 'brag', withMusic = true }) {
 	if (!MODES.includes(mode)) throw new Error(`Unknown mode "${mode}". Use one of ${MODES.join(', ')}`);
-	const [width, height] = manifest.size;
+	const [stageW, stageH] = manifest.size;
+	const [width, height] = design.canvas || manifest.size;
 	const fps = manifest.fps;
-	const endCard = design.endCard;
-	const total = Math.max(manifest.totalFrames / fps, endCard ? endCard.at + endCard.duration : 0);
-	const beats = beatTimes(manifest);
+	const intro = design.intro;
+	const offset = intro ? intro.duration - INTRO_OVERLAP : 0;
+	const beats = beatTimes(manifest, offset);
+	const capturedEnd = offset + manifest.totalFrames / fps;
+	const endCard = design.endCard && { ...design.endCard, at: design.endCard.at ?? capturedEnd };
+	const total = Math.max(capturedEnd, endCard ? endCard.at + endCard.duration : 0);
+	const events = cueEvents(beats, design);
+	const captions = [...(design.captions || []), ...events.captions];
+	const cueSfx = events.sfx;
+	const bar = design.captionBar;
 	const stillsBeat = beats.find((b) => b.beat.kind === 'stills');
 	const firstTheme = manifest.beats.find((b) => b.kind !== 'stills')?.theme || 'dark';
 	const themeOf = (name) => ({ ...THEMES[name], bgc: design.background?.[name] || THEMES[name].bgc });
@@ -158,12 +195,18 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 			next.duration += f.out;
 		}
 	}
+	const staged = Boolean(design.canvas) || events.zooms.length > 0;
+	if (staged) body.push(`		<div id="stage" style="position: absolute; left: 0; top: 0; width: ${stageW}px; height: ${stageH}px; overflow: hidden"><div id="zoom" class="layer" style="transform-origin: 0 0">`);
 	beats.forEach((entry, i) => body.push(beatMarkup(entry, i, mode, manifest.size, themeOf, fades.has(entry.beat.id))));
+	if (staged) body.push('		</div></div>');
 
-	(design.captions || []).forEach((c, i) => {
+	if (bar) body.push(`		<div id="capbar" style="position: absolute; left: 0; top: ${stageH}px; width: 100%; height: ${height - stageH}px; background: var(--capBg); border-top: 2px solid var(--border)"></div>`);
+	captions.forEach((c, i) => {
 		let text = esc(c.text);
 		if (c.emphasis) text = text.replace(esc(c.emphasis), `<em>${esc(c.emphasis)}</em>`);
-		body.push(`		<div id="caption-${i}" class="caption"><span>${text}</span></div>`);
+		const barStyle = bar ? ` style="top: ${stageH}px; height: ${height - stageH}px; display: flex; align-items: center; justify-content: center"` : '';
+		const spanStyle = bar ? ` style="font-size: ${bar.fontSize || 46}px; background: none; border: none; padding: 0"` : '';
+		body.push(`		<div id="caption-${i}" class="caption"${barStyle}><span${spanStyle}>${text}</span></div>`);
 	});
 
 	const toolbar = design.toolbar;
@@ -184,14 +227,26 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 
 	if (design.cursor?.length) body.push(`		<div id="cursor" class="cursor">${CURSOR_SVG}</div>`);
 
+	if (intro) {
+		body.push(`		<div id="introcard" class="clip layer endcard" data-start="0" data-duration="${sec(intro.duration)}" data-track-index="${beats.length + 2}">
+			<div id="intro-inner" class="layer">
+				<div id="intro-backdrop" class="backdrop" style="background: var(--bgc)"><div class="grid"></div></div>
+				<div class="endblock" style="top: ${Math.round(height * 0.3)}px">
+					${intro.logo ? `<img id="intro-logo" src="${esc(intro.logo)}" alt="" style="opacity: 1">` : ''}
+					<h1 id="intro-title" style="opacity: 1; font-size: ${intro.titleSize || 84}px">${esc(intro.title)}</h1>
+					${intro.subtitle ? `<h2 id="intro-sub" style="opacity: 1">${esc(intro.subtitle)}</h2>` : ''}
+				</div>
+			</div>
+		</div>`);
+	}
 	if (endCard) {
 		body.push(`		<div id="endcard" class="clip layer endcard" data-start="${sec(endCard.at)}" data-duration="${sec(endCard.duration)}" data-track-index="${beats.length + 1}">
 			<div id="end-backdrop" class="backdrop" style="background: var(--bgc)"><div class="grid"></div></div>
 			<div id="halo" class="halo"></div>
-			<div class="endblock">
-				<img id="logo" src="${esc(endCard.logo)}" alt="">
-				<h1 id="end-title">${esc(endCard.title)}</h1>
-				<h2 id="end-tagline">${esc(endCard.tagline)}</h2>
+			<div class="endblock"${endCard.top ? ` style="top: ${endCard.top}px"` : ''}>
+				${endCard.logo ? `<img id="logo" src="${esc(endCard.logo)}" alt="">` : ''}
+				<h1 id="end-title"${endCard.titleSize ? ` style="font-size: ${endCard.titleSize}px"` : ''}>${esc(endCard.title)}</h1>
+				${endCard.tagline ? `<h2 id="end-tagline">${esc(endCard.tagline)}</h2>` : ''}
 			</div>
 		</div>`);
 	}
@@ -200,7 +255,7 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 	if (music) {
 		body.push(`		<audio id="music" src="${esc(music.src)}" data-start="0" data-duration="${sec(total)}" data-track-index="20" data-volume="${music.volume}" data-fade-in="${music.fadeIn}" data-fade-out="${music.fadeOut}"></audio>`);
 	}
-	(design.sfx || []).forEach((s, i) => {
+	[...(design.sfx || []), ...cueSfx].forEach((s, i) => {
 		body.push(`		<audio id="sfx-${i}" src="${esc(s.src)}" data-start="${sec(s.at)}" data-duration="${sec(s.duration)}" data-track-index="${21 + i}" data-volume="${s.volume}"></audio>`);
 	});
 
@@ -211,7 +266,7 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 	tl(`const LIGHT = ${js(chrome('light'))};`);
 	tl(`const DARK = ${js(chrome('dark'))};`);
 
-	(design.captions || []).forEach((c, i) => {
+	captions.forEach((c, i) => {
 		tl(`tl.fromTo("#caption-${i}", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out", immediateRender: false }, ${sec(c.at)});`);
 		tl(`tl.to("#caption-${i}", { opacity: 0, duration: 0.3, ease: "power1.in" }, ${sec(Math.max(c.at + 0.4, c.until - 0.3))});`);
 	});
@@ -247,7 +302,7 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 			return start + u * reveal;
 		};
 		if (toolbar) tl(`tl.fromTo("#toolbar", ${FROM}, { ...${TO}, duration: 0.05, immediateRender: false }, ${sec(reach(width / 2, toolbar.top + 30))});`);
-		(design.captions || []).forEach((_, i) => tl(`tl.fromTo("#caption-${i}", ${FROM}, { ...${TO}, duration: 0.05, immediateRender: false }, ${sec(reach(width / 2, 100))});`));
+		captions.forEach((_, i) => tl(`tl.fromTo("#caption-${i}", ${FROM}, { ...${TO}, duration: 0.05, immediateRender: false }, ${sec(reach(width / 2, 100))});`));
 		// The page background and the end card follow once the circle covers the whole frame.
 		tl(`tl.set("#root", { ...${TO}, "--bgc": ${js(themeOf(to).bgc)}, "--dots": ${js(themeOf(to).dots)} }, ${sec(start + reveal)});`);
 		tl(`tl.set("#bg", { "--bgc": ${js(themeOf(to).bgc)}, "--dots": ${js(themeOf(to).dots)} }, ${sec(start + reveal)});`);
@@ -297,9 +352,24 @@ export function buildComposition({ manifest, design, mode = DEFAULT_MODE, compos
 		if (chromeIds.length) tl(`tl.to(${js(chromeIds)}, { opacity: 0, duration: 0.3, ease: "power1.in" }, ${sec(a)});`);
 		tl(`tl.to("#end-backdrop", { opacity: 1, duration: 0.4, ease: "power2.out" }, ${sec(a)});`);
 		tl(`tl.to("#halo", { opacity: 1, duration: 0.8 }, ${sec(a + 0.3)});`);
-		tl(`tl.fromTo("#logo", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, ${sec(a + 0.3)});`);
+		if (endCard.logo) tl(`tl.fromTo("#logo", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, ${sec(a + 0.3)});`);
 		tl(`tl.fromTo("#end-title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, ${sec(a + 0.4)});`);
-		tl(`tl.fromTo("#end-tagline", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, ${sec(a + 0.8)});`);
+		if (endCard.tagline) tl(`tl.fromTo("#end-tagline", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, ${sec(a + 0.8)});`);
+		if (bar) tl(`tl.to("#capbar", { opacity: 0, duration: 0.3 }, ${sec(a)});`);
+	}
+	if (intro) {
+		tl(`tl.fromTo("#intro-title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, 0.1);`);
+		if (intro.logo) tl(`tl.fromTo("#intro-logo", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, 0);`);
+		if (intro.subtitle) tl(`tl.fromTo("#intro-sub", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", immediateRender: false }, 0.4);`);
+		tl(`tl.to("#intro-inner", { opacity: 0, duration: ${INTRO_OVERLAP}, ease: "power1.in" }, ${sec(intro.duration - INTRO_OVERLAP)});`);
+	}
+	for (const z of events.zooms) {
+		// Scale around the stage origin, then shift so the target's centre lands mid-stage without exposing an edge.
+		const clampTo = (v, size) => Math.min(0, Math.max(size - size * z.level, v));
+		const zx = clampTo(-((z.rect.x + z.rect.width / 2) * z.level - stageW / 2), stageW);
+		const zy = clampTo(-((z.rect.y + z.rect.height / 2) * z.level - stageH / 2), stageH);
+		tl(`tl.to("#zoom", { scale: ${z.level}, x: ${px(zx)}, y: ${px(zy)}, duration: 0.6, ease: "power2.inOut" }, ${sec(z.at)});`);
+		tl(`tl.to("#zoom", { scale: 1, x: 0, y: 0, duration: 0.6, ease: "power2.inOut" }, ${sec(z.until)});`);
 	}
 
 	if (mode === 'images') {
@@ -338,7 +408,9 @@ export function buildProject({ scenario = 'brag', mode = DEFAULT_MODE, toolRoot 
 	const manifestFile = path.join(out, 'manifest.json');
 	if (!fs.existsSync(manifestFile)) throw new Error(`No manifest at ${manifestFile}; run "node runner/cli.mjs --scenario ${scenario}" first`);
 	const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
-	const design = JSON.parse(fs.readFileSync(path.join(composeDir, 'video-design.json'), 'utf8'));
+	// designs/<scenario>.json for the tutorials; the brag video keeps its original video-design.json.
+	const perScenario = path.join(composeDir, 'designs', `${scenario}.json`);
+	const design = JSON.parse(fs.readFileSync(fs.existsSync(perScenario) ? perScenario : path.join(composeDir, 'video-design.json'), 'utf8'));
 	const beatsDir = path.join(composeDir, 'assets', 'beats');
 	fs.rmSync(beatsDir, { recursive: true, force: true });
 	fs.mkdirSync(beatsDir, { recursive: true });
@@ -347,13 +419,16 @@ export function buildProject({ scenario = 'brag', mode = DEFAULT_MODE, toolRoot 
 			for (const [theme, rel] of Object.entries(beat.stills)) fs.copyFileSync(path.join(out, rel), path.join(beatsDir, `${beat.id}-${theme}.png`));
 		} else if (mode === 'images') {
 			fs.cpSync(path.join(out, beat.dir), path.join(beatsDir, beat.id), { recursive: true });
+		} else if (beat.kind === 'app') {
+			// App beats are opaque screen recordings: no alpha, tighter default quality for UI text.
+			encodeBeat(['-y', '-loglevel', 'error', '-framerate', String(manifest.fps), '-i', path.join(out, beat.dir, 'frame-%04d.png'), '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-row-mt', '1', '-b:v', '0', '-crf', '20', path.join(beatsDir, `${beat.id}.webm`)], { stdio: 'inherit' });
 		} else {
 			encodeBeat(['-y', '-loglevel', 'error', '-framerate', String(manifest.fps), '-i', path.join(out, beat.dir, 'frame-%04d.png'), '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-b:v', '0', '-crf', '24', path.join(beatsDir, `${beat.id}.webm`)], { stdio: 'inherit' });
 		}
 	}
 	const withMusic = !design.music || fs.existsSync(path.join(composeDir, design.music.src));
 	if (!withMusic) console.warn(`music "${design.music.src}" not found; building without music. Put an audio file there to enable it.`);
-	const html = buildComposition({ manifest, design, mode, withMusic });
+	const html = buildComposition({ manifest, design, mode, withMusic, compositionId: scenario });
 	fs.writeFileSync(path.join(composeDir, 'index.html'), html);
 	return { manifest, file: path.join(composeDir, 'index.html') };
 }
