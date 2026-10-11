@@ -1,6 +1,7 @@
 import { EASES } from './ease.js';
+import { validateSteps } from './steps.js';
 
-export const BEAT_KINDS = ['preview', 'graph', 'stills'];
+export const BEAT_KINDS = ['preview', 'graph', 'stills', 'app'];
 const THEMES = ['dark', 'light'];
 const SAFE_ID = /^[a-z0-9][a-z0-9_-]*$/i;
 
@@ -15,7 +16,15 @@ export function validateScenario(scenario) {
 	if (!Number.isInteger(scenario?.fps) || scenario.fps < 1 || scenario.fps > 120) problems.push('scenario.fps must be an integer from 1 to 120');
 	const size = scenario?.size;
 	if (!Array.isArray(size) || size.length !== 2 || size.some((n) => !Number.isInteger(n) || n < 1)) problems.push('scenario.size must be [width, height] integers');
-	if (!scenario?.fixture) problems.push('scenario.fixture is required');
+	const appOnly = Array.isArray(scenario?.beats) && scenario.beats.length > 0 && scenario.beats.every((b) => b?.kind === 'app');
+	// App scenarios run the real app and start from an empty database unless start.fixture is given.
+	if (!scenario?.fixture && !appOnly) problems.push('scenario.fixture is required');
+	if (scenario?.start !== undefined) {
+		if (!appOnly) problems.push('scenario.start is only for scenarios made of app beats');
+		else if (scenario.start.fixture !== undefined && typeof scenario.start.fixture !== 'string') problems.push('scenario.start.fixture must be a path');
+	}
+	if (appOnly && scenario.beats.length !== 1) problems.push('an app scenario has exactly one beat (the walkthrough is one continuous take)');
+	if (appOnly && scenario.seed !== undefined && !Number.isInteger(scenario.seed)) problems.push('scenario.seed must be an integer');
 	if (!Array.isArray(scenario?.beats) || scenario.beats.length === 0) problems.push('scenario.beats must be a non-empty array');
 
 	const seen = new Set();
@@ -33,6 +42,8 @@ export function validateScenario(scenario) {
 			if (!beat.of || !earlier.some((b) => b.id === beat.of && b.kind === 'graph')) problems.push(`${at}: "of" must name an earlier graph beat`);
 			if (!THEMES.includes(beat.from) || !THEMES.includes(beat.to)) problems.push(`${at}: stills needs from and to themes (${THEMES.join('/')})`);
 			else if (beat.from === beat.to) problems.push(`${at}: stills from and to themes must differ`);
+		} else if (beat?.kind === 'app') {
+			problems.push(...validateSteps(beat.steps, `${at}.steps`));
 		} else if (!(beat?.duration > 0)) {
 			problems.push(`${at}: duration must be > 0`);
 		}
