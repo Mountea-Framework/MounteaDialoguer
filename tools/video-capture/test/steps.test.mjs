@@ -75,3 +75,10 @@ test('collectKeys lists every i18n key a script uses, once, including nested tar
 	]);
 	assert.deepEqual(keys.sort(), ['a.b', 'a.c', 'a.d', 'a.e']);
 });
+
+test('pace and captionDwell must be positive numbers', () => {
+	const ok = app([{ do: 'hold', seconds: 1 }]);
+	assert.equal(validateScenario({ ...ok, pace: 1.6, captionDwell: 3 }).pace, 1.6);
+	assert.throws(() => validateScenario({ ...ok, pace: 0 }), /scenario\.pace must be a number > 0/);
+	assert.throws(() => validateScenario({ ...ok, captionDwell: -1 }), /scenario\.captionDwell must be a number > 0/);
+});

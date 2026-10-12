@@ -108,7 +108,10 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 	const { page } = session;
 	const fps = scenario.fps;
 	const frameMs = 1000 / fps;
-	const gap = holdFrames(scenario.gap ?? DEFAULT_GAP_SECONDS, fps);
+	// pace > 1 slows everything down (cursor, typing, pauses) so each step leaves room for a voice-over.
+	const pace = scenario.pace ?? 1;
+	const gap = holdFrames((scenario.gap ?? DEFAULT_GAP_SECONDS) * pace, fps);
+	const dwell = scenario.captionDwell ?? 0;
 	const bundle = strings;
 	const cues = [];
 	let count = 0;
@@ -153,7 +156,7 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 
 	const travel = async (to, step) => {
 		const from = { x: pos.x, y: pos.y };
-		const frames = moveFrames(Math.hypot(to.x - from.x, to.y - from.y), fps, step.speed || 1);
+		const frames = moveFrames(Math.hypot(to.x - from.x, to.y - from.y), fps, (step.speed || 1) / pace);
 		for (let i = 1; i <= frames; i++) {
 			const k = ease(step.ease || 'power2.inOut', i / frames);
 			pos = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, pressed: pos.pressed };
@@ -178,7 +181,7 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 		let locator = null;
 
 		if (step.do === 'hold') {
-			await hold(holdFrames(step.seconds, fps));
+			await hold(holdFrames(step.seconds * pace, fps));
 		} else if (step.do === 'wait') {
 			({ rect } = await find(step.target));
 		} else if (step.do === 'move' || step.do === 'click') {
@@ -198,7 +201,7 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 			// A field that already holds text (a node's default name) is replaced, not appended to.
 			if (step.replace && step.target) await page.keyboard.press('Control+A');
 			const text = step.textKey ? lookupKey(bundle, step.textKey) : step.text;
-			for (const chunk of typeSchedule(text, step.cps || DEFAULT_CPS, fps)) {
+			for (const chunk of typeSchedule(text, (step.cps || DEFAULT_CPS) / pace, fps)) {
 				if (chunk) await page.keyboard.type(chunk);
 				await tick();
 			}
@@ -206,7 +209,7 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 			cue.at = count / fps;
 			if (step.hint) { await page.evaluate((text) => window.__hud.showHint(text), step.hint); hintUntil = count + holdFrames(step.hintFor ?? DEFAULT_HINT_SECONDS, fps); }
 			await page.keyboard.press(step.keys);
-			await hold(holdFrames(step.after ?? 0.35, fps));
+			await hold(holdFrames((step.after ?? 0.35) * pace, fps));
 		} else if (step.do === 'select') {
 			({ rect, locator } = await find(step.target));
 			const to = centerOf(rect, step.target);
@@ -229,7 +232,7 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 			await page.mouse.down();
 			const destination = await find(step.to);
 			const end = centerOf(destination.rect, step.to);
-			const frames = moveFrames(Math.hypot(end.x - start.x, end.y - start.y), fps, step.speed || 1);
+			const frames = moveFrames(Math.hypot(end.x - start.x, end.y - start.y), fps, (step.speed || 1) / pace);
 			for (let f = 1; f <= frames; f++) {
 				const k = ease(step.ease || 'power2.inOut', f / frames);
 				pos = { x: start.x + (end.x - start.x) * k, y: start.y + (end.y - start.y) * k, pressed: true };
@@ -245,12 +248,14 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 			if (!zoomRect) throw new Error(`Beat "${beat.id}": step "${cue.id}" has zoom but no rectangle to zoom to`);
 			cue.zoom = { level: step.zoom.level, hold: step.zoom.hold ?? 0, rect: zoomRect };
 		}
+		// A captioned step lasts long enough to read the caption (or to speak it).
+		if (step.caption && dwell > 0) await hold(Math.max(0, holdFrames(dwell, fps) - Math.round((count / fps - cue.start) * fps)));
 		cue.end = count / fps;
 		if (rect) cue.rect = rect;
 		if (step.caption) { cue.caption = step.caption; if (step.captionFor) cue.captionFor = step.captionFor; }
 		cues.push(cue);
 		if (i < beat.steps.length - 1) await hold(gap);
 	}
-	await hold(holdFrames(beat.tail ?? 1, fps));
+	await hold(holdFrames((beat.tail ?? 1) * pace, fps));
 	return { frames: count, cues };
 }

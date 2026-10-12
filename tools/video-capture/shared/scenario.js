@@ -24,6 +24,9 @@ export function validateScenario(scenario) {
 		else if (scenario.start.fixture !== undefined && typeof scenario.start.fixture !== 'string') problems.push('scenario.start.fixture must be a path');
 	}
 	if (appOnly && scenario.beats.length !== 1) problems.push('an app scenario has exactly one beat (the walkthrough is one continuous take)');
+	for (const key of ['pace', 'captionDwell', 'gap']) {
+		if (appOnly && scenario[key] !== undefined && !(scenario[key] > 0)) problems.push(`scenario.${key} must be a number > 0`);
+	}
 	if (appOnly && scenario.seed !== undefined && !Number.isInteger(scenario.seed)) problems.push('scenario.seed must be an integer');
 	if (!Array.isArray(scenario?.beats) || scenario.beats.length === 0) problems.push('scenario.beats must be a non-empty array');
 
