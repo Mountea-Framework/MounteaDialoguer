@@ -6,7 +6,7 @@ const themeSelect = { css: '[cmdk-list] select', nth: 0 };
 const languageSelect = { css: '[cmdk-list] select', nth: 1 };
 
 export default {
-	id: 'ch6', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 6,
+	id: 'ch6', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 6, pace: 1.6, captionDwell: 3.2,
 	start: { fixture: 'tools/video-capture/tutorials/fixtures/ch6-start.mnteadlgproj', route: '/projects/:project/dialogue/:dialogue' },
 	beats: [
 		{
@@ -24,10 +24,10 @@ export default {
 				{ id: 'english-look', do: 'hold', seconds: 0.8 },
 				{ id: 'close-palette', do: 'press', keys: 'Escape', after: 0.6 },
 				{ id: 'to-project', do: 'click', target: back },
-				{ id: 'export', do: 'click', target: { role: 'button', nameKey: 'common.export' }, caption: 'Back up or share your project.', captionFor: 3 },
+				{ id: 'export', do: 'click', target: { role: 'button', nameKey: 'common.export' }, caption: 'Back up or share your project.' },
 				{ id: 'export-look', do: 'hold', seconds: 1.8 },
 				{ id: 'to-dashboard', do: 'click', target: back },
-				{ id: 'import', do: 'move', target: { textKey: 'common.import', exact: true }, caption: 'Import a project from a file.', captionFor: 3 },
+				{ id: 'import', do: 'move', target: { textKey: 'common.import', exact: true }, caption: 'Import a project from a file.' },
 			],
 		},
 	],

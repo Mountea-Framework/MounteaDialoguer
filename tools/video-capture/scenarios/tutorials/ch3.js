@@ -4,7 +4,7 @@ import { sidebar, dialogButton, inDialog } from './_steps.js';
 const toolbar = (nameKey) => ({ role: 'button', nameKey, within: { tour: 'node-toolbar' } });
 
 export default {
-	id: 'ch3', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 3,
+	id: 'ch3', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 3, pace: 1.6, captionDwell: 3.2,
 	start: { fixture: 'tools/video-capture/tutorials/fixtures/ch3-start.mnteadlgproj', route: '/projects/:project' },
 	beats: [
 		{
@@ -14,7 +14,7 @@ export default {
 				{ id: 'new', do: 'click', target: { role: 'button', nameKey: 'dialogues.createNew' } },
 				{ id: 'name', do: 'type', target: inDialog({ labelKey: 'dialogues.dialogueName' }), text: 'GreetingAtTheInn' },
 				{ id: 'create', do: 'click', target: dialogButton('common.create') },
-				{ id: 'tour-canvas', do: 'move', target: { tour: 'canvas' }, caption: 'The canvas is where the conversation grows.', captionFor: 3 },
+				{ id: 'tour-canvas', do: 'move', target: { tour: 'canvas' }, caption: 'The canvas is where the conversation grows.' },
 				{ id: 'tour-toolbar', do: 'move', target: { tour: 'node-toolbar' } },
 				{ id: 'move-start', do: 'drag', from: { node: 'Start', offset: [0, -20] }, to: { point: [960, 150] }, caption: 'Drag nodes wherever you like.' },
 				{ id: 'npc', do: 'click', target: toolbar('editor.nodeToolbar.npc'), caption: 'NPC nodes are lines spoken by characters.', zoom: { level: 1.5, hold: 0.6 } },

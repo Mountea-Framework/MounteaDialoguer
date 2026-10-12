@@ -16,7 +16,7 @@ const edit = (id, node, { name, speaker, title, line, captions = {} }) => [
 ];
 
 export default {
-	id: 'ch4', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 4,
+	id: 'ch4', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 4, pace: 1.6, captionDwell: 3.2,
 	start: { fixture: 'tools/video-capture/tutorials/fixtures/ch4-start.mnteadlgproj', route: '/projects/:project/dialogue/:dialogue' },
 	beats: [
 		{

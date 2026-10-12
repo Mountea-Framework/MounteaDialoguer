@@ -11,16 +11,10 @@
 		"light": "#f5f4f0"
 	},
 	"intro": {
-		"duration": 2.4,
+		"duration": 3.4,
 		"title": "Your first dialogue",
 		"subtitle": "Nodes and the canvas",
 		"logo": "assets/img/logo.png"
-	},
-	"endCard": {
-		"duration": 2.2,
-		"title": "Next: connect and write",
-		"titleSize": 76,
-		"top": 330
 	},
 	"sfxFromCues": {
 		"click": {
@@ -38,5 +32,11 @@
 			"duration": 0.15,
 			"volume": 0.12
 		}
+	},
+	"music": {
+		"src": "assets/music/relentless-iros-young-main-version-47984-01-42.mp3",
+		"volume": 0.025,
+		"fadeIn": 1.2,
+		"fadeOut": 2
 	}
 }

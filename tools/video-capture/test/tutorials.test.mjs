@@ -81,3 +81,10 @@ test('the tutorials runner parses its flags and rejects nonsense', async () => {
 	assert.equal(await fixtureFor('ch1'), null);
 	for (const chapter of CHAPTERS.slice(1)) assert.match(await fixtureFor(chapter), new RegExp(`${chapter}-start\.mnteadlgproj$`), 'chapter N reads fixtures/chN-start');
 });
+
+test('chapters are paced for a voice-over: slowed down, with time to read or speak every caption', () => {
+	for (const chapter of chapters) {
+		assert.ok(chapter.pace >= 1.4, `${chapter.id}: pace should be at least 1.4`);
+		assert.ok(chapter.captionDwell >= 3, `${chapter.id}: captionDwell should be at least 3 seconds`);
+	}
+});

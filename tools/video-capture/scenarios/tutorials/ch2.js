@@ -9,7 +9,7 @@ const addParticipant = (id, name, first) => [
 ];
 
 export default {
-	id: 'ch2', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 2,
+	id: 'ch2', fps: 30, size: [1920, 960], language: 'en', theme: 'dark', seed: 2, pace: 1.6, captionDwell: 3.2,
 	start: { fixture: 'tools/video-capture/tutorials/fixtures/ch2-start.mnteadlgproj', route: '/projects/:project' },
 	beats: [
 		{
