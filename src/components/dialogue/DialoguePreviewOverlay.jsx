@@ -18,6 +18,7 @@ import {
 	createPreviewNodeRefKey,
 } from '@/lib/dialoguePreviewEngine';
 import { resolveParticipantThumbnailDataUrl } from '@/lib/participantThumbnails';
+import { getRowExecutionBehaviour, resolveRowDuration } from '@/lib/rowTiming';
 
 const CLOSE_ANIMATION_MS = 260;
 const MAX_PREVIEW_STEPS = 600;
@@ -87,6 +88,7 @@ export function DialoguePreviewOverlay({
 	const [speakerId, setSpeakerId] = useState('');
 	const [lineText, setLineText] = useState('');
 	const [choiceOptions, setChoiceOptions] = useState([]);
+	const [awaitingContinue, setAwaitingContinue] = useState(false);
 	const [currentNodeRef, setCurrentNodeRef] = useState(null);
 	const [volume, setVolume] = useState(100);
 	const volumeRef = useRef(volume);
@@ -312,6 +314,7 @@ export function DialoguePreviewOverlay({
 			if (runtimeRef.current.isClosingLocked) return;
 			sessionRef.current += 1;
 			runtimeRef.current.isClosingLocked = true;
+			setAwaitingContinue(false);
 			clearTimer();
 			stopAudio();
 			if (runtimeRef.current.closeTimeout) {
@@ -629,11 +632,13 @@ export function DialoguePreviewOverlay({
 
 			let index = 0;
 			setChoiceOptions([]);
+			setAwaitingContinue(false);
 			setCurrentRowCount(rows.length);
 			const renderNextRow = () => {
 				if (session !== sessionRef.current) return;
 				const row = rows[index];
-				if (!row) {
+				// Unreal checks `stopping` on the row about to start: the node ends before it (never on the first row).
+				if (!row || (index > 0 && getRowExecutionBehaviour(row) === 'stopping')) {
 					setCurrentRowProgressPercent(0);
 					finalizeNode();
 					return;
@@ -657,15 +662,24 @@ export function DialoguePreviewOverlay({
 					audio.play().catch(() => {});
 				}
 
-				const durationMs = Math.max(200, (Number(row.duration) || 0.1) * 1000);
+				const durationMs = Math.max(200, resolveRowDuration(row) * 1000);
 				const progressToken = startRowProgress(durationMs);
 
 				index += 1;
-				runtimeRef.current.timer = window.setTimeout(() => {
-					finishRowProgress(progressToken);
+				const advance = () => {
+					setAwaitingContinue(false);
 					runtimeRef.current.timer = window.setTimeout(() => {
 						runtimeRef.current.animationFrame = window.requestAnimationFrame(renderNextRow);
 					}, ROW_COMPLETION_HOLD_MS);
+				};
+				runtimeRef.current.timer = window.setTimeout(() => {
+					finishRowProgress(progressToken);
+					if (getRowExecutionBehaviour(row) === 'awaitInput') {
+						runtimeRef.current.continueRow = () => session === sessionRef.current && advance();
+						setAwaitingContinue(true);
+						return;
+					}
+					advance();
 				}, durationMs);
 			};
 
@@ -1019,6 +1033,12 @@ export function DialoguePreviewOverlay({
 									</div>
 								)}
 							</div>
+
+							{awaitingContinue && (
+								<Button type="button" data-testid="preview-continue" onClick={() => runtimeRef.current.continueRow?.()}>
+									{t('editor.preview.continue')}
+								</Button>
+							)}
 
 							{choiceOptions.length > 0 && (
 								<div className="space-y-2">

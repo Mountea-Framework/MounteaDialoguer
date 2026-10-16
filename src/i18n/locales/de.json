@@ -214,6 +214,11 @@
 		"speaker": "Sprecher",
 		"dialogueText": "Dialogtext",
 		"audioClip": "Audioclip",
+		"rows": {
+			"executionBehaviour": { "label": "Ausführung", "automatic": "Automatisch", "awaitInput": "Auf Eingabe warten", "stopping": "Anhalten" },
+			"durationMode": { "label": "Dauermodus", "duration": "Dauer", "override": "Überschreiben", "add": "Zeit addieren", "calculate": "Berechnen" },
+			"durationOverride": "Dauer überschreiben (Sekunden)"
+		},
 		"decorators": "Dekoratoren",
 		"addDecorator": "Dekorator hinzufügen",
 		"deleteCascadeTitle": "Knoten und Kinder löschen?",

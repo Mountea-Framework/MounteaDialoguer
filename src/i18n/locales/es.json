@@ -214,6 +214,11 @@
 		"speaker": "Hablante",
 		"dialogueText": "Texto del diálogo",
 		"audioClip": "Clip de audio",
+		"rows": {
+			"executionBehaviour": { "label": "Ejecución", "automatic": "Automática", "awaitInput": "Esperar entrada", "stopping": "Detener" },
+			"durationMode": { "label": "Modo de duración", "duration": "Duración", "override": "Sobrescribir", "add": "Sumar tiempo", "calculate": "Calcular" },
+			"durationOverride": "Duración personalizada (segundos)"
+		},
 		"decorators": "Decoradores",
 		"addDecorator": "Añadir decorador",
 		"deleteCascadeTitle": "¿Eliminar el nodo y sus hijos?",

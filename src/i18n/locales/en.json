@@ -213,6 +213,7 @@
 			"start": "Preview",
 			"startTooltip": "Start dialogue preview",
 			"stop": "Stop",
+			"continue": "Continue",
 			"waiting": "Waiting for next dialogue line...",
 			"chooseAnswer": "Choose a player answer",
 			"choiceFallback": "Untitled answer",
@@ -270,6 +271,11 @@
 		"speaker": "Speaker",
 		"dialogueText": "Dialogue Text",
 		"audioClip": "Audio Clip",
+		"rows": {
+			"executionBehaviour": { "label": "Execution", "automatic": "Automatic", "awaitInput": "Await input", "stopping": "Stopping" },
+			"durationMode": { "label": "Duration mode", "duration": "Duration", "override": "Override", "add": "Add time", "calculate": "Calculate" },
+			"durationOverride": "Duration override (seconds)"
+		},
 		"decorators": "Decorators",
 		"addDecorator": "Add Decorator",
 		"deleteCascadeTitle": "Delete Node and Children?",

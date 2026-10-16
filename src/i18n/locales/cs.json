@@ -216,6 +216,11 @@
 		"speaker": "Mluvčí",
 		"dialogueText": "Text dialogu",
 		"audioClip": "Audio soubor",
+		"rows": {
+			"executionBehaviour": { "label": "Provedení", "automatic": "Automaticky", "awaitInput": "Čekat na vstup", "stopping": "Zastavit" },
+			"durationMode": { "label": "Režim délky", "duration": "Délka", "override": "Přepsat", "add": "Přidat čas", "calculate": "Vypočítat" },
+			"durationOverride": "Přepsání délky (sekundy)"
+		},
 		"decorators": "Dekorátory",
 		"addDecorator": "Přidat dekorátor",
 		"deleteCascadeTitle": "Smazat Node a všechny její dceřiné nodes?",

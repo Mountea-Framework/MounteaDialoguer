@@ -6,6 +6,7 @@ import {
 	validateLocalizedEntriesForDialogue,
 } from '@/lib/localization/stringTable';
 import { validateCategoryTree, normalizeParticipant, validateDefinition } from '@/lib/domainIntegrity';
+import { isValidRowTiming } from '@/lib/rowTiming';
 
 export const PROJECT_FORMAT = 'mountea.project.v3';
 export const RECORD_TABLES = AUTHORING_TABLES.filter((table) => table !== 'projects');
@@ -228,6 +229,7 @@ export function validateCanonicalProject(snapshot, { localization = true } = {})
 			rows.add(row.id);
 			if (row.participantId && !maps.participants.has(row.participantId)) issue('MISSING_PARTICIPANT', `${path}.data.dialogueRows[${index}].participantId`, 'Row participant is missing.');
 			if (row.participant && !row.participantId) issue('UNRESOLVED_PARTICIPANT', `${path}.data.dialogueRows[${index}].participantId`, 'Resolve the row participant name to a stable identity.');
+			if (!isValidRowTiming(row)) issue('INVALID_ROW_TIMING', `${path}.data.dialogueRows[${index}]`, 'Row execution behaviour, duration mode or duration override is invalid.');
 		}
 	}
 	for (const edge of snapshot.edges || []) {

@@ -216,6 +216,11 @@
 		"speaker": "Mówca",
 		"dialogueText": "Tekst dialogu",
 		"audioClip": "Klip audio",
+		"rows": {
+			"executionBehaviour": { "label": "Wykonanie", "automatic": "Automatyczne", "awaitInput": "Czekaj na akcję", "stopping": "Zatrzymaj" },
+			"durationMode": { "label": "Tryb czasu trwania", "duration": "Czas trwania", "override": "Nadpisz", "add": "Dodaj czas", "calculate": "Oblicz" },
+			"durationOverride": "Nadpisanie czasu (sekundy)"
+		},
 		"decorators": "Dekoratory",
 		"addDecorator": "Dodaj dekorator",
 		"deleteCascadeTitle": "Usunąć węzeł i potomne?",

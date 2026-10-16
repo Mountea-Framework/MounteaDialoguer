@@ -214,6 +214,11 @@
 		"speaker": "Locuteur",
 		"dialogueText": "Texte du dialogue",
 		"audioClip": "Clip audio",
+		"rows": {
+			"executionBehaviour": { "label": "Exécution", "automatic": "Automatique", "awaitInput": "Attendre une action", "stopping": "Arrêter" },
+			"durationMode": { "label": "Mode de durée", "duration": "Durée", "override": "Remplacer", "add": "Ajouter du temps", "calculate": "Calculer" },
+			"durationOverride": "Durée personnalisée (secondes)"
+		},
 		"decorators": "Décorateurs",
 		"addDecorator": "Ajouter un décorateur",
 		"deleteCascadeTitle": "Supprimer le nœud et ses enfants ?",
