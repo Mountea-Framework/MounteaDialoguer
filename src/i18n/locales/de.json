@@ -179,6 +179,9 @@
 			"recenterTooltip": "Gesamten Graph anzeigen",
 			"startFocusTooltip": "Startknoten fokussieren"
 		},
+		"preview": {
+			"startFromHere": "Vorschau ab hier"
+		},
 		"nodes": {
 			"start": "Start",
 			"startDescription": "Einstiegspunkt des Dialogs",

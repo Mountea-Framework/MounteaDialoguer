@@ -212,6 +212,7 @@
 			"title": "Dialogue Preview",
 			"start": "Preview",
 			"startTooltip": "Start dialogue preview",
+			"startFromHere": "Preview from here",
 			"stop": "Stop",
 			"continue": "Continue",
 			"waiting": "Waiting for next dialogue line...",

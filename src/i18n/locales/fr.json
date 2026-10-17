@@ -179,6 +179,9 @@
 			"recenterTooltip": "Afficher tout le graphe",
 			"startFocusTooltip": "Centrer le nœud Start"
 		},
+		"preview": {
+			"startFromHere": "Aperçu à partir d'ici"
+		},
 		"nodes": {
 			"start": "Début",
 			"startDescription": "Point d'entrée du dialogue",
