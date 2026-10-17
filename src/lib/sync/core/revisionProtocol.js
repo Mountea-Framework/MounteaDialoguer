@@ -4,6 +4,7 @@ import { canonicalizeProject, hashProject } from '@/lib/persistence/canonicalPro
 import { applyProjectSnapshotAsNew } from '@/lib/sync/snapshot';
 import { encryptPayload, decryptPayload } from '@/lib/sync/crypto';
 import { getSyncContext } from './providerGateway';
+import { getSyncProviderConfig, isPlaintextProvider } from '@/lib/sync/providers/providerRegistry';
 import { MAX_SYNC_PAYLOAD_BYTES, SYNC_CATALOG_FILE_NAME } from './constants';
 
 export const REVISION_PREFIX = 'mountea-revision-v2--';
@@ -49,11 +50,11 @@ async function validateRevision(revision) {
 async function decodeRevision(text, options) {
  const envelope = parse(text);
  if (envelope.schemaVersion !== 2) throw error('UNSUPPORTED_REMOTE', 'Unsupported immutable revision protocol.');
- const revision = options.providerId === 'steam' ? envelope.revision : await decryptPayload(options.passphrase, envelope.encrypted);
+ const revision = isPlaintextProvider(options.providerId) ? envelope.revision : await decryptPayload(options.passphrase, envelope.encrypted);
  return validateRevision(revision);
 }
 async function encodeRevision(revision, options) {
- const envelope = options.providerId === 'steam' ? { schemaVersion: 2, revision } : { schemaVersion: 2, encrypted: await encryptPayload(options.passphrase, revision) };
+ const envelope = isPlaintextProvider(options.providerId) ? { schemaVersion: 2, revision } : { schemaVersion: 2, encrypted: await encryptPayload(options.passphrase, revision) };
  const content = JSON.stringify(envelope);
  if (new TextEncoder().encode(content).length > MAX_SYNC_PAYLOAD_BYTES) throw error('PAYLOAD_QUOTA', 'Revision exceeds the sync payload limit; it remains pending.');
  return content;
@@ -96,7 +97,7 @@ function headsFor(revisions, projectId, ids) {
 }
 async function legacyRevision(text, options) {
  const envelope = parse(text);
- const legacyPassphrase = options.providerId === 'steam' ? `auto:steam:${options.context.profileId}:v1` : options.passphrase;
+ const legacyPassphrase = getSyncProviderConfig(options.providerId)?.requiresPassphrase === false ? `auto:${options.providerId}:${options.context.profileId}:v1` : options.passphrase;
  const raw = envelope.project ? envelope : await decryptPayload(legacyPassphrase, envelope);
  const snapshot = await canonicalizeProject(raw);
  const payloadHash = await hashProject(snapshot);

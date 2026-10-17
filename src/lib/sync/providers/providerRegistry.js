@@ -11,6 +11,14 @@ export const SYNC_PROVIDER_CONFIGS = Object.freeze({
 		supportsCloudSync: true,
 		requiresPassphrase: false,
 	}),
+	// Optional self-hosted server (server/index.mjs). Revisions are stored unencrypted; access control
+	// is expected in front of the server (reverse proxy, Cloudflare Access, ...).
+	server: Object.freeze({
+		id: 'server',
+		supportsCloudSync: true,
+		requiresPassphrase: false,
+		plaintext: true,
+	}),
 });
 
 export const SYNC_PROVIDER_IDS = Object.freeze(Object.keys(SYNC_PROVIDER_CONFIGS));
@@ -31,4 +39,9 @@ export function getSyncProviderConfig(providerId) {
 export function supportsCloudSync(providerId) {
 	const config = getSyncProviderConfig(providerId);
 	return Boolean(config?.supportsCloudSync);
+}
+
+/** Plaintext providers store revisions unencrypted (no passphrase). */
+export function isPlaintextProvider(providerId) {
+	return providerId === 'steam' || Boolean(getSyncProviderConfig(providerId)?.plaintext);
 }
