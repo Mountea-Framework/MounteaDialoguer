@@ -64,3 +64,61 @@ export async function openDialogueSettings(page) {
 	await expect(page).toHaveURL(/#\/projects\/[^/]+\/dialogue\/[^/]+\/settings\/?$/);
 	await expect(page.getByRole('heading', { name: /dialogue settings/i }).first()).toBeVisible();
 }
+
+export const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
+
+// Builds the graph of the currently open dialogue through the app's own stores (the same path the editor
+// uses), then reloads the editor. Needs the Vite dev server: modules are imported by path, so this does not
+// work against the production bundle.
+// `nodes`: [{ id, type, data }] (text is plain), `edges`: [[source, target]] where "start" is the Start node.
+// Every node gets participant "Tester" unless it sets its own.
+export async function seedGraph(page, { nodes = [], edges = [] }) {
+	await page.evaluate(
+		async ({ nodes: seedNodes, edges: seedEdges, startId }) => {
+			const [, projectId, dialogueId] = window.location.hash.match(/projects\/([^/]+)\/dialogue\/([^/?]+)/);
+			const { useCategoryStore } = await import('/src/stores/categoryStore.js');
+			const { useParticipantStore } = await import('/src/stores/participantStore.js');
+			const { useDialogueStore } = await import('/src/stores/dialogueStore.js');
+			const category = await useCategoryStore.getState().createCategory({ projectId, name: 'Folk' });
+			const participant = await useParticipantStore.getState().createParticipant({ projectId, name: 'Tester', category: category.name, categoryId: category.id });
+			const toNode = (node, index) => ({
+				position: { x: 300, y: 150 * (index + 1) },
+				...node,
+				data: {
+					label: node.id,
+					displayName: node.id,
+					participant: participant.name,
+					participantId: participant.id,
+					decorators: [],
+					hasAudio: false,
+					...node.data,
+				},
+			});
+			const start = {
+				id: startId,
+				type: 'startNode',
+				position: { x: 0, y: 0 },
+				deletable: false,
+				data: { label: 'Dialogue entry point', displayName: 'Start', decorators: [], dialogueRows: [], hasAudio: false },
+			};
+			const edges = seedEdges.map(([source, target]) => ({
+				id: `${source}-${target}`,
+				source: source === 'start' ? startId : source,
+				target,
+				type: 'conditionEdge',
+				data: { conditions: { mode: 'all', rules: [] } },
+			}));
+			await useDialogueStore.getState().saveDialogueGraph(dialogueId, [start, ...seedNodes.map(toNode)], edges, { x: 0, y: 0, zoom: 1 }, {});
+		},
+		{ nodes, edges, startId: START_NODE_ID }
+	);
+	await page.reload();
+	await expect(page.locator('[data-tour="canvas"]')).toBeVisible();
+	// The editor shows a loading overlay for a moment; wait until the seeded graph is on screen.
+	await expect(page.locator('.react-flow__node').first()).toBeVisible();
+	await expect(page.getByText(/preparing dialogue graph/i)).toHaveCount(0, { timeout: 15000 });
+}
+
+export function textRow(id, text, duration = 5) {
+	return { id, text, duration };
+}

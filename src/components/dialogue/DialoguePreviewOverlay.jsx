@@ -76,6 +76,7 @@ export function DialoguePreviewOverlay({
 	edges = [],
 	participants = [],
 	rootDialogueId = '',
+	startNodeId = '',
 	loadDialogueGraphForPreview,
 	onStop,
 	onNodeFocus,
@@ -173,10 +174,23 @@ export function DialoguePreviewOverlay({
 		[getGraphRuntime]
 	);
 
+	// Where the preview begins in the root dialogue: the chosen node, or the Start node's first valid output.
+	const getRootStartRef = useCallback(
+		(context) => {
+			const wanted = String(startNodeId || '').trim();
+			if (wanted) {
+				const graph = getGraphRuntime(safeRootDialogueId);
+				if (graph?.nodeMap.has(wanted)) return buildNodeRef(safeRootDialogueId, wanted);
+			}
+			return getStartPreviewNodeRef(safeRootDialogueId, context);
+		},
+		[startNodeId, safeRootDialogueId, getGraphRuntime, getStartPreviewNodeRef]
+	);
+
 	const selectedRouteNodeKeys = useMemo(() => {
 		const route = [];
 		const seen = new Set();
-		let cursorRef = getStartPreviewNodeRef(safeRootDialogueId, scenarioContext);
+		let cursorRef = getRootStartRef(scenarioContext);
 		let steps = 0;
 
 		while (cursorRef && steps < MAX_PREVIEW_STEPS) {
@@ -224,10 +238,10 @@ export function DialoguePreviewOverlay({
 
 		return route;
 	}, [
-		safeRootDialogueId,
 		scenarioContext,
 		graphCache,
 		getStartPreviewNodeRef,
+		getRootStartRef,
 		getTraversableNextNodeRefs,
 		selectedBranches,
 	]);
@@ -393,6 +407,8 @@ export function DialoguePreviewOverlay({
 				nodeRef: choiceRef,
 				id: choiceNode.id,
 				dialogueId: choiceRef.dialogueId,
+				// Action label (what the player picks) and the line the player then says.
+				spokenLine: String(getDialogueRowsForPreview(choiceNode)[0]?.text || '').trim(),
 				label:
 					choiceNode.data?.selectionTitle ||
 					choiceNode.data?.displayName ||
@@ -432,7 +448,12 @@ export function DialoguePreviewOverlay({
 				}
 			});
 
-			return options;
+			// Options that end the conversation (goodbye) go last; others keep their order.
+			const endsConversation = (option) => option.outcome === 'complete' || option.outcome === 'end';
+			return options
+				.map((option, index) => ({ option, index }))
+				.sort((a, b) => Number(endsConversation(a.option)) - Number(endsConversation(b.option)) || a.index - b.index)
+				.map(({ option }) => option);
 		},
 		[getGraphRuntime, buildChoiceOption]
 	);
@@ -702,7 +723,7 @@ export function DialoguePreviewOverlay({
 	);
 
 	const startScenarioPreview = useCallback(() => {
-		const startNodeRef = getStartPreviewNodeRef(safeRootDialogueId, scenarioContext);
+		const startNodeRef = getRootStartRef(scenarioContext);
 		if (!startNodeRef) {
 			setScenarioError(t('editor.preview.invalidNoPlayablePath'));
 			return;
@@ -711,7 +732,7 @@ export function DialoguePreviewOverlay({
 		setScenarioReady(true);
 		runtimeRef.current.stepCount = 0;
 		goToNode(startNodeRef);
-	}, [getStartPreviewNodeRef, goToNode, safeRootDialogueId, scenarioContext, t]);
+	}, [getRootStartRef, goToNode, scenarioContext, t]);
 
 	const preloadGraphCache = useCallback(async () => {
 		const rootId = String(safeRootDialogueId || '').trim();
@@ -760,9 +781,9 @@ export function DialoguePreviewOverlay({
 	// A playback session owns timers/audio. Changing volume or callback identities
 	// must not tear it down; StrictMode cleanup/setup must always start it afresh.
 	const sessionCallbacksRef = useRef(null);
-	sessionCallbacksRef.current = { clearTimer, closePreview, goToNode, getStartPreviewNodeRef, preloadGraphCache, stopAudio };
+	sessionCallbacksRef.current = { clearTimer, closePreview, goToNode, getStartPreviewNodeRef, getRootStartRef, preloadGraphCache, stopAudio };
 	useEffect(() => {
-		const { clearTimer, closePreview, goToNode, getStartPreviewNodeRef, preloadGraphCache, stopAudio } = sessionCallbacksRef.current;
+		const { clearTimer, closePreview, goToNode, getRootStartRef, preloadGraphCache, stopAudio } = sessionCallbacksRef.current;
 		const runtime = runtimeRef.current;
 		sessionRef.current += 1;
 		if (!open) {
@@ -808,10 +829,7 @@ export function DialoguePreviewOverlay({
 				acc[rule.key] = true;
 				return acc;
 			}, {});
-			const initialStartNodeRef = getStartPreviewNodeRef(
-				safeRootDialogueId,
-				initialScenarioContext
-			);
+			const initialStartNodeRef = getRootStartRef(initialScenarioContext);
 
 			setScenarioRules(mergedScenarioRules);
 			setScenarioContext(initialScenarioContext);
@@ -1085,6 +1103,11 @@ export function DialoguePreviewOverlay({
 											>
 												<div className="w-full">
 													<div className="font-medium">{choice.label}</div>
+													{choice.spokenLine && choice.spokenLine !== choice.label && (
+														<div className="mt-0.5 text-sm italic text-muted-foreground">
+															&ldquo;{choice.spokenLine}&rdquo;
+														</div>
+													)}
 													<div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
 														{choice.outcome === 'end' && (
 															<span className="inline-flex items-center rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5">

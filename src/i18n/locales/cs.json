@@ -255,6 +255,9 @@
 			"focusNode": "Zaměřit node",
 			"unsavedLeaveTitle": "Neuložené změny",
 			"unsavedLeaveDescription": "Máš neuložené změny. Opuštěním stránky budou ztraceny. Pokračovat?"
+		},
+		"preview": {
+			"startFromHere": "Náhled odtud"
 		}
 	},
 	"participants": {

@@ -14,7 +14,7 @@ module.exports = {
 	plugins: ['react-refresh'],
 	overrides: [
 		{
-			files: ['electron/**/*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}', 'tests/**/*.{js,cjs,mjs}', '*.config.{js,cjs,mjs}', '.eslintrc.cjs'],
+			files: ['electron/**/*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}', 'tests/**/*.{js,cjs,mjs}', 'mcp/**/*.{js,mjs}', 'server/**/*.mjs', '*.config.{js,cjs,mjs}', '.eslintrc.cjs'],
 			env: { node: true },
 		},
 	],

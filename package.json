@@ -22,8 +22,11 @@
 		"electron:dist": "node scripts/run-electron-builder.mjs --public-release",
 		"electron:dist:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --public-release --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"steam:upload:mac": "node scripts/steam-upload.mjs --platform macos",
-		"lint": "eslint src electron scripts tests *.config.js .eslintrc.cjs --ext js,jsx,cjs,mjs",
+		"lint": "eslint src electron scripts tests mcp server *.config.js .eslintrc.cjs --ext js,jsx,cjs,mjs",
 		"lint:ci": "npm run lint",
+		"start": "node server/index.mjs",
+		"mcp": "node --import ./mcp/register.mjs mcp/server.mjs",
+		"test:mcp": "vitest run mcp",
 		"test:e2e": "playwright test",
 		"test:e2e:smoke": "playwright test tests/e2e/smoke.spec.js",
 		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
@@ -145,6 +148,7 @@
 		"tailwindcss": "^3.4.17",
 		"tailwindcss-animate": "^1.0.7",
 		"vite": "^6.0.5",
+		"vitest": "^5.0.3",
 		"wait-on": "^9.0.1"
 	}
 }
