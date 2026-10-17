@@ -1,11 +1,12 @@
 import { AUTHORING_TABLES } from './schema';
 import {
 	allocateDialogueLocalizationSlug,
+	normalizeLocalizedStringEntry,
 	normalizeProjectLocalizationConfig,
 	prepareLocalizedNodesAndEntries,
 	validateLocalizedEntriesForDialogue,
 } from '@/lib/localization/stringTable';
-import { validateCategoryTree, normalizeParticipant, validateDefinition } from '@/lib/domainIntegrity';
+import { validateCategoryTree, normalizeParticipant, validateDefinition, normalizePropertyType, normalizePropertyDefault } from '@/lib/domainIntegrity';
 import { isValidRowTiming } from '@/lib/rowTiming';
 
 export const PROJECT_FORMAT = 'mountea.project.v3';
@@ -75,6 +76,17 @@ function repairLegacyLocalization(snapshot) {
 			nodes,
 			locale: defaultLocale,
 			existingEntries,
+		});
+		// prepareLocalizedNodesAndEntries stamps every entry with "now". Unchanged entries keep their timestamps, otherwise
+		// canonicalizing a canonical snapshot again would change its hash (and a remote revision would look corrupt).
+		const previousByKey = new Map(existingEntries.map((entry) => [entry.key, entry]));
+		prepared.entries = prepared.entries.map((entry) => {
+			const previous = previousByKey.get(entry.key);
+			const stable = previous && JSON.stringify(previous.values) === JSON.stringify(entry.values)
+				? { ...entry, createdAt: previous.createdAt || entry.createdAt, modifiedAt: previous.modifiedAt || entry.modifiedAt }
+				: entry;
+			// Same shape a later pass would produce (adds keyType), so canonicalizing twice is a fixed point.
+			return normalizeLocalizedStringEntry(stable);
 		});
 		const preparedKeys = new Set(prepared.entries.map((entry) => entry.key));
 		const unusedEntries = existingEntries.filter((entry) => entry.key && !preparedKeys.has(entry.key));
@@ -154,6 +166,17 @@ export async function canonicalizeProject(input, { allowIncompleteMedia = false 
 		snapshot[table] = (input[table] || []).map((record) => ({ ...record }));
 	}
 	snapshot.dialogues = snapshot.dialogues.map((row) => { const next = { ...row }; for (const field of LOCAL_FIELDS) delete next[field]; return next; });
+	// Legacy property types (bool, int, float and this fork's "name") are normalized here, not only while validating,
+	// so a snapshot hashes the same before and after validation.
+	for (const table of ['decorators', 'conditions']) {
+		snapshot[table] = snapshot[table].map((definition) => ({
+			...definition,
+			properties: (Array.isArray(definition.properties) ? definition.properties : []).map((property) => {
+				const type = normalizePropertyType(property?.type);
+				return { ...property, type, defaultValue: normalizePropertyDefault(type, property?.defaultValue) };
+			}),
+		}));
+	}
 	snapshot.participants = await Promise.all(snapshot.participants.map(async (participant) => {
 		if (!participant.thumbnail) return participant;
 		const path = `participants.${participant.id}.thumbnail`, thumbnail = participant.thumbnail;
