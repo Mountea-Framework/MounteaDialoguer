@@ -253,6 +253,9 @@
 			"focusNode": "Ir al nodo",
 			"unsavedLeaveTitle": "Cambios sin guardar",
 			"unsavedLeaveDescription": "Tienes cambios sin guardar. Salir los descartará. ¿Continuar?"
+		},
+		"preview": {
+			"startFromHere": "Vista previa desde aquí"
 		}
 	},
 	"participants": {

@@ -146,6 +146,17 @@ const initialEdges = [];
 
 const noop = () => {};
 
+// Copy/paste clipboard for nodes. Module level so it also works between dialogues.
+let nodeClipboard = null; // { projectId, nodes: [], edges: [], pasteCount: 0 }
+
+const cloneData = (value) => {
+	try {
+		return structuredClone(value);
+	} catch {
+		return JSON.parse(JSON.stringify(value));
+	}
+};
+
 const NodeContextMenuContext = createContext({
 	onDeleteNode: noop,
 	onContextMenuAction: noop,
@@ -164,7 +175,7 @@ const NodeContextMenuProvider = ({ value, children }) => {
 const withNodeContextMenu = (NodeComponent) => {
 	const WrappedNode = (props) => {
 		const { t } = useTranslation();
-		const { onDeleteNode, onContextMenuAction } = useNodeContextMenu();
+		const { onDeleteNode, onContextMenuAction, onPreviewFromNode } = useNodeContextMenu();
 		const isPlaceholder = props.type === 'placeholderNode';
 		const canDelete = !isPlaceholder && props.id !== START_NODE_ID;
 
@@ -196,6 +207,17 @@ const withNodeContextMenu = (NodeComponent) => {
 						{t('common.delete')}
 						<ContextMenuShortcut>Del</ContextMenuShortcut>
 					</ContextMenuItem>
+					{props.id !== START_NODE_ID && (
+						<ContextMenuItem
+							onSelect={(event) => {
+								event.preventDefault();
+								onContextMenuAction?.();
+								onPreviewFromNode?.(props.id);
+							}}
+						>
+							{t('editor.preview.startFromHere')}
+						</ContextMenuItem>
+					)}
 				</ContextMenuContent>
 			</ContextMenu>
 		);
@@ -341,6 +363,7 @@ function DialogueEditorPage() {
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isEdgeCascadeDeleteOpen, setIsEdgeCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [previewStartNodeId, setPreviewStartNodeId] = useState('');
 	const [previewActiveNodeRef, setPreviewActiveNodeRef] = useState(null);
 	const previewOriginRef = useRef(null);
 	const graphLoadKeyRef = useRef('');
@@ -1394,7 +1417,7 @@ function DialogueEditorPage() {
 		setPreviewActiveNodeRef(nodeRef);
 	}, [dialogueId]);
 
-	const handleStartPreview = useCallback(() => {
+	const handleStartPreview = useCallback((startFromNodeId) => {
 		if (deviceType !== 'desktop') return;
 
 		const missingRequiredNodes = getMissingRequiredNodes();
@@ -1449,6 +1472,8 @@ function DialogueEditorPage() {
 			dialogueId,
 			nodeId: START_NODE_ID,
 		};
+		// The toolbar button passes a click event; only a string id means "start from this node".
+		setPreviewStartNodeId(typeof startFromNodeId === 'string' ? startFromNodeId : '');
 		setIsPreviewOpen(true);
 	}, [deviceType, dialogueId, getMissingRequiredNodes, nodes, edges, t]);
 
@@ -2003,11 +2028,138 @@ function DialogueEditorPage() {
 		redo();
 	}, [redo]);
 
+	// Copy selected nodes (multi-select with Shift-drag) and the edges between them.
+	const handleCopyNodes = useCallback(() => {
+		const picked = nodes.filter(
+			(n) => n.type !== 'placeholderNode' && n.id !== START_NODE_ID && (n.selected || n.id === selectedNodeId)
+		);
+		if (picked.length === 0) return false;
+		const ids = new Set(picked.map((n) => n.id));
+		const innerEdges = edges.filter(
+			(e) => ids.has(e.source) && ids.has(e.target) && !e.data?.isPlaceholder
+		);
+		nodeClipboard = {
+			projectId,
+			nodes: picked.map((n) => ({ id: n.id, type: n.type, position: { ...n.position }, data: cloneData(n.data) })),
+			edges: innerEdges.map((e) => ({ source: e.source, target: e.target, sourceHandle: e.sourceHandle, targetHandle: e.targetHandle })),
+			pasteCount: 0,
+		};
+		return true;
+	}, [nodes, edges, selectedNodeId, projectId]);
+
+	// Paste: new ids everywhere, localization keys are regenerated on save, placed with an offset.
+	const handlePasteNodes = useCallback(() => {
+		if (!nodeClipboard || nodeClipboard.nodes.length === 0) return false;
+		nodeClipboard.pasteCount += 1;
+		const offset = 40 * nodeClipboard.pasteCount;
+		const idMap = new Map(nodeClipboard.nodes.map((n) => [n.id, uuidv4()]));
+
+		const newNodes = [];
+		const newPlaceholders = [];
+		const newEdges = [];
+		for (const source of nodeClipboard.nodes) {
+			const newId = idMap.get(source.id);
+			const data = cloneData(source.data);
+			delete data.displayNameKey;
+			delete data.selectionTitleKey;
+			delete data.localizationNodeToken;
+			if (nodeClipboard.projectId !== projectId) {
+				// Speakers and decorator definitions belong to the source project.
+				data.participant = '';
+				delete data.participantId;
+				data.decorators = [];
+				if (Array.isArray(data.dialogueRows)) data.dialogueRows = data.dialogueRows.map((row) => { const next = { ...row }; delete next.participantId; return next; });
+			}
+			if (Array.isArray(data.dialogueRows)) {
+				data.dialogueRows = data.dialogueRows.map((row) => {
+					const next = { ...row, id: uuidv4() };
+					delete next.textKey;
+					delete next.localizationRowToken;
+					return next;
+				});
+			}
+			if (typeof data.targetNode === 'string' && idMap.has(data.targetNode)) {
+				data.targetNode = idMap.get(data.targetNode);
+			}
+			newNodes.push({
+				id: newId,
+				type: source.type,
+				position: { x: source.position.x + offset, y: source.position.y + offset },
+				data,
+				selected: true,
+			});
+
+			if (getNodeDefinition(source.type)?.canHaveOutputs ?? true) {
+				const placeholderId = uuidv4();
+				newPlaceholders.push({
+					id: placeholderId,
+					type: 'placeholderNode',
+					data: { label: 'Add Node', onClick: handlePlaceholderClick, parentNodeId: newId },
+					position: { x: source.position.x + offset, y: source.position.y + offset + 250 },
+				});
+				newEdges.push({
+					id: `${newId}-${placeholderId}`,
+					source: newId,
+					target: placeholderId,
+					type: 'default',
+					style: { strokeWidth: 1, stroke: '#94a3b8', strokeDasharray: '5,5' },
+					data: { isPlaceholder: true },
+				});
+			}
+		}
+		for (const edge of nodeClipboard.edges) {
+			const source = idMap.get(edge.source);
+			const target = idMap.get(edge.target);
+			newEdges.push({
+				id: `${source}-${target}`,
+				source,
+				target,
+				sourceHandle: edge.sourceHandle,
+				targetHandle: edge.targetHandle,
+				type: 'default',
+				markerEnd: { type: MarkerType.ArrowClosed },
+			});
+		}
+
+		const nextNodes = [...nodes.map((n) => ({ ...n, selected: false })), ...newNodes, ...newPlaceholders];
+		const nextEdges = [...edges, ...newEdges];
+		setNodes(nextNodes);
+		setEdges(nextEdges);
+		saveToHistory(nextNodes, nextEdges);
+		markUnsaved();
+		setSelectedEdge(null);
+		setSelectedNodeId(newNodes.length === 1 ? newNodes[0].id : null);
+		return true;
+	}, [nodes, edges, projectId, setNodes, setEdges, saveToHistory, markUnsaved, handlePlaceholderClick]);
+
 	// Handle keyboard events
 	useEffect(() => {
 		const handleKeyDown = (event) => {
 			if (isPreviewOpen) {
 				return;
+			}
+
+			// Copy / paste nodes (not while typing, so text copy keeps working)
+			if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+				const el = event.target;
+				const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
+				const hasTextSelection = !!window.getSelection()?.toString();
+				const key = event.key.toLowerCase();
+				if (!typing && key === 'c' && !hasTextSelection) {
+					if (handleCopyNodes()) event.preventDefault();
+					return;
+				}
+				if (!typing && key === 'v') {
+					if (handlePasteNodes()) event.preventDefault();
+					return;
+				}
+				if (!typing && key === 'd') {
+					if (handleCopyNodes()) {
+						event.preventDefault();
+						handlePasteNodes();
+					}
+					return;
+				}
 			}
 
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
@@ -2072,6 +2224,8 @@ function DialogueEditorPage() {
 		handleSave,
 		handleUndo,
 		handleRedo,
+		handleCopyNodes,
+		handlePasteNodes,
 		isPreviewOpen,
 	]);
 
@@ -2345,8 +2499,9 @@ function DialogueEditorPage() {
 		() => ({
 			onDeleteNode: deleteNodeById,
 			onContextMenuAction: () => { lastContextMenuActionRef.current = Date.now(); },
+			onPreviewFromNode: (nodeId) => handleStartPreview(String(nodeId)),
 		}),
-		[deleteNodeById]
+		[deleteNodeById, handleStartPreview]
 	);
 
 	if (!dialogue || !project) {
@@ -2499,6 +2654,7 @@ function DialogueEditorPage() {
 							edges={edges}
 							participants={participants}
 							rootDialogueId={dialogueId}
+							startNodeId={previewStartNodeId}
 							loadDialogueGraphForPreview={loadDialogueGraphForPreview}
 							onStop={handlePreviewStop}
 							onNodeFocus={handlePreviewNodeFocus}
