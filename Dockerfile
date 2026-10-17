@@ -26,4 +26,5 @@ COPY src/config/dialogueNodes.json src/config/edgeConditions.js ./src/config/
 VOLUME /data
 EXPOSE 8080 8081
 # Runs as root on purpose: a bind-mounted ./data is created root-owned by Docker and a non-root user could not write to it.
+# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["node", "server/index.mjs"]
