@@ -174,7 +174,7 @@ http
 			return await serveStatic(req, res, url);
 		} catch (error) {
 			console.error('[server]', error);
-			send(res, error.status || 500, { error: error.message || 'Server error' });
+			send(res, error.status || 500, { error: error.message || 'Server error', ...(error.code ? { code: error.code } : {}) });
 		}
 	})
 	.listen(PORT, () => {
