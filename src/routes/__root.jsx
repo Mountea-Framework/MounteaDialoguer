@@ -214,7 +214,7 @@ function RootComponent() {
 				await Promise.all([useUIStore.persist.rehydrate(), useSyncStore.persist.rehydrate()]);
 				context.assertCurrent();
 				if (disposed || ticket !== request) return;
-				await loadAccount({ steamStatus: resolvedSteamStatus });
+				await loadAccount({ steamStatus: resolvedSteamStatus, context });
 				context.assertCurrent();
 				if (disposed || ticket !== request) return;
 				if (isSelfHostedSync() && useSyncStore.getState().status === 'connected') {

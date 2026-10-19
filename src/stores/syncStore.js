@@ -265,13 +265,15 @@ export const useSyncStore = create(
 			setSyncMode: (value) => set({ syncMode: value }),
 
 			loadAccount: async (options = {}) => {
+				const context = options.context || await getRepositoryContext();
+				context.assertCurrent();
 				if (isSelfHostedSync()) {
 					// Self-hosted edition: there is nothing to log in to; access control sits in front of the server.
-					const reachable = await isSyncServerReachable();
-					set({ provider: 'server', status: reachable ? 'connected' : 'disconnected', syncMode: 'full', error: null });
+					const reachable = await isSyncServerReachable({ signal: context.signal });
+					context.assertCurrent();
+					set({ provider: 'server', status: reachable ? 'connected' : 'error', syncMode: 'full', error: reachable ? null : 'syncFailed' });
 					return;
 				}
-				const context = options.context || await getRepositoryContext();
 				const capability = await credentialCapabilities();
 				context.assertCurrent();
 				const legacyPassphrase = getProviderPassphraseFromState(get(), 'googleDrive');

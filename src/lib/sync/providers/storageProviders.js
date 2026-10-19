@@ -136,11 +136,19 @@ export function assertCloudSyncStorageProvider(providerId = DEFAULT_SYNC_PROVIDE
 }
 
 /** True when the self-hosted sync server answers. */
-export async function isSyncServerReachable() {
+export async function isSyncServerReachable({ signal, timeoutMs = 5000 } = {}) {
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	const timer = setTimeout(abort, timeoutMs);
+	if (signal?.aborted) abort();
+	signal?.addEventListener('abort', abort, { once: true });
 	try {
-		const response = await fetch(`${import.meta.env.BASE_URL || '/'}api/health`.replace(/\/{2,}/g, '/'), { cache: 'no-store' });
+		const response = await fetch(`${import.meta.env.BASE_URL || '/'}api/health`.replace(/\/{2,}/g, '/'), { cache: 'no-store', signal: controller.signal });
 		return response.ok;
 	} catch {
 		return false;
+	} finally {
+		clearTimeout(timer);
+		signal?.removeEventListener('abort', abort);
 	}
 }
