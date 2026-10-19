@@ -76,7 +76,7 @@ export async function listAllProjects() {
 			id: newest.projectId,
 			name: newest.projectName,
 			modifiedAt: newest.modifiedAt,
-			...(live.length > 1 ? { conflict: 'divergent edits; resolve in the app' } : {}),
+			...(heads.length > 1 ? { conflict: 'divergent edits; resolve in the app' } : {}),
 		});
 	}
 	return projects.sort((a, b) => a.name.localeCompare(b.name));
@@ -140,7 +140,8 @@ async function writeRevision(revision) {
  * Read-modify-write one project. `fn(snapshot)` mutates a copy of the head snapshot and returns the tool result.
  * If another writer added a revision in between, the operation is re-run on the new head (up to 3 times).
  */
-export async function mutateProject(projectId, fn) {
+export async function mutateProject(projectId, fn, { operation = 'update' } = {}) {
+	if (!['update', 'delete'].includes(operation)) throw new ToolError('Unsupported mutation operation');
 	const previous = locks.get(projectId) || Promise.resolve();
 	const run = previous.catch(() => {}).then(async () => {
 		for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -148,8 +149,11 @@ export async function mutateProject(projectId, fn) {
 			const before = JSON.parse(await readFileText(head.file)).revision.snapshot;
 			const snapshot = structuredClone(before);
 			const result = await fn(snapshot);
-			snapshot.project.modifiedAt = nowIso();
-			const revision = await buildRevision(snapshot, { parents: [head.id], operation: 'update', previous: before });
+			if (operation !== 'delete') snapshot.project.modifiedAt = nowIso();
+			// Deletion retains the exact previous snapshot, including incomplete drafts.
+			const revision = operation === 'delete'
+				? { id: uuid(), projectId, parentRevisionIds: [head.id], deviceId: DEVICE_ID, payloadHash: await hashProject(before), operation, snapshot: before, createdAt: nowIso() }
+				: await buildRevision(snapshot, { parents: [head.id], operation, previous: before });
 			const stillHead = headsOf((await refreshIndex()).get(projectId) || []);
 			if (stillHead.length !== 1 || stillHead[0].id !== head.id) continue;
 			await writeRevision(revision);

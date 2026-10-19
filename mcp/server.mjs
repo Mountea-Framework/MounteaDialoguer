@@ -116,7 +116,7 @@ async function handleMessage(message, ip, origin) {
 				capabilities: { tools: { listChanged: false } },
 				serverInfo: { name: 'mountea-dialoguer', version: '1.0.0' },
 				instructions:
-					'Edits Mountea Dialoguer projects. Workflow: list_projects -> get_project -> create participants/categories -> create_dialogue -> set_graph -> validate_dialogue. Projects and dialogues cannot be deleted here. Open browser tabs refresh automatically (or ask the user to reload).',
+					'Edits Mountea Dialoguer projects. Workflow: list_projects -> get_project -> create participants/categories -> create_dialogue -> set_graph -> validate_dialogue. Project and dialogue deletion retain revision history. Referenced records require reassignment before deletion. Open browser tabs refresh automatically (or ask the user to reload).',
 			});
 		}
 		case 'ping':

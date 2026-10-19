@@ -81,11 +81,11 @@ describe('auth and protocol', () => {
 		expect(res.status).toBe(413);
 		expect((await rpc('ping', {})).status).toBe(200);
 	});
-	it('has no tool that deletes projects or dialogues', async () => {
+	it('exposes guarded project and dialogue deletion tools', async () => {
 		const { body } = await rpc('tools/list', {});
 		const names = body.result.tools.map((t) => t.name);
 		expect(names.length).toBeGreaterThan(30);
-		expect(names.filter((n) => /delete_(project|dialogue)|remove_(project|dialogue)/.test(n))).toEqual([]);
+		expect(names).toEqual(expect.arrayContaining(['delete_project', 'delete_dialogue']));
 	});
 });
 

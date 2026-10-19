@@ -3,6 +3,7 @@ import { cleanName } from '../lib/rules.mjs';
 import { projectLocales, saveGraph, startNode, getDialogue, loadGraph, validateGraph, START_NODE_ID } from '../lib/graph.mjs';
 import { allocateDialogueLocalizationSlug, isValidLocaleTag, normalizeLocaleTag, normalizeProjectLocalizationConfig } from '../../src/lib/localization/stringTable.js';
 import { defineTool, str, arr, PROJECT, DIALOGUE } from './util.mjs';
+import { assertUnreferenced } from '../../src/lib/domainIntegrity.js';
 
 const summarizeNode = (node) => {
 	const d = node.data || {};
@@ -36,6 +37,16 @@ function categoryTree(categories) {
 }
 
 export const projectTools = [
+	defineTool('delete_project', 'Delete a project by appending a deletion revision. All historical revisions and the last snapshot are retained.', { projectId: PROJECT }, ['projectId'], ({ projectId }) =>
+		mutateProject(projectId, () => ({ deleted: true, id: projectId }), { operation: 'delete' })),
+	defineTool('delete_dialogue', 'Delete a dialogue and its graph. References from other dialogues must be reassigned first. History is retained.', { projectId: PROJECT, dialogueId: DIALOGUE }, ['projectId', 'dialogueId'], ({ projectId, dialogueId }) =>
+		mutateProject(projectId, (snapshot) => {
+			const dialogue = getDialogue(snapshot, dialogueId);
+			assertUnreferenced(snapshot, 'dialogues', dialogue);
+			snapshot.dialogues = snapshot.dialogues.filter((record) => record.id !== dialogueId);
+			for (const table of ['nodes', 'edges', 'localizedStrings']) snapshot[table] = snapshot[table].filter((record) => record.dialogueId !== dialogueId);
+			return { deleted: true, id: dialogueId };
+		})),
 	defineTool('list_projects', 'List all projects (id, name, last modified).', {}, [], async () => ({
 		projects: await listAllProjects(),
 	})),
