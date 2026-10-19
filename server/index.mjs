@@ -118,14 +118,39 @@ async function handleApi(req, res, url) {
 }
 
 async function serveStatic(req, res, url) {
-	let rel = decodeURIComponent(url.pathname);
+	let rel;
+	try { rel = decodeURIComponent(url.pathname); }
+	catch { return send(res, 400, 'Invalid path encoding'); }
+	if (rel.includes(':') || [...rel].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) return send(res, 400, 'Invalid path');
+	// Treat both URL and Windows separators consistently on every host.
+	rel = rel.replace(/\\/g, '/');
 	if (rel.endsWith('/')) rel += 'index.html';
-	let file = path.normalize(path.join(DIST_DIR, rel));
-	if (!file.startsWith(DIST_DIR)) return send(res, 403, 'Forbidden');
+	const contained = (root, candidate) => {
+		const relative = path.relative(root, candidate);
+		return !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`);
+	};
+	let file = path.resolve(DIST_DIR, `.${rel}`);
+	if (!contained(DIST_DIR, file)) return send(res, 403, 'Forbidden');
+	const realRoot = await fs.realpath(DIST_DIR).catch(() => null);
+	if (!realRoot) return send(res, 404, 'Not built. Run npm run build.');
+	// Check the closest existing ancestor too: a missing path through an external
+	// symlink must not turn into a successful SPA fallback.
+	const safeRealPath = async (candidate) => {
+		let cursor = candidate;
+		while (contained(DIST_DIR, cursor)) {
+			try { return contained(realRoot, await fs.realpath(cursor)); }
+			catch (error) { if (!['ENOENT', 'ENOTDIR'].includes(error.code)) return false; }
+			if (cursor === DIST_DIR) break;
+			cursor = path.dirname(cursor);
+		}
+		return false;
+	};
+	if (!await safeRealPath(file)) return send(res, 403, 'Forbidden');
 	let stat = await fs.stat(file).catch(() => null);
 	if (!stat || !stat.isFile()) {
 		// Single-page app: unknown paths get index.html.
 		file = path.join(DIST_DIR, 'index.html');
+		if (!await safeRealPath(file)) return send(res, 403, 'Forbidden');
 		stat = await fs.stat(file).catch(() => null);
 		if (!stat) return send(res, 404, 'Not built. Run npm run build.');
 	}
@@ -135,7 +160,7 @@ async function serveStatic(req, res, url) {
 		'Content-Type': MIME[ext] || 'application/octet-stream',
 		'Cache-Control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache',
 	});
-	res.end(await fs.readFile(file));
+	res.end(req.method === 'HEAD' ? undefined : await fs.readFile(file));
 }
 
 await ensureDirs();
