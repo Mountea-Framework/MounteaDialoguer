@@ -163,6 +163,16 @@
 		"unsavedChanges": "Unsaved Changes"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Pasted with changes",
+			"description": "Reassign the cleared references: {{details}}.",
+			"conditions": "Condition rules: {{count}}",
+			"decorators": "Decorators: {{count}}",
+			"nodeSpeakers": "Node speakers: {{count}}",
+			"rowSpeakers": "Row speakers: {{count}}",
+			"returnTargets": "Return targets: {{count}}",
+			"childTargets": "Child dialogue targets: {{count}}"
+		},
 		"menu": {
 			"file": "File",
 			"edit": "Edit",

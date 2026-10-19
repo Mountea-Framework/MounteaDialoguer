@@ -134,6 +134,16 @@
 		"unsavedChanges": "Modifications non enregistrées"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Collé avec des modifications",
+			"description": "Réattribuez les références effacées : {{details}}.",
+			"conditions": "Règles de condition : {{count}}",
+			"decorators": "Décorateurs : {{count}}",
+			"nodeSpeakers": "Locuteurs des nœuds : {{count}}",
+			"rowSpeakers": "Locuteurs des lignes : {{count}}",
+			"returnTargets": "Cibles de retour : {{count}}",
+			"childTargets": "Cibles des sous-dialogues : {{count}}"
+		},
 		"menu": {
 			"file": "Fichier",
 			"edit": "Édition",

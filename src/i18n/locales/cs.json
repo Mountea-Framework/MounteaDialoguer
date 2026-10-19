@@ -136,6 +136,16 @@
 		"unsavedChanges": "Neuložené změny"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Vloženo se změnami",
+			"description": "Znovu přiřaď vymazané odkazy: {{details}}.",
+			"conditions": "Pravidla podmínek: {{count}}",
+			"decorators": "Dekorátory: {{count}}",
+			"nodeSpeakers": "Mluvčí nodů: {{count}}",
+			"rowSpeakers": "Mluvčí řádků: {{count}}",
+			"returnTargets": "Cíle návratu: {{count}}",
+			"childTargets": "Cíle poddialogů: {{count}}"
+		},
 		"menu": {
 			"file": "Soubor",
 			"edit": "Úprava",

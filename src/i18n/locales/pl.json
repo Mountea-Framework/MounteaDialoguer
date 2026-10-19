@@ -136,6 +136,16 @@
 		"unsavedChanges": "Niezapisane zmiany"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Wklejono ze zmianami",
+			"description": "Przypisz ponownie usunięte odwołania: {{details}}.",
+			"conditions": "Reguły warunków: {{count}}",
+			"decorators": "Dekoratory: {{count}}",
+			"nodeSpeakers": "Mówcy węzłów: {{count}}",
+			"rowSpeakers": "Mówcy wierszy: {{count}}",
+			"returnTargets": "Cele powrotu: {{count}}",
+			"childTargets": "Cele dialogów podrzędnych: {{count}}"
+		},
 		"menu": {
 			"file": "Plik",
 			"edit": "Edycja",

@@ -134,6 +134,16 @@
 		"unsavedChanges": "Cambios sin guardar"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Pegado con cambios",
+			"description": "Vuelve a asignar las referencias eliminadas: {{details}}.",
+			"conditions": "Reglas de condición: {{count}}",
+			"decorators": "Decoradores: {{count}}",
+			"nodeSpeakers": "Hablantes de nodos: {{count}}",
+			"rowSpeakers": "Hablantes de filas: {{count}}",
+			"returnTargets": "Destinos de retorno: {{count}}",
+			"childTargets": "Destinos de diálogos secundarios: {{count}}"
+		},
 		"menu": {
 			"file": "Archivo",
 			"edit": "Editar",

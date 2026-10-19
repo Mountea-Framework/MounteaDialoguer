@@ -1,5 +1,6 @@
 import { toast } from '@/components/ui/toaster';
 import { errorToast } from '@/lib/errorPresentation';
+import { captureDialogueClipboard, pasteDialogueClipboard } from '@/lib/dialogueClipboard';
 import {
 	START_NODE_ID,
 	getNodeSize,
@@ -148,14 +149,6 @@ const noop = () => {};
 
 // Copy/paste clipboard for nodes. Module level so it also works between dialogues.
 let nodeClipboard = null; // { projectId, nodes: [], edges: [], pasteCount: 0 }
-
-const cloneData = (value) => {
-	try {
-		return structuredClone(value);
-	} catch {
-		return JSON.parse(JSON.stringify(value));
-	}
-};
 
 const NodeContextMenuContext = createContext({
 	onDeleteNode: noop,
@@ -482,6 +475,7 @@ function DialogueEditorPage() {
 
 	// Load dialogue graph when dialogue changes
 	useEffect(() => {
+		let disposed = false;
 		const loadGraph = async () => {
 			if (dialogueId) {
 				const loadKey = `${dialogueId}:${contentLocale}`;
@@ -505,11 +499,11 @@ function DialogueEditorPage() {
 					const result = await loadDialogueGraph(dialogueId, {
 						activeLocale: contentLocale,
 					});
+					if (disposed) return;
 					const { nodes: loadedNodes, edges: loadedEdges, viewport: loadedViewport } = result;
 
-					if (loadedNodes.length > 0 || loadedEdges.length > 0) {
-						resetDraft(loadedNodes, loadedEdges);
-					}
+					// An empty destination must replace the previous dialogue's draft too.
+					resetDraft(loadedNodes.length ? loadedNodes : getInitialNodes(t), loadedEdges);
 
 					// Restore viewport if saved and ReactFlow instance is available
 					const shouldRestoreViewport = getDeviceType() !== 'mobile';
@@ -519,15 +513,20 @@ function DialogueEditorPage() {
 						setHasLoadedViewport(true);
 					}
 				} catch (error) {
+					if (disposed) return;
 					graphLoadKeyRef.current = '';
 					console.error('Failed to load dialogue graph:', error);
 				} finally {
-					setHasGraphInitialized(true);
+					if (!disposed) setHasGraphInitialized(true);
 				}
 			}
 		};
 		loadGraph();
-	}, [dialogueId, loadDialogueGraph, resetDraft, reactFlowInstance, contentLocale]);
+		return () => {
+			disposed = true;
+			graphLoadKeyRef.current = '';
+		};
+	}, [dialogueId, loadDialogueGraph, resetDraft, reactFlowInstance, contentLocale, t]);
 
 	const isMobileGraphLoading =
 		deviceType !== 'desktop' &&
@@ -2030,98 +2029,35 @@ function DialogueEditorPage() {
 
 	// Copy selected nodes (multi-select with Shift-drag) and the edges between them.
 	const handleCopyNodes = useCallback(() => {
-		const picked = nodes.filter(
-			(n) => n.type !== 'placeholderNode' && n.id !== START_NODE_ID && (n.selected || n.id === selectedNodeId)
-		);
-		if (picked.length === 0) return false;
-		const ids = new Set(picked.map((n) => n.id));
-		const innerEdges = edges.filter(
-			(e) => ids.has(e.source) && ids.has(e.target) && !e.data?.isPlaceholder
-		);
-		nodeClipboard = {
-			projectId,
-			nodes: picked.map((n) => ({ id: n.id, type: n.type, position: { ...n.position }, data: cloneData(n.data) })),
-			edges: innerEdges.map((e) => ({ source: e.source, target: e.target, sourceHandle: e.sourceHandle, targetHandle: e.targetHandle })),
-			pasteCount: 0,
-		};
+		const copied = captureDialogueClipboard({ projectId, dialogueId, nodes, edges, selectedNodeId });
+		if (!copied) return false;
+		nodeClipboard = copied;
 		return true;
-	}, [nodes, edges, selectedNodeId, projectId]);
+	}, [nodes, edges, selectedNodeId, projectId, dialogueId]);
 
-	// Paste: new ids everywhere, localization keys are regenerated on save, placed with an offset.
 	const handlePasteNodes = useCallback(() => {
-		if (!nodeClipboard || nodeClipboard.nodes.length === 0) return false;
+		if (!nodeClipboard?.nodes.length) return false;
+		const { nodes: newNodes, edges: pastedEdges, cleared } = pasteDialogueClipboard(nodeClipboard, {
+			projectId, dialogueId, nodes, dialogues, participants, decorators, conditions, createId: uuidv4,
+		});
 		nodeClipboard.pasteCount += 1;
-		const offset = 40 * nodeClipboard.pasteCount;
-		const idMap = new Map(nodeClipboard.nodes.map((n) => [n.id, uuidv4()]));
-
-		const newNodes = [];
 		const newPlaceholders = [];
-		const newEdges = [];
-		for (const source of nodeClipboard.nodes) {
-			const newId = idMap.get(source.id);
-			const data = cloneData(source.data);
-			delete data.displayNameKey;
-			delete data.selectionTitleKey;
-			delete data.localizationNodeToken;
-			if (nodeClipboard.projectId !== projectId) {
-				// Speakers and decorator definitions belong to the source project.
-				data.participant = '';
-				delete data.participantId;
-				data.decorators = [];
-				if (Array.isArray(data.dialogueRows)) data.dialogueRows = data.dialogueRows.map((row) => { const next = { ...row }; delete next.participantId; return next; });
-			}
-			if (Array.isArray(data.dialogueRows)) {
-				data.dialogueRows = data.dialogueRows.map((row) => {
-					const next = { ...row, id: uuidv4() };
-					delete next.textKey;
-					delete next.localizationRowToken;
-					return next;
-				});
-			}
-			if (typeof data.targetNode === 'string' && idMap.has(data.targetNode)) {
-				data.targetNode = idMap.get(data.targetNode);
-			}
-			newNodes.push({
-				id: newId,
-				type: source.type,
-				position: { x: source.position.x + offset, y: source.position.y + offset },
-				data,
-				selected: true,
-			});
-
-			if (getNodeDefinition(source.type)?.canHaveOutputs ?? true) {
+		const newEdges = [...pastedEdges];
+		for (const node of newNodes) {
+			if (getNodeDefinition(node.type)?.canHaveOutputs ?? true) {
 				const placeholderId = uuidv4();
 				newPlaceholders.push({
-					id: placeholderId,
-					type: 'placeholderNode',
-					data: { label: 'Add Node', onClick: handlePlaceholderClick, parentNodeId: newId },
-					position: { x: source.position.x + offset, y: source.position.y + offset + 250 },
+					id: placeholderId, type: 'placeholderNode',
+					data: { label: 'Add Node', onClick: handlePlaceholderClick, parentNodeId: node.id },
+					position: { x: node.position.x, y: node.position.y + 250 },
 				});
 				newEdges.push({
-					id: `${newId}-${placeholderId}`,
-					source: newId,
-					target: placeholderId,
-					type: 'default',
-					style: { strokeWidth: 1, stroke: '#94a3b8', strokeDasharray: '5,5' },
-					data: { isPlaceholder: true },
+					id: `${node.id}-${placeholderId}`, source: node.id, target: placeholderId, type: 'default',
+					style: { strokeWidth: 1, stroke: '#94a3b8', strokeDasharray: '5,5' }, data: { isPlaceholder: true },
 				});
 			}
 		}
-		for (const edge of nodeClipboard.edges) {
-			const source = idMap.get(edge.source);
-			const target = idMap.get(edge.target);
-			newEdges.push({
-				id: `${source}-${target}`,
-				source,
-				target,
-				sourceHandle: edge.sourceHandle,
-				targetHandle: edge.targetHandle,
-				type: 'default',
-				markerEnd: { type: MarkerType.ArrowClosed },
-			});
-		}
-
-		const nextNodes = [...nodes.map((n) => ({ ...n, selected: false })), ...newNodes, ...newPlaceholders];
+		const nextNodes = [...nodes.map((node) => ({ ...node, selected: false })), ...newNodes, ...newPlaceholders];
 		const nextEdges = [...edges, ...newEdges];
 		setNodes(nextNodes);
 		setEdges(nextEdges);
@@ -2129,8 +2065,11 @@ function DialogueEditorPage() {
 		markUnsaved();
 		setSelectedEdge(null);
 		setSelectedNodeId(newNodes.length === 1 ? newNodes[0].id : null);
+		const details = Object.entries(cleared).filter(([, count]) => count > 0)
+			.map(([key, count]) => t(`editor.clipboard.${key}`, { count })).join(', ');
+		if (details) toastStandalone({ variant: 'warning', title: t('editor.clipboard.title'), description: t('editor.clipboard.description', { details }), duration: 8000 });
 		return true;
-	}, [nodes, edges, projectId, setNodes, setEdges, saveToHistory, markUnsaved, handlePlaceholderClick]);
+	}, [nodes, edges, projectId, dialogueId, dialogues, participants, decorators, conditions, setNodes, setEdges, saveToHistory, markUnsaved, handlePlaceholderClick, t]);
 
 	// Handle keyboard events
 	useEffect(() => {

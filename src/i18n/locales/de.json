@@ -134,6 +134,16 @@
 		"unsavedChanges": "Nicht gespeicherte Änderungen"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Mit Änderungen eingefügt",
+			"description": "Weise die entfernten Verknüpfungen neu zu: {{details}}.",
+			"conditions": "Bedingungsregeln: {{count}}",
+			"decorators": "Dekoratoren: {{count}}",
+			"nodeSpeakers": "Knotensprecher: {{count}}",
+			"rowSpeakers": "Zeilensprecher: {{count}}",
+			"returnTargets": "Rücksprungziele: {{count}}",
+			"childTargets": "Unterdialogziele: {{count}}"
+		},
 		"menu": {
 			"file": "Datei",
 			"edit": "Bearbeiten",
