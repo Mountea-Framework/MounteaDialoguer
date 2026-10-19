@@ -1,3 +1,4 @@
+import { assertUnreferenced } from '../../src/lib/domainIntegrity.js';
 import { loadSnapshot, mutateProject, nowIso, ToolError, uuid } from '../lib/store.mjs';
 import {
 	MAX_NAME_LENGTH,
@@ -95,14 +96,14 @@ export const peopleTools = [
 
 	defineTool(
 		'delete_participant',
-		'Delete a participant. Refused while nodes still use it, unless force=true (those nodes then keep a dangling name).',
-		{ projectId: PROJECT, participant: str('Participant name or id'), force: bool('Delete even if nodes use it') },
+		'Delete a participant. References must be removed or reassigned first; force does not bypass this safeguard.',
+		{ projectId: PROJECT, participant: str('Participant name or id'), force: bool('Compatibility argument; referenced records cannot be deleted') },
 		['projectId', 'participant'],
 		(args) =>
 			mutateProject(args.projectId, (s) => {
 				const p = findParticipant(s.participants, args.participant);
 				const used = participantUsage(s, p);
-				if (used && !args.force) throw new ToolError(`Participant "${p.name}" is used by ${used} node(s). Reassign them or pass force=true.`);
+				assertUnreferenced(s, 'participants', p);
 				s.participants = s.participants.filter((x) => x.id !== p.id);
 				return { deleted: p.name, nodesStillReferencing: used };
 			})
@@ -187,9 +188,7 @@ export const peopleTools = [
 		(args) =>
 			mutateProject(args.projectId, (s) => {
 				const c = findCategory(s.categories, args.category);
-				if (s.categories.some((x) => x.parentCategoryId === c.id)) throw new ToolError(`Category "${c.name}" has child categories`);
-				const users = s.participants.filter((p) => p.categoryId === c.id || (!p.categoryId && p.category === c.name));
-				if (users.length) throw new ToolError(`Category "${c.name}" is used by participants: ${users.map((p) => p.name).join(', ')}`);
+				assertUnreferenced(s, 'categories', c);
 				s.categories = s.categories.filter((x) => x.id !== c.id);
 				return { deleted: c.name };
 			})

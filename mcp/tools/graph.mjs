@@ -1,3 +1,4 @@
+import { assertGraphNodesRemovable } from '../../src/lib/domainIntegrity.js';
 import { mutateProject, ToolError, uuid } from '../lib/store.mjs';
 import {
 	CREATABLE_TYPES,
@@ -222,7 +223,7 @@ export const graphTools = [
 					}
 				}
 				const nodes = g.nodes.filter((n) => !doomed.has(n.id));
-				for (const n of nodes) if (n.type === 'returnNode' && doomed.has(n.data.targetNode)) n.data.targetNode = '';
+				assertGraphNodesRemovable(g.nodes, doomed);
 				const edges = g.edges.filter((e) => !doomed.has(e.source) && !doomed.has(e.target));
 				saveGraph(s, args.dialogueId, nodes, edges);
 				return { deleted: [...doomed] };

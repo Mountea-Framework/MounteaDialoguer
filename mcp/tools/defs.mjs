@@ -1,6 +1,6 @@
 import { loadSnapshot, mutateProject, nowIso, ToolError, uuid } from '../lib/store.mjs';
 import { cleanName } from '../lib/rules.mjs';
-import { normalizePropertyDefault, normalizePropertyType, assertCompatibleDefinition } from '../../src/lib/domainIntegrity.js';
+import { normalizePropertyDefault, normalizePropertyType, assertCompatibleDefinition, assertUnreferenced } from '../../src/lib/domainIntegrity.js';
 import { defineTool, str, bool, arr, PROJECT } from './util.mjs';
 
 // The Unreal importer only supports string, number and boolean. int/float/bool are accepted as aliases.
@@ -79,14 +79,14 @@ function makeDefTools({ kind, plural, collection, usage, rename }) {
 		),
 		defineTool(
 			`delete_${kind}`,
-			`Delete a ${kind} definition. Refused while it is used, unless force=true (instances stay as stale copies).`,
-			{ projectId: PROJECT, [kind]: str(`${Cap} name or id`), force: bool('Delete even if used') },
+			`Delete a ${kind} definition. References must be removed or reassigned first; force does not bypass this safeguard.`,
+			{ projectId: PROJECT, [kind]: str(`${Cap} name or id`), force: bool('Compatibility argument; referenced records cannot be deleted') },
 			['projectId', kind],
 			(args) =>
 				mutateProject(args.projectId, (s) => {
 					const def = find(s, args[kind]);
 					const used = usage(s, def);
-					if (used && !args.force) throw new ToolError(`${Cap} "${def.name}" is used ${used} time(s). Remove those uses or pass force=true.`);
+					assertUnreferenced(s, collection, def);
 					s[collection] = s[collection].filter((d) => d.id !== def.id);
 					return { deleted: def.name, stillReferenced: used };
 				})

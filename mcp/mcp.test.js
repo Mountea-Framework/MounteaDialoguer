@@ -205,7 +205,7 @@ describe('authoring a dialogue', () => {
 		expect(g.nodes.filter((n) => n.participant === 'Bob').length).toBe(5);
 		const hello = g.nodes.find((n) => n.displayName === 'Hello');
 		expect(hello.rows).toHaveLength(2);
-		expect((await tool('delete_participant', { projectId, participant: 'Bob' })).error).toMatch(/used by/);
+		expect((await tool('delete_participant', { projectId, participant: 'Bob' })).error).toMatch(/reference/);
 	});
 
 	it('supports decorators and conditions', async () => {
@@ -218,7 +218,7 @@ describe('authoring a dialogue', () => {
 		expect((await tool('update_node', { projectId, dialogueId, nodeId: hello, decorators: ['Nope'] })).error).toMatch(/not defined/);
 		const asky = g.nodes.find((n) => n.displayName === 'AskCurse').id;
 		expect((await tool('update_edge', { projectId, dialogueId, source: asky, target: curse, conditions: { mode: 'all', rules: [{ name: 'HasKey', values: { item: 'Gold' } }] } })).rules).toBe(1);
-		expect((await tool('delete_decorator', { projectId, decorator: 'Mood' })).error).toMatch(/used/);
+		expect((await tool('delete_decorator', { projectId, decorator: 'Mood' })).error).toMatch(/reference/);
 	});
 
 	it('cascade-deletes a branch and cleans return targets', async () => {
