@@ -6,7 +6,12 @@ import crypto from 'node:crypto';
 import { FileExistsError, createFile, listFiles, readFileText } from '../../server/storage.mjs';
 import { canonicalizeProject, hashProject, validateCanonicalProject } from '../../src/lib/persistence/canonicalProject.js';
 
-export class ToolError extends Error {}
+export class ToolError extends Error {
+	constructor(message, { code = 'INVALID_ARGUMENT', status = 400, details } = {}) {
+		super(message); this.name = 'ToolError'; this.code = code; this.status = status;
+		if (details !== undefined) this.details = details;
+	}
+}
 
 export const uuid = () => crypto.randomUUID();
 export const nowIso = () => new Date().toISOString();
@@ -79,12 +84,13 @@ export async function listAllProjects() {
 
 async function currentHead(projectId) {
 	const revisions = (await refreshIndex()).get(projectId);
-	if (!revisions) throw new ToolError(`Project "${projectId}" not found. Use list_projects.`);
+	if (!revisions) throw new ToolError(`Project "${projectId}" not found. Use list_projects.`, { code: 'NOT_FOUND', status: 404 });
 	const heads = headsOf(revisions);
 	if (heads.length > 1) {
-		throw new ToolError('This project has divergent edits (an unresolved sync conflict). Resolve the conflict in the app first.');
+		throw new ToolError('This project has divergent edits (an unresolved sync conflict). Resolve the conflict in the app first.', { code: 'DIVERGENT_HEADS', status: 409 });
 	}
-	if (heads[0].operation === 'delete') throw new ToolError(`Project "${projectId}" was deleted.`);
+	if (!heads.length) throw new ToolError('Project history has no valid head.', { code: 'INVALID_HISTORY', status: 409 });
+	if (heads[0].operation === 'delete') throw new ToolError(`Project "${projectId}" was deleted.`, { code: 'NOT_FOUND', status: 404 });
 	return heads[0];
 }
 
@@ -149,7 +155,7 @@ export async function mutateProject(projectId, fn) {
 			await writeRevision(revision);
 			return result;
 		}
-		throw new ToolError('The project keeps changing underneath this request; try again.');
+		throw new ToolError('The project keeps changing underneath this request; try again.', { code: 'DIVERGENT_HEADS', status: 409 });
 	});
 	locks.set(projectId, run);
 	return run;

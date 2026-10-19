@@ -283,8 +283,8 @@ describe('authoring a dialogue', () => {
 		expect(row).toMatchObject({ executionBehaviour: 'awaitInput', durationMode: 'override', durationOverride: 2.5 });
 		const plain = headOf(projectId).snapshot.nodes.find((n) => n.id === hello.id).data.dialogueRows[1];
 		expect(plain.executionBehaviour).toBeUndefined(); // defaults are not stored
-		expect((await tool('update_node', { projectId, dialogueId, nodeId: hello.id, rows: [{ text: 'x', durationMode: 'sideways' }] })).error).toMatch(/row timing/i);
-		expect((await tool('update_node', { projectId, dialogueId, nodeId: hello.id, rows: [{ text: 'x', durationOverride: -1 }] })).error).toMatch(/row timing/i);
+		expect((await tool('update_node', { projectId, dialogueId, nodeId: hello.id, rows: [{ text: 'x', durationMode: 'sideways' }] })).error).toMatch(/row timing|rows/i);
+		expect((await tool('update_node', { projectId, dialogueId, nodeId: hello.id, rows: [{ text: 'x', durationOverride: -1 }] })).error).toMatch(/row timing|rows/i);
 		// Put the original lines back for the tests that follow.
 		await tool('update_node', { projectId, dialogueId, nodeId: hello.id, rows: ['Well met, traveller.', { text: 'What brings you here?', duration: 4 }] });
 	});

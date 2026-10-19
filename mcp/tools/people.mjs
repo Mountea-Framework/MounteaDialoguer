@@ -12,12 +12,12 @@ const MAX_THUMBNAIL_BYTES = 1024 * 1024;
 
 const findCategory = (categories, ref, label = 'Category') => {
 	const hit = categories.find((c) => c.id === ref || c.name.toLowerCase() === String(ref).toLowerCase());
-	if (!hit) throw new ToolError(`${label} "${ref}" not found. Existing: ${categories.map((c) => c.name).join(', ') || '(none)'}`);
+	if (!hit) throw new ToolError(`${label} "${ref}" not found. Existing: ${categories.map((c) => c.name).join(', ') || '(none)'}`, { code: 'NOT_FOUND', status: 404 });
 	return hit;
 };
 const findParticipant = (participants, ref) => {
 	const hit = participants.find((p) => p.id === ref || p.name.toLowerCase() === String(ref).toLowerCase());
-	if (!hit) throw new ToolError(`Participant "${ref}" not found. Existing: ${participants.map((p) => p.name).join(', ') || '(none)'}`);
+	if (!hit) throw new ToolError(`Participant "${ref}" not found. Existing: ${participants.map((p) => p.name).join(', ') || '(none)'}`, { code: 'NOT_FOUND', status: 404 });
 	return hit;
 };
 const participantUsage = (s, participant) => s.nodes.filter((n) => n.data?.participantId === participant.id || (!n.data?.participantId && n.data?.participant === participant.name)).length;

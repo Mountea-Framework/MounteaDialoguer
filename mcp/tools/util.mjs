@@ -21,6 +21,7 @@ export const DIALOGUE = str('Dialogue id (see list_dialogues)');
 
 /** Minimal JSON Schema check: required keys, unknown keys, primitive types, enums. */
 export function validateArgs(tool, args) {
+	if (args !== undefined && (!args || typeof args !== 'object' || Array.isArray(args))) throw new ToolError('Arguments must be an object');
 	const schema = tool.inputSchema;
 	const input = args && typeof args === 'object' && !Array.isArray(args) ? args : {};
 	for (const key of schema.required || []) {
@@ -28,16 +29,37 @@ export function validateArgs(tool, args) {
 	}
 	for (const [key, value] of Object.entries(input)) {
 		const prop = schema.properties[key];
-		if (!prop) throw new ToolError(`Unknown argument "${key}". Allowed: ${Object.keys(schema.properties).join(', ')}`);
-		if (value === null || value === undefined) continue;
+		if (!Object.hasOwn(schema.properties, key)) throw new ToolError(`Unknown argument "${key}". Allowed: ${Object.keys(schema.properties).join(', ')}`);
+		if (value === undefined) continue;
 		const type = Array.isArray(value) ? 'array' : typeof value;
 		const expected = prop.type;
 		if (expected && expected !== type && !(expected === 'number' && type === 'number')) {
 			throw new ToolError(`Argument "${key}" must be ${expected}, got ${type}`);
 		}
 		if (prop.enum && !prop.enum.includes(value)) throw new ToolError(`Argument "${key}" must be one of: ${prop.enum.join(', ')}`);
+		validateValue(prop, value, key);
 	}
 	return input;
+}
+
+function validateValue(schema, value, path) {
+	if (schema.oneOf) {
+		const matches = schema.oneOf.filter((candidate) => { try { validateValue(candidate, value, path); return true; } catch { return false; } });
+		if (matches.length !== 1) throw new ToolError(`Invalid value for "${path}"`);
+		return;
+	}
+	const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+	if (schema.type && schema.type !== type) throw new ToolError(`Argument "${path}" must be ${schema.type}`);
+	if (type === 'number' && !Number.isFinite(value)) throw new ToolError(`Argument "${path}" must be finite`);
+	if (schema.enum && !schema.enum.includes(value)) throw new ToolError(`Invalid value for "${path}"`);
+	if (type === 'array' && schema.items) value.forEach((item, index) => validateValue(schema.items, item, `${path}[${index}]`));
+	if (type === 'object') {
+		for (const key of schema.required || []) if (value[key] === undefined || value[key] === null) throw new ToolError(`Missing required argument "${path}.${key}"`);
+		for (const [key, item] of Object.entries(value)) {
+			if (schema.additionalProperties === false && !Object.hasOwn(schema.properties || {}, key)) throw new ToolError(`Unknown argument "${path}.${key}"`);
+			if (schema.properties?.[key]) validateValue(schema.properties[key], item, `${path}.${key}`);
+		}
+	}
 }
 
 export function pick(object, keys) {

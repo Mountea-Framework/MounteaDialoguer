@@ -29,7 +29,7 @@ export function projectLocales(snapshot) {
 export function getDialogue(snapshot, dialogueId) {
 	const dialogue = snapshot.dialogues.find((d) => d.id === dialogueId);
 	if (!dialogue) {
-		throw new ToolError(`Dialogue "${dialogueId}" not found in this project. Use list_dialogues.`);
+		throw new ToolError(`Dialogue "${dialogueId}" not found in this project. Use list_dialogues.`, { code: 'NOT_FOUND', status: 404 });
 	}
 	return dialogue;
 }

@@ -7,8 +7,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { DATA_DIR, ensureDirs } from '../server/storage.mjs';
-import { TOOLS, TOOL_MAP } from './tools/index.mjs';
-import { validateArgs } from './tools/util.mjs';
+import { TOOLS } from './tools/index.mjs';
+import { executeCommand } from './lib/commands.mjs';
 import { ToolError } from './lib/store.mjs';
 import { EXPORT_DIR } from './tools/export.mjs';
 
@@ -76,24 +76,29 @@ async function audit(entry) {
 	}
 }
 
-async function callTool(params, ip, origin) {
-	const tool = TOOL_MAP.get(params?.name);
-	if (!tool) return { isError: true, content: [{ type: 'text', text: `Unknown tool "${params?.name}"` }] };
+async function executeLoggedCommand(name, args, ip, origin) {
 	const started = Date.now();
 	try {
-		const args = validateArgs(tool, params.arguments);
-		const result = await tool.handler(args);
+		const result = await executeCommand(name, args);
 		if (result?.downloadPath) {
 			result.downloadUrl = `${origin}/export/${encodeURIComponent(TOKEN)}${result.downloadPath.slice('/export'.length)}`;
 			delete result.downloadPath;
 		}
-		await audit({ ts: new Date().toISOString(), ip, tool: tool.name, args: redact(args), ok: true, ms: Date.now() - started });
+		await audit({ ts: new Date().toISOString(), ip, tool: name, args: redact(args), ok: true, ms: Date.now() - started });
+		return result;
+	} catch (error) {
+		await audit({ ts: new Date().toISOString(), ip, tool: name, args: redact(args), ok: false, error: String(error.message).slice(0, 300), ms: Date.now() - started });
+		throw error;
+	}
+}
+
+async function callTool(params, ip, origin) {
+	try {
+		const result = await executeLoggedCommand(params?.name, params?.arguments || {}, ip, origin);
 		return { content: [{ type: 'text', text: JSON.stringify(result ?? { ok: true }, null, 2) }] };
 	} catch (error) {
-		const expected = error instanceof ToolError;
-		if (!expected) console.error('[mcp] tool failed', tool.name, error);
-		await audit({ ts: new Date().toISOString(), ip, tool: tool.name, args: redact(params.arguments || {}), ok: false, error: String(error.message).slice(0, 300), ms: Date.now() - started });
-		return { isError: true, content: [{ type: 'text', text: expected ? error.message : `Internal error: ${error.message}` }] };
+		if (!(error instanceof ToolError)) console.error('[mcp] tool failed', params?.name, error);
+		return { isError: true, content: [{ type: 'text', text: error instanceof ToolError ? error.message : 'Internal server error' }] };
 	}
 }
 
@@ -193,4 +198,4 @@ http
 			if (!res.headersSent) send(res, 500, { error: 'Server error' });
 		}
 	})
-	.listen(PORT, HOST, () => console.log(`Mountea Dialoguer MCP on ${HOST}:${PORT}  data=${DATA_DIR}  tools=${TOOLS.length}`));
+	.listen(PORT, HOST, function () { console.log(`Mountea Dialoguer MCP on ${HOST}:${this.address().port}  data=${DATA_DIR}  tools=${TOOLS.length}`); });

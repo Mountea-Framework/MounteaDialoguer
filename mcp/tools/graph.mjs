@@ -184,7 +184,7 @@ export const graphTools = [
 			mutateProject(args.projectId, (s) => {
 				const { nodes, edges } = loadGraph(s, args.dialogueId);
 				const node = nodes.find((n) => n.id === args.nodeId);
-				if (!node) throw new ToolError(`Node "${args.nodeId}" not found`);
+				if (!node) throw new ToolError(`Node "${args.nodeId}" not found`, { code: 'NOT_FOUND', status: 404 });
 				const fields = omit(args, ['projectId', 'dialogueId', 'nodeId']);
 				if (node.type === 'startNode' && Object.keys(fields).some((k) => !['displayName', 'position'].includes(k))) {
 					throw new ToolError('The Start node only supports displayName and position');
@@ -207,7 +207,7 @@ export const graphTools = [
 			mutateProject(args.projectId, (s) => {
 				if (args.nodeId === START_NODE_ID) throw new ToolError('The Start node cannot be deleted');
 				const g = loadGraph(s, args.dialogueId);
-				if (!g.nodes.some((n) => n.id === args.nodeId)) throw new ToolError(`Node "${args.nodeId}" not found`);
+				if (!g.nodes.some((n) => n.id === args.nodeId)) throw new ToolError(`Node "${args.nodeId}" not found`, { code: 'NOT_FOUND', status: 404 });
 				const doomed = new Set([args.nodeId]);
 				if (args.cascade) {
 					const queue = [args.nodeId];
@@ -255,7 +255,7 @@ export const graphTools = [
 				const { nodes, edges } = loadGraph(s, args.dialogueId);
 				const source = args.source === 'start' ? START_NODE_ID : args.source;
 				const edge = edges.find((e) => e.source === source && e.target === args.target);
-				if (!edge) throw new ToolError('No such connection');
+				if (!edge) throw new ToolError('No such connection', { code: 'NOT_FOUND', status: 404 });
 				edge.data = makeEdge(source, args.target, s, args.conditions).data;
 				saveGraph(s, args.dialogueId, nodes, edges);
 				return { updated: `${source} -> ${args.target}`, rules: edge.data.conditions.rules.length };
@@ -272,7 +272,7 @@ export const graphTools = [
 				const { nodes, edges } = loadGraph(s, args.dialogueId);
 				const source = args.source === 'start' ? START_NODE_ID : args.source;
 				const next = edges.filter((e) => !(e.source === source && e.target === args.target));
-				if (next.length === edges.length) throw new ToolError('No such connection');
+				if (next.length === edges.length) throw new ToolError('No such connection', { code: 'NOT_FOUND', status: 404 });
 				saveGraph(s, args.dialogueId, nodes, next);
 				return { removed: `${source} -> ${args.target}` };
 			})

@@ -31,7 +31,7 @@ function makeDefTools({ kind, plural, collection, usage, rename }) {
 	const Cap = kind[0].toUpperCase() + kind.slice(1);
 	const find = (s, ref) => {
 		const hit = s[collection].find((d) => d.id === ref || d.name.toLowerCase() === String(ref).toLowerCase());
-		if (!hit) throw new ToolError(`${Cap} "${ref}" not found. Existing: ${s[collection].map((d) => d.name).join(', ') || '(none)'}`);
+		if (!hit) throw new ToolError(`${Cap} "${ref}" not found. Existing: ${s[collection].map((d) => d.name).join(', ') || '(none)'}`, { code: 'NOT_FOUND', status: 404 });
 		return hit;
 	};
 	return [
