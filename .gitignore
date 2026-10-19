@@ -60,3 +60,6 @@ dist-ssr
 
 # Video capture output
 tools/video-capture/out/
+
+# Local docs
+/docs/technical
