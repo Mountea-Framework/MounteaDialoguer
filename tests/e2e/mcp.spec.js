@@ -72,3 +72,20 @@ test('competing saves are kept as a conflict, never silently overwritten', async
 	const g = await mcpTool('get_dialogue', { projectId: sample.projectId, dialogueId: sample.dialogueId }).catch((error) => ({ error: error.message }));
 	expect(JSON.stringify(g)).toMatch(/divergent|AddedByClaude/);
 });
+
+test('REST project deletion syncs to a fresh browser and preserves historical files', async ({ browser, baseURL, request }) => {
+	const sample = await buildSampleProject(uniqueToken('Deleted'));
+	const before = await (await request.get(`${baseURL}/api/sync/files?prefix=mountea-revision-v2--`)).json();
+	const deleted = await fetch(`${process.env.MCP_URL}/api/v1/projects/${sample.projectId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${process.env.MCP_TOKEN}` } });
+	expect(deleted.status).toBe(200);
+	await expect(mcpTool('get_project', { projectId: sample.projectId })).rejects.toThrow(/deleted/);
+	const after = await (await request.get(`${baseURL}/api/sync/files?prefix=mountea-revision-v2--`)).json();
+	expect(after.files.length).toBeGreaterThan(before.files.length);
+	for (const file of before.files) expect((await request.get(`${baseURL}/api/sync/files/${file.id}`)).status()).toBe(200);
+	const context = await browser.newContext({ baseURL });
+	try {
+		const fresh = await context.newPage(); await seedLocalState(fresh); await fresh.goto('/#/');
+		await expect(fresh.getByRole('button', { name: /(create new|new project)/i }).first()).toBeVisible();
+		await expect(fresh.getByText(sample.name, { exact: true })).toHaveCount(0);
+	} finally { await context.close(); }
+});
