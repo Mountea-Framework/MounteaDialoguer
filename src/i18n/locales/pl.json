@@ -181,6 +181,9 @@
 			"recenterTooltip": "Pokaż cały graf",
 			"startFocusTooltip": "Przejdź do węzła Start"
 		},
+		"preview": {
+			"startFromHere": "Podgląd od tego miejsca"
+		},
 		"nodes": {
 			"start": "Start",
 			"startDescription": "Punkt wejścia dialogu",
