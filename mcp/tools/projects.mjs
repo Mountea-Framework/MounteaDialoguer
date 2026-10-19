@@ -12,7 +12,7 @@ const summarizeNode = (node) => {
 	if (d.selectionTitle) out.selectionTitle = d.selectionTitle;
 	if (d.participant) out.participant = d.participant;
 	if (Array.isArray(d.dialogueRows) && d.dialogueRows.length) {
-		out.rows = d.dialogueRows.map((r) => ({ id: r.id, text: r.text, duration: r.duration, hasAudio: Boolean(r.audioFile) }));
+		out.rows = d.dialogueRows.map((r) => ({ id: r.id, text: r.text, duration: r.duration, hasAudio: Boolean(r.audioFile), executionBehaviour: r.executionBehaviour || 'automatic', durationMode: r.durationMode || 'duration', ...(r.durationOverride !== undefined ? { durationOverride: r.durationOverride } : {}) }));
 	}
 	if (d.decorators?.length) out.decorators = d.decorators.map((x) => ({ name: x.name, values: x.values }));
 	if (d.targetNode) out.targetNode = d.targetNode;
