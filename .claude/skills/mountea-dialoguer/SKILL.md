@@ -5,7 +5,7 @@ description: Author and edit dialogue content through the Mountea Dialoguer MCP 
 
 # Mountea Dialoguer (MCP)
 
-Mountea Dialoguer is a dialogue graph editor. The MCP server edits the same projects the web app shows. Everything the UI can do is available as a tool, except deleting whole projects or dialogues (there is deliberately no tool for that; ask the user to do it in the app).
+Mountea Dialoguer is a dialogue graph editor. The MCP server edits the same projects the web app shows. Everything the UI can do is available as a tool, including `delete_project` and `delete_dialogue`. Those add a deletion revision: the history stays on the server, but nothing in the app or the MCP restores the project automatically, and the deletion reaches every device. Only use them when the user clearly asked, and say what will go first.
 
 ## Connecting
 
@@ -66,8 +66,8 @@ Typical conversation shape: Start -> NPC greeting -> several player options (eac
 
 ## Safety
 
-- Anything *inside* a dialogue can be deleted: nodes (`delete_node`, `cascade`), connections (`delete_edge`), rows (`update_node` with `rows`), translations, or the whole content (`clear_dialogue`). Only the dialogue itself and the project cannot be deleted.
-- Destructive tools exist for nodes, edges, participants, categories, decorators and conditions. `delete_node` with `cascade: true` removes everything below the node: say what will go before doing it. `delete_participant`/`delete_category`/`delete_*` of definitions refuse while in use; do not reach for `force` without telling the user.
+- Anything *inside* a dialogue can be deleted: nodes (`delete_node`, `cascade`), connections (`delete_edge`), rows (`update_node` with `rows`), translations, or the whole content (`clear_dialogue`). The dialogue itself and the project can be deleted too (`delete_dialogue`, `delete_project`); a dialogue that another dialogue still points to as a child graph must be reassigned first.
+- Destructive tools exist for nodes, edges, participants, categories, decorators and conditions. `delete_node` with `cascade: true` removes everything below the node: say what will go before doing it. `delete_participant`/`delete_category`/`delete_*` of definitions refuse while they are still referenced; reassign or remove the references first (`force` does not bypass this).
 - Every write makes a server-side backup (last 10 per project). If something goes wrong, tell the user; do not try to repair data by rewriting a whole graph blindly.
 - If a tool errors, read the message: it names the rule that failed (name pattern, uniqueness, depth, missing participant, structural rule). Fix the input and retry once; do not loop.
 - `set_graph` with `mode: "replace"` replaces every node of that dialogue except Start. Use `merge` to add to an existing graph.
