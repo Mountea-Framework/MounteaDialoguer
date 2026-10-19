@@ -1,6 +1,6 @@
 import { loadSnapshot, mutateProject, nowIso, ToolError, uuid } from '../lib/store.mjs';
 import { cleanName } from '../lib/rules.mjs';
-import { normalizePropertyDefault, normalizePropertyType } from '../../src/lib/domainIntegrity.js';
+import { normalizePropertyDefault, normalizePropertyType, assertCompatibleDefinition } from '../../src/lib/domainIntegrity.js';
 import { defineTool, str, bool, arr, PROJECT } from './util.mjs';
 
 // The Unreal importer only supports string, number and boolean. int/float/bool are accepted as aliases.
@@ -61,16 +61,19 @@ function makeDefTools({ kind, plural, collection, usage, rename }) {
 			['projectId', kind],
 			(args) =>
 				mutateProject(args.projectId, (s) => {
-					const def = find(s, args[kind]);
+					const previous = find(s, args[kind]);
+					const def = structuredClone(previous);
 					if (args.name !== undefined) {
 						const name = cleanName(args.name, Cap);
 						if (s[collection].some((d) => d.id !== def.id && d.name.toLowerCase() === name.toLowerCase())) throw new ToolError(`A ${kind} named "${name}" already exists`);
-						rename(s, def, name);
 						def.name = name;
 					}
 					if (args.type !== undefined) def.type = args.type;
 					if (args.properties !== undefined) def.properties = cleanProperties(args.properties);
+					assertCompatibleDefinition(s, collection, previous, def);
+					if (def.name !== previous.name) rename(s, previous, def.name);
 					def.modifiedAt = nowIso();
+					s[collection] = s[collection].map((record) => record.id === def.id ? def : record);
 					return { name: def.name, properties: def.properties };
 				})
 		),
