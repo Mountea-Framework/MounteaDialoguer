@@ -8,7 +8,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { DATA_DIR, ensureDirs } from '../server/storage.mjs';
 import { TOOLS } from './tools/index.mjs';
-import { executeCommand } from './lib/commands.mjs';
+import { executeCommand, commandError } from './lib/commands.mjs';
+import { resolveRestRoute, prepareRestCommand, restResponse } from './rest.mjs';
 import { ToolError } from './lib/store.mjs';
 import { EXPORT_DIR } from './tools/export.mjs';
 
@@ -154,17 +155,38 @@ async function handle(req, res) {
 		}
 	}
 
+	const isRest = url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/');
 	const match = url.pathname.match(/^\/mcp(?:\/([^/]+))?\/?$/);
-	if (!match) return send(res, 404, { error: 'Not found' });
+	if (!match && !isRest) return send(res, 404, { error: 'Not found' });
 
 	const header = String(req.headers.authorization || '');
 	const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
-	const authorised = tokenMatches(bearer) || (match[1] !== undefined && tokenMatches(decodeURIComponent(match[1])));
+	const authorised = tokenMatches(bearer) || (!isRest && match?.[1] !== undefined && tokenMatches(decodeURIComponent(match[1])));
 	if (!authorised) {
-		if (limited(ip, AUTH_FAIL_PER_MIN, 'authfail')) return send(res, 429, { error: 'Too many failed attempts' }, { 'Retry-After': '60' });
-		return send(res, 401, { error: 'Unauthorized' }, { 'WWW-Authenticate': 'Bearer' });
+		if (limited(ip, AUTH_FAIL_PER_MIN, 'authfail')) return send(res, 429, { error: isRest ? { code: 'RATE_LIMIT', message: 'Too many failed attempts' } : 'Too many failed attempts' }, { 'Retry-After': '60' });
+		return send(res, 401, { error: isRest ? { code: 'UNAUTHORIZED', message: 'Unauthorized' } : 'Unauthorized' }, { 'WWW-Authenticate': 'Bearer' });
 	}
-	if (limited(ip, RATE_PER_MIN, 'req')) return send(res, 429, { error: 'Rate limit' }, { 'Retry-After': '60' });
+	if (limited(ip, RATE_PER_MIN, 'req')) return send(res, 429, { error: isRest ? { code: 'RATE_LIMIT', message: 'Rate limit' } : 'Rate limit' }, { 'Retry-After': '60' });
+
+	if (isRest) {
+		try {
+			const route = resolveRestRoute(url.pathname);
+			let body = {};
+			if (['POST', 'PUT'].includes(req.method)) {
+				try { body = JSON.parse(await readBody(req)); }
+				catch (error) { throw new ToolError(error.status === 413 ? 'Payload too large' : 'Invalid JSON', { code: error.status === 413 ? 'PAYLOAD_TOO_LARGE' : 'INVALID_JSON', status: error.status === 413 ? 413 : 400 }); }
+			}
+			const command = await prepareRestCommand(route, req.method, body, url.searchParams);
+			const result = await executeLoggedCommand(command.name, command.args, ip, origin);
+			return send(res, req.method === 'POST' ? 201 : 200, restResponse(route, req.method, result));
+		} catch (failure) {
+			const error = commandError(failure);
+			const expected = error instanceof ToolError;
+			if (!expected) console.error('[rest]', error);
+			await audit({ ts: new Date().toISOString(), ip, transport: 'rest', method: req.method, path: url.pathname, ok: false, error: expected ? error.message : 'Internal server error' });
+			return send(res, expected ? error.status : 500, { error: { code: expected ? error.code : 'INTERNAL_ERROR', message: expected ? error.message : 'Internal server error', ...(expected && error.details !== undefined ? { details: error.details } : {}) } });
+		}
+	}
 
 	if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' }, { Allow: 'POST' });
 
