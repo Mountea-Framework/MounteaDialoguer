@@ -23,6 +23,8 @@ import {
 	supportsCloudSync,
 } from '@/lib/sync/providers/providerRegistry';
 import { buildProfileScopedKey, getActiveProfileId } from '@/lib/profile/activeProfile';
+import { isSelfHostedSync } from '@/lib/runtimeConfig';
+import { isSyncServerReachable } from '@/lib/sync/providers/storageProviders';
 
 const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
 const DEFAULT_PROVIDER_INPUT = Object.freeze({
@@ -263,6 +265,12 @@ export const useSyncStore = create(
 			setSyncMode: (value) => set({ syncMode: value }),
 
 			loadAccount: async (options = {}) => {
+				if (isSelfHostedSync()) {
+					// Self-hosted edition: there is nothing to log in to; access control sits in front of the server.
+					const reachable = await isSyncServerReachable();
+					set({ provider: 'server', status: reachable ? 'connected' : 'disconnected', syncMode: 'full', error: null });
+					return;
+				}
 				const context = options.context || await getRepositoryContext();
 				const capability = await credentialCapabilities();
 				context.assertCurrent();

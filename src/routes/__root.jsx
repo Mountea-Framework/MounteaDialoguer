@@ -19,7 +19,7 @@ import { useSteamStore } from '@/stores/steamStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
 import { markUserActivity, trackActiveMinute, flushActivity, retryPendingAchievements } from '@/lib/achievements/achievementTracker';
-import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
+import { isGoogleSyncEnabled, isSelfHostedSync, isSteamChannel } from '@/lib/runtimeConfig';
 import { initializeActiveProfileFromSteamStatus, subscribeProfileChanges } from '@/lib/profile/activeProfile';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useCategoryStore } from '@/stores/categoryStore';
@@ -217,6 +217,15 @@ function RootComponent() {
 				await loadAccount({ steamStatus: resolvedSteamStatus });
 				context.assertCurrent();
 				if (disposed || ticket !== request) return;
+				if (isSelfHostedSync() && useSyncStore.getState().status === 'connected') {
+					// Self-hosted edition: take what other devices or the MCP server added before the first paint, so links to those projects open.
+					await Promise.race([
+						useSyncStore.getState().syncAllProjects({ mode: 'full', trigger: 'manual' }),
+						new Promise((resolve) => setTimeout(resolve, 8000)),
+					]);
+					context.assertCurrent();
+					if (disposed || ticket !== request) return;
+				}
 				setIsLoading(false);
 			} catch (error) {
 				if (disposed || ticket !== request || error.code === 'STALE_PROFILE') return;
@@ -347,7 +356,7 @@ function RootComponent() {
 		}
 		if (isLoading || !showContent) return;
 		if (hasAutoSyncedRef.current) return;
-		const autoMode = provider === 'steam' ? 'full' : 'pull';
+		const autoMode = provider === 'steam' || provider === 'server' ? 'full' : 'pull';
 		console.log('[sync] Auto sync after hydration', { provider, mode: autoMode });
 		hasAutoSyncedRef.current = true;
 		syncAllProjects({ mode: autoMode, trigger: 'auto-hydration' });

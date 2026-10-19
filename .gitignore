@@ -39,7 +39,9 @@ dist-ssr
 /TestingData/TestingExport_Broken/*
 *.kra~
 .tanstack
-/.claude
+/.claude/*
+!/.claude/skills/
+/data
 /.vscode
 /.jetbrains
 /.rider

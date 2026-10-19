@@ -1,0 +1,26 @@
+services:
+  dialoguer:
+    build: .
+    image: mountea-dialoguer:latest
+    container_name: mountea-dialoguer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+
+  # MCP server: lets Claude edit projects. Own port and hostname, own auth (MCP_TOKEN).
+  # Put the app (8080) behind Cloudflare Access; publish this one (8081) on a separate hostname without Access.
+  mcp:
+    image: mountea-dialoguer:latest
+    container_name: mountea-dialoguer-mcp
+    restart: unless-stopped
+    command: ["node", "--import", "./mcp/register.mjs", "mcp/server.mjs"]
+    depends_on:
+      - dialoguer
+    environment:
+      MCP_TOKEN: ${MCP_TOKEN:-}  # set in .env: openssl rand -hex 24. Without it the MCP container exits (by design).
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data:/data
