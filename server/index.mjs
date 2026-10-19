@@ -177,6 +177,6 @@ http
 			send(res, error.status || 500, { error: error.message || 'Server error', ...(error.code ? { code: error.code } : {}) });
 		}
 	})
-	.listen(PORT, () => {
-		console.log(`Mountea Dialoguer on :${PORT}  data=${DATA_DIR}  dist=${DIST_DIR}`);
+	.listen(PORT, function () {
+		console.log(`Mountea Dialoguer on :${this.address().port}  data=${DATA_DIR}  dist=${DIST_DIR}`);
 	});

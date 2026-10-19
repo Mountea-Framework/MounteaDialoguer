@@ -27,6 +27,7 @@
 		"start": "node server/index.mjs",
 		"mcp": "node --import ./mcp/register.mjs mcp/server.mjs",
 		"test:mcp": "vitest run mcp",
+		"test:server": "vitest run server",
 		"test:e2e": "playwright test",
 		"test:e2e:smoke": "playwright test tests/e2e/smoke.spec.js",
 		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
