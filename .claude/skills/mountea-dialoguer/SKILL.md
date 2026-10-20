@@ -14,6 +14,7 @@ Tools are named `list_projects`, `create_dialogue`, `set_graph`, ... If they are
 - Claude Code: `claude mcp add --transport http mountea-dialoguer https://<mcp-host>/mcp --header "Authorization: Bearer <MCP_TOKEN>"`
 - claude.ai custom connector (cannot send headers): URL `https://<mcp-host>/mcp/<MCP_TOKEN>`, no other auth.
 - Local: `MCP_TOKEN=<24+ chars> npm run mcp` (port 8081, same `DATA_DIR` as the app server).
+- Desktop app on this computer: `claude mcp add dialoguer-desktop -- <app>/resources/cli/dialoguer mcp` (or `npm run cli -- mcp` in the repository). It starts the app hidden if needed; if the app is already open, the user turns on **CLI access** in its command palette. Edits go straight into the desktop app's database and show in the open app at once; an editor with unsaved edits asks before reloading. Exports return base64 (no links) and `import_archive` takes an archive as base64.
 
 The token is a secret. Never print it into dialogue content, commits or chat.
 
