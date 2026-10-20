@@ -565,7 +565,7 @@
 	},
 	"syncConflicts": {
 		"title": "Synchronisierungskonflikte",
-		"description": "Beide Versionen bleiben erhalten. Wählen Sie die Version, die Sie behalten möchten.",
+		"description": "Mehrere Versionen sind erhalten. Wähle die Version, die du behalten möchtest.",
 		"incomplete": "Ein Teil des Versionsverlaufs ist nicht verfügbar. Synchronisieren Sie erneut, bevor Sie den Konflikt lösen.",
 		"keepLocal": "Lokale Version behalten",
 		"keepRemote": "Remoteversion behalten",
@@ -577,8 +577,14 @@
 		"resolveError": "Dieser Konflikt konnte nicht gelöst werden.",
 		"thisBrowser": "Dieser Browser",
 		"otherVersion": "Server / anderes Gerät",
-		"dialogues": "Dialoge",
-		"nodes": "Knoten",
-		"hint": "Behalte die Version mit dem späteren Datum und mehr Inhalt. „Beide behalten“ erstellt eine separate Kopie, die du selbst löschen musst."
+		"hint": "Vergleiche die Versionen vor der Auswahl; neuer oder größer ist nicht immer richtig. Wenn du alle Versionen behältst, bleiben die verfügbaren Inhalte in separaten Projekten erhalten. Unerwünschte Kopien kannst du später löschen.",
+		"versionLabel": "Version {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Details zur Revision",
+		"unknownDate": "Unbekanntes Datum",
+		"keepAll": "Alle Versionen behalten",
+		"dialogueCount_one": "{{count}} Dialog",
+		"dialogueCount_other": "{{count}} Dialoge",
+		"nodeCount_one": "{{count}} Knoten",
+		"nodeCount_other": "{{count}} Knoten"
 	}
 }

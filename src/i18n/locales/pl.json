@@ -597,7 +597,7 @@
 	},
 	"syncConflicts": {
 		"title": "Konflikty synchronizacji",
-		"description": "Obie wersje zostają zachowane. Wybierz wersję do zachowania.",
+		"description": "Zachowano wiele wersji. Wybierz wersję, którą chcesz zachować.",
 		"incomplete": "Część historii wersji jest niedostępna. Zsynchronizuj ponownie przed rozwiązaniem konfliktu.",
 		"keepLocal": "Zachowaj lokalną",
 		"keepRemote": "Zachowaj zdalną",
@@ -609,8 +609,18 @@
 		"resolveError": "Nie udało się rozwiązać tego konfliktu.",
 		"thisBrowser": "Ta przeglądarka",
 		"otherVersion": "Serwer / inne urządzenie",
-		"dialogues": "dialogi",
-		"nodes": "węzły",
-		"hint": "Zachowaj wersję z późniejszą datą i większą zawartością. „Zachowaj oba” tworzy osobną kopię, którą musisz usunąć samodzielnie."
+		"hint": "Porównaj wersje przed wyborem; nowsza lub większa nie zawsze jest właściwa. Zachowanie wszystkich wersji przechowuje dostępną zawartość w osobnych projektach. Niepotrzebne kopie możesz później usunąć.",
+		"versionLabel": "Wersja {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Szczegóły rewizji",
+		"unknownDate": "Nieznana data",
+		"keepAll": "Zachowaj wszystkie wersje",
+		"dialogueCount_one": "{{count}} dialog",
+		"dialogueCount_few": "{{count}} dialogi",
+		"dialogueCount_many": "{{count}} dialogów",
+		"dialogueCount_other": "{{count}} dialogu",
+		"nodeCount_one": "{{count}} węzeł",
+		"nodeCount_few": "{{count}} węzły",
+		"nodeCount_many": "{{count}} węzłów",
+		"nodeCount_other": "{{count}} węzła"
 	}
 }

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { openModuleHarness } from './helpers/moduleHarness.js';
 
 async function setup(page) {
@@ -253,24 +254,211 @@ test('ISS-015 globally mounted conflict controls resolve locally deleted project
  expect(result).toEqual({ name: 'Remote surviving edit', conflicts: 0 });
 });
 
-test('conflict panel says which side is this browser and shows date and size of each version', async ({ page }) => {
+// Real revisions and provider conflicts; only malformed-history tests edit records directly.
+async function panelConflict(page, { content = false, three = false, deleted = false, sameTime = false } = {}) {
  await setup(page);
+ await page.clock.setFixedTime(new Date('2026-03-29T00:59:59Z'));
+ await page.evaluate(async ({ content, deleted }) => {
+  const { a, b, create, repository } = window.rig;
+  await create(a, 'Shared name');
+  await repository.mutateProject('p', { context: a.context, transform: snapshot => { snapshot.project.modifiedAt = '2000-01-01T00:00:00Z'; } });
+  await a.run(); await b.run('pull');
+  window.panelBase = await repository.readProjectState('p', a.context);
+  if (content) {
+   const { useDialogueStore } = await import('/src/stores/dialogueStore.js');
+   const dialogue = await useDialogueStore.getState().createDialogue({ projectId: 'p', name: 'Local dialogue' });
+   await useDialogueStore.getState().saveDialogueGraph(dialogue.id, [
+    { id: '00000000-0000-0000-0000-000000000001', type: 'startNode', position: { x: 0, y: 0 }, data: { displayName: 'Start' } },
+    { id: 'end', type: 'completeNode', position: { x: 300, y: 0 }, data: { displayName: 'Local ending' } },
+   ], [{ id: 'edge', source: '00000000-0000-0000-0000-000000000001', target: 'end', type: 'conditionEdge', data: { conditions: { mode: 'all', rules: [] } } }], { x: 0, y: 0, zoom: 1 });
+  } else {
+   await repository.mutateProject('p', { context: a.context, operation: deleted ? 'delete' : 'update', transform: snapshot => { snapshot.project.description = 'local'; } });
+  }
+ }, { content, deleted });
+ if (!sameTime) await page.clock.setFixedTime(new Date('2026-03-29T01:00:01Z'));
+ const state = await page.evaluate(async ({ content, three }) => {
+  const { a, b, repository } = window.rig;
+  await repository.mutateProject('p', { context: b.context, transform: snapshot => {
+   snapshot.project.description = 'remote';
+   if (content) for (let index = 0; index < 2; index++) {
+    const id = `remote-${index}`;
+    snapshot.dialogues.push({ id, projectId: 'p', name: `Remote ${index}` });
+    snapshot.nodes.push(
+     { id: '00000000-0000-0000-0000-000000000001', dialogueId: id, type: 'startNode', position: { x: 0, y: 0 }, data: { displayName: 'Start' } },
+     { id: 'end', dialogueId: id, type: 'completeNode', position: { x: 300, y: 0 }, data: { displayName: 'End' } },
+    );
+    snapshot.edges.push({ id: 'edge', dialogueId: id, source: '00000000-0000-0000-0000-000000000001', target: 'end', type: 'conditionEdge', data: { conditions: { mode: 'all', rules: [] } } });
+   }
+  } });
+  await b.run();
+  if (three) {
+   const current = await repository.readProjectState('p', a.context);
+   const third = structuredClone(window.panelBase.snapshot); third.project.description = 'third';
+   await repository.commitPreparedProject(await repository.prepareProjectCommit(third, { context: a.context, expectedSequence: current.sequence, parentRevisionIds: [window.panelBase.revisionId] }));
+  }
+  await a.run(); await a.run();
+  const conflict = (await a.db.syncConflicts.where('status').equals('unresolved').toArray()).find(row => row.revisionIds.length === (three ? 3 : 2));
+  const revisions = await a.db.projectRevisions.bulkGet(conflict.revisionIds);
+  revisions.sort((left, right) => left.id === conflict.localRevisionId ? -1 : right.id === conflict.localRevisionId ? 1 : left.id < right.id ? -1 : 1);
+  return { conflictId: conflict.id, localId: conflict.localRevisionId, revisions: revisions.map(row => ({ id: row.id, createdAt: row.createdAt, operation: row.operation, description: row.snapshot.project.description, projectStamp: row.snapshot.project.modifiedAt })) };
+ }, { content, three });
  await page.evaluate(async () => {
-  const { a, b, create, edit } = window.rig;
-  await create(); await a.run(); await b.run('pull');
-  await edit(a, 'Local edit'); await edit(b, 'Remote edit'); await b.run(); await a.run();
+  await import('/src/index.css');
   await import('/src/i18n/index.js');
   const { default: React } = await import('/node_modules/.vite/deps/react.js');
   const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
   const { SyncConflictPanel } = await import('/src/components/sync/SyncConflictPanel.jsx');
   const mount = document.createElement('div'); document.body.appendChild(mount); createRoot(mount).render(React.createElement(SyncConflictPanel));
  });
- const summary = page.getByTestId('conflict-summary');
- await expect(summary).toBeVisible();
- await expect(summary.locator('li')).toHaveCount(2);
- await expect(summary.locator('li', { hasText: 'This browser' })).toHaveCount(1);
- await expect(summary.locator('li', { hasText: 'Server / other device' })).toHaveCount(1);
- await expect(summary).toContainText(/\d+ dialogues · \d+ nodes/);
+ const section = page.locator(`[data-conflict-id="${state.conflictId}"]`);
+ await expect(section.getByTestId('conflict-summary').locator('li')).toHaveCount(three ? 3 : 2);
+ return { ...state, section };
+}
+
+async function expectedStamp(page, value, language) {
+ return page.evaluate(({ value, language }) => new Intl.DateTimeFormat(language, {
+  year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+ }).format(new Date(value)), { value, language });
+}
+
+for (const timezoneId of ['Europe/Prague', 'UTC']) test.describe(`conflict dates in ${timezoneId}`, () => {
+ test.use({ locale: 'en-US', timezoneId });
+ test('normal dialogue edits show revision timestamps, timezone, and exact per-version counts', async ({ page }) => {
+  const state = await panelConflict(page, { content: true });
+  for (const [index, revision] of state.revisions.entries()) {
+   const row = state.section.locator(`[data-revision-id="${revision.id}"]`);
+   expect(revision.projectStamp).toBe('2000-01-01T00:00:00Z');
+   await expect(row.locator('time')).toHaveAttribute('datetime', revision.createdAt);
+   await expect(row.locator('time')).toHaveText(await expectedStamp(page, revision.createdAt, 'en'));
+   await expect(row).toContainText(index === 0 ? '1 dialogue · 2 nodes' : '2 dialogues · 4 nodes');
+  }
+  await expect(state.section.getByRole('button', { name: 'Keep both projects', exact: true })).toBeVisible();
+ });
+});
+
+test('numbered summaries map identical competing versions to the exact selected revision', async ({ page }) => {
+ const state = await panelConflict(page, { three: true, sameTime: true });
+ const selector = state.section.getByRole('combobox');
+ for (const [index, revision] of state.revisions.entries()) {
+  const row = state.section.locator(`[data-revision-id="${revision.id}"]`);
+  const label = await row.locator('strong').textContent();
+  expect(label).toBe(`Version ${index + 1} · Shared name · ${index === 0 ? 'This browser' : 'Server / other device'}`);
+  if (index > 0) await expect(selector.locator('option').filter({ hasText: label })).toHaveAttribute('value', revision.id);
+ }
+ const chosen = state.revisions[2];
+ await selector.focus(); await page.keyboard.press('End'); await page.keyboard.press('Enter');
+ await expect(selector).toHaveValue(chosen.id);
+ await state.section.getByRole('button', { name: 'Keep remote', exact: true }).click();
+ await expect.poll(() => page.evaluate(async () => (await window.rig.a.db.projects.get('p')).description)).toBe(chosen.description);
+});
+
+for (const [three, deleted] of [[false, false], [true, false], [true, true]]) test(`keep ${three ? 'all' : 'both'} preserves every live version${deleted ? ' with a competing deletion' : ''}`, async ({ page }) => {
+ const state = await panelConflict(page, { three, deleted });
+ await state.section.getByRole('button', { name: three ? 'Keep all versions' : 'Keep both projects', exact: true }).click();
+ await expect.poll(() => page.evaluate(async () => (await window.rig.a.db.projects.toArray()).map(row => row.description).sort())).toEqual(deleted ? ['remote', 'third'] : three ? ['local', 'remote', 'third'] : ['local', 'remote']);
+});
+
+test('deletion versions have a timestamp and no content counts; keep both preserves the surviving edit', async ({ page }) => {
+ const state = await panelConflict(page, { deleted: true });
+ const deleted = state.revisions.find(row => row.operation === 'delete');
+ const row = state.section.locator(`[data-revision-id="${deleted.id}"]`);
+ await expect(row).toContainText('Deleted project');
+ await expect(row.locator('time')).toHaveAttribute('datetime', deleted.createdAt);
+ await expect(row.locator('p')).toHaveCount(0);
+ await state.section.getByRole('button', { name: 'Keep both projects', exact: true }).click();
+ await expect.poll(() => page.evaluate(async () => (await window.rig.a.db.projects.toArray()).map(project => project.description))).toEqual(['remote']);
+});
+
+test('invalid and absent revision dates show localized unknown text rather than project dates', async ({ page }) => {
+ const state = await panelConflict(page);
+ await page.evaluate(async revisions => {
+  const db = window.rig.a.db;
+  await db.projectRevisions.update(revisions[0].id, { createdAt: null });
+  await db.projectRevisions.update(revisions[1].id, { createdAt: 'not-a-date' });
+  await (await import('/src/i18n/index.js')).default.changeLanguage('cs');
+ }, state.revisions);
+ await expect(state.section.getByText('Neznámé datum', { exact: true })).toHaveCount(2);
+ await expect(state.section.locator('time')).toHaveCount(0);
+});
+
+test('missing expected revisions and explicit incomplete history prevent resolution', async ({ page }) => {
+ const state = await panelConflict(page);
+ await page.evaluate(async id => {
+  const db = window.rig.a.db;
+  window.missingPanelRevision = await db.projectRevisions.get(id);
+  await db.projectRevisions.delete(id);
+ }, state.revisions[1].id);
+ await expect(page.getByText('Some revision history is unavailable. Synchronize again before resolving.', { exact: true })).toBeVisible();
+ await expect(page.getByRole('button', { name: /^Keep / })).toHaveCount(0);
+ await page.evaluate(async id => {
+  const db = window.rig.a.db;
+  await db.transaction('rw', db.projectRevisions, db.syncConflicts, async () => {
+   await db.projectRevisions.put(window.missingPanelRevision);
+   await db.syncConflicts.update(id, { incomplete: true });
+  });
+ }, state.conflictId);
+ await expect(page.getByText('Some revision history is unavailable. Synchronize again before resolving.', { exact: true })).toBeVisible();
+ await expect(page.getByRole('combobox')).toHaveCount(0);
+});
+
+test('an unavailable saved selection falls back to the first remaining competing revision', async ({ page }) => {
+ const state = await panelConflict(page, { three: true });
+ const selector = state.section.getByRole('combobox');
+ await selector.selectOption(state.revisions[2].id);
+ await page.evaluate(async ({ conflictId, revisions }) => {
+  await window.rig.a.db.syncConflicts.update(conflictId, { revisionIds: revisions.slice(0, 2).map(row => row.id) });
+ }, { conflictId: state.conflictId, revisions: state.revisions });
+ await expect(selector).toHaveValue(state.revisions[1].id);
+ await state.section.getByRole('button', { name: 'Keep remote', exact: true }).click();
+ await expect.poll(() => page.evaluate(async () => (await window.rig.a.db.projects.get('p')).description)).toBe(state.revisions[1].description);
+});
+
+test('all six languages reformat the mounted panel and provide integer count plurals', async ({ page }) => {
+ const state = await panelConflict(page, { content: true });
+ const languages = JSON.parse(await readFile(new URL('../../electron/shared/app-languages.json', import.meta.url), 'utf8'));
+ for (const { code } of languages) {
+  const copy = JSON.parse(await readFile(new URL(`../../src/i18n/locales/${code}.json`, import.meta.url), 'utf8')).syncConflicts;
+  for (const key of ['versionLabel', 'description', 'hint', 'unknownDate', 'revisionDetails', 'keepAll']) {
+   expect(copy[key]).not.toMatch(/[?\uFFFD]/);
+  }
+  await page.evaluate(async code => { await (await import('/src/i18n/index.js')).default.changeLanguage(code); }, code);
+  await expect(page.getByRole('complementary')).toHaveAccessibleName(copy.title);
+  await expect(state.section.getByText(copy.hint, { exact: true })).toBeVisible();
+  await expect(state.section.locator('strong').first()).toHaveText(copy.versionLabel.replace('{{number}}', '1').replace('{{name}}', 'Shared name').replace('{{source}}', copy.thisBrowser));
+  await expect(state.section.locator('time').first()).toHaveText(await expectedStamp(page, state.revisions[0].createdAt, code));
+  for (const [index, counts] of [[0, [1, 2]], [1, [2, 4]]]) {
+   const text = ['dialogueCount', 'nodeCount'].map((field, fieldIndex) => {
+    const count = counts[fieldIndex];
+    return copy[`${field}_${new Intl.PluralRules(code).select(count)}`].replace('{{count}}', String(count));
+   }).join(' · ');
+   await expect(state.section.locator('li').nth(index).locator('p')).toHaveText(text);
+  }
+  for (const field of ['dialogueCount', 'nodeCount']) for (const count of [0, 1, 2, 5, 21, 1000000]) {
+   const plural = new Intl.PluralRules(code).select(count);
+   expect(copy[`${field}_${plural}`]).toBeTruthy();
+   const actual = await page.evaluate(async ({ field, count }) => (await import('/src/i18n/index.js')).default.t(`syncConflicts.${field}`, { count }), { field, count });
+   expect(actual).toBe(copy[`${field}_${plural}`].replace('{{count}}', String(count)));
+  }
+ }
+});
+
+test('long version names and full IDs wrap at a narrow viewport and details open by keyboard', async ({ page }) => {
+ const state = await panelConflict(page);
+ const longId = `revision-${'x'.repeat(180)}`;
+ await page.evaluate(async ({ state, longId }) => {
+  const db = window.rig.a.db;
+  const remote = await db.projectRevisions.get(state.revisions[1].id);
+  remote.id = longId; remote.snapshot.project.name = 'A'.repeat(180);
+  await db.projectRevisions.put(remote);
+  await db.syncConflicts.update(state.conflictId, { revisionIds: [state.localId, longId] });
+ }, { state: { revisions: state.revisions, conflictId: state.conflictId, localId: state.localId }, longId });
+ await page.setViewportSize({ width: 360, height: 740 });
+ const row = page.locator(`[data-revision-id="${longId}"]`);
+ await expect(row).toBeVisible();
+ await row.locator('summary').focus(); await page.keyboard.press('Enter');
+ await expect(row.locator('details')).toHaveAttribute('open', '');
+ await expect(row.locator('code')).toHaveText(longId);
+ expect(await page.getByRole('complementary').evaluate(panel => panel.scrollWidth <= panel.clientWidth)).toBe(true);
 });
 
 test('ISS-015 stale conflict choices cannot replace a newer local edit', async ({ page }) => {

@@ -565,7 +565,7 @@
 	},
 	"syncConflicts": {
 		"title": "Conflits de synchronisation",
-		"description": "Les deux versions sont conservées. Choisissez celle à garder.",
+		"description": "Plusieurs versions sont conservées. Choisissez la version à garder.",
 		"incomplete": "Une partie de l’historique est indisponible. Relancez la synchronisation avant de résoudre le conflit.",
 		"keepLocal": "Garder la version locale",
 		"keepRemote": "Garder la version distante",
@@ -577,8 +577,16 @@
 		"resolveError": "Impossible de résoudre ce conflit.",
 		"thisBrowser": "Ce navigateur",
 		"otherVersion": "Serveur / autre appareil",
-		"dialogues": "dialogues",
-		"nodes": "nœuds",
-		"hint": "Gardez la version la plus récente et la plus complète. « Garder les deux » crée une copie séparée que vous devrez supprimer vous-même."
+		"hint": "Comparez les versions avant de choisir ; la plus récente ou la plus volumineuse n’est pas toujours la bonne. Garder toutes les versions préserve le contenu disponible dans des projets séparés. Vous pourrez supprimer les copies inutiles plus tard.",
+		"versionLabel": "Version {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Détails de la révision",
+		"unknownDate": "Date inconnue",
+		"keepAll": "Garder toutes les versions",
+		"dialogueCount_one": "{{count}} dialogue",
+		"dialogueCount_many": "{{count}} dialogues",
+		"dialogueCount_other": "{{count}} dialogues",
+		"nodeCount_one": "{{count}} nœud",
+		"nodeCount_many": "{{count}} nœuds",
+		"nodeCount_other": "{{count}} nœuds"
 	}
 }

@@ -597,7 +597,7 @@
 	},
 	"syncConflicts": {
 		"title": "Konflikty synchronizace",
-		"description": "Obě verze jsou zachovány. Vyberte, kterou verzi chcete ponechat.",
+		"description": "Je zachováno více verzí. Vyberte, kterou verzi chcete ponechat.",
 		"incomplete": "Část historie revizí není dostupná. Před vyřešením znovu synchronizujte.",
 		"keepLocal": "Ponechat místní",
 		"keepRemote": "Ponechat vzdálenou",
@@ -609,8 +609,16 @@
 		"resolveError": "Tento konflikt se nepodařilo vyřešit.",
 		"thisBrowser": "Tento prohlížeč",
 		"otherVersion": "Server / jiné zařízení",
-		"dialogues": "dialogů",
-		"nodes": "uzlů",
-		"hint": "Ponechte verzi s pozdějším datem a větším obsahem. „Ponechat oba“ vytvoří samostatnou kopii, kterou musíte smazat sami."
+		"hint": "Před výběrem verze porovnejte; novější nebo větší verze nemusí být správná. Ponechání všech verzí zachová dostupný obsah v samostatných projektech. Nepotřebné kopie můžete později smazat.",
+		"versionLabel": "Verze {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Podrobnosti revize",
+		"unknownDate": "Neznámé datum",
+		"keepAll": "Ponechat všechny verze",
+		"dialogueCount_one": "{{count}} dialog",
+		"dialogueCount_few": "{{count}} dialogy",
+		"dialogueCount_other": "{{count}} dialogů",
+		"nodeCount_one": "{{count}} uzel",
+		"nodeCount_few": "{{count}} uzly",
+		"nodeCount_other": "{{count}} uzlů"
 	}
 }

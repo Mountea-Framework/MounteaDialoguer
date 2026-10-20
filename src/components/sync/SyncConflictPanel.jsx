@@ -7,56 +7,122 @@ import { useSyncStore } from '@/stores/syncStore';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 
-const formatStamp = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '?' : date.toLocaleString(); };
+function selectedRemote(conflict, selection) {
+	const competing = conflict.revisions.filter(row => row.id !== conflict.localRevisionId);
+	return competing.find(row => row.id === selection)?.id || competing[0]?.id;
+}
+
+function RevisionTimestamp({ value, formatter, t }) {
+	const date = typeof value === 'string' && value.trim() ? new Date(value) : null;
+	if (!date || !Number.isFinite(date.getTime())) return <span>{t('syncConflicts.unknownDate')}</span>;
+	return <time dateTime={date.toISOString()}>{formatter.format(date)}</time>;
+}
 
 /** Global placement includes projects deleted locally while a competing edit exists. */
 export function SyncConflictPanel() {
- const { t } = useTranslation();
- const [conflicts, setConflicts] = useState([]), [choices, setChoices] = useState({}), [error, setError] = useState(''), [busy, setBusy] = useState(false);
- useEffect(() => {
-  let subscription;
-  const subscribe = () => {
-   subscription?.unsubscribe(); setConflicts([]);
-   subscription = liveQuery(async () => {
-    const context = await getRepositoryContext();
-    const rows = await context.db.syncConflicts.where('status').equals('unresolved').toArray();
-    const items = await Promise.all(rows.map(async row => ({ ...row, revisions: (await context.db.projectRevisions.bulkGet(row.revisionIds)).filter(Boolean) })));
-    context.assertCurrent(); return items;
-   }).subscribe({ next: setConflicts, error: failure => { if (failure.code !== 'STALE_PROFILE') setError(failure.message); } });
-  };
-  subscribe(); const unsubscribe = subscribeProfileChanges(subscribe);
-  return () => { subscription?.unsubscribe(); unsubscribe(); };
- }, []);
- const resolve = async (conflict, choice) => {
-  setBusy(true); setError('');
-  try { await useSyncStore.getState().resolveConflict(conflict.id, choice, choice === 'remote' ? choices[conflict.id] || conflict.revisions.find(row => row.id !== conflict.localRevisionId)?.id : undefined); }
-  catch (failure) { setError(failure.message || t('syncConflicts.resolveError')); }
-  finally { setBusy(false); }
- };
- if (!conflicts.length && !error) return null;
- return <aside className="fixed bottom-4 right-4 z-50 w-96 max-w-[95vw] max-h-[70vh] overflow-auto rounded-lg border bg-background p-4 shadow-xl space-y-3" aria-label={t('syncConflicts.title', 'Synchronization conflicts')}>
-  <h2 className="font-semibold">{t('syncConflicts.title', 'Synchronization conflicts')}</h2>
-  <p>{t('syncConflicts.description', 'Both versions are preserved. Choose which version to keep.')}</p>
-  {error && <p role="alert">{error}</p>}
-  {conflicts.map(conflict => <section key={conflict.id} className="border-t pt-3 space-y-2">
-   <h3>{conflict.revisions.find(row => row.id === conflict.localRevisionId)?.snapshot.project.name || conflict.revisions[0]?.snapshot.project.name || conflict.projectId}</h3>
-   {conflict.incomplete ? <p>{t('syncConflicts.incomplete', 'Some revision history is unavailable. Synchronize again before resolving.')}</p> : <>
-    <ul className="text-sm space-y-1" data-testid="conflict-summary">
-     {conflict.revisions.map(row => <li key={row.id}>
-      <strong>{row.id === conflict.localRevisionId ? t('syncConflicts.thisBrowser', 'This browser') : t('syncConflicts.otherVersion', 'Server / other device')}</strong>
-      {row.operation === 'delete' ? ` · ${t('syncConflicts.deleted', 'Deleted project')}` : ` · ${formatStamp(row.snapshot.project.modifiedAt || row.createdAt)} · ${row.snapshot.dialogues?.length || 0} ${t('syncConflicts.dialogues', 'dialogues')} · ${row.snapshot.nodes?.length || 0} ${t('syncConflicts.nodes', 'nodes')}`}
-     </li>)}
-    </ul>
-    <p className="text-xs text-muted-foreground">{t('syncConflicts.hint', 'Keep the version with the later date and more content. "Keep both" makes a separate copy you must delete yourself.')}</p>
-    <NativeSelect aria-label={t('syncConflicts.selectRevision', 'Competing version')} value={choices[conflict.id] || conflict.revisions.find(row => row.id !== conflict.localRevisionId)?.id || ''} onChange={event => setChoices(current => ({ ...current, [conflict.id]: event.target.value }))}>
-     {conflict.revisions.filter(row => row.id !== conflict.localRevisionId).map(row => <option key={row.id} value={row.id}>{row.operation === 'delete' ? t('syncConflicts.deleted', 'Deleted project') : row.snapshot.project.name} · {row.id}</option>)}
-    </NativeSelect>
-    <div className="flex gap-2 flex-wrap">
-     <Button disabled={busy || !conflict.localRevisionId} onClick={() => resolve(conflict, 'local')}>{t('syncConflicts.keepLocal', 'Keep local')}</Button>
-     <Button disabled={busy} onClick={() => resolve(conflict, 'remote')}>{t('syncConflicts.keepRemote', 'Keep remote')}</Button>
-     <Button disabled={busy} onClick={() => resolve(conflict, 'both')}>{t('syncConflicts.keepBoth', 'Keep both projects')}</Button>
-    </div>
-   </>}
-  </section>)}
- </aside>;
+	const { t, i18n } = useTranslation();
+	const [conflicts, setConflicts] = useState([]);
+	const [choices, setChoices] = useState({});
+	const [error, setError] = useState('');
+	const [busy, setBusy] = useState(false);
+	const formatter = new Intl.DateTimeFormat(i18n.resolvedLanguage || i18n.language, {
+		year: 'numeric', month: 'short', day: 'numeric',
+		hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+	});
+
+	useEffect(() => {
+		let subscription;
+		const subscribe = () => {
+			subscription?.unsubscribe();
+			setConflicts([]);
+			subscription = liveQuery(async () => {
+				const context = await getRepositoryContext();
+				const rows = await context.db.syncConflicts.where('status').equals('unresolved').toArray();
+				const items = await Promise.all(rows.map(async row => {
+					const loaded = await context.db.projectRevisions.bulkGet([...new Set(row.revisionIds)]);
+					const revisions = loaded.filter(Boolean).sort((left, right) => {
+						if (left.id === right.id) return 0;
+						if (left.id === row.localRevisionId) return -1;
+						if (right.id === row.localRevisionId) return 1;
+						return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+					});
+					return { ...row, revisions, incomplete: row.incomplete || loaded.some(revision => !revision) || revisions.length < 2 };
+				}));
+				context.assertCurrent();
+				return items;
+			}).subscribe({
+				next: setConflicts,
+				error: failure => { if (failure.code !== 'STALE_PROFILE') setError(failure.message); },
+			});
+		};
+		subscribe();
+		const unsubscribe = subscribeProfileChanges(subscribe);
+		return () => { subscription?.unsubscribe(); unsubscribe(); };
+	}, []);
+
+	const resolve = async (conflict, choice) => {
+		setBusy(true);
+		setError('');
+		try {
+			await useSyncStore.getState().resolveConflict(conflict.id, choice,
+				choice === 'remote' ? selectedRemote(conflict, choices[conflict.id]) : undefined);
+		} catch (failure) {
+			setError(failure.message || t('syncConflicts.resolveError'));
+		} finally {
+			setBusy(false);
+		}
+	};
+	if (!conflicts.length && !error) return null;
+	return (
+		<aside className="fixed bottom-4 right-4 z-50 w-96 max-w-[95vw] max-h-[70vh] overflow-auto rounded-lg border bg-background p-4 shadow-xl space-y-3" aria-label={t('syncConflicts.title')}>
+			<h2 className="font-semibold">{t('syncConflicts.title')}</h2>
+			<p>{t('syncConflicts.description')}</p>
+			{error && <p role="alert">{error}</p>}
+			{conflicts.map(conflict => {
+				const versions = conflict.revisions.map((revision, index) => {
+					const label = t('syncConflicts.versionLabel', {
+						number: index + 1, name: revision.snapshot.project?.name || conflict.projectId,
+						source: t(revision.id === conflict.localRevisionId ? 'syncConflicts.thisBrowser' : 'syncConflicts.otherVersion'),
+					});
+					return { revision, label: revision.operation === 'delete' ? `${label} · ${t('syncConflicts.deleted')}` : label };
+				});
+				const remoteId = selectedRemote(conflict, choices[conflict.id]);
+				return (
+					<section key={conflict.id} data-conflict-id={conflict.id} className="border-t pt-3 space-y-2 min-w-0 [overflow-wrap:anywhere]">
+						<h3>{conflict.revisions[0]?.snapshot.project?.name || conflict.projectId}</h3>
+						{conflict.incomplete ? <p>{t('syncConflicts.incomplete')}</p> : <>
+							<ul className="text-sm space-y-3" data-testid="conflict-summary">
+								{versions.map(({ revision, label }) => (
+									<li key={revision.id} data-revision-id={revision.id} className="space-y-1">
+										<strong className="block">{label}</strong>
+										<RevisionTimestamp value={revision.createdAt} formatter={formatter} t={t} />
+										{revision.operation !== 'delete' && <p>
+											{t('syncConflicts.dialogueCount', { count: revision.snapshot.dialogues?.length || 0 })}
+											{' · '}{t('syncConflicts.nodeCount', { count: revision.snapshot.nodes?.length || 0 })}
+										</p>}
+										<details>
+											<summary className="cursor-pointer">{t('syncConflicts.revisionDetails')}</summary>
+											<code className="block whitespace-normal [overflow-wrap:anywhere]">{revision.id}</code>
+										</details>
+									</li>
+								))}
+							</ul>
+							<p className="text-xs text-muted-foreground">{t('syncConflicts.hint')}</p>
+							<NativeSelect aria-label={t('syncConflicts.selectRevision')} value={remoteId || ''} disabled={busy || !remoteId}
+								onChange={event => setChoices(current => ({ ...current, [conflict.id]: event.target.value }))}>
+								{versions.filter(({ revision }) => revision.id !== conflict.localRevisionId).map(({ revision, label }) => (
+									<option key={revision.id} value={revision.id}>{label}</option>
+								))}
+							</NativeSelect>
+							<div className="flex gap-2 flex-wrap">
+								<Button disabled={busy || !conflict.revisions.some(row => row.id === conflict.localRevisionId)} onClick={() => resolve(conflict, 'local')}>{t('syncConflicts.keepLocal')}</Button>
+								<Button disabled={busy || !remoteId} onClick={() => resolve(conflict, 'remote')}>{t('syncConflicts.keepRemote')}</Button>
+								<Button disabled={busy} onClick={() => resolve(conflict, 'both')}>{t(versions.length > 2 ? 'syncConflicts.keepAll' : 'syncConflicts.keepBoth')}</Button>
+							</div>
+						</>}
+					</section>
+				);
+			})}
+		</aside>
+	);
 }
