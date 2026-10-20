@@ -18,7 +18,8 @@ test('offline onboarding loads the tracked archive and aborts stalled remote fet
 	await page.evaluate(async () => {
 		const mod = await import('/src/lib/onboarding/templateLoader.js');
 		const original = window.fetch;
-		window.fetch = (url, options) => String(url).startsWith('http') ? new Promise((resolve, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('Timed out', 'AbortError')))) : original(url, options);
+		// Only cross-origin (remote) requests stall; the bundled template is fetched from this origin.
+		window.fetch = (url, options) => new URL(String(url), location.href).origin !== location.origin ? new Promise((resolve, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('Timed out', 'AbortError')))) : original(url, options);
 		window.templateResult = mod.resolveOnboardingExampleTemplateFile();
 	});
 	await page.clock.runFor(21_000);
