@@ -586,5 +586,18 @@
 		"dialogueCount_other": "{{count}} Dialoge",
 		"nodeCount_one": "{{count}} Knoten",
 		"nodeCount_other": "{{count}} Knoten"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "CLI-Zugriff",
+			"running": "An, Port {{port}}",
+			"off": "Aus",
+			"description": "Erlaubt dem Befehlszeilenwerkzeug von Mountea Dialoguer auf diesem Computer, Ihre Projekte zu lesen und zu bearbeiten."
+		},
+		"externalChange": {
+			"title": "Dialog außerhalb des Editors geändert",
+			"unsaved": "Die CLI hat diesen Dialog geändert. Neu laden zeigt die Änderung, verwirft aber Ihre ungespeicherten Änderungen. Wenn Sie stattdessen speichern, bleibt Ihre Version erhalten.",
+			"reload": "Neu laden"
+		}
 	}
 }

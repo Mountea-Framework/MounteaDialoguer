@@ -682,5 +682,18 @@
 		"dialogueCount_other": "{{count}} dialogues",
 		"nodeCount_one": "{{count}} node",
 		"nodeCount_other": "{{count}} nodes"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "CLI access",
+			"running": "On, port {{port}}",
+			"off": "Off",
+			"description": "Lets the Mountea Dialoguer command-line tool on this computer read and edit your projects."
+		},
+		"externalChange": {
+			"title": "Dialogue changed outside the editor",
+			"unsaved": "The CLI changed this dialogue. Reload to see the change; your unsaved edits will be lost. If you save instead, your version is kept.",
+			"reload": "Reload"
+		}
 	}
 }

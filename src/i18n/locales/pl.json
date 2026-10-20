@@ -622,5 +622,18 @@
 		"nodeCount_few": "{{count}} węzły",
 		"nodeCount_many": "{{count}} węzłów",
 		"nodeCount_other": "{{count}} węzła"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "Dostęp z CLI",
+			"running": "Włączony, port {{port}}",
+			"off": "Wyłączony",
+			"description": "Pozwala narzędziu wiersza poleceń Mountea Dialoguer na tym komputerze odczytywać i edytować twoje projekty."
+		},
+		"externalChange": {
+			"title": "Dialog zmieniony poza edytorem",
+			"unsaved": "CLI zmieniło ten dialog. Przeładuj, aby zobaczyć zmianę; utracisz niezapisane zmiany. Jeśli zamiast tego zapiszesz, zostanie twoja wersja.",
+			"reload": "Przeładuj"
+		}
 	}
 }
