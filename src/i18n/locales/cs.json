@@ -573,6 +573,7 @@
 		"failed": "Import selhal. Zkontrolujte archiv a zkuste to znovu."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Nechat chybějící texty prázdné a pokračovat",
 		"title": "Obnova projektu",
 		"description": "Před exportem nebo synchronizací opravte tyto odkazy. Původní záznamy zůstávají zachovány. Chybějící texty nebo média obnovte ze zálohy; aplikace je nedokáže rekonstruovat.",
 		"failed": "Obnova selhala. Zkontrolujte podrobnosti a zkuste to znovu.",

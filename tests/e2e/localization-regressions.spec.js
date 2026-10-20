@@ -83,6 +83,32 @@ test('ISS-017 unrecoverable translations reject migration without marking source
 	expect(result.blocked).toBe('PROJECT_REPAIR_REQUIRED');
 });
 
+test('ISS-017 repair keeps missing texts blank and clears the repair flag', async ({ page }) => {
+	const result = await page.evaluate(async () => {
+		const { db, assertProjectReady } = await import('/src/lib/db.js');
+		const { useDialogueStore } = await import('/src/stores/dialogueStore.js');
+		const key = 'dlg.lost.n_n.display_name';
+		await db.dialogues.put({ id: 'lost', projectId: 'p', name: 'Lost', localizationVersion: 1 });
+		await db.nodes.put({ id: 'n', dialogueId: 'lost', type: 'startNode', position: { x: 0, y: 0 }, data: { displayNameKey: key, localizationNodeToken: 'n' } });
+		let rejected;
+		try { await useDialogueStore.getState().loadDialogueGraph('lost'); } catch (failure) { rejected = failure.code; }
+		await useDialogueStore.getState().repairMissingTranslations('lost');
+		let ready = true;
+		try { await assertProjectReady('p'); } catch { ready = false; }
+		let reloaded;
+		try { reloaded = await useDialogueStore.getState().loadDialogueGraph('lost'); } catch (failure) { reloaded = failure.code; }
+		return { rejected, ready, reloaded: Array.isArray(reloaded?.nodes), dialogue: await db.dialogues.get('lost'), node: await db.nodes.get(['lost', 'n']), entries: await db.localizedStrings.toArray(), record: await db.recoveryRecords.get('localization:lost') };
+	});
+	expect(result.rejected).toBe('LOCALIZATION_REPAIR_REQUIRED');
+	expect(result.dialogue.localizationVersion).toBe(2);
+	expect(result.entries).toHaveLength(1);
+	expect(result.entries[0]).toMatchObject({ nodeId: 'n', field: 'displayName', key: result.node.data.displayNameKey });
+	expect(result.entries[0].values.en).toBe('');
+	expect(result.record.status).toBe('resolved');
+	expect(result.ready).toBe(true);
+	expect(result.reloaded).toBe(true);
+});
+
 test('ISS-017 changing default locale migrates inline legacy text under the original locale first', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		const { db } = await import('/src/lib/db.js');

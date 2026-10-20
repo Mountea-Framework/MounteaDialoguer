@@ -573,6 +573,7 @@
 		"failed": "Import nie powiódł się. Sprawdź archiwum i spróbuj ponownie."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Zostaw brakujące teksty puste i kontynuuj",
 		"title": "Odzyskiwanie projektu",
 		"description": "Popraw te odwołania przed eksportem lub synchronizacją. Oryginalne rekordy zostają zachowane. Brakujące teksty lub multimedia odzyskaj z kopii zapasowej; aplikacja nie może ich odtworzyć.",
 		"failed": "Odzyskiwanie nie powiodło się. Sprawdź szczegóły i spróbuj ponownie.",

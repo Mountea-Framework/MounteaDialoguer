@@ -541,6 +541,7 @@
 		"failed": "Import fehlgeschlagen. Prüfen Sie das Archiv und versuchen Sie es erneut."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Fehlende Texte leer lassen und fortfahren",
 		"title": "Projektwiederherstellung",
 		"description": "Korrigieren Sie diese Verweise vor dem Export oder der Synchronisierung. Originaldatensätze bleiben erhalten. Fehlende Texte oder Medien müssen aus einer Sicherung wiederhergestellt werden; die App kann sie nicht rekonstruieren.",
 		"failed": "Wiederherstellung fehlgeschlagen. Prüfen Sie die Details und versuchen Sie es erneut.",

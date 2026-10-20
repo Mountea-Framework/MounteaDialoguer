@@ -541,6 +541,7 @@
 		"failed": "L’importation a échoué. Vérifiez l’archive et réessayez."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Laisser les textes manquants vides et continuer",
 		"title": "Récupération du projet",
 		"description": "Corrigez ces références avant l’exportation ou la synchronisation. Les données d’origine sont conservées. Récupérez les textes ou médias manquants depuis une sauvegarde ; l’application ne peut pas les reconstruire.",
 		"failed": "La récupération a échoué. Vérifiez les détails et réessayez.",

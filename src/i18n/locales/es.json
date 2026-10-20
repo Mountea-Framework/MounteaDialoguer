@@ -541,6 +541,7 @@
 		"failed": "La importación falló. Revisa el archivo e inténtalo de nuevo."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Dejar en blanco los textos que faltan y continuar",
 		"title": "Recuperación del proyecto",
 		"description": "Resuelve estas referencias antes de exportar o sincronizar. Se conservan los registros originales. Recupera los textos o medios que falten desde una copia de seguridad; la aplicación no puede reconstruirlos.",
 		"failed": "La recuperación falló. Revisa los detalles e inténtalo de nuevo.",

@@ -637,6 +637,7 @@
 		"failed": "Import failed. Review the archive and try again."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Leave missing texts blank and continue",
 		"title": "Project recovery",
 		"description": "Resolve these references before exporting or synchronizing. Original records remain preserved. Recover missing text or media from an existing backup; the app cannot reconstruct them.",
 		"failed": "Recovery failed. Review the details and try again.",
