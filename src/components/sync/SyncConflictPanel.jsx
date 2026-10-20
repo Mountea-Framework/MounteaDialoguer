@@ -7,6 +7,8 @@ import { useSyncStore } from '@/stores/syncStore';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 
+const formatStamp = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '?' : date.toLocaleString(); };
+
 /** Global placement includes projects deleted locally while a competing edit exists. */
 export function SyncConflictPanel() {
  const { t } = useTranslation();
@@ -39,6 +41,13 @@ export function SyncConflictPanel() {
   {conflicts.map(conflict => <section key={conflict.id} className="border-t pt-3 space-y-2">
    <h3>{conflict.revisions.find(row => row.id === conflict.localRevisionId)?.snapshot.project.name || conflict.revisions[0]?.snapshot.project.name || conflict.projectId}</h3>
    {conflict.incomplete ? <p>{t('syncConflicts.incomplete', 'Some revision history is unavailable. Synchronize again before resolving.')}</p> : <>
+    <ul className="text-sm space-y-1" data-testid="conflict-summary">
+     {conflict.revisions.map(row => <li key={row.id}>
+      <strong>{row.id === conflict.localRevisionId ? t('syncConflicts.thisBrowser', 'This browser') : t('syncConflicts.otherVersion', 'Server / other device')}</strong>
+      {row.operation === 'delete' ? ` · ${t('syncConflicts.deleted', 'Deleted project')}` : ` · ${formatStamp(row.snapshot.project.modifiedAt || row.createdAt)} · ${row.snapshot.dialogues?.length || 0} ${t('syncConflicts.dialogues', 'dialogues')} · ${row.snapshot.nodes?.length || 0} ${t('syncConflicts.nodes', 'nodes')}`}
+     </li>)}
+    </ul>
+    <p className="text-xs text-muted-foreground">{t('syncConflicts.hint', 'Keep the version with the later date and more content. "Keep both" makes a separate copy you must delete yourself.')}</p>
     <NativeSelect aria-label={t('syncConflicts.selectRevision', 'Competing version')} value={choices[conflict.id] || conflict.revisions.find(row => row.id !== conflict.localRevisionId)?.id || ''} onChange={event => setChoices(current => ({ ...current, [conflict.id]: event.target.value }))}>
      {conflict.revisions.filter(row => row.id !== conflict.localRevisionId).map(row => <option key={row.id} value={row.id}>{row.operation === 'delete' ? t('syncConflicts.deleted', 'Deleted project') : row.snapshot.project.name} · {row.id}</option>)}
     </NativeSelect>

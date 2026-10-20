@@ -573,6 +573,11 @@
 		"selectRevision": "Konkurrierende Version",
 		"revision": "Version {{id}}",
 		"deleted": "Gelöschtes Projekt",
-		"resolveError": "Dieser Konflikt konnte nicht gelöst werden."
+		"resolveError": "Dieser Konflikt konnte nicht gelöst werden.",
+		"thisBrowser": "Dieser Browser",
+		"otherVersion": "Server / anderes Gerät",
+		"dialogues": "Dialoge",
+		"nodes": "Knoten",
+		"hint": "Behalte die Version mit dem späteren Datum und mehr Inhalt. „Beide behalten“ erstellt eine separate Kopie, die du selbst löschen musst."
 	}
 }

@@ -669,6 +669,11 @@
 		"selectRevision": "Competing version",
 		"revision": "Revision {{id}}",
 		"deleted": "Deleted project",
-		"resolveError": "Could not resolve this conflict."
+		"resolveError": "Could not resolve this conflict.",
+		"thisBrowser": "This browser",
+		"otherVersion": "Server / other device",
+		"dialogues": "dialogues",
+		"nodes": "nodes",
+		"hint": "Keep the version with the later date and more content. \"Keep both\" makes a separate copy that you must delete yourself."
 	}
 }
