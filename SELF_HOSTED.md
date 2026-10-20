@@ -34,7 +34,7 @@ MCP_TOKEN=<output of: openssl rand -hex 24>
 Without a token (at least 24 characters) the `mcp` container refuses to start; the app is not affected. Locally: `MCP_TOKEN=<token> npm run mcp` (`MCP_PORT`, default 8081; `DATA_DIR` must be the server's).
 
 - It reads a project's head revision, changes a copy, validates it with the app's own `canonicalProject` code (`mcp/register.mjs` lets Node load those modules) and writes a new revision. The revision history is the backup.
-- 39 tools: projects, dialogues, nodes and connections, participants, categories, decorators, conditions, row timing, translations, validation and `.mnteadlg` / `.mnteadlgproj` export. There is **no tool to delete a project or a dialogue itself**; content inside a dialogue can be deleted.
+- 41 tools: projects, dialogues, nodes and connections, participants, categories, decorators, conditions, row timing, translations, validation and `.mnteadlg` / `.mnteadlgproj` export. `delete_project` and `delete_dialogue` add a deletion revision, so the history stays on the server; records that are still referenced must be reassigned before they can be deleted.
 - Auth: `Authorization: Bearer <token>`, or `https://host/mcp/<token>` for clients that cannot send headers. Failed attempts are rate limited and every write is logged to `data/mcp-audit.log`.
 - It is a separate process on its own port so that it can be published on its own hostname when the app itself is behind an access proxy.
 - Claude Code: `claude mcp add --transport http mountea-dialoguer https://<host>/mcp --header "Authorization: Bearer <token>"`.
