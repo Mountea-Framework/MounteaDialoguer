@@ -1,4 +1,5 @@
-import { loadSnapshot, ToolError } from './lib/store.mjs';
+import { loadSnapshot } from './lib/backend.mjs';
+import { ToolError } from './lib/core.mjs';
 
 const families = { dialogues: 'dialogue', participants: 'participant', categories: 'category', decorators: 'decorator', conditions: 'condition' };
 const missing = () => new ToolError('Resource not found', { code: 'NOT_FOUND', status: 404 });

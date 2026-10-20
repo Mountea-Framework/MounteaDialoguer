@@ -20,6 +20,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
 import { markUserActivity, trackActiveMinute, flushActivity, retryPendingAchievements } from '@/lib/achievements/achievementTracker';
 import { isGoogleSyncEnabled, isSelfHostedSync, isSteamChannel } from '@/lib/runtimeConfig';
+import { startDesktopAutomation } from '@/lib/automation/desktopAutomation';
 import { initializeActiveProfileFromSteamStatus, subscribeProfileChanges } from '@/lib/profile/activeProfile';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useCategoryStore } from '@/stores/categoryStore';
@@ -226,6 +227,8 @@ function RootComponent() {
 					context.assertCurrent();
 					if (disposed || ticket !== request) return;
 				}
+				// Desktop only: lets the local CLI endpoint reach this profile's data (no-op elsewhere).
+				startDesktopAutomation();
 				setIsLoading(false);
 			} catch (error) {
 				if (disposed || ticket !== request || error.code === 'STALE_PROFILE') return;

@@ -589,5 +589,18 @@
 		"nodeCount_one": "{{count}} nodo",
 		"nodeCount_many": "{{count}} nodos",
 		"nodeCount_other": "{{count}} nodos"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "Acceso desde la CLI",
+			"running": "Activado, puerto {{port}}",
+			"off": "Desactivado",
+			"description": "Permite que la herramienta de línea de comandos de Mountea Dialoguer en este equipo lea y edite tus proyectos."
+		},
+		"externalChange": {
+			"title": "Diálogo modificado fuera del editor",
+			"unsaved": "La CLI ha modificado este diálogo. Recarga para ver el cambio; perderás los cambios sin guardar. Si guardas en su lugar, se conserva tu versión.",
+			"reload": "Recargar"
+		}
 	}
 }

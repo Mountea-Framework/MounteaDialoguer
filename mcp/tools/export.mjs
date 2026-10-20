@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { DATA_DIR } from '../../server/storage.mjs';
-import { loadSnapshot, ToolError } from '../lib/store.mjs';
+import { loadSnapshot } from '../lib/backend.mjs';
+import { ToolError } from '../lib/core.mjs';
 import { buildDialogueExport, buildProjectExport } from '../lib/export.mjs';
 import { getDialogue } from '../lib/graph.mjs';
 import { defineTool, bool, PROJECT, DIALOGUE } from './util.mjs';

@@ -7,7 +7,7 @@ import {
 	decodeMediaBase64,
 	requireValidProject,
 } from '../../src/lib/persistence/canonicalProject.js';
-import { ToolError } from './store.mjs';
+import { ToolError } from './core.mjs';
 import { buildZip } from './zip.mjs';
 
 const LIMITS = { compressed: 25 * 1024 * 1024, json: 5 * 1024 * 1024, entries: 1000, dialogues: 250, expanded: 128 * 1024 * 1024 };

@@ -621,5 +621,18 @@
 		"nodeCount_one": "{{count}} uzel",
 		"nodeCount_few": "{{count}} uzly",
 		"nodeCount_other": "{{count}} uzlů"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "Přístup z CLI",
+			"running": "Zapnuto, port {{port}}",
+			"off": "Vypnuto",
+			"description": "Umožní nástroji příkazové řádky Mountea Dialoguer na tomto počítači číst a upravovat tvoje projekty."
+		},
+		"externalChange": {
+			"title": "Dialog byl změněn mimo editor",
+			"unsaved": "CLI změnilo tento dialog. Po znovunačtení uvidíš změnu, ale přijdeš o neuložené úpravy. Když místo toho uložíš, zůstane tvoje verze.",
+			"reload": "Znovu načíst"
+		}
 	}
 }

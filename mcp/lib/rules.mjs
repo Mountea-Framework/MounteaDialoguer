@@ -1,6 +1,6 @@
 // Naming and tree rules, ported from the stores/dialogs so the MCP enforces what the UI enforces.
 import { NAME_PATTERN, toPascalName } from '../../src/helpers/nameHelpers.js';
-import { ToolError } from './store.mjs';
+import { ToolError } from './core.mjs';
 
 export const MAX_NAME_LENGTH = 16; // participants and categories
 export const MAX_CATEGORY_DEPTH = 5;

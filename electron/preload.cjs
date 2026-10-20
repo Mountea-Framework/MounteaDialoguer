@@ -32,4 +32,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 		ipcRenderer.on('menu:command', handler);
 		return () => ipcRenderer.removeListener('menu:command', handler);
 	},
+	getAutomationStatus: () => ipcRenderer.invoke('automation:get-status'),
+	setAutomationEnabled: (enabled) => ipcRenderer.invoke('automation:set-enabled', { enabled }),
+	notifyAutomationReady: () => ipcRenderer.send('automation:ready', {}),
+	sendAutomationResponse: (payload) => ipcRenderer.send('automation:response', payload),
+	onAutomationRequest: (listener) => {
+		if (typeof listener !== 'function') return () => {};
+		const handler = (_event, payload) => listener(payload);
+		ipcRenderer.on('automation:request', handler);
+		return () => ipcRenderer.removeListener('automation:request', handler);
+	},
 });

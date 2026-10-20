@@ -1,4 +1,4 @@
-import { ToolError } from '../lib/store.mjs';
+import { ToolError } from '../lib/core.mjs';
 
 /** Tool definition helper: schema is a JSON Schema "properties" map; `required` lists mandatory keys. */
 export function defineTool(name, description, properties, required, handler) {
