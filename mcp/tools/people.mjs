@@ -1,5 +1,6 @@
 import { assertUnreferenced } from '../../src/lib/domainIntegrity.js';
-import { loadSnapshot, mutateProject, nowIso, ToolError, uuid } from '../lib/store.mjs';
+import { loadSnapshot, mutateProject } from '../lib/backend.mjs';
+import { nowIso, ToolError, uuid } from '../lib/core.mjs';
 import {
 	MAX_NAME_LENGTH,
 	assertCategoryPlacement,
@@ -23,20 +24,37 @@ const findParticipant = (participants, ref) => {
 };
 const participantUsage = (s, participant) => s.nodes.filter((n) => n.data?.participantId === participant.id || (!n.data?.participantId && n.data?.participant === participant.name)).length;
 
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+// Lenient like Buffer.from(..., 'base64'): URL-safe characters and missing padding are accepted, other characters
+// outside the alphabet are skipped, and decoding stops at the first "=".
+function decodeBase64(text) {
+	let clean = text.split('=')[0].replace(/-/g, '+').replace(/_/g, '/').replace(/[^A-Za-z0-9+/]/g, '');
+	if (clean.length % 4 === 1) clean = clean.slice(0, -1);
+	const binary = atob(clean + '='.repeat((4 - (clean.length % 4)) % 4));
+	return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function encodeBase64(bytes) {
+	let binary = '';
+	for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+	return btoa(binary);
+}
+
 function pngThumbnail(base64) {
 	const raw = String(base64).replace(/^data:image\/png;base64,/, '');
-	const bytes = Buffer.from(raw, 'base64');
-	const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-	if (bytes.length < 24 || !bytes.subarray(0, 8).equals(signature)) throw new ToolError('Thumbnail must be a PNG image (base64)');
+	const bytes = decodeBase64(raw);
+	if (bytes.length < 24 || PNG_SIGNATURE.some((value, index) => bytes[index] !== value)) throw new ToolError('Thumbnail must be a PNG image (base64)');
 	if (bytes.length > MAX_THUMBNAIL_BYTES) throw new ToolError('Thumbnail must be 1 MiB or smaller');
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	return {
-		base64: `data:image/png;base64,${bytes.toString('base64')}`,
+		base64: `data:image/png;base64,${encodeBase64(bytes)}`,
 		name: 'thumbnail.png',
 		mimeType: 'image/png',
 		size: bytes.length,
 		sizeBytes: bytes.length,
-		width: bytes.readUInt32BE(16),
-		height: bytes.readUInt32BE(20),
+		width: view.getUint32(16),
+		height: view.getUint32(20),
 		updatedAt: nowIso(),
 	};
 }

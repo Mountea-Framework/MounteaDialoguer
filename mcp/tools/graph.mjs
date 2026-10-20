@@ -1,5 +1,6 @@
 import { assertGraphNodesRemovable } from '../../src/lib/domainIntegrity.js';
-import { mutateProject, ToolError, uuid } from '../lib/store.mjs';
+import { loadSnapshot, mutateProject } from '../lib/backend.mjs';
+import { ToolError, uuid } from '../lib/core.mjs';
 import {
 	CREATABLE_TYPES,
 	NODE_DEFS,
@@ -401,7 +402,6 @@ export const graphTools = [
 		{ projectId: PROJECT, dialogueId: str('Limit to one dialogue (optional)'), locale: str('Locale tag') },
 		['projectId', 'locale'],
 		async (args) => {
-			const { loadSnapshot } = await import('../lib/store.mjs');
 			const s = await loadSnapshot(args.projectId);
 			const locale = normalizeLocaleTag(args.locale, '');
 			const entries = args.dialogueId ? filterLocalizedEntriesByDialogue(s.localizedStrings, args.dialogueId) : s.localizedStrings;

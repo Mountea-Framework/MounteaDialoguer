@@ -5,16 +5,9 @@
 import crypto from 'node:crypto';
 import { FileExistsError, createFile, listFiles, readFileText } from '../../server/storage.mjs';
 import { canonicalizeProject, hashProject, validateCanonicalProject } from '../../src/lib/persistence/canonicalProject.js';
+import { ToolError, nowIso, uuid } from './core.mjs';
 
-export class ToolError extends Error {
-	constructor(message, { code = 'INVALID_ARGUMENT', status = 400, details } = {}) {
-		super(message); this.name = 'ToolError'; this.code = code; this.status = status;
-		if (details !== undefined) this.details = details;
-	}
-}
-
-export const uuid = () => crypto.randomUUID();
-export const nowIso = () => new Date().toISOString();
+export { ToolError, nowIso, uuid };
 
 const REVISION_PREFIX = 'mountea-revision-v2--';
 const DEVICE_ID = 'mcp-server';
@@ -169,3 +162,6 @@ export async function mutateProject(projectId, fn, { operation = 'update' } = {}
 export async function createProjectFile(snapshot) {
 	await writeRevision(await buildRevision(snapshot, { parents: [], operation: 'create', previous: null }));
 }
+
+/** The revision-file store as a tool backend (see backend.mjs). */
+export const fileBackend = { listAllProjects, loadSnapshot, mutateProject, createProject: createProjectFile };

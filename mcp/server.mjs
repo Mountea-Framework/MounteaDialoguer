@@ -10,7 +10,10 @@ import { DATA_DIR, ensureDirs } from '../server/storage.mjs';
 import { TOOLS } from './tools/index.mjs';
 import { executeCommand, commandError } from './lib/commands.mjs';
 import { resolveRestRoute, prepareRestCommand, restResponse } from './rest.mjs';
-import { ToolError } from './lib/store.mjs';
+import { ToolError } from './lib/core.mjs';
+import { setBackend } from './lib/backend.mjs';
+import { fileBackend } from './lib/store.mjs';
+import { createRpcHandler } from './lib/jsonrpc.mjs';
 import { EXPORT_DIR } from './tools/export.mjs';
 
 const PORT = Number(process.env.MCP_PORT || 8081);
@@ -19,7 +22,6 @@ const TOKEN = process.env.MCP_TOKEN || '';
 const MAX_BODY = Number(process.env.MCP_MAX_BODY_MB || 10) * 1024 * 1024;
 const RATE_PER_MIN = Number(process.env.MCP_RATE_PER_MIN || 240);
 const AUTH_FAIL_PER_MIN = 20;
-const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const AUDIT_LOG = path.join(DATA_DIR, 'mcp-audit.log');
 
 if (TOKEN.length < 24) {
@@ -93,44 +95,7 @@ async function executeLoggedCommand(name, args, ip, origin) {
 	}
 }
 
-async function callTool(params, ip, origin) {
-	try {
-		const result = await executeLoggedCommand(params?.name, params?.arguments || {}, ip, origin);
-		return { content: [{ type: 'text', text: JSON.stringify(result ?? { ok: true }, null, 2) }] };
-	} catch (error) {
-		if (!(error instanceof ToolError)) console.error('[mcp] tool failed', params?.name, error);
-		return { isError: true, content: [{ type: 'text', text: error instanceof ToolError ? error.message : 'Internal server error' }] };
-	}
-}
-
-async function handleMessage(message, ip, origin) {
-	const { id, method, params } = message || {};
-	const isNotification = id === undefined || id === null;
-	const reply = (result) => (isNotification ? null : { jsonrpc: '2.0', id, result });
-	const fail = (code, text) => (isNotification ? null : { jsonrpc: '2.0', id, error: { code, message: text } });
-
-	switch (method) {
-		case 'initialize': {
-			const wanted = params?.protocolVersion;
-			return reply({
-				protocolVersion: PROTOCOLS.includes(wanted) ? wanted : PROTOCOLS[0],
-				capabilities: { tools: { listChanged: false } },
-				serverInfo: { name: 'mountea-dialoguer', version: '1.0.0' },
-				instructions:
-					'Edits Mountea Dialoguer projects. Workflow: list_projects -> get_project -> create participants/categories -> create_dialogue -> set_graph -> validate_dialogue. Project and dialogue deletion retain revision history. Referenced records require reassignment before deletion. Open browser tabs refresh automatically (or ask the user to reload).',
-			});
-		}
-		case 'ping':
-			return reply({});
-		case 'tools/list':
-			return reply({ tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
-		case 'tools/call':
-			return reply(await callTool(params, ip, origin));
-		default:
-			if (typeof method === 'string' && method.startsWith('notifications/')) return null;
-			return fail(-32601, `Method not found: ${method}`);
-	}
-}
+const rpc = createRpcHandler({ tools: TOOLS, execute: (name, args, { ip, origin }) => executeLoggedCommand(name, args, ip, origin) });
 
 async function handle(req, res) {
 	const url = new URL(req.url, 'http://localhost');
@@ -202,14 +167,11 @@ async function handle(req, res) {
 		return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
 	}
 
-	if (Array.isArray(body)) {
-		const results = (await Promise.all(body.map((m) => handleMessage(m, ip, origin)))).filter(Boolean);
-		return results.length ? send(res, 200, results) : send(res, 202);
-	}
-	const result = await handleMessage(body, ip, origin);
+	const result = await rpc.handlePayload(body, { ip, origin });
 	return result ? send(res, 200, result) : send(res, 202);
 }
 
+setBackend(fileBackend);
 await ensureDirs();
 http
 	.createServer(async (req, res) => {

@@ -1,4 +1,5 @@
-import { loadSnapshot, mutateProject, nowIso, ToolError, uuid } from '../lib/store.mjs';
+import { loadSnapshot, mutateProject } from '../lib/backend.mjs';
+import { nowIso, ToolError, uuid } from '../lib/core.mjs';
 import { cleanName } from '../lib/rules.mjs';
 import { normalizePropertyDefault, normalizePropertyType, assertCompatibleDefinition, assertUnreferenced } from '../../src/lib/domainIntegrity.js';
 import { defineTool, str, bool, arr, PROJECT } from './util.mjs';

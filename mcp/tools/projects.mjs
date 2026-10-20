@@ -1,4 +1,5 @@
-import { createProjectFile, listAllProjects, loadSnapshot, mutateProject, nowIso, ToolError, uuid } from '../lib/store.mjs';
+import { createProject, listAllProjects, loadSnapshot, mutateProject } from '../lib/backend.mjs';
+import { nowIso, ToolError, uuid } from '../lib/core.mjs';
 import { cleanName } from '../lib/rules.mjs';
 import { projectLocales, saveGraph, startNode, getDialogue, loadGraph, validateGraph, START_NODE_ID } from '../lib/graph.mjs';
 import { allocateDialogueLocalizationSlug, isValidLocaleTag, normalizeLocaleTag, normalizeProjectLocalizationConfig } from '../../src/lib/localization/stringTable.js';
@@ -83,7 +84,7 @@ export const projectTools = [
 				createdAt: now,
 				modifiedAt: now,
 			};
-			await createProjectFile({ version: 2, project, dialogues: [], participants: [], categories: [], decorators: [], conditions: [], localizedStrings: [], nodes: [], edges: [] });
+			await createProject({ version: 2, project, dialogues: [], participants: [], categories: [], decorators: [], conditions: [], localizedStrings: [], nodes: [], edges: [] });
 			return { projectId: project.id, name: project.name, ...localization };
 		}
 	),

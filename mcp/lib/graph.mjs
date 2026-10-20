@@ -1,7 +1,4 @@
 // Dialogue graph load/save/validate. Mirrors saveDialogueGraph / loadDialogueGraph in the app, but on a snapshot object.
-import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
 import {
 	DEFAULT_LOCALE,
 	allocateDialogueLocalizationSlug,
@@ -14,10 +11,11 @@ import {
 	validateLocalizedEntriesForDialogue,
 } from '../../src/lib/localization/stringTable.js';
 import { createConditionInstance, getConditionDefaultValues } from '../../src/config/edgeConditions.js';
-import { ToolError, uuid } from './store.mjs';
+import dialogueNodes from '../../src/config/dialogueNodes.json';
+import { ToolError, uuid } from './core.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-export const NODE_DEFS = JSON.parse(fs.readFileSync(path.join(here, '../../src/config/dialogueNodes.json'), 'utf8'));
+// Deep copy so tool code can never mutate the config module shared with the rest of a bundle.
+export const NODE_DEFS = structuredClone(dialogueNodes);
 export const START_NODE_ID = '00000000-0000-0000-0000-000000000001';
 export const CREATABLE_TYPES = Object.values(NODE_DEFS).filter((d) => d.creatable).map((d) => d.type);
 
