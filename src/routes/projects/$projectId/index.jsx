@@ -204,6 +204,7 @@ function ProjectDetailsPage() {
 		if (isMobile) return;
 
 		const handleKeyDown = (event) => {
+			if (event.defaultPrevented || event.altKey) return;
 			const target = event.target;
 			const isTyping =
 				target.tagName === 'INPUT' ||

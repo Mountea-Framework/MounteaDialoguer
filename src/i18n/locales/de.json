@@ -117,6 +117,7 @@
 		"deleteConfirm": "Möchten Sie dieses Projekt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
 	},
 	"dialogues": {
+		"deleteConfirm": "Dialog „{{name}}“ löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
 		"title": "Dialoge",
 		"createNew": "Neuen Dialog erstellen",
 		"createNewDescription": "Start from scratch or import",

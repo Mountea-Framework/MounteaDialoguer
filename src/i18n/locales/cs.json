@@ -120,6 +120,7 @@
 		"deleteConfirm": "Opravdu chceš smazat tento projekt? Tato akce nelze vzít zpět!"
 	},
 	"dialogues": {
+		"deleteConfirm": "Smazat dialog „{{name}}“? Tuto akci nelze vrátit zpět.",
 		"title": "Dialogy",
 		"createNew": "Vytvořit nový dialog",
 		"createDescription": "Vytvoření nového dialogu",

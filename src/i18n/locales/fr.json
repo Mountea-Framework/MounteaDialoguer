@@ -117,6 +117,7 @@
 		"deleteConfirm": "Voulez-vous vraiment supprimer ce projet ? Cette action est irréversible."
 	},
 	"dialogues": {
+		"deleteConfirm": "Supprimer le dialogue « {{name}} » ? Cette action est irréversible.",
 		"title": "Dialogues",
 		"createNew": "Créer un nouveau dialogue",
 		"createNewDescription": "Start from scratch or import",

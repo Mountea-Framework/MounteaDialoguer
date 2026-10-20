@@ -117,6 +117,7 @@
 		"deleteConfirm": "¿Estás seguro de que quieres eliminar este proyecto? Esta acción no se puede deshacer."
 	},
 	"dialogues": {
+		"deleteConfirm": "¿Eliminar el diálogo «{{name}}»? Esta acción no se puede deshacer.",
 		"title": "Diálogos",
 		"createNew": "Crear nuevo diálogo",
 		"createNewDescription": "Start from scratch or import",

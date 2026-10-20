@@ -147,6 +147,7 @@
 		"deleteConfirm": "Are you sure you want to delete this project? This action cannot be undone."
 	},
 	"dialogues": {
+		"deleteConfirm": "Delete \"{{name}}\"? This action cannot be undone.",
 		"title": "Dialogues",
 		"createNew": "Create New Dialogue",
 		"createDescription": "Start building conversations",

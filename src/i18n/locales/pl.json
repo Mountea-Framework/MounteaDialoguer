@@ -120,6 +120,7 @@
 		"deleteConfirm": "Czy na pewno chcesz usunąć ten projekt? Tej operacji nie można cofnąć."
 	},
 	"dialogues": {
+		"deleteConfirm": "Usunąć dialog „{{name}}”? Tej operacji nie można cofnąć.",
 		"title": "Dialogi",
 		"createNew": "Utwórz nowy dialog",
 		"createDescription": "Zacznij budować rozmowy",
