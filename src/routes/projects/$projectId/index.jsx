@@ -11,6 +11,7 @@ import { useCategoryStore } from '@/stores/categoryStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useConditionStore } from '@/stores/conditionStore';
 import { useSyncStore } from '@/stores/syncStore';
+import { useExternalChangeStore } from '@/stores/externalChangeStore';
 import { ProjectSidebar } from '@/components/projects/ProjectSidebar';
 import { CreateDialogueDialog } from '@/components/dialogues/CreateDialogueDialog';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,7 @@ function ProjectDetailsPage() {
 	const { decorators, loadDecorators } = useDecoratorStore();
 	const { conditions, loadConditions } = useConditionStore();
 	const { status: syncStatus, checkRemoteDiff, startPull, lastSyncedAt } = useSyncStore();
+	const externalChangeVersion = useExternalChangeStore((state) => state.version);
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [activeSection, setActiveSection] = useState(searchParams?.section || 'overview');
@@ -95,6 +97,19 @@ function ProjectDetailsPage() {
 		if (!lastSyncedAt) return;
 		loadData();
 	}, [lastSyncedAt, loadData]);
+
+	// Desktop CLI edits (src/lib/automation) land in the database directly; refresh without the loading state.
+	useEffect(() => {
+		if (!externalChangeVersion) return;
+		void Promise.all([
+			loadProjects(),
+			loadDialogues(),
+			loadParticipants(projectId),
+			loadCategories(projectId),
+			loadDecorators(projectId),
+			loadConditions(projectId),
+		]);
+	}, [externalChangeVersion, loadProjects, loadDialogues, loadParticipants, loadCategories, loadDecorators, loadConditions, projectId]);
 
 	useEffect(() => {
 		const runSyncCheck = async () => {

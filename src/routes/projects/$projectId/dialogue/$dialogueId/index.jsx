@@ -65,6 +65,7 @@ import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useConditionStore } from '@/stores/conditionStore';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { externalChangesSince, useExternalChangeStore } from '@/stores/externalChangeStore';
 import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -527,6 +528,43 @@ function DialogueEditorPage() {
 			graphLoadKeyRef.current = '';
 		};
 	}, [dialogueId, loadDialogueGraph, resetDraft, reactFlowInstance, contentLocale, t]);
+
+	// Desktop CLI edits (src/lib/automation) land in the database directly. Reload what this editor shows; an
+	// unsaved draft is never replaced without asking.
+	const externalChangeVersion = useExternalChangeStore((state) => state.version);
+	const externalChangeSeenRef = useRef(externalChangeVersion);
+	const reloadGraphAfterExternalChange = useCallback(async () => {
+		try {
+			const result = await loadDialogueGraph(dialogueId, { activeLocale: contentLocale });
+			hasPendingNodeDataEditsRef.current = false;
+			resetDraft(result.nodes.length ? result.nodes : getInitialNodes(t), result.edges);
+		} catch (error) {
+			console.error('Failed to reload dialogue graph:', error);
+		}
+	}, [dialogueId, contentLocale, loadDialogueGraph, resetDraft, t]);
+	useEffect(() => {
+		if (externalChangeVersion === externalChangeSeenRef.current) return;
+		const changes = externalChangesSince(externalChangeSeenRef.current, projectId);
+		externalChangeSeenRef.current = externalChangeVersion;
+		if (!changes.length) return;
+		loadProjects();
+		loadDialogues(projectId);
+		loadParticipants(projectId);
+		loadDecorators(projectId);
+		loadConditions(projectId);
+		loadCategories(projectId);
+		if (!changes.some((change) => change.dialogueIds.includes(dialogueId))) return;
+		if (!hasUnsavedChanges) {
+			void reloadGraphAfterExternalChange();
+			return;
+		}
+		toast({
+			title: t('automation.externalChange.title'),
+			description: t('automation.externalChange.unsaved'),
+			action: { label: t('automation.externalChange.reload'), onClick: () => { void reloadGraphAfterExternalChange(); } },
+			duration: 15000,
+		});
+	}, [externalChangeVersion, projectId, dialogueId, hasUnsavedChanges, reloadGraphAfterExternalChange, loadProjects, loadDialogues, loadParticipants, loadDecorators, loadConditions, loadCategories, t]);
 
 	const isMobileGraphLoading =
 		deviceType !== 'desktop' &&

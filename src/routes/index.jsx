@@ -53,6 +53,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { isMobileDevice } from "@/lib/deviceDetection";
 import { isDesktopElectronRuntime } from "@/lib/electronRuntime";
 import { useSyncStore } from "@/stores/syncStore";
+import { useExternalChangeStore } from "@/stores/externalChangeStore";
 import { toast } from "@/components/ui/toaster";
 import { ONBOARDING_TEMPLATE_ERROR_CODES } from "@/lib/onboarding/templateLoader";
 
@@ -503,6 +504,7 @@ function ProjectsDashboard() {
     useProjectStore();
   const { dialogues, loadDialogues } = useDialogueStore();
   const { lastSyncedAt } = useSyncStore();
+  const externalChangeVersion = useExternalChangeStore((state) => state.version);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingExampleProject, setIsCreatingExampleProject] = useState(false);
@@ -546,6 +548,13 @@ function ProjectsDashboard() {
     loadProjects();
     loadDialogues();
   }, [lastSyncedAt, loadProjects, loadDialogues]);
+
+  // Desktop CLI edits (src/lib/automation) land in the database directly.
+  useEffect(() => {
+    if (!externalChangeVersion) return;
+    loadProjects();
+    loadDialogues();
+  }, [externalChangeVersion, loadProjects, loadDialogues]);
 
   useEffect(() => {
     const loadDiskUsage = async () => {
