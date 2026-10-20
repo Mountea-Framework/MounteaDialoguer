@@ -574,6 +574,11 @@
 		"selectRevision": "Version concurrente",
 		"revision": "Révision {{id}}",
 		"deleted": "Projet supprimé",
-		"resolveError": "Impossible de résoudre ce conflit."
+		"resolveError": "Impossible de résoudre ce conflit.",
+		"thisBrowser": "Ce navigateur",
+		"otherVersion": "Serveur / autre appareil",
+		"dialogues": "dialogues",
+		"nodes": "nœuds",
+		"hint": "Gardez la version la plus récente et la plus complète. « Garder les deux » crée une copie séparée que vous devrez supprimer vous-même."
 	}
 }

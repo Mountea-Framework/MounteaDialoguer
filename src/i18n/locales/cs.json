@@ -606,6 +606,11 @@
 		"selectRevision": "Konfliktní verze",
 		"revision": "Revize {{id}}",
 		"deleted": "Smazaný projekt",
-		"resolveError": "Tento konflikt se nepodařilo vyřešit."
+		"resolveError": "Tento konflikt se nepodařilo vyřešit.",
+		"thisBrowser": "Tento prohlížeč",
+		"otherVersion": "Server / jiné zařízení",
+		"dialogues": "dialogů",
+		"nodes": "uzlů",
+		"hint": "Ponechte verzi s pozdějším datem a větším obsahem. „Ponechat oba“ vytvoří samostatnou kopii, kterou musíte smazat sami."
 	}
 }

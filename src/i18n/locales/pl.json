@@ -606,6 +606,11 @@
 		"selectRevision": "Konfliktowa wersja",
 		"revision": "Wersja {{id}}",
 		"deleted": "Usunięty projekt",
-		"resolveError": "Nie udało się rozwiązać tego konfliktu."
+		"resolveError": "Nie udało się rozwiązać tego konfliktu.",
+		"thisBrowser": "Ta przeglądarka",
+		"otherVersion": "Serwer / inne urządzenie",
+		"dialogues": "dialogi",
+		"nodes": "węzły",
+		"hint": "Zachowaj wersję z późniejszą datą i większą zawartością. „Zachowaj oba” tworzy osobną kopię, którą musisz usunąć samodzielnie."
 	}
 }

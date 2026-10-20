@@ -574,6 +574,11 @@
 		"selectRevision": "Versión en conflicto",
 		"revision": "Revisión {{id}}",
 		"deleted": "Proyecto eliminado",
-		"resolveError": "No se pudo resolver este conflicto."
+		"resolveError": "No se pudo resolver este conflicto.",
+		"thisBrowser": "Este navegador",
+		"otherVersion": "Servidor / otro dispositivo",
+		"dialogues": "diálogos",
+		"nodes": "nodos",
+		"hint": "Conserva la versión con la fecha más reciente y más contenido. «Mantener ambos» crea una copia aparte que tendrás que eliminar tú."
 	}
 }

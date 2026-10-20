@@ -253,6 +253,26 @@ test('ISS-015 globally mounted conflict controls resolve locally deleted project
  expect(result).toEqual({ name: 'Remote surviving edit', conflicts: 0 });
 });
 
+test('conflict panel says which side is this browser and shows date and size of each version', async ({ page }) => {
+ await setup(page);
+ await page.evaluate(async () => {
+  const { a, b, create, edit } = window.rig;
+  await create(); await a.run(); await b.run('pull');
+  await edit(a, 'Local edit'); await edit(b, 'Remote edit'); await b.run(); await a.run();
+  await import('/src/i18n/index.js');
+  const { default: React } = await import('/node_modules/.vite/deps/react.js');
+  const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
+  const { SyncConflictPanel } = await import('/src/components/sync/SyncConflictPanel.jsx');
+  const mount = document.createElement('div'); document.body.appendChild(mount); createRoot(mount).render(React.createElement(SyncConflictPanel));
+ });
+ const summary = page.getByTestId('conflict-summary');
+ await expect(summary).toBeVisible();
+ await expect(summary.locator('li')).toHaveCount(2);
+ await expect(summary.locator('li', { hasText: 'This browser' })).toHaveCount(1);
+ await expect(summary.locator('li', { hasText: 'Server / other device' })).toHaveCount(1);
+ await expect(summary).toContainText(/\d+ dialogues · \d+ nodes/);
+});
+
 test('ISS-015 stale conflict choices cannot replace a newer local edit', async ({ page }) => {
  await setup(page);
  const result = await page.evaluate(async () => {
