@@ -268,10 +268,11 @@ describe('authoring a dialogue', () => {
 
 		const link = await tool('export_dialogue', { projectId, dialogueId });
 		expect(link.downloadUrl).toContain(`/export/${TOKEN}/`);
+		expect(new URL(link.downloadUrl).origin).toBe(new URL(base).origin);
 		const download = await fetch(link.downloadUrl.replace(/^https?:\/\/[^/]+/, base));
 		expect(download.status).toBe(200);
 		expect(Buffer.from(await download.arrayBuffer()).subarray(0, 2).toString()).toBe('PK');
-		expect((await fetch(`${base}/export/wrong/${link.fileName}`)).status).toBe(401);
+		expect((await fetch(new URL(`/export/wrong/${link.fileName}`, base))).status).toBe(401);
 	});
 
 	it('supports row timing and rejects invalid values', async () => {
