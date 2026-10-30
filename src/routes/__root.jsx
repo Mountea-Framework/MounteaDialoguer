@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { SettingsCommandDialog } from '@/components/ui/SettingsCommandDialog';
 import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
+import { SyncServerAuthDialog } from '@/components/sync/SyncServerAuthDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { SyncConflictPanel } from '@/components/sync/SyncConflictPanel';
 import { RecoverySummary } from '@/components/projects/RecoverySummary';
@@ -98,7 +99,11 @@ function RootComponent() {
 		setHideLoginPrompt,
 		loginDialogOpen,
 		setLoginDialogOpen,
+		error: syncError,
+		clearError,
 	} = useSyncStore();
+	const [authDialogOpen, setAuthDialogOpen] = useState(false);
+	useEffect(() => { if (syncError === 'authRequired') setAuthDialogOpen(true); }, [syncError]);
 	const activeProviderPassphrase = provider
 		? String(providerInputs?.[provider]?.passphrase || '')
 		: '';
@@ -788,6 +793,11 @@ function RootComponent() {
 						showPromptControls
 						hideLoginPrompt={hideLoginPrompt}
 						onHideLoginPromptChange={setHideLoginPrompt}
+					/>
+					<SyncServerAuthDialog
+						open={authDialogOpen}
+						onOpenChange={setAuthDialogOpen}
+						onAuthenticated={() => { clearError(); void syncAllProjects({ mode: 'full', trigger: 'manual' }); }}
 					/>
 					<SyncPullDialog />
 					<SyncConflictPanel />

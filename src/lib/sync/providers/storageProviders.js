@@ -48,14 +48,38 @@ const steamStorageProvider = Object.freeze({
 
 const API = `${import.meta.env.BASE_URL || '/'}api/sync`.replace(/\/{2,}/g, '/');
 
+const AUTH_API = API.replace(/sync$/, 'auth');
+const AUTH_CODES = ['AUTH_REQUIRED', 'SETUP_REQUIRED'];
+
 async function request(path, options = {}) {
-	const response = await fetch(`${API}${path}`, options);
+	if (!path.startsWith('/files')) throw Object.assign(new Error('Invalid sync path'), { code: 'INVALID_PATH' });
+	const response = await fetch(`${API}${path}`, { ...options, credentials: 'same-origin' });
+	if (response.status === 401) {
+		const body = await response.json().catch(() => null);
+		if (AUTH_CODES.includes(body?.code)) throw Object.assign(new Error(body.error || 'Sync sign-in required'), { code: body.code, status: 401 });
+	}
 	if (response.status === 404) return null;
 	if (!response.ok) {
 		throw Object.assign(new Error(`Server ${response.status} on ${path}`), { code: 'SERVER_ERROR', status: response.status });
 	}
 	return response;
 }
+
+async function authCall(path, body) {
+	const response = await fetch(`${AUTH_API}${path}`, {
+		method: body === undefined ? 'GET' : 'POST',
+		credentials: 'same-origin',
+		...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+	});
+	const data = await response.json().catch(() => null);
+	if (!response.ok) throw Object.assign(new Error(data?.error || `Server ${response.status}`), { code: data?.code || 'SERVER_ERROR', status: response.status });
+	return data;
+}
+
+export const getSyncAuthStatus = () => authCall('/status');
+export const setupSyncServer = ({ code, password }) => authCall('/setup', { code, password });
+export const loginSyncServer = ({ password }) => authCall('/login', { password });
+export const logoutSyncServer = () => authCall('/logout', {});
 
 // Revision and deletion files are immutable and content-addressed, so a downloaded file never has to be fetched twice.
 const downloadCache = new Map();
@@ -102,7 +126,7 @@ const serverStorageProvider = Object.freeze({
 		return response.json();
 	},
 	deleteFile: async (fileId) => {
-		await request(`/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
+		await request(`/files/${encodeURIComponent(fileId)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
 		downloadCache.delete(fileId);
 	},
 });
