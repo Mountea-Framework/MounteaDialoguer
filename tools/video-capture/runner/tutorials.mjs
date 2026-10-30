@@ -5,7 +5,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { loadScenario } from './cli.mjs';
 import { captureScenario, repoRoot, toolRoot } from './capture.mjs';
 import { buildProject } from '../compose/build.mjs';
@@ -24,6 +24,7 @@ export function parseTutorialArgs(argv) {
 		else throw new Error(`Unknown argument "${arg}"`);
 	}
 	if (args.only && !CHAPTERS.includes(args.only)) throw new Error(`Unknown chapter "${args.only}". Chapters: ${CHAPTERS.join(', ')}`);
+	if (args.lang && !/^[a-z]{2}(-[A-Z]{2})?$/.test(args.lang)) throw new Error(`Invalid --lang "${args.lang}"`);
 	if (args.updateFixtures && args.only) throw new Error('--update-fixtures needs the whole chain; drop --only');
 	return args;
 }

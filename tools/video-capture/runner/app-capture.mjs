@@ -1,5 +1,4 @@
 // Captures an `app` beat: a scripted walk through the real app, one screenshot per fake-clock frame.
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { advance, settle } from './app-session.mjs';
 import { escapeRegExp } from '../shared/escapeRegExp.js';
@@ -104,7 +103,7 @@ function locatorFor(page, target, bundle) {
 	return locator.filter({ visible: true }).nth(target.nth ?? 0);
 }
 
-export async function captureAppBeat(session, scenario, scene, view, beat, index, tmpDir, { strings, saveState = null }) {
+export async function captureAppBeat(session, scenario, scene, view, beat, index, tmpDir, { strings }) {
 	const { page } = session;
 	const fps = scenario.fps;
 	const frameMs = 1000 / fps;
@@ -177,7 +176,6 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 		const step = beat.steps[i];
 		const cue = { id: step.id || `s${i + 1}`, kind: step.do, start: count / fps };
 		let rect = null;
-		const target = step.target || step.from;
 		let locator = null;
 
 		if (step.do === 'hold') {
@@ -185,14 +183,14 @@ export async function captureAppBeat(session, scenario, scene, view, beat, index
 		} else if (step.do === 'wait') {
 			({ rect } = await find(step.target));
 		} else if (step.do === 'move' || step.do === 'click') {
-			({ rect, locator } = await find(step.target));
+			({ rect } = await find(step.target));
 			const to = centerOf(rect, step.target);
 			await travel(to, step);
 			cue.at = count / fps;
 			if (step.do === 'click') await clickAt(to.x, to.y);
 		} else if (step.do === 'type') {
 			if (step.target) {
-				({ rect, locator } = await find(step.target));
+				({ rect } = await find(step.target));
 				const to = centerOf(rect, step.target);
 				await travel(to, step);
 				await clickAt(to.x, to.y);
