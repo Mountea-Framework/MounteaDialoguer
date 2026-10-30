@@ -203,6 +203,10 @@ async function waitUntilReady(endpoint, options) {
 async function connect(options) {
 	if (options['--url']) {
 		if (!options['--token']) throw new CliError('--url needs --token', EXIT.usage);
+		let url;
+		try { url = new URL(options['--url']); } catch { throw new CliError('--url is not a valid URL', EXIT.usage); }
+		const loopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname);
+		if (url.protocol !== 'https:' && !(loopback && url.protocol === 'http:')) throw new CliError('--url must use https (http is allowed for localhost only)', EXIT.usage);
 		return { url: options['--url'], token: options['--token'], remote: true };
 	}
 	const found = await discover(options);
