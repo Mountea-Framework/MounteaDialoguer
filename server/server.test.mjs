@@ -4,7 +4,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
 
-let root, base, child, storage;
+let root, base, child, storage, cookie;
+const authFetch = (url, init = {}) => fetch(url, { ...init, headers: { ...init.headers, Cookie: cookie } });
 beforeAll(async () => {
 	root = await fs.mkdtemp(path.join(os.tmpdir(), 'dialoguer-http-'));
 	const dist = path.join(root, 'dist');
@@ -17,12 +18,21 @@ beforeAll(async () => {
 	storage = await import('./storage.mjs');
 	await storage.ensureDirs();
 	child = spawn(process.execPath, ['server/index.mjs'], { env: { ...process.env, PORT: '0', DIST_DIR: dist }, stdio: ['ignore', 'pipe', 'pipe'] });
+	let setupCode;
 	base = await new Promise((resolve, reject) => {
 		const timer = setTimeout(() => reject(new Error('HTTP server startup timed out')), 10000);
 		child.once('error', reject);
 		child.once('exit', (code) => { clearTimeout(timer); reject(new Error(`HTTP server exited: ${code}`)); });
-		child.stdout.on('data', (data) => { const match = data.toString().match(/on :(\d+)/); if (match) { clearTimeout(timer); resolve(`http://127.0.0.1:${match[1]}`); } });
+		let output = '';
+		child.stdout.on('data', (data) => {
+			output += data.toString();
+			const port = output.match(/on :(\d+)/), code = output.match(/Sync setup code: ([A-Z0-9]{4}-[A-Z0-9]{4})\./);
+			if (port && code) { clearTimeout(timer); setupCode = code[1]; resolve(`http://127.0.0.1:${port[1]}`); }
+		});
 	});
+	// First-run setup with the code the server printed to its log; the cookie authenticates later requests.
+	const setup = await fetch(`${base}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: setupCode, password: 'test-password' }) });
+	cookie = setup.headers.get('set-cookie').split(';')[0];
 });
 afterAll(async () => {
 	if (child && child.exitCode === null) { const exited = new Promise((resolve) => child.once('exit', resolve)); child.kill(); await exited; }
@@ -55,10 +65,10 @@ describe('static root boundary', () => {
 describe('file mutation contract', () => {
 	const json = (method, value) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
 	it.each(['mountea-revision-v2--test.json', 'mountea-deletion-v2--test.json'])('preserves immutable bytes for %s', async (name) => {
-		expect((await fetch(`${base}/api/sync/files`, json('POST', { name, content: 'original' }))).status).toBe(201);
-		expect((await fetch(`${base}/api/sync/files`, json('POST', { name, content: 'duplicate' }))).status).toBe(409);
+		expect((await authFetch(`${base}/api/sync/files`, json('POST', { name, content: 'original' }))).status).toBe(201);
+		expect((await authFetch(`${base}/api/sync/files`, json('POST', { name, content: 'duplicate' }))).status).toBe(409);
 		for (const method of ['PUT', 'DELETE']) {
-			const res = await fetch(`${base}/api/sync/files/${name}`, method === 'PUT' ? json(method, { content: 'replacement' }) : { method });
+			const res = await authFetch(`${base}/api/sync/files/${name}`, method === 'PUT' ? json(method, { content: 'replacement' }) : json(method, {}));
 			expect(res.status).toBe(409); expect((await res.json()).code).toBe('IMMUTABLE_FILE');
 		}
 		await expect(storage.updateFile(name, 'replacement')).rejects.toMatchObject({ code: 'IMMUTABLE_FILE' });
@@ -67,10 +77,10 @@ describe('file mutation contract', () => {
 	});
 	it('retains mutable file PUT and DELETE', async () => {
 		const name = 'mountea-settings.json';
-		expect((await fetch(`${base}/api/sync/files`, json('POST', { name, content: 'one' }))).status).toBe(201);
-		expect((await fetch(`${base}/api/sync/files/${name}`, json('PUT', { content: 'two' }))).status).toBe(200);
+		expect((await authFetch(`${base}/api/sync/files`, json('POST', { name, content: 'one' }))).status).toBe(201);
+		expect((await authFetch(`${base}/api/sync/files/${name}`, json('PUT', { content: 'two' }))).status).toBe(200);
 		expect(await storage.readFileText(name)).toBe('two');
-		expect((await fetch(`${base}/api/sync/files/${name}`, { method: 'DELETE' })).status).toBe(200);
+		expect((await authFetch(`${base}/api/sync/files/${name}`, json('DELETE', {}))).status).toBe(200);
 		expect(await storage.readFileText(name)).toBeNull();
 	});
 	it('publishes one winner under concurrent creates without temporary collisions', async () => {

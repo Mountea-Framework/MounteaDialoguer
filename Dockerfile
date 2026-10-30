@@ -12,7 +12,7 @@ RUN npm run build
 
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production PORT=8080 DATA_DIR=/data DIST_DIR=/app/dist
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/data DIST_DIR=/app/dist
 COPY --from=build /app/dist ./dist
 COPY server ./server
 # MCP server (own process/port) and the few pure modules of the web app it reuses (loaded through mcp/register.mjs).

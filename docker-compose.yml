@@ -10,7 +10,7 @@ services:
       - ./data:/data
 
   # MCP server: lets Claude edit projects. Own port and hostname, own auth (MCP_TOKEN).
-  # Put the app (8080) behind Cloudflare Access; publish this one (8081) on a separate hostname without Access.
+  # The app (8080) has its own password; Cloudflare Access is optional extra protection. Publish this one (8081) on a separate hostname without Access.
   mcp:
     image: mountea-dialoguer:latest
     container_name: mountea-dialoguer-mcp

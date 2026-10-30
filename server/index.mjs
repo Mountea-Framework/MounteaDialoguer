@@ -1,5 +1,5 @@
 // Mountea Dialoguer server: serves the built web app and is the file store for its revision sync.
-// No dependencies. Auth is expected to be handled in front (e.g. Cloudflare Access).
+// No dependencies. /api/sync/* requires a session cookie from /api/auth/* (see auth.mjs); the static app and /api/health stay open.
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -14,9 +14,11 @@ import {
 	readFileText,
 	updateFile,
 } from './storage.mjs';
+import { announceSetupCode, initAuth, isAuthenticated, isConfigured, login, logout, setup } from './auth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8080);
+const HOST = process.env.HOST || '127.0.0.1';
 const DIST_DIR = path.resolve(process.env.DIST_DIR || path.join(__dirname, '..', 'dist'));
 const MAX_BODY = Number(process.env.MAX_BODY_MB || 100) * 1024 * 1024;
 
@@ -43,7 +45,7 @@ async function readBody(req) {
 	let size = 0;
 	for await (const chunk of req) {
 		size += chunk.length;
-		if (size > MAX_BODY) throw Object.assign(new Error('Payload too large'), { status: 413 });
+		if (size > MAX_BODY) throw Object.assign(new Error('Payload too large'), { status: 413, code: 'PAYLOAD_TOO_LARGE' });
 		chunks.push(chunk);
 	}
 	return Buffer.concat(chunks).toString('utf8');
@@ -60,6 +62,18 @@ function send(res, status, body, headers = {}) {
 	res.end(payload);
 }
 
+async function handleAuth(req, res, action) {
+	if (req.method === 'GET' && action === 'status') return send(res, 200, { configured: isConfigured(), authenticated: isAuthenticated(req) });
+	if (req.method !== 'POST' || !['setup', 'login', 'logout'].includes(action)) return send(res, 404, { error: 'Not found', code: 'NOT_FOUND' });
+	let body = {};
+	if (action !== 'logout') {
+		try { body = JSON.parse(await readBody(req)) ?? {}; } catch (error) { if (error.status) throw error; } // bad JSON falls through as a failed attempt
+	}
+	const address = req.socket.remoteAddress;
+	const result = action === 'setup' ? await setup(address, body.code, body.password) : action === 'login' ? await login(address, body.password) : logout(req);
+	return send(res, result.status, result.body, result.cookie ? { 'Set-Cookie': result.cookie } : {});
+}
+
 // File store behind the web app's sync protocol (src/lib/sync/providers/storageProviders.js).
 //   GET    /api/sync/files?prefix=&name=   list files        -> { files: [{ id, name }] }
 //   GET    /api/sync/files/:name           file content (text)
@@ -68,8 +82,15 @@ function send(res, status, body, headers = {}) {
 //   DELETE /api/sync/files/:name
 async function handleApi(req, res, url) {
 	const parts = url.pathname.split('/').filter(Boolean); // ['api','sync','files',':name']
+	if (['POST', 'PUT', 'DELETE'].includes(req.method) && !/^application\/json\b/i.test(req.headers['content-type'] || '')) {
+		return send(res, 415, { error: 'Content-Type must be application/json', code: 'UNSUPPORTED_MEDIA_TYPE' });
+	}
 	if (parts[1] === 'health') return send(res, 200, { ok: true });
-	if (parts[1] !== 'sync' || parts[2] !== 'files') return send(res, 404, { error: 'Not found' });
+	if (parts[1] === 'auth') return handleAuth(req, res, parts[2]);
+	if (parts[1] !== 'sync' || parts[2] !== 'files') return send(res, 404, { error: 'Not found', code: 'NOT_FOUND' });
+
+	if (!isConfigured()) return send(res, 401, { error: 'Setup required', code: 'SETUP_REQUIRED' });
+	if (!isAuthenticated(req)) return send(res, 401, { error: 'Unauthorized', code: 'AUTH_REQUIRED' });
 
 	const name = parts[3] ? decodeURIComponent(parts[3]) : '';
 
@@ -82,20 +103,20 @@ async function handleApi(req, res, url) {
 		try {
 			body = JSON.parse(await readBody(req));
 		} catch {
-			return send(res, 400, { error: 'Invalid JSON' });
+			return send(res, 400, { error: 'Invalid JSON', code: 'INVALID_JSON' });
 		}
-		if (typeof body?.name !== 'string' || typeof body?.content !== 'string') return send(res, 400, { error: 'name and content are required' });
+		if (typeof body?.name !== 'string' || typeof body?.content !== 'string') return send(res, 400, { error: 'name and content are required', code: 'INVALID_BODY' });
 		try {
 			return send(res, 201, await createFile(body.name, body.content));
 		} catch (error) {
-			if (error instanceof FileExistsError) return send(res, 409, { error: error.message });
+			if (error instanceof FileExistsError) return send(res, 409, { error: error.message, code: 'FILE_EXISTS' });
 			throw error;
 		}
 	}
 
 	if (name && req.method === 'GET') {
 		const text = await readFileText(name);
-		return text === null ? send(res, 404, { error: 'Not found' }) : send(res, 200, text, { 'Content-Type': 'application/json; charset=utf-8' });
+		return text === null ? send(res, 404, { error: 'Not found', code: 'NOT_FOUND' }) : send(res, 200, text, { 'Content-Type': 'application/json; charset=utf-8' });
 	}
 
 	if (name && req.method === 'PUT') {
@@ -103,9 +124,9 @@ async function handleApi(req, res, url) {
 		try {
 			body = JSON.parse(await readBody(req));
 		} catch {
-			return send(res, 400, { error: 'Invalid JSON' });
+			return send(res, 400, { error: 'Invalid JSON', code: 'INVALID_JSON' });
 		}
-		if (typeof body?.content !== 'string') return send(res, 400, { error: 'content is required' });
+		if (typeof body?.content !== 'string') return send(res, 400, { error: 'content is required', code: 'INVALID_BODY' });
 		return send(res, 200, await updateFile(name, body.content));
 	}
 
@@ -114,7 +135,7 @@ async function handleApi(req, res, url) {
 		return send(res, 200, { ok: true });
 	}
 
-	return send(res, 405, { error: 'Method not allowed' });
+	return send(res, 405, { error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
 }
 
 async function serveStatic(req, res, url) {
@@ -164,6 +185,7 @@ async function serveStatic(req, res, url) {
 }
 
 await ensureDirs();
+await initAuth();
 
 http
 	.createServer(async (req, res) => {
@@ -174,9 +196,10 @@ http
 			return await serveStatic(req, res, url);
 		} catch (error) {
 			console.error('[server]', error);
-			send(res, error.status || 500, { error: error.message || 'Server error', ...(error.code ? { code: error.code } : {}) });
+			send(res, error.status || 500, { error: error.message || 'Server error', code: error.code || (error.status ? 'REQUEST_FAILED' : 'SERVER_ERROR') });
 		}
 	})
-	.listen(PORT, function () {
+	.listen(PORT, HOST, function () {
 		console.log(`Mountea Dialoguer on :${this.address().port}  data=${DATA_DIR}  dist=${DIST_DIR}`);
+		announceSetupCode();
 	});
