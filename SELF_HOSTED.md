@@ -2,7 +2,7 @@
 
 An optional way to run Mountea Dialoguer as a web app on your own machine (a server, a Raspberry Pi, a NAS) and use it from every device. It adds three things and changes nothing for the desktop app or the Google Drive and Steam providers:
 
-- **`server/`**: a dependency-free Node server. It serves the built web app and is the file store behind a new `server` sync provider (`src/lib/sync/providers/`). The provider speaks the same immutable-revision protocol as the other providers, in plain text and without a login.
+- **`server/`**: a dependency-free Node server. It serves the built web app and is the file store behind a new `server` sync provider (`src/lib/sync/providers/`). The provider speaks the same immutable-revision protocol as the other providers, in plain text, behind a sync password.
 - **`mcp/`**: a dependency-free MCP server (Streamable HTTP) that lets an LLM author projects through the same revision store. A Claude skill that teaches the workflow is in `.claude/skills/mountea-dialoguer/`.
 - **`Dockerfile` and `docker-compose.yml`** to run both.
 
@@ -21,7 +21,18 @@ VITE_SYNC_SERVER=true npm run build
 npm start                         # PORT (default 8080), DATA_DIR (default ./data), DIST_DIR
 ```
 
-How the app behaves in this edition: it connects to the server at start (there is nothing to log in to), pulls what other devices or the MCP server added before the first paint, pushes every change a moment after it is committed, and polls every 30 seconds. Competing edits of one project end up in the existing conflict panel.
+How the app behaves in this edition: it connects to the server at start (after the first-start setup, it asks for your sync password), pulls what other devices or the MCP server added before the first paint, pushes every change a moment after it is committed, and polls every 30 seconds. Competing edits of one project end up in the existing conflict panel.
+
+## First start
+
+1. Start the app: `docker compose up -d`.
+2. Find the setup code: `docker compose logs dialoguer`. Read the line that starts with "Sync setup code".
+3. Open http://localhost:8080, enter the setup code, and choose a sync password (at least 8 characters).
+4. On later visits, enter your sync password to log in.
+5. Forgot the password? Run `docker compose stop`, delete `sync-auth.json` in the `data` folder next to `docker-compose.yml`, and start again to get a new setup code.
+6. Logins end when the server restarts, so you may need to log in again.
+
+- The server binds `127.0.0.1` by default; the Docker image sets `HOST=0.0.0.0`.
 
 ## MCP server
 
