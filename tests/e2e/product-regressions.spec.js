@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import AxeBuilder from '@axe-core/playwright';
 import { openModuleHarness } from './helpers/moduleHarness';
-import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue } from './helpers/appHarness';
+import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue, analyzeAccessibility } from './helpers/appHarness';
 import { resolveReleaseIdentity } from '../../scripts/product-build.mjs';
 
 test('release identity distinguishes CI, local dirty and explicit builds', () => {
@@ -160,7 +160,7 @@ test('archive import supports keyboard selection, localized failure and focus re
 	await expect(dialog.getByRole('alert')).toContainText('128 MiB');
 	await expect(dialog.getByRole('alert')).toContainText('media/oversized.wav');
 	await expect(dialog.getByRole('alert')).not.toContainText('Injected raw English');
-	const scan = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
 	await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible();
 	await expect(page.getByRole('button', { name: 'Open import' })).toBeFocused();
@@ -178,7 +178,7 @@ test('graph keyboard actions expose names and preserve editing shortcuts', async
 	await page.keyboard.press('Control+s');
 	// Let celebration canvases finish so axe can determine the actual background.
 	await expect(page.locator('body > canvas')).toHaveCount(0);
-	const scan = await new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
 });
 
@@ -205,7 +205,7 @@ for (const theme of ['light', 'dark']) {
 					await expect(attribution).toHaveCSS('outline-style', 'solid');
 				}
 				if (state !== 'normal') await expect(attribution).toHaveCSS('text-decoration-line', 'underline');
-				const scan = await new AxeBuilder({ page }).include(selector).withRules(['color-contrast']).analyze();
+				const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include(selector).withRules(['color-contrast']));
 				expect(scan.violations).toEqual([]);
 				// Measure the rendered colors too: axe may mark transparent overlays as incomplete.
 				const contrast = await attribution.evaluate((link) => {
@@ -231,15 +231,17 @@ test('mobile graph keyboard flow opens a named node drawer, returns focus and cr
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.evaluate(() => window.postMessage({ type: 'mountea:device', value: 'mobile' }, location.origin));
 	const add = page.getByRole('button', { name: 'Add Node', exact: true });
-	await expect(add).toBeVisible(); await add.focus(); await page.keyboard.press('Enter');
+	await page.bringToFront();
+	await add.click({ trial: true });
+	await add.press('Enter');
 	const dialog = page.getByRole('dialog'); await expect(dialog).toBeVisible();
 	await expect(dialog).toHaveAccessibleName('Select node type');
-	const scan = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
-	await dialog.getByRole('button', { name: 'Cancel', exact: true }).focus(); await page.keyboard.press('Enter');
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(add).toBeFocused();
 	await page.keyboard.press('Enter'); await expect(dialog).toBeVisible();
-	await dialog.getByRole('button', { name: /^Delay/ }).focus(); await page.keyboard.press('Enter');
+	await dialog.getByRole('button', { name: /^Delay/ }).press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

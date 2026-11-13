@@ -1,5 +1,15 @@
 import { expect } from '@playwright/test';
 
+// Axe creates a temporary results tab. Closing it does not consistently restore
+// the app's browser focus on every platform, even if its DOM focus is unchanged.
+export async function analyzeAccessibility(page, builder) {
+	try {
+		return await builder.analyze();
+	} finally {
+		await page.bringToFront();
+	}
+}
+
 export function uniqueToken(prefix = 'e2e') {
 	const timestamp = Date.now().toString(36);
 	const random = Math.random().toString(36).slice(2, 7);

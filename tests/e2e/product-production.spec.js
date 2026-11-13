@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue } from './helpers/appHarness';
+import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue, analyzeAccessibility } from './helpers/appHarness';
 
 test('graph keyboard actions expose names and preserve editing shortcuts', async ({ page }) => {
 	await page.addInitScript(() => localStorage.setItem('mountea-dialoguer-theme', 'light'));
@@ -14,7 +14,7 @@ test('graph keyboard actions expose names and preserve editing shortcuts', async
 	await page.keyboard.press('Control+s');
 	// Let celebration canvases finish so axe can determine the actual background.
 	await expect(page.locator('body > canvas')).toHaveCount(0, { timeout: 15000 });
-	const scan = await new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
 });
 
@@ -41,7 +41,7 @@ for (const theme of ['light', 'dark']) {
 					await expect(attribution).toHaveCSS('outline-style', 'solid');
 				}
 				if (state !== 'normal') await expect(attribution).toHaveCSS('text-decoration-line', 'underline');
-				const scan = await new AxeBuilder({ page }).include(selector).withRules(['color-contrast']).analyze();
+				const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include(selector).withRules(['color-contrast']));
 				expect(scan.violations).toEqual([]);
 				// Measure the rendered colors too: axe may mark transparent overlays as incomplete.
 				const contrast = await attribution.evaluate((link) => {
@@ -81,15 +81,17 @@ test('graph survives desktop/mobile transitions and mobile keyboard flow returns
 			expect(pageErrors).toEqual([]);
 		});
 	}
-	await expect(add).toBeVisible(); await add.focus(); await page.keyboard.press('Enter');
+	await page.bringToFront();
+	await add.click({ trial: true });
+	await add.press('Enter');
 	const dialog = page.getByRole('dialog'); await expect(dialog).toBeVisible();
 	await expect(dialog).toHaveAccessibleName('Select node type');
-	const scan = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
-	await dialog.getByRole('button', { name: 'Cancel', exact: true }).focus(); await page.keyboard.press('Enter');
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(add).toBeFocused();
 	await page.keyboard.press('Enter'); await expect(dialog).toBeVisible();
-	await dialog.getByRole('button', { name: /^Delay/ }).focus(); await page.keyboard.press('Enter');
+	await dialog.getByRole('button', { name: /^Delay/ }).press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	expect(pageErrors).toEqual([]);
