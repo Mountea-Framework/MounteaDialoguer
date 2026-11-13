@@ -73,7 +73,7 @@
 				]
 			},
 			{
-				"from": "electron/userDataPaths.cjs",
+				"from": "tmp/cli-resources/userDataPaths.cjs",
 				"to": "cli/userDataPaths.cjs"
 			}
 		],
