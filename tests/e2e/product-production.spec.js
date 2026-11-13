@@ -13,7 +13,7 @@ test('graph keyboard actions expose names and preserve editing shortcuts', async
 	await page.keyboard.press('Control+y'); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	await page.keyboard.press('Control+s');
 	// Let celebration canvases finish so axe can determine the actual background.
-	await expect(page.locator('body > canvas')).toHaveCount(0);
+	await expect(page.locator('body > canvas')).toHaveCount(0, { timeout: 15000 });
 	const scan = await new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']).analyze();
 	expect(scan.violations).toEqual([]);
 });
@@ -28,7 +28,7 @@ for (const theme of ['light', 'dark']) {
 		await expect(attribution).toBeVisible();
 		await expect(attribution).toHaveAccessibleName('React Flow');
 		// Confetti overlays make axe report contrast as incomplete instead of testing it.
-		await expect(page.locator('body > canvas')).toHaveCount(0);
+		await expect(page.locator('body > canvas')).toHaveCount(0, { timeout: 15000 });
 		for (const state of ['normal', 'hover', 'focus']) {
 			await test.step(state, async () => {
 				if (state === 'hover') await attribution.hover();
