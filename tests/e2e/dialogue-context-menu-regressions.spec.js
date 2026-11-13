@@ -196,8 +196,15 @@ test('keyboard opening, arrow navigation, Enter and shortcut labels follow the p
 	await state.target.focus();
 	await page.keyboard.press('Shift+F10');
 	await expect(page.getByRole('menu')).toBeVisible();
+	const exportItem = page.getByRole('menuitem', { name: /export/i });
+	const deleteItem = page.getByRole('menuitem', { name: /delete/i });
+	// Keyboard opening focuses Export. Radix defers arrow-key focus changes;
+	// checking Export after ArrowDown can observe the old focus before it moves.
+	await expect(exportItem).toBeFocused();
 	await page.keyboard.press('ArrowDown');
-	await expect(page.getByRole('menuitem', { name: /export/i })).toBeFocused();
+	await expect(deleteItem).toBeFocused();
+	await page.keyboard.press('ArrowUp');
+	await expect(exportItem).toBeFocused();
 	const downloaded = page.waitForEvent('download', { timeout: 15000 });
 	await page.keyboard.press('Enter');
 	await assertArchive(await readFile(await (await downloaded).path()), state);
