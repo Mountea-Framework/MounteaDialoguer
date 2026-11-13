@@ -60,6 +60,9 @@ for (const strict of [false, true]) {
 		await expect.poll(() => page.evaluate(() => window.previewAudio.at(-1).volume)).toBe(0.35);
 		await expect.poll(() => page.evaluate(() => window.previewEvents.includes('closed'))).toBe(true);
 		await expect.poll(() => page.evaluate(() => window.previewUrls.size)).toBe(0);
+		// Node-change cleanup precedes the closing animation and onStop callback.
+		// Reopen only after the old preview overlay has actually closed.
+		await expect(volume).toHaveCount(0);
 		await page.evaluate(() => window.reopenPreview());
 		await expect(page.getByText('First preview row', { exact: true })).toBeVisible();
 		await page.keyboard.press('Escape');
