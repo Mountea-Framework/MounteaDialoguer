@@ -10,6 +10,27 @@ export async function analyzeAccessibility(page, builder) {
 	}
 }
 
+// Keep confetti on its real main-thread fallback so Playwright's clock controls
+// both emission timers and animation frames; worker clocks are not controlled.
+export async function installCelebrationClock(page) {
+	await page.clock.install();
+	await page.addInitScript(() => {
+		Object.defineProperty(HTMLCanvasElement.prototype, 'transferControlToOffscreen', {
+			configurable: true, value: undefined,
+		});
+	});
+}
+
+// Install the celebration clock before navigation. Advancing
+// simulated frames completes real confetti callbacks independently of runner FPS.
+export async function finishCelebrations(page) {
+	// Saving can finish as either saved or unsaved when edits overlap it.
+	// Its completion must precede advancing the save celebration's frames.
+	await expect(page.locator('[data-tour="editor-header"]').getByText('Saving...', { exact: true })).toHaveCount(0);
+	await page.clock.runFor(10_000);
+	await expect(page.locator('body > canvas')).toHaveCount(0);
+}
+
 export function uniqueToken(prefix = 'e2e') {
 	const timestamp = Date.now().toString(36);
 	const random = Math.random().toString(36).slice(2, 7);

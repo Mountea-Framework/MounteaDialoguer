@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import AxeBuilder from '@axe-core/playwright';
 import { openModuleHarness } from './helpers/moduleHarness';
-import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue, analyzeAccessibility } from './helpers/appHarness';
+import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue, analyzeAccessibility, installCelebrationClock, finishCelebrations } from './helpers/appHarness';
 import { resolveReleaseIdentity } from '../../scripts/product-build.mjs';
 
 test('release identity distinguishes CI, local dirty and explicit builds', () => {
@@ -167,6 +167,7 @@ test('archive import supports keyboard selection, localized failure and focus re
 });
 
 test('graph keyboard actions expose names and preserve editing shortcuts', async ({ page }) => {
+	await installCelebrationClock(page);
 	await page.addInitScript(() => localStorage.setItem('mountea-dialoguer-theme', 'light'));
 	await seedLocalState(page); await openDashboard(page); await createProject(page, 'KeyboardProject'); await openDialoguesSection(page); await createDialogue(page, 'KeyboardDialogue');
 	await expect(page.getByRole('button', { name: 'Recenter graph', exact: true })).toBeVisible();
@@ -177,13 +178,14 @@ test('graph keyboard actions expose names and preserve editing shortcuts', async
 	await page.keyboard.press('Control+y'); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	await page.keyboard.press('Control+s');
 	// Let celebration canvases finish so axe can determine the actual background.
-	await expect(page.locator('body > canvas')).toHaveCount(0);
+	await finishCelebrations(page);
 	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
 });
 
 for (const theme of ['light', 'dark']) {
 	test(`graph attribution has accessible contrast in ${theme} normal, hover and keyboard focus states`, async ({ page }) => {
+		await installCelebrationClock(page);
 		await page.addInitScript((value) => localStorage.setItem('mountea-dialoguer-theme', value), theme);
 		await seedLocalState(page); await openDashboard(page); await createProject(page, 'AttributionProject'); await openDialoguesSection(page); await createDialogue(page, 'AttributionDialogue');
 		await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${theme}\\b`));
@@ -192,7 +194,7 @@ for (const theme of ['light', 'dark']) {
 		await expect(attribution).toBeVisible();
 		await expect(attribution).toHaveAccessibleName('React Flow');
 		// Confetti overlays make axe report contrast as incomplete instead of testing it.
-		await expect(page.locator('body > canvas')).toHaveCount(0);
+		await finishCelebrations(page);
 		for (const state of ['normal', 'hover', 'focus']) {
 			await test.step(state, async () => {
 				if (state === 'hover') await attribution.hover();
