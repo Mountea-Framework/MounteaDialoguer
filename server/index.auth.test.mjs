@@ -1,3 +1,4 @@
+import { localTestFetch } from '../scripts/test-http.mjs';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -7,9 +8,9 @@ import { spawn } from 'node:child_process';
 let root, base, child, setupCode, cookie;
 const PASSWORD = 'correct horse';
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
-const post = (url, body, headers = JSON_HEADERS) => fetch(base + url, { method: 'POST', headers, body: JSON.stringify(body) });
-const sync = (headers = {}) => fetch(`${base}/api/sync/files`, { headers });
-const status = async () => (await fetch(`${base}/api/auth/status`, { headers: cookie ? { Cookie: cookie } : {} })).json();
+const post = (url, body, headers = JSON_HEADERS) => localTestFetch(base, base + url, { method: 'POST', headers, body: JSON.stringify(body) });
+const sync = (headers = {}) => localTestFetch(base, `${base}/api/sync/files`, { headers });
+const status = async () => (await localTestFetch(base, `${base}/api/auth/status`, { headers: cookie ? { Cookie: cookie } : {} })).json();
 
 beforeAll(async () => {
 	root = await fs.mkdtemp(path.join(os.tmpdir(), 'dialoguer-auth-'));
@@ -67,13 +68,13 @@ describe('sync password auth', () => {
 		expect((await sync({ Cookie: cookie })).status).toBe(200);
 	});
 	it('keeps the auth file out of the file API', async () => {
-		const create = await fetch(`${base}/api/sync/files`, { method: 'POST', headers: { ...JSON_HEADERS, Cookie: cookie }, body: JSON.stringify({ name: 'mountea-a.json', content: '{}' }) });
+		const create = await localTestFetch(base, `${base}/api/sync/files`, { method: 'POST', headers: { ...JSON_HEADERS, Cookie: cookie }, body: JSON.stringify({ name: 'mountea-a.json', content: '{}' }) });
 		expect(create.status).toBe(201);
 		const listed = await (await sync({ Cookie: cookie })).json();
 		expect(listed.files.map((file) => file.name)).toEqual(['mountea-a.json']);
-		expect((await fetch(`${base}/api/sync/files/sync-auth.json`, { headers: { Cookie: cookie } })).status).toBe(404);
+		expect((await localTestFetch(base, `${base}/api/sync/files/sync-auth.json`, { headers: { Cookie: cookie } })).status).toBe(404);
 	});
-	it('keeps /api/health open', async () => expect((await fetch(`${base}/api/health`)).status).toBe(200));
+	it('keeps /api/health open', async () => expect((await localTestFetch(base, `${base}/api/health`)).status).toBe(200));
 	it('rejects mutating requests without a JSON content type', async () => {
 		const res = await post('/api/auth/login', { password: PASSWORD }, { 'Content-Type': 'text/plain' });
 		expect(res.status).toBe(415); expect((await res.json()).code).toBe('UNSUPPORTED_MEDIA_TYPE');
@@ -85,7 +86,7 @@ describe('sync password auth', () => {
 		expect((await sync({ Cookie: cookie })).status).toBe(200);
 	});
 	it('logout clears the cookie and ends the session', async () => {
-		const res = await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { ...JSON_HEADERS, Cookie: cookie } });
+		const res = await localTestFetch(base, `${base}/api/auth/logout`, { method: 'POST', headers: { ...JSON_HEADERS, Cookie: cookie } });
 		expect(res.status).toBe(200); expect(res.headers.get('set-cookie')).toContain('Max-Age=0');
 		expect((await sync({ Cookie: cookie })).status).toBe(401);
 	});

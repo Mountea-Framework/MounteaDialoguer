@@ -1,3 +1,4 @@
+import { localTestFetch } from '../scripts/test-http.mjs';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -5,7 +6,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 
 let root, base, child, storage, cookie;
-const authFetch = (url, init = {}) => fetch(url, { ...init, headers: { ...init.headers, Cookie: cookie } });
+const authFetch = (url, init = {}) => localTestFetch(base, url, { ...init, headers: { ...init.headers, Cookie: cookie } });
 beforeAll(async () => {
 	root = await fs.mkdtemp(path.join(os.tmpdir(), 'dialoguer-http-'));
 	const dist = path.join(root, 'dist');
@@ -31,7 +32,7 @@ beforeAll(async () => {
 		});
 	});
 	// First-run setup with the code the server printed to its log; the cookie authenticates later requests.
-	const setup = await fetch(`${base}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: setupCode, password: 'test-password' }) });
+	const setup = await localTestFetch(base, `${base}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: setupCode, password: 'test-password' }) });
 	cookie = setup.headers.get('set-cookie').split(';')[0];
 });
 afterAll(async () => {
@@ -41,24 +42,24 @@ afterAll(async () => {
 
 describe('static root boundary', () => {
 	it.each(['/..%2Fdist-secret.txt', '/..%5Cdist-secret.txt', '/%2e%2e%2Foutside/secret.txt'])('rejects encoded traversal %s', async (url) => {
-		const res = await fetch(base + url); expect(res.status).toBe(403); expect(await res.text()).not.toContain('SECRET');
+		const res = await localTestFetch(base, base + url); expect(res.status).toBe(403); expect(await res.text()).not.toContain('SECRET');
 	});
-	it.each(['/%zz', '/%00', '/C%3A/secret'])('rejects invalid path %s', async (url) => expect((await fetch(base + url)).status).toBe(400));
+	it.each(['/%zz', '/%00', '/C%3A/secret'])('rejects invalid path %s', async (url) => expect((await localTestFetch(base, base + url)).status).toBe(400));
 	it('serves assets, HEAD and SPA routes', async () => {
-		expect(await (await fetch(`${base}/asset.js`)).text()).toBe('ASSET');
-		expect(await (await fetch(`${base}/projects/example`)).text()).toBe('APP');
-		const head = await fetch(`${base}/asset.js`, { method: 'HEAD' }); expect(head.status).toBe(200); expect(await head.text()).toBe('');
+		expect(await (await localTestFetch(base, `${base}/asset.js`)).text()).toBe('ASSET');
+		expect(await (await localTestFetch(base, `${base}/projects/example`)).text()).toBe('APP');
+		const head = await localTestFetch(base, `${base}/asset.js`, { method: 'HEAD' }); expect(head.status).toBe(200); expect(await head.text()).toBe('');
 	});
 	it('rejects external symlinks including missing paths through them and fallback', async (context) => {
 		try { await fs.symlink(path.join(root, 'outside'), path.join(root, 'dist', 'link'), 'junction'); }
 		catch (error) { context.skip(`Symlinks unavailable: ${error.message}`); return; }
-		for (const suffix of ['secret.txt', 'missing']) expect((await fetch(`${base}/link/${suffix}`)).status).toBe(403);
+		for (const suffix of ['secret.txt', 'missing']) expect((await localTestFetch(base, `${base}/link/${suffix}`)).status).toBe(403);
 		await fs.unlink(path.join(root, 'dist', 'index.html'));
 		await fs.symlink(path.join(root, 'outside', 'secret.txt'), path.join(root, 'dist', 'index.html')).catch(async () => {
 			// A file symlink may need extra Windows privileges; the directory case above is still exercised.
 			await fs.writeFile(path.join(root, 'dist', 'index.html'), 'APP');
 		});
-		if ((await fs.lstat(path.join(root, 'dist', 'index.html'))).isSymbolicLink()) expect((await fetch(`${base}/fallback`)).status).toBe(403);
+		if ((await fs.lstat(path.join(root, 'dist', 'index.html'))).isSymbolicLink()) expect((await localTestFetch(base, `${base}/fallback`)).status).toBe(403);
 	});
 });
 

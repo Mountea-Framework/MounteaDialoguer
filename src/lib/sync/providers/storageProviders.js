@@ -1,3 +1,4 @@
+import { syncRequestUrl } from './syncRequestUrl.js';
 import {
 	findAppDataFile as findGoogleAppDataFile,
 	listAppDataFiles as listGoogleAppDataFiles,
@@ -46,14 +47,12 @@ const steamStorageProvider = Object.freeze({
 	deleteFile: async (fileId) => await deleteSteamCloudFile(fileId),
 });
 
-const API = `${import.meta.env.BASE_URL || '/'}api/sync`.replace(/\/{2,}/g, '/');
-
-const AUTH_API = API.replace(/sync$/, 'auth');
+const APP_BASE = import.meta.env.BASE_URL || '/';
 const AUTH_CODES = ['AUTH_REQUIRED', 'SETUP_REQUIRED'];
 
 async function request(path, options = {}) {
-	if (!path.startsWith('/files')) throw Object.assign(new Error('Invalid sync path'), { code: 'INVALID_PATH' });
-	const response = await fetch(`${API}${path}`, { ...options, credentials: 'same-origin' });
+	const url = syncRequestUrl(APP_BASE, window.location.href, 'sync', path);
+	const response = await fetch(url, { ...options, credentials: 'same-origin', redirect: 'error' });
 	if (response.status === 401) {
 		const body = await response.json().catch(() => null);
 		if (AUTH_CODES.includes(body?.code)) throw Object.assign(new Error(body.error || 'Sync sign-in required'), { code: body.code, status: 401 });
@@ -66,7 +65,9 @@ async function request(path, options = {}) {
 }
 
 async function authCall(path, body) {
-	const response = await fetch(`${AUTH_API}${path}`, {
+	const url = syncRequestUrl(APP_BASE, window.location.href, 'auth', path);
+	const response = await fetch(url, {
+		redirect: 'error',
 		method: body === undefined ? 'GET' : 'POST',
 		credentials: 'same-origin',
 		...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),

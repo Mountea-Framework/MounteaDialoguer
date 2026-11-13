@@ -126,7 +126,7 @@ function processAlive(pid) {
 
 async function health(port) {
 	try {
-		const response = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(1500) });
+		const response = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(1500), redirect: 'error' });
 		return response.ok ? await response.json() : null;
 	} catch {
 		return null;
@@ -138,7 +138,7 @@ async function discover(options) {
 	for (const directory of candidateDirectories(options)) {
 		let endpoint;
 		try { endpoint = JSON.parse(fs.readFileSync(path.join(directory, ENDPOINT_FILE), 'utf8')); } catch { continue; }
-		if (!endpoint?.port || !endpoint.token || !processAlive(endpoint.pid)) continue;
+		if (!Number.isInteger(endpoint?.port) || endpoint.port < 1 || endpoint.port > 65535 || !endpoint.token || !processAlive(endpoint.pid)) continue;
 		const state = await health(endpoint.port);
 		if (state) return { ...endpoint, ready: Boolean(state.ready), directory, url: `http://127.0.0.1:${endpoint.port}/mcp` };
 	}
@@ -205,9 +205,10 @@ async function connect(options) {
 		if (!options['--token']) throw new CliError('--url needs --token', EXIT.usage);
 		let url;
 		try { url = new URL(options['--url']); } catch { throw new CliError('--url is not a valid URL', EXIT.usage); }
+		if (url.username || url.password) throw new CliError('--url must not contain credentials', EXIT.usage);
 		const loopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname);
 		if (url.protocol !== 'https:' && !(loopback && url.protocol === 'http:')) throw new CliError('--url must use https (http is allowed for localhost only)', EXIT.usage);
-		return { url: options['--url'], token: options['--token'], remote: true };
+		return { url: url.href, token: options['--token'], remote: true };
 	}
 	const found = await discover(options);
 	if (found) return waitUntilReady(found, options);
@@ -222,7 +223,9 @@ async function post(endpoint, message, { timeoutMs = 120000 } = {}) {
 	for (let attempt = 0; ; attempt += 1) {
 		let response;
 		try {
+			// The operator explicitly selects remote MCP endpoints with --url. Never follow redirects with credentials.
 			response = await fetch(endpoint.url, {
+				redirect: 'error',
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${endpoint.token}` },
 				body: JSON.stringify(message),
@@ -298,7 +301,7 @@ async function status(options) {
 async function stop(options) {
 	const endpoint = await discover(options);
 	if (!endpoint) { process.stdout.write('The desktop app is not running with CLI access.\n'); return; }
-	const response = await fetch(`http://127.0.0.1:${endpoint.port}/shutdown`, { method: 'POST', headers: { Authorization: `Bearer ${endpoint.token}` }, signal: AbortSignal.timeout(5000) });
+	const response = await fetch(`http://127.0.0.1:${endpoint.port}/shutdown`, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${endpoint.token}` }, signal: AbortSignal.timeout(5000) });
 	if (response.status === 409) throw new CliError('The app window is open; close it from the app instead.');
 	if (!response.ok) throw new CliError(`Stop failed (${response.status})`);
 	process.stdout.write('Stopped.\n');

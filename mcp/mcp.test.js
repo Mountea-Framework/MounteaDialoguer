@@ -1,3 +1,4 @@
+import { localTestFetch } from '../scripts/test-http.mjs';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -25,7 +26,7 @@ function headOf(projectId) {
 }
 
 async function rpc(method, params, { auth = true, url = '/mcp' } = {}) {
-	const res = await fetch(`${base}${url}`, {
+	const res = await localTestFetch(base, `${base}${url}`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: `Bearer ${TOKEN}` } : {}) },
 		body: JSON.stringify({ jsonrpc: '2.0', id: rpcId++, method, params }),
@@ -47,7 +48,7 @@ beforeAll(async () => {
 	proc = spawn('node', ['--import', './mcp/register.mjs', 'mcp/server.mjs'], { env: { ...process.env, MCP_TOKEN: TOKEN, MCP_PORT: String(port), MCP_HOST: '127.0.0.1', DATA_DIR: dataDir }, stdio: 'pipe' });
 	for (let i = 0; i < 50; i += 1) {
 		try {
-			if ((await fetch(`${base}/health`)).ok) return;
+			if ((await localTestFetch(base, `${base}/health`)).ok) return;
 		} catch {
 			/* not up yet */
 		}
@@ -73,11 +74,11 @@ describe('auth and protocol', () => {
 	it('initializes and answers notifications with 202', async () => {
 		const { body } = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } });
 		expect(body.result.serverInfo.name).toBe('mountea-dialoguer');
-		const res = await fetch(`${base}/mcp`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) });
+		const res = await localTestFetch(base, `${base}/mcp`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) });
 		expect(res.status).toBe(202);
 	});
 	it('answers an oversized body with 413 and keeps serving', async () => {
-		const res = await fetch(`${base}/mcp`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping', params: { pad: 'x'.repeat(11 * 1024 * 1024) } }) });
+		const res = await localTestFetch(base, `${base}/mcp`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping', params: { pad: 'x'.repeat(11 * 1024 * 1024) } }) });
 		expect(res.status).toBe(413);
 		expect((await rpc('ping', {})).status).toBe(200);
 	});
@@ -269,10 +270,10 @@ describe('authoring a dialogue', () => {
 		const link = await tool('export_dialogue', { projectId, dialogueId });
 		expect(link.downloadUrl).toContain(`/export/${TOKEN}/`);
 		expect(new URL(link.downloadUrl).origin).toBe(new URL(base).origin);
-		const download = await fetch(link.downloadUrl.replace(/^https?:\/\/[^/]+/, base));
+		const download = await localTestFetch(base, new URL(link.downloadUrl));
 		expect(download.status).toBe(200);
 		expect(Buffer.from(await download.arrayBuffer()).subarray(0, 2).toString()).toBe('PK');
-		expect((await fetch(new URL(`/export/wrong/${link.fileName}`, base))).status).toBe(401);
+		expect((await localTestFetch(base, new URL(`/export/wrong/${link.fileName}`, base))).status).toBe(401);
 	});
 
 	it('supports row timing and rejects invalid values', async () => {
