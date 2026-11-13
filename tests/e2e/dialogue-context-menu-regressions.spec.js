@@ -56,6 +56,8 @@ async function assertArchive(bytes, state) {
 
 async function downloadDialogue(page, state, select) {
 	await openMenu(page, state.target);
+	// The scoped shortcut listener is attached in an effect after the menu renders; let it flush before pressing keys.
+	await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 	const downloaded = page.waitForEvent('download', { timeout: 15000 });
 	await select();
 	const download = await downloaded;
@@ -178,9 +180,13 @@ test('scoped shortcuts export with Ctrl or Cmd, suppress project shortcuts, and 
 	await expect(page.getByRole('menu')).toBeVisible();
 	expect(downloads).toEqual([]);
 	await page.keyboard.press('Escape');
+	await expect(page.getByRole('menu')).toHaveCount(0);
 	for (const modifier of ['Control', 'Meta']) await page.keyboard.press(`${modifier}+Alt+e`);
 	expect(downloads).toEqual([]);
-	for (const modifier of ['Control', 'Meta']) await downloadDialogue(page, state, () => page.keyboard.press(`${modifier}+Alt+e`));
+	for (const modifier of ['Control', 'Meta']) {
+		await downloadDialogue(page, state, () => page.keyboard.press(`${modifier}+Alt+e`));
+		await expect(state.target).toBeFocused();
+	}
 	await openMenu(page, state.target);
 	page.once('dialog', dialog => dialog.dismiss());
 	await page.keyboard.press('Delete');
