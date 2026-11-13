@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Download, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -50,7 +50,7 @@ export function DialogueContextMenu({ dialogue, children }) {
 		}
 	};
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (!open) return;
 		const handleMenuKeyDown = (event) => {
 			if (event.defaultPrevented || event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
@@ -69,13 +69,13 @@ export function DialogueContextMenu({ dialogue, children }) {
 			if (exportKey) exportItemRef.current?.click();
 			if (deleteKey) deleteItemRef.current?.click();
 		};
-		// Capture while open, including when focus is returning from a closing menu.
+		// Attach before paint so shortcuts work as soon as the menu is visible.
 		document.addEventListener('keydown', handleMenuKeyDown, true);
 		return () => document.removeEventListener('keydown', handleMenuKeyDown, true);
 	}, [open]);
 
 	return (
-		<ContextMenu onOpenChange={setOpen}>
+		<ContextMenu open={open} onOpenChange={setOpen}>
 			<ContextMenuTrigger
 				asChild
 				ref={triggerRef}

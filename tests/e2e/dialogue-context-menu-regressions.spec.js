@@ -56,8 +56,6 @@ async function assertArchive(bytes, state) {
 
 async function downloadDialogue(page, state, select) {
 	await openMenu(page, state.target);
-	// The scoped shortcut listener is attached in an effect after the menu renders; let it flush before pressing keys.
-	await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 	const downloaded = page.waitForEvent('download', { timeout: 15000 });
 	await select();
 	const download = await downloaded;
