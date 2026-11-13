@@ -3,6 +3,8 @@
 // --update-fixtures  save each chapter's end state as the next chapter's start fixture (needs the whole chain).
 // --render           build compose/index.html and render renders/<chapter>[-<lang>].mp4 with HyperFrames.
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -12,6 +14,26 @@ import { buildProject } from '../compose/build.mjs';
 
 export const CHAPTERS = ['ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6'];
 export const HYPERFRAMES = 'hyperframes@0.8.145';
+
+// Run npm's JavaScript entry point directly so paths are never interpreted by a shell.
+export function renderTutorial(output, { spawn = spawnSync, npmCli = resolveNpmCli() } = {}) {
+	const result = spawn(process.execPath, [npmCli, 'exec', '--yes', `--package=${HYPERFRAMES}`, '--', 'hyperframes', 'render', path.join(toolRoot, 'compose'), '--video-frame-format', 'png', '-o', output], { stdio: 'inherit', shell: false });
+	if (result.error) throw new Error(`Cannot launch HyperFrames: ${result.error.message}`, { cause: result.error });
+	if (result.status !== 0) throw new Error(`HyperFrames render failed (${result.signal || result.status})`);
+}
+
+function resolveNpmCli() {
+	const require = createRequire(import.meta.url);
+	const candidates = [
+		process.env.npm_execpath,
+		path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+		path.resolve(path.dirname(process.execPath), '../lib/node_modules/npm/bin/npm-cli.js'),
+	];
+	try { candidates.push(require.resolve('npm/bin/npm-cli.js')); } catch { /* npm can be installed alongside Node */ }
+	const cli = candidates.find((candidate) => candidate && path.basename(candidate) === 'npm-cli.js' && existsSync(candidate));
+	if (!cli) throw new Error('Cannot locate npm-cli.js; run tutorials through npm or install npm alongside Node');
+	return cli;
+}
 
 export function parseTutorialArgs(argv) {
 	const args = { only: null, lang: null, updateFixtures: false, render: false };
@@ -50,8 +72,7 @@ async function run() {
 		const output = path.join(toolRoot, 'renders', `${chapter}${args.lang ? `-${args.lang}` : ''}.mp4`);
 		await fs.mkdir(path.dirname(output), { recursive: true });
 		console.log(`== ${chapter}: rendering ${path.relative(toolRoot, output)}`);
-		const render = spawnSync('npx', ['--yes', HYPERFRAMES, 'render', path.join(toolRoot, 'compose'), '--video-frame-format', 'png', '-o', output], { stdio: 'inherit', shell: process.platform === 'win32' });
-		if (render.status !== 0) throw new Error(`HyperFrames render failed for ${chapter}`);
+		renderTutorial(output);
 	}
 }
 

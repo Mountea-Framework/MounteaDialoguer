@@ -88,3 +88,19 @@ test('chapters are paced for a voice-over: slowed down, with time to read or spe
 		assert.ok(chapter.captionDwell >= 3, `${chapter.id}: captionDwell should be at least 3 seconds`);
 	}
 });
+
+
+test('tutorial rendering preserves argument boundaries without a shell and reports launch failures', async () => {
+	const { renderTutorial } = await import('../runner/tutorials.mjs');
+	const output = 'C:/Videos & assets/tutorial $(literal).mp4';
+	let call;
+	renderTutorial(output, { npmCli: 'C:/Program Files/npm/npm-cli.js', spawn: (...args) => { call = args; return { status: 0 }; } });
+	assert.equal(call[0], process.execPath);
+	assert.equal(call[1][0], 'C:/Program Files/npm/npm-cli.js');
+	assert.equal(call[1].at(-1), output);
+	assert.equal(call[2].shell, false);
+	renderTutorial(output, { spawn: (...args) => { call = args; return { status: 0 }; } });
+	assert.equal(path.basename(call[1][0]), 'npm-cli.js');
+	assert.throws(() => renderTutorial(output, { npmCli: 'npm-cli.js', spawn: () => ({ error: new Error('ENOENT') }) }), /Cannot launch.*ENOENT/);
+	assert.throws(() => renderTutorial(output, { npmCli: 'npm-cli.js', spawn: () => ({ status: 1 }) }), /render failed/);
+});
