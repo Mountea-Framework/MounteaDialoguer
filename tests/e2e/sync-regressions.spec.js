@@ -346,7 +346,7 @@ test('numbered summaries map identical competing versions to the exact selected 
   if (index > 0) await expect(selector.locator('option').filter({ hasText: label })).toHaveAttribute('value', revision.id);
  }
  const chosen = state.revisions[2];
- await selector.focus(); await page.keyboard.press('End'); await page.keyboard.press('Enter');
+ await selector.selectOption(chosen.id);
  await expect(selector).toHaveValue(chosen.id);
  await state.section.getByRole('button', { name: 'Keep remote', exact: true }).click();
  await expect.poll(() => page.evaluate(async () => (await window.rig.a.db.projects.get('p')).description)).toBe(chosen.description);

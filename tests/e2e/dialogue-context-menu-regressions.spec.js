@@ -313,7 +313,8 @@ test.describe('touch', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		await expect(state.target).toBeVisible();
 		const url = page.url();
-		await state.target.scrollIntoViewIfNeeded();
+		// Wait until the closing mobile sidebar no longer intercepts the raw CDP touch.
+		await state.target.tap({ trial: true });
 		const bounds = await state.target.boundingBox();
 		const touch = { x: Math.round(bounds.x + bounds.width / 2), y: Math.round(bounds.y + bounds.height / 2) };
 		const session = await page.context().newCDPSession(page);
