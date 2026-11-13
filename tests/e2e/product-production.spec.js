@@ -62,11 +62,25 @@ for (const theme of ['light', 'dark']) {
 	});
 }
 
-test('mobile graph keyboard flow opens a named node drawer, returns focus and creates a node', async ({ page }) => {
+test('graph survives desktop/mobile transitions and mobile keyboard flow returns focus and creates a node', async ({ page }) => {
+	const pageErrors = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
 	await seedLocalState(page); await openDashboard(page); await createProject(page, 'MobileProject'); await openDialoguesSection(page); await createDialogue(page, 'MobileDialogue');
-	await page.setViewportSize({ width: 390, height: 844 });
-	await page.evaluate(() => window.postMessage({ type: 'mountea:device', value: 'mobile' }, location.origin));
 	const add = page.getByRole('button', { name: 'Add Node', exact: true });
+	// Replacing toolbar targets used by onboarding must not crash the production app.
+	for (const device of ['mobile', 'desktop', 'mobile']) {
+		await test.step(`switch to ${device}`, async () => {
+			await page.setViewportSize(device === 'mobile' ? { width: 390, height: 844 } : { width: 1280, height: 720 });
+			await page.evaluate((value) => window.postMessage({ type: 'mountea:device', value }, location.origin), device);
+			if (device === 'mobile') {
+				await expect(add).toBeVisible();
+			} else {
+				await expect(page.locator('[data-tour="node-toolbar"]').getByRole('button', { name: 'Delay', exact: true })).toBeVisible();
+			}
+			await expect(page.locator('[data-tour="canvas"]')).toBeVisible();
+			expect(pageErrors).toEqual([]);
+		});
+	}
 	await expect(add).toBeVisible(); await add.focus(); await page.keyboard.press('Enter');
 	const dialog = page.getByRole('dialog'); await expect(dialog).toBeVisible();
 	await expect(dialog).toHaveAccessibleName('Select node type');
@@ -78,6 +92,7 @@ test('mobile graph keyboard flow opens a named node drawer, returns focus and cr
 	await dialog.getByRole('button', { name: /^Delay/ }).focus(); await page.keyboard.press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	expect(pageErrors).toEqual([]);
 });
 
 test('production creates the bundled onboarding project with external network blocked', async ({ page }) => {
