@@ -3,6 +3,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { openSession, idle } from './session.mjs';
+import { openAppSession } from './app-session.mjs';
+import { prepareApp, captureAppBeat, exportState } from './app-capture.mjs';
 import { sourceDigest } from './digest.mjs';
 import { frameCount } from '../shared/scenario.js';
 import { sceneBounds, graphFrame, resolveNodeId, endPositions, initialPositions } from '../shared/graphState.js';
@@ -30,12 +32,17 @@ async function settleTheme(session, previousTheme, theme) {
 }
 const digestOf = (bytes) => crypto.createHash('sha1').update(bytes).digest('hex');
 
+const isAppScenario = (scenario) => scenario.beats.every((b) => b.kind === 'app');
+
+/** The project archive a scenario starts from: `fixture`, or `start.fixture` for app scenarios (none = empty database). */
 async function readFixture(scenario) {
-	const file = path.resolve(repoRoot, scenario.fixture);
+	const relative = isAppScenario(scenario) ? scenario.start?.fixture : scenario.fixture;
+	if (!relative) return [];
+	const file = path.resolve(repoRoot, relative);
 	try {
 		return [...await fs.readFile(file)];
 	} catch (error) {
-		throw new Error(`Cannot read fixture "${scenario.fixture}" (${file}): ${error.message}`);
+		throw new Error(`Cannot read fixture "${relative}" (${file}): ${error.message}`);
 	}
 }
 
@@ -180,7 +187,10 @@ async function captureStillsBeat(session, scenario, scene, view, beat, index, tm
 }
 
 async function assertNoMissingKeys(session, scenario) {
-	const missing = await session.page.evaluate(() => window.__capture.missingKeys);
+	const reported = await session.page.evaluate(() => (window.__capture ? window.__capture.missingKeys : window.__missingKeys || []));
+	// The real app builds its onboarding tour strings even though the recording never shows the tour.
+	const ignored = scenario.ignoreMissingKeys ?? (isAppScenario(scenario) ? ['tour.'] : []);
+	const missing = reported.filter((key) => !ignored.some((prefix) => key.startsWith(prefix)));
 	if (missing.length) throw new Error(`Missing translation keys for "${scenario.language}": ${missing.join(', ')}`);
 }
 
@@ -189,14 +199,18 @@ function lastGraphIndex(scenario, before) {
 	return 0;
 }
 
-export async function captureScenario(scenario, { lang = null, beat: onlyBeat = null, force = false, scale = 1, onSession = null } = {}) {
+export async function captureScenario(scenario, { lang = null, beat: onlyBeat = null, force: forced = false, scale = 1, onSession = null, saveState = null } = {}) {
 	const effective = { ...scenario, language: lang || scenario.language || 'en' };
+	const app = isAppScenario(effective);
+	// Saving the end state needs a live run, so it never reads from the cache.
+	const force = forced || Boolean(saveState);
 	const supported = appLanguages.map((l) => l.code);
 	if (!supported.includes(effective.language)) {
 		throw new Error(`Unsupported language "${effective.language}". Supported languages: ${supported.join(', ')}`);
 	}
 	const outDir = path.join(toolRoot, 'out', effective.id);
 	await fs.mkdir(outDir, { recursive: true });
+	if (saveState && !app) throw new Error('--save-state is only available for app scenarios');
 	const fixtureBytes = await readFixture(effective);
 	const digest = digestOf(`${await sourceDigest(repoRoot)}:${digestOf(Buffer.from(fixtureBytes))}`);
 	const previous = await fs.readFile(path.join(outDir, 'manifest.json'), 'utf8').then(JSON.parse).catch(() => null);
@@ -211,16 +225,28 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 		}
 	}
 
-	const session = await openSession({ size: effective.size, scale });
+	const session = app
+		? await openAppSession({ size: effective.size, scale, theme: effective.theme || 'dark', language: effective.language, seed: effective.seed ?? 1 })
+		: await openSession({ size: effective.size, scale });
 	const entries = [];
 	let rendered = false;
 	try {
-		const faces = await session.page.evaluate((weights) => window.__capture.fontFaces(weights), REQUIRED_FONT_WEIGHTS);
-		const missingFaces = missingFontFaces(faces);
-		if (missingFaces.length) throw new Error(`Inter font face(s) not loaded in the sandbox: weight ${missingFaces.join(', ')}. Check sandbox/capture.css and sandbox/fonts/.`);
-		if (onSession) await onSession(session);
-		const { scene, dialogueId } = await loadScene(session, effective, fixtureBytes);
-		const view = await viewportFor(session, effective, scene);
+		let scene = null;
+		let dialogueId = null;
+		let view = null;
+		let appContext = null;
+		if (app) {
+			if (onSession) await onSession(session);
+			appContext = { strings: JSON.parse(await fs.readFile(path.join(repoRoot, 'src', 'i18n', 'locales', `${effective.language}.json`), 'utf8')) };
+			await prepareApp(session, effective, fixtureBytes.length ? fixtureBytes : null);
+		} else {
+			const faces = await session.page.evaluate((weights) => window.__capture.fontFaces(weights), REQUIRED_FONT_WEIGHTS);
+			const missingFaces = missingFontFaces(faces);
+			if (missingFaces.length) throw new Error(`Inter font face(s) not loaded in the sandbox: weight ${missingFaces.join(', ')}. Check sandbox/capture.css and sandbox/fonts/.`);
+			if (onSession) await onSession(session);
+			({ scene, dialogueId } = await loadScene(session, effective, fixtureBytes));
+			view = await viewportFor(session, effective, scene);
+		}
 		for (let index = 0; index < effective.beats.length; index++) {
 			const beat = effective.beats[index];
 			const hash = beatHash(effective, index, digest, scale);
@@ -231,26 +257,30 @@ export async function captureScenario(scenario, { lang = null, beat: onlyBeat = 
 				if (cached) entries.push(cached);
 				continue;
 			}
-			const capture = { graph: captureGraphBeat, preview: capturePreviewBeat, stills: captureStillsBeat }[beat.kind];
+			const capture = { graph: captureGraphBeat, preview: capturePreviewBeat, stills: captureStillsBeat, app: captureAppBeat }[beat.kind];
 			if (!capture) throw new Error(`Beat kind "${beat.kind}" is not implemented yet (beat "${beat.id}")`);
 			const tmpDir = path.join(outDir, `.tmp-${beat.id}-${process.pid}`);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 			await fs.mkdir(tmpDir, { recursive: true });
 			rendered = true;
 			try {
-				const { frames, tracks, trackLabels, text, stills } = await capture(session, effective, scene, view, beat, index, tmpDir, dialogueId);
+				const { frames, tracks, trackLabels, text, stills, cues } = await capture(session, effective, scene, view, beat, index, tmpDir, app ? appContext : dialogueId);
 				// Keys are checked per beat, before the beat lands in out/, so a bad beat never replaces a good one.
 				await assertNoMissingKeys(session, effective);
 				await fs.writeFile(path.join(tmpDir, HASH_MARKER), hash);
 				await fs.rm(finalDir, { recursive: true, force: true });
 				await fs.rename(tmpDir, finalDir);
-				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(trackLabels && { trackLabels }), ...(text && { text }), ...(stills && { stills }) });
+				entries.push({ id: beat.id, kind: beat.kind, theme: beat.theme || 'dark', frames, hash, dir: beat.id, pattern: `${beat.id}/frame-%04d.png`, ...(tracks && { tracks }), ...(trackLabels && { trackLabels }), ...(text && { text }), ...(stills && { stills }), ...(cues && { cues }) });
 			} catch (error) {
 				await fs.rm(tmpDir, { recursive: true, force: true });
 				throw error;
 			}
 		}
-		if (!rendered) {
+		if (saveState) {
+			await fs.mkdir(path.dirname(path.resolve(saveState)), { recursive: true });
+			await fs.writeFile(path.resolve(saveState), await exportState(session));
+		}
+		if (!rendered && !app) {
 			// Every beat came from cache, so nothing exercised the locale: render one throwaway frame so keys are collected.
 			const probeIndex = effective.beats.findIndex((b) => b.kind === 'graph');
 			if (probeIndex >= 0) {

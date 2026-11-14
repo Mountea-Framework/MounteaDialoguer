@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue } from './helpers/appHarness';
+import { seedLocalState, openDashboard, createProject, openDialoguesSection, createDialogue, analyzeAccessibility, installCelebrationClock, finishCelebrations } from './helpers/appHarness';
 
 test('graph keyboard actions expose names and preserve editing shortcuts', async ({ page }) => {
+	await installCelebrationClock(page);
 	await page.addInitScript(() => localStorage.setItem('mountea-dialoguer-theme', 'light'));
 	await seedLocalState(page); await openDashboard(page); await createProject(page, 'KeyboardProject'); await openDialoguesSection(page); await createDialogue(page, 'KeyboardDialogue');
 	await expect(page.getByRole('button', { name: 'Recenter graph', exact: true })).toBeVisible();
@@ -13,13 +14,14 @@ test('graph keyboard actions expose names and preserve editing shortcuts', async
 	await page.keyboard.press('Control+y'); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	await page.keyboard.press('Control+s');
 	// Let celebration canvases finish so axe can determine the actual background.
-	await expect(page.locator('body > canvas')).toHaveCount(0);
-	const scan = await new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	await finishCelebrations(page);
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[data-tour="canvas"]').include('[data-tour="node-toolbar"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
 });
 
 for (const theme of ['light', 'dark']) {
 	test(`graph attribution has accessible contrast in ${theme} normal, hover and keyboard focus states`, async ({ page }) => {
+		await installCelebrationClock(page);
 		await page.addInitScript((value) => localStorage.setItem('mountea-dialoguer-theme', value), theme);
 		await seedLocalState(page); await openDashboard(page); await createProject(page, 'AttributionProject'); await openDialoguesSection(page); await createDialogue(page, 'AttributionDialogue');
 		await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${theme}\\b`));
@@ -28,7 +30,7 @@ for (const theme of ['light', 'dark']) {
 		await expect(attribution).toBeVisible();
 		await expect(attribution).toHaveAccessibleName('React Flow');
 		// Confetti overlays make axe report contrast as incomplete instead of testing it.
-		await expect(page.locator('body > canvas')).toHaveCount(0);
+		await finishCelebrations(page);
 		for (const state of ['normal', 'hover', 'focus']) {
 			await test.step(state, async () => {
 				if (state === 'hover') await attribution.hover();
@@ -41,7 +43,7 @@ for (const theme of ['light', 'dark']) {
 					await expect(attribution).toHaveCSS('outline-style', 'solid');
 				}
 				if (state !== 'normal') await expect(attribution).toHaveCSS('text-decoration-line', 'underline');
-				const scan = await new AxeBuilder({ page }).include(selector).withRules(['color-contrast']).analyze();
+				const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include(selector).withRules(['color-contrast']));
 				expect(scan.violations).toEqual([]);
 				// Measure the rendered colors too: axe may mark transparent overlays as incomplete.
 				const contrast = await attribution.evaluate((link) => {
@@ -62,22 +64,39 @@ for (const theme of ['light', 'dark']) {
 	});
 }
 
-test('mobile graph keyboard flow opens a named node drawer, returns focus and creates a node', async ({ page }) => {
+test('graph survives desktop/mobile transitions and mobile keyboard flow returns focus and creates a node', async ({ page }) => {
+	const pageErrors = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
 	await seedLocalState(page); await openDashboard(page); await createProject(page, 'MobileProject'); await openDialoguesSection(page); await createDialogue(page, 'MobileDialogue');
-	await page.setViewportSize({ width: 390, height: 844 });
-	await page.evaluate(() => window.postMessage({ type: 'mountea:device', value: 'mobile' }, location.origin));
 	const add = page.getByRole('button', { name: 'Add Node', exact: true });
-	await expect(add).toBeVisible(); await add.focus(); await page.keyboard.press('Enter');
+	// Replacing toolbar targets used by onboarding must not crash the production app.
+	for (const device of ['mobile', 'desktop', 'mobile']) {
+		await test.step(`switch to ${device}`, async () => {
+			await page.setViewportSize(device === 'mobile' ? { width: 390, height: 844 } : { width: 1280, height: 720 });
+			await page.evaluate((value) => window.postMessage({ type: 'mountea:device', value }, location.origin), device);
+			if (device === 'mobile') {
+				await expect(add).toBeVisible();
+			} else {
+				await expect(page.locator('[data-tour="node-toolbar"]').getByRole('button', { name: 'Delay', exact: true })).toBeVisible();
+			}
+			await expect(page.locator('[data-tour="canvas"]')).toBeVisible();
+			expect(pageErrors).toEqual([]);
+		});
+	}
+	await page.bringToFront();
+	await add.click({ trial: true });
+	await add.press('Enter');
 	const dialog = page.getByRole('dialog'); await expect(dialog).toBeVisible();
 	await expect(dialog).toHaveAccessibleName('Select node type');
-	const scan = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+	const scan = await analyzeAccessibility(page, new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']));
 	expect(scan.violations).toEqual([]);
-	await dialog.getByRole('button', { name: 'Cancel', exact: true }).focus(); await page.keyboard.press('Enter');
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(add).toBeFocused();
 	await page.keyboard.press('Enter'); await expect(dialog).toBeVisible();
-	await dialog.getByRole('button', { name: /^Delay/ }).focus(); await page.keyboard.press('Enter');
+	await dialog.getByRole('button', { name: /^Delay/ }).press('Enter');
 	await expect(dialog).not.toBeVisible(); await expect(page.locator('.react-flow__node-delayNode')).toHaveCount(1);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	expect(pageErrors).toEqual([]);
 });
 
 test('production creates the bundled onboarding project with external network blocked', async ({ page }) => {

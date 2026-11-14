@@ -147,6 +147,7 @@
 		"deleteConfirm": "Are you sure you want to delete this project? This action cannot be undone."
 	},
 	"dialogues": {
+		"deleteConfirm": "Delete \"{{name}}\"? This action cannot be undone.",
 		"title": "Dialogues",
 		"createNew": "Create New Dialogue",
 		"createDescription": "Start building conversations",
@@ -163,6 +164,16 @@
 		"unsavedChanges": "Unsaved Changes"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Pasted with changes",
+			"description": "Reassign the cleared references: {{details}}.",
+			"conditions": "Condition rules: {{count}}",
+			"decorators": "Decorators: {{count}}",
+			"nodeSpeakers": "Node speakers: {{count}}",
+			"rowSpeakers": "Row speakers: {{count}}",
+			"returnTargets": "Return targets: {{count}}",
+			"childTargets": "Child dialogue targets: {{count}}"
+		},
 		"menu": {
 			"file": "File",
 			"edit": "Edit",
@@ -212,7 +223,9 @@
 			"title": "Dialogue Preview",
 			"start": "Preview",
 			"startTooltip": "Start dialogue preview",
+			"startFromHere": "Preview from here",
 			"stop": "Stop",
+			"continue": "Continue",
 			"waiting": "Waiting for next dialogue line...",
 			"chooseAnswer": "Choose a player answer",
 			"choiceFallback": "Untitled answer",
@@ -270,6 +283,11 @@
 		"speaker": "Speaker",
 		"dialogueText": "Dialogue Text",
 		"audioClip": "Audio Clip",
+		"rows": {
+			"executionBehaviour": { "label": "Execution", "automatic": "Automatic", "awaitInput": "Await input", "stopping": "Stopping" },
+			"durationMode": { "label": "Duration mode", "duration": "Duration", "override": "Override", "add": "Add time", "calculate": "Calculate" },
+			"durationOverride": "Duration override (seconds)"
+		},
 		"decorators": "Decorators",
 		"addDecorator": "Add Decorator",
 		"deleteCascadeTitle": "Delete Node and Children?",
@@ -619,6 +637,7 @@
 		"failed": "Import failed. Review the archive and try again."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Leave missing texts blank and continue",
 		"title": "Project recovery",
 		"description": "Resolve these references before exporting or synchronizing. Original records remain preserved. Recover missing text or media from an existing backup; the app cannot reconstruct them.",
 		"failed": "Recovery failed. Review the details and try again.",
@@ -643,7 +662,7 @@
 	},
 	"syncConflicts": {
 		"title": "Synchronization conflicts",
-		"description": "Both versions are preserved. Choose which version to keep.",
+		"description": "Multiple versions are preserved. Choose which version to keep.",
 		"incomplete": "Some revision history is unavailable. Synchronize again before resolving.",
 		"keepLocal": "Keep local",
 		"keepRemote": "Keep remote",
@@ -652,6 +671,30 @@
 		"selectRevision": "Competing version",
 		"revision": "Revision {{id}}",
 		"deleted": "Deleted project",
-		"resolveError": "Could not resolve this conflict."
+		"resolveError": "Could not resolve this conflict.",
+		"thisBrowser": "This browser",
+		"otherVersion": "Server / other device",
+		"hint": "Compare the versions before choosing; newer or larger is not always correct. Keeping all versions preserves available content in separate projects. You can delete unwanted copies later.",
+		"versionLabel": "Version {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Revision details",
+		"unknownDate": "Unknown date",
+		"keepAll": "Keep all versions",
+		"dialogueCount_one": "{{count}} dialogue",
+		"dialogueCount_other": "{{count}} dialogues",
+		"nodeCount_one": "{{count}} node",
+		"nodeCount_other": "{{count}} nodes"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "CLI access",
+			"running": "On, port {{port}}",
+			"off": "Off",
+			"description": "Lets the Mountea Dialoguer command-line tool on this computer read and edit your projects."
+		},
+		"externalChange": {
+			"title": "Dialogue changed outside the editor",
+			"unsaved": "The CLI changed this dialogue. Reload to see the change; your unsaved edits will be lost. If you save instead, your version is kept.",
+			"reload": "Reload"
+		}
 	}
 }

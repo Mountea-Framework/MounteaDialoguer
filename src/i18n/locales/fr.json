@@ -117,6 +117,7 @@
 		"deleteConfirm": "Voulez-vous vraiment supprimer ce projet ? Cette action est irréversible."
 	},
 	"dialogues": {
+		"deleteConfirm": "Supprimer le dialogue « {{name}} » ? Cette action est irréversible.",
 		"title": "Dialogues",
 		"createNew": "Créer un nouveau dialogue",
 		"createNewDescription": "Start from scratch or import",
@@ -134,6 +135,16 @@
 		"unsavedChanges": "Modifications non enregistrées"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Collé avec des modifications",
+			"description": "Réattribuez les références effacées : {{details}}.",
+			"conditions": "Règles de condition : {{count}}",
+			"decorators": "Décorateurs : {{count}}",
+			"nodeSpeakers": "Locuteurs des nœuds : {{count}}",
+			"rowSpeakers": "Locuteurs des lignes : {{count}}",
+			"returnTargets": "Cibles de retour : {{count}}",
+			"childTargets": "Cibles des sous-dialogues : {{count}}"
+		},
 		"menu": {
 			"file": "Fichier",
 			"edit": "Édition",
@@ -179,6 +190,9 @@
 			"recenterTooltip": "Afficher tout le graphe",
 			"startFocusTooltip": "Centrer le nœud Start"
 		},
+		"preview": {
+			"startFromHere": "Aperçu à partir d'ici"
+		},
 		"nodes": {
 			"start": "Début",
 			"startDescription": "Point d'entrée du dialogue",
@@ -214,6 +228,11 @@
 		"speaker": "Locuteur",
 		"dialogueText": "Texte du dialogue",
 		"audioClip": "Clip audio",
+		"rows": {
+			"executionBehaviour": { "label": "Exécution", "automatic": "Automatique", "awaitInput": "Attendre une action", "stopping": "Arrêter" },
+			"durationMode": { "label": "Mode de durée", "duration": "Durée", "override": "Remplacer", "add": "Ajouter du temps", "calculate": "Calculer" },
+			"durationOverride": "Durée personnalisée (secondes)"
+		},
 		"decorators": "Décorateurs",
 		"addDecorator": "Ajouter un décorateur",
 		"deleteCascadeTitle": "Supprimer le nœud et ses enfants ?",
@@ -522,6 +541,7 @@
 		"failed": "L’importation a échoué. Vérifiez l’archive et réessayez."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Laisser les textes manquants vides et continuer",
 		"title": "Récupération du projet",
 		"description": "Corrigez ces références avant l’exportation ou la synchronisation. Les données d’origine sont conservées. Récupérez les textes ou médias manquants depuis une sauvegarde ; l’application ne peut pas les reconstruire.",
 		"failed": "La récupération a échoué. Vérifiez les détails et réessayez.",
@@ -546,7 +566,7 @@
 	},
 	"syncConflicts": {
 		"title": "Conflits de synchronisation",
-		"description": "Les deux versions sont conservées. Choisissez celle à garder.",
+		"description": "Plusieurs versions sont conservées. Choisissez la version à garder.",
 		"incomplete": "Une partie de l’historique est indisponible. Relancez la synchronisation avant de résoudre le conflit.",
 		"keepLocal": "Garder la version locale",
 		"keepRemote": "Garder la version distante",
@@ -555,6 +575,32 @@
 		"selectRevision": "Version concurrente",
 		"revision": "Révision {{id}}",
 		"deleted": "Projet supprimé",
-		"resolveError": "Impossible de résoudre ce conflit."
+		"resolveError": "Impossible de résoudre ce conflit.",
+		"thisBrowser": "Ce navigateur",
+		"otherVersion": "Serveur / autre appareil",
+		"hint": "Comparez les versions avant de choisir ; la plus récente ou la plus volumineuse n’est pas toujours la bonne. Garder toutes les versions préserve le contenu disponible dans des projets séparés. Vous pourrez supprimer les copies inutiles plus tard.",
+		"versionLabel": "Version {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Détails de la révision",
+		"unknownDate": "Date inconnue",
+		"keepAll": "Garder toutes les versions",
+		"dialogueCount_one": "{{count}} dialogue",
+		"dialogueCount_many": "{{count}} dialogues",
+		"dialogueCount_other": "{{count}} dialogues",
+		"nodeCount_one": "{{count}} nœud",
+		"nodeCount_many": "{{count}} nœuds",
+		"nodeCount_other": "{{count}} nœuds"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "Accès CLI",
+			"running": "Activé, port {{port}}",
+			"off": "Désactivé",
+			"description": "Permet à l’outil en ligne de commande de Mountea Dialoguer sur cet ordinateur de lire et de modifier vos projets."
+		},
+		"externalChange": {
+			"title": "Dialogue modifié en dehors de l’éditeur",
+			"unsaved": "La CLI a modifié ce dialogue. Rechargez pour voir la modification ; vos changements non enregistrés seront perdus. Si vous enregistrez à la place, votre version est conservée.",
+			"reload": "Recharger"
+		}
 	}
 }

@@ -90,6 +90,22 @@
 >
 > If no team folder ID is configured, Google sync uses private `appDataFolder` storage per user.
 
+## Desktop CLI
+> The desktop app can be driven from a terminal or an MCP client. Changes are made in the desktop app's own database, so they show in the open app straight away and sync like any edit made in the app.
+>
+> - Installed app: run `dialoguer.cmd` (Windows) or `dialoguer` (macOS/Linux) from the app's `resources/cli` folder; add that folder to `PATH` to type `dialoguer` anywhere. It uses the app's own runtime, so Node.js is not needed. From the repository: `npm run cli -- <command>` (needs `npm run build`).
+> - If the app is not running, the CLI starts it hidden (`--headless`, quits after 15 idle minutes or on `dialoguer stop`). Opening the app normally while it runs hidden shows its window.
+> - If the app is already open, turn on **CLI access** in its command palette (`Ctrl+K`, Settings). It is off by default.
+>
+> Common commands:
+> - `dialoguer projects`, `dialoguer dialogues <projectId>`, `dialoguer dialogue <projectId> <dialogueId>`
+> - `dialoguer import <file.mnteadlgproj>`, `dialoguer export project <projectId> -o <file>`
+> - `dialoguer tools`, then `dialoguer call <tool> key=value ...` for any of the MCP tools
+> - `dialoguer mcp` serves MCP over stdio: `claude mcp add dialoguer-desktop -- <path>/dialoguer mcp`
+> - `dialoguer help` lists everything, including `--user-data-dir` and `--url`/`--token` for a self-hosted MCP endpoint.
+>
+> Security: the app listens on `127.0.0.1` only, refuses browser requests, and requires a token that is regenerated on each start and stored in the app's profile folder (`automation.json`), so only your OS account can use it. The CLI acts on the app's active profile. The bundled launcher relies on Electron's `RunAsNode` fuse staying enabled.
+
 ## How To Support
 > If **Mountea Dialoguer** is valuable to your team, you can support it by:
 >

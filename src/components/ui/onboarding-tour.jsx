@@ -42,7 +42,8 @@ export function OnboardingTour({
 		for (const selector of selectors) {
 			if (!selector) continue;
 			const visible = getVisibleTarget(selector);
-			if (visible) return visible;
+			// Joyride deep-compares steps; DOM nodes carry cyclic React internals.
+			if (visible) return selector;
 		}
 		return 'body';
 	};
@@ -115,7 +116,7 @@ export function OnboardingTour({
 		...(dashboardExampleTarget
 			? [
 					{
-						target: dashboardExampleTarget,
+					target: '[data-tour="example-project"]',
 						content: renderStepContent({
 							title: t('tour.dashboard.exampleTitle', {
 								defaultValue: 'Generate an Example Project',

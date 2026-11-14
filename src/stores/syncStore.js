@@ -23,6 +23,8 @@ import {
 	supportsCloudSync,
 } from '@/lib/sync/providers/providerRegistry';
 import { buildProfileScopedKey, getActiveProfileId } from '@/lib/profile/activeProfile';
+import { isSelfHostedSync } from '@/lib/runtimeConfig';
+import { isSyncServerReachable } from '@/lib/sync/providers/storageProviders';
 
 const SYNC_STORAGE_KEY = 'mountea-dialoguer-sync';
 const DEFAULT_PROVIDER_INPUT = Object.freeze({
@@ -264,6 +266,14 @@ export const useSyncStore = create(
 
 			loadAccount: async (options = {}) => {
 				const context = options.context || await getRepositoryContext();
+				context.assertCurrent();
+				if (isSelfHostedSync()) {
+					// Self-hosted edition: there is nothing to log in to; access control sits in front of the server.
+					const reachable = await isSyncServerReachable({ signal: context.signal });
+					context.assertCurrent();
+					set({ provider: 'server', status: reachable ? 'connected' : 'error', syncMode: 'full', error: reachable ? null : 'syncFailed' });
+					return;
+				}
 				const capability = await credentialCapabilities();
 				context.assertCurrent();
 				const legacyPassphrase = getProviderPassphraseFromState(get(), 'googleDrive');
@@ -543,13 +553,14 @@ export const useSyncStore = create(
                 try {
                     const result = await syncRevisions({ ...options, provider, passphrase, context, mode });
                     context.assertCurrent();
-                    set({ status: 'connected', error: result.failures.length ? 'syncFailed' : null, syncResults: result, queueState: result.queue,
+                    const needsAuth = result.failures.some((item) => ['AUTH_REQUIRED', 'SETUP_REQUIRED'].includes(item.code));
+                    set({ status: 'connected', error: needsAuth ? 'authRequired' : result.failures.length ? 'syncFailed' : null, syncResults: result, queueState: result.queue,
                         ...(mode !== 'list' && !result.failures.length ? { lastSyncedAt: new Date().toISOString() } : {}), pullState: createResetPullState() });
                     await get().refreshConflicts();
                     traceSyncEvent('COMPLETE', { provider, mode, failures: result.failures.length, conflicts: result.conflicts.length, queue: result.queue });
                     return result;
                 } catch (failure) {
-                    if (!context.signal.aborted) set({ status: 'error', error: 'syncFailed', pullState: createResetPullState() });
+                    if (!context.signal.aborted) set({ status: 'error', error: ['AUTH_REQUIRED', 'SETUP_REQUIRED'].includes(failure.code) ? 'authRequired' : 'syncFailed', pullState: createResetPullState() });
                     traceSyncEvent('FAILED', { provider, mode, code: failure.code || 'SYNC_FAILED' });
                     return { failures: [{ code: failure.code || 'SYNC_FAILED', message: failure.message }] };
                 }

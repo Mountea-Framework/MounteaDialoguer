@@ -26,6 +26,8 @@ const { createTrustedIpc, isTrustedRendererUrl } = require('./security.cjs');
 const { createCredentialVault } = require('./credentials.cjs');
 const { createSteamFileTransport } = require('./steam-files.cjs');
 const { appendDiagnostic, sanitizeDiagnostics } = require('./diagnostics.cjs');
+const { fallbackUserDataDirs } = require('./userDataPaths.cjs');
+const { createAutomationHost, readAutomationSettings, writeAutomationSettings } = require('./automation.cjs');
 let credentialVault;
 function getCredentialVault() {
 	if (!credentialVault) credentialVault = createCredentialVault({ safeStorage, directory: app.getPath('userData') });
@@ -60,6 +62,17 @@ let menuContext = { ...DEFAULT_MENU_CONTEXT };
 const SUPPORTED_LANGUAGES = require('./shared/app-languages.json');
 const USER_DATA_DIR_ARG_PREFIX = '--user-data-dir=';
 const USER_DATA_REROUTE_FLAG = '--mountea-user-data-reroute';
+// --headless (used by the CLI): the window is created but not shown, and CLI access is on for this process only.
+const HEADLESS_FLAG = '--headless';
+const HEADLESS = process.argv.includes(HEADLESS_FLAG);
+const configuredHeadlessIdleMs = Number(process.env.MOUNTEA_HEADLESS_IDLE_MS || '');
+const HEADLESS_IDLE_MS =
+	Number.isFinite(configuredHeadlessIdleMs) && configuredHeadlessIdleMs > 0
+		? configuredHeadlessIdleMs
+		: 15 * 60 * 1000;
+let automationHost = null;
+let automationRendererReady = false;
+let headlessIdleTimer = null;
 
 function configureLinuxRuntimeStability() {
 	if (process.platform !== 'linux') return;
@@ -97,24 +110,7 @@ function canUseUserDataPath(targetPath) {
 }
 
 function getUserDataFallbackCandidates() {
-	const candidates = [];
-	const envOverride = String(process.env.MOUNTEA_USER_DATA_DIR || '').trim();
-	if (envOverride) {
-		candidates.push(envOverride);
-	}
-
-	const localAppData = String(process.env.LOCALAPPDATA || '').trim();
-	if (localAppData) {
-		candidates.push(path.join(localAppData, APP_DISPLAY_NAME));
-		candidates.push(path.join(localAppData, APP_DISPLAY_NAME, 'user-data'));
-	}
-
-	const tempPath = String(app.getPath('temp') || '').trim();
-	if (tempPath) {
-		candidates.push(path.join(tempPath, APP_DISPLAY_NAME, 'user-data'));
-	}
-
-	return [...new Set(candidates.filter(Boolean))];
+	return fallbackUserDataDirs({ env: process.env, tempPath: app.getPath('temp') });
 }
 
 function getUserDataDirFromProcessArgs() {
@@ -1412,6 +1408,57 @@ async function startGoogleOAuth({ clientId, clientSecret, scopes }, signal) {
 	}
 }
 
+const shouldAutoShowWindow = () => process.env.MOUNTEA_STARTUP_CHECK !== '1' && !HEADLESS;
+const isHiddenHeadless = () => HEADLESS && !(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
+
+function scheduleHeadlessIdleExit() {
+	if (!HEADLESS) return;
+	clearTimeout(headlessIdleTimer);
+	headlessIdleTimer = setTimeout(() => {
+		if (isHiddenHeadless()) app.quit();
+	}, HEADLESS_IDLE_MS);
+}
+
+function getAutomationHost() {
+	if (!automationHost) {
+		automationHost = createAutomationHost({
+			directory: app.getPath('userData'),
+			version: app.getVersion(),
+			port: Number(process.env.MOUNTEA_AUTOMATION_PORT || 0) || 0,
+			getMode: () => (isHiddenHeadless() ? 'headless' : 'windowed'),
+			forward: (id, message) => {
+				if (!mainWindow || mainWindow.isDestroyed()) throw new Error('The app window is not available');
+				mainWindow.webContents.send('automation:request', { id, message });
+			},
+			canShutdown: isHiddenHeadless,
+			onShutdown: () => app.quit(),
+			onActivity: scheduleHeadlessIdleExit,
+		});
+	}
+	return automationHost;
+}
+
+function automationStatus() {
+	const status = automationHost?.status() || { running: false, port: null };
+	return { enabled: readAutomationSettings(app.getPath('userData')).enabled, running: status.running, port: status.port, headless: HEADLESS };
+}
+
+async function startAutomation() {
+	const host = getAutomationHost();
+	host.setReady(automationRendererReady);
+	try {
+		await host.start();
+		scheduleHeadlessIdleExit();
+	} catch (error) {
+		reportMainProcessError(error, { event: 'automation-start' });
+	}
+	return automationStatus();
+}
+
+function stopAutomation() {
+	automationHost?.stop();
+}
+
 function createMainWindow() {
 	const iconPath = getIconPath();
 	const disableLinuxWindowIcon =
@@ -1480,7 +1527,16 @@ function createMainWindow() {
 
 	mainWindow.once('ready-to-show', () => {
 		logStartupEvent('ready-to-show', { isVisible: mainWindow.isVisible() });
-		if (process.env.MOUNTEA_STARTUP_CHECK !== '1') mainWindow.show();
+		if (shouldAutoShowWindow()) mainWindow.show();
+	});
+
+	// A reload drops the renderer's CLI handler until it reports ready again; in-app (hash) routing does not.
+	mainWindow.webContents.on('did-start-navigation', (details, _url, isInPlace, isMainFrame) => {
+		const sameDocument = details?.isSameDocument ?? isInPlace;
+		const mainFrame = details?.isMainFrame ?? isMainFrame;
+		if (!mainFrame || sameDocument) return;
+		automationRendererReady = false;
+		automationHost?.setReady(false);
 	});
 
 	mainWindow.webContents.on('did-finish-load', () => {
@@ -1488,7 +1544,7 @@ function createMainWindow() {
 			url: mainWindow.webContents.getURL(),
 			isVisible: mainWindow.isVisible(),
 		});
-		if (process.env.MOUNTEA_STARTUP_CHECK !== '1' && !mainWindow.isVisible()) {
+		if (shouldAutoShowWindow() && !mainWindow.isVisible()) {
 			mainWindow.show();
 		}
 	});
@@ -1499,7 +1555,7 @@ function createMainWindow() {
 			errorDescription,
 			validatedURL,
 		});
-		if (process.env.MOUNTEA_STARTUP_CHECK !== '1' && !mainWindow.isVisible()) {
+		if (shouldAutoShowWindow() && !mainWindow.isVisible()) {
 			mainWindow.show();
 		}
 	});
@@ -1553,6 +1609,26 @@ function registerIpcHandlers() {
 	ipcMain.removeHandler('steam-sync:create-file');
 	ipcMain.removeHandler('steam-sync:update-file');
 	ipcMain.removeHandler('steam-sync:delete-file');
+	ipcMain.removeHandler('automation:get-status');
+	ipcMain.removeHandler('automation:set-enabled');
+	ipcMain.removeAllListeners('automation:ready');
+	ipcMain.removeAllListeners('automation:response');
+
+	trustedIpc.handle('automation:get-status', () => automationStatus());
+	trustedIpc.handle('automation:set-enabled', async (_event, payload) => {
+		writeAutomationSettings(app.getPath('userData'), { enabled: payload.enabled });
+		if (payload.enabled) return startAutomation();
+		// A headless process exists only to serve the CLI, so it keeps its endpoint.
+		if (!HEADLESS) stopAutomation();
+		return automationStatus();
+	});
+	trustedIpc.on('automation:ready', () => {
+		automationRendererReady = true;
+		automationHost?.setReady(true);
+	});
+	trustedIpc.on('automation:response', (_event, payload) => {
+		automationHost?.receive(payload.id, payload.response);
+	});
 
 	trustedIpc.handle('shell:open-external', async (_event, rawUrl) => {
 		if (!isAllowedExternalUrl(rawUrl)) {
@@ -1643,15 +1719,19 @@ process.on('unhandledRejection', (reason) => {
 if (!gotSingleInstanceLock) {
 	app.quit();
 } else {
-	app.on('second-instance', () => {
+	app.on('second-instance', (_event, argv = []) => {
+		// The CLI launches the app with --headless; an instance that is already running serves it as it is.
+		if (argv.includes(HEADLESS_FLAG)) return;
 		if (!mainWindow) return;
 		if (mainWindow.isMinimized()) {
 			mainWindow.restore();
 		}
 		if (!mainWindow.isVisible()) {
+			app.dock?.show();
 			mainWindow.show();
 		}
 		mainWindow.focus();
+		automationHost?.refreshEndpoint();
 	});
 
 	app.whenReady().then(async () => {
@@ -1675,6 +1755,8 @@ if (!gotSingleInstanceLock) {
 		createAppMenu(menuContext);
 		registerIpcHandlers();
 		createMainWindow();
+		if (HEADLESS) app.dock?.hide();
+		if (HEADLESS || readAutomationSettings(app.getPath('userData')).enabled) void startAutomation();
 
 		app.on('activate', () => {
 			if (BrowserWindow.getAllWindows().length === 0) {
@@ -1686,6 +1768,7 @@ if (!gotSingleInstanceLock) {
 
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {
+		stopAutomation();
 		try {
 			shutdownSteamRuntime();
 		} catch (error) {
@@ -1696,6 +1779,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+	stopAutomation();
 	oauthSession.cancel();
 	try {
 		shutdownSteamRuntime();

@@ -15,6 +15,10 @@ export function signingArguments(platform, env) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	const args = process.argv.slice(2), publicRelease = args.includes('--public-release');
 	await verifyArtifact('dist');
+	// The CLI needs the same profile-path module as the app. electron-builder leaves any file that is also an extraResources
+	// source out of app.asar, which would break the app's own require, so ship a staged copy instead.
+	await fs.mkdir('tmp/cli-resources', { recursive: true });
+	await fs.copyFile('electron/userDataPaths.cjs', 'tmp/cli-resources/userDataPaths.cjs');
 	const signing = publicRelease ? signingArguments(process.platform, process.env) : [];
 	let linuxOutput;
 	if (publicRelease && process.platform === 'linux') {

@@ -117,6 +117,7 @@
 		"deleteConfirm": "¿Estás seguro de que quieres eliminar este proyecto? Esta acción no se puede deshacer."
 	},
 	"dialogues": {
+		"deleteConfirm": "¿Eliminar el diálogo «{{name}}»? Esta acción no se puede deshacer.",
 		"title": "Diálogos",
 		"createNew": "Crear nuevo diálogo",
 		"createNewDescription": "Start from scratch or import",
@@ -134,6 +135,16 @@
 		"unsavedChanges": "Cambios sin guardar"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Pegado con cambios",
+			"description": "Vuelve a asignar las referencias eliminadas: {{details}}.",
+			"conditions": "Reglas de condición: {{count}}",
+			"decorators": "Decoradores: {{count}}",
+			"nodeSpeakers": "Hablantes de nodos: {{count}}",
+			"rowSpeakers": "Hablantes de filas: {{count}}",
+			"returnTargets": "Destinos de retorno: {{count}}",
+			"childTargets": "Destinos de diálogos secundarios: {{count}}"
+		},
 		"menu": {
 			"file": "Archivo",
 			"edit": "Editar",
@@ -214,6 +225,11 @@
 		"speaker": "Hablante",
 		"dialogueText": "Texto del diálogo",
 		"audioClip": "Clip de audio",
+		"rows": {
+			"executionBehaviour": { "label": "Ejecución", "automatic": "Automática", "awaitInput": "Esperar entrada", "stopping": "Detener" },
+			"durationMode": { "label": "Modo de duración", "duration": "Duración", "override": "Sobrescribir", "add": "Sumar tiempo", "calculate": "Calcular" },
+			"durationOverride": "Duración personalizada (segundos)"
+		},
 		"decorators": "Decoradores",
 		"addDecorator": "Añadir decorador",
 		"deleteCascadeTitle": "¿Eliminar el nodo y sus hijos?",
@@ -248,6 +264,9 @@
 			"focusNode": "Ir al nodo",
 			"unsavedLeaveTitle": "Cambios sin guardar",
 			"unsavedLeaveDescription": "Tienes cambios sin guardar. Salir los descartará. ¿Continuar?"
+		},
+		"preview": {
+			"startFromHere": "Vista previa desde aquí"
 		}
 	},
 	"participants": {
@@ -522,6 +541,7 @@
 		"failed": "La importación falló. Revisa el archivo e inténtalo de nuevo."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Dejar en blanco los textos que faltan y continuar",
 		"title": "Recuperación del proyecto",
 		"description": "Resuelve estas referencias antes de exportar o sincronizar. Se conservan los registros originales. Recupera los textos o medios que falten desde una copia de seguridad; la aplicación no puede reconstruirlos.",
 		"failed": "La recuperación falló. Revisa los detalles e inténtalo de nuevo.",
@@ -546,7 +566,7 @@
 	},
 	"syncConflicts": {
 		"title": "Conflictos de sincronización",
-		"description": "Se conservan ambas versiones. Elige cuál quieres mantener.",
+		"description": "Se conservan varias versiones. Elige cuál quieres mantener.",
 		"incomplete": "Parte del historial no está disponible. Vuelve a sincronizar antes de resolver el conflicto.",
 		"keepLocal": "Mantener versión local",
 		"keepRemote": "Mantener versión remota",
@@ -555,6 +575,32 @@
 		"selectRevision": "Versión en conflicto",
 		"revision": "Revisión {{id}}",
 		"deleted": "Proyecto eliminado",
-		"resolveError": "No se pudo resolver este conflicto."
+		"resolveError": "No se pudo resolver este conflicto.",
+		"thisBrowser": "Este navegador",
+		"otherVersion": "Servidor / otro dispositivo",
+		"hint": "Compara las versiones antes de elegir; la más reciente o la más grande no siempre es la correcta. Mantener todas las versiones conserva el contenido disponible en proyectos separados. Puedes eliminar las copias que no necesites más adelante.",
+		"versionLabel": "Versión {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Detalles de la revisión",
+		"unknownDate": "Fecha desconocida",
+		"keepAll": "Mantener todas las versiones",
+		"dialogueCount_one": "{{count}} diálogo",
+		"dialogueCount_many": "{{count}} diálogos",
+		"dialogueCount_other": "{{count}} diálogos",
+		"nodeCount_one": "{{count}} nodo",
+		"nodeCount_many": "{{count}} nodos",
+		"nodeCount_other": "{{count}} nodos"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "Acceso desde la CLI",
+			"running": "Activado, puerto {{port}}",
+			"off": "Desactivado",
+			"description": "Permite que la herramienta de línea de comandos de Mountea Dialoguer en este equipo lea y edite tus proyectos."
+		},
+		"externalChange": {
+			"title": "Diálogo modificado fuera del editor",
+			"unsaved": "La CLI ha modificado este diálogo. Recarga para ver el cambio; perderás los cambios sin guardar. Si guardas en su lugar, se conserva tu versión.",
+			"reload": "Recargar"
+		}
 	}
 }

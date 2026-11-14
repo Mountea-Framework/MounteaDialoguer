@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { SettingsCommandDialog } from '@/components/ui/SettingsCommandDialog';
 import { SyncLoginDialog } from '@/components/sync/SyncLoginDialog';
+import { SyncServerAuthDialog } from '@/components/sync/SyncServerAuthDialog';
 import { SyncPullDialog } from '@/components/sync/SyncPullDialog';
 import { SyncConflictPanel } from '@/components/sync/SyncConflictPanel';
 import { RecoverySummary } from '@/components/projects/RecoverySummary';
@@ -19,7 +20,8 @@ import { useSteamStore } from '@/stores/steamStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
 import { markUserActivity, trackActiveMinute, flushActivity, retryPendingAchievements } from '@/lib/achievements/achievementTracker';
-import { isGoogleSyncEnabled, isSteamChannel } from '@/lib/runtimeConfig';
+import { isGoogleSyncEnabled, isSelfHostedSync, isSteamChannel } from '@/lib/runtimeConfig';
+import { startDesktopAutomation } from '@/lib/automation/desktopAutomation';
 import { initializeActiveProfileFromSteamStatus, subscribeProfileChanges } from '@/lib/profile/activeProfile';
 import { useDialogueStore } from '@/stores/dialogueStore';
 import { useCategoryStore } from '@/stores/categoryStore';
@@ -97,7 +99,11 @@ function RootComponent() {
 		setHideLoginPrompt,
 		loginDialogOpen,
 		setLoginDialogOpen,
+		error: syncError,
+		clearError,
 	} = useSyncStore();
+	const [authDialogOpen, setAuthDialogOpen] = useState(false);
+	useEffect(() => { if (syncError === 'authRequired') setAuthDialogOpen(true); }, [syncError]);
 	const activeProviderPassphrase = provider
 		? String(providerInputs?.[provider]?.passphrase || '')
 		: '';
@@ -214,9 +220,20 @@ function RootComponent() {
 				await Promise.all([useUIStore.persist.rehydrate(), useSyncStore.persist.rehydrate()]);
 				context.assertCurrent();
 				if (disposed || ticket !== request) return;
-				await loadAccount({ steamStatus: resolvedSteamStatus });
+				await loadAccount({ steamStatus: resolvedSteamStatus, context });
 				context.assertCurrent();
 				if (disposed || ticket !== request) return;
+				if (isSelfHostedSync() && useSyncStore.getState().status === 'connected') {
+					// Self-hosted edition: take what other devices or the MCP server added before the first paint, so links to those projects open.
+					await Promise.race([
+						useSyncStore.getState().syncAllProjects({ mode: 'full', trigger: 'manual' }),
+						new Promise((resolve) => setTimeout(resolve, 8000)),
+					]);
+					context.assertCurrent();
+					if (disposed || ticket !== request) return;
+				}
+				// Desktop only: lets the local CLI endpoint reach this profile's data (no-op elsewhere).
+				startDesktopAutomation();
 				setIsLoading(false);
 			} catch (error) {
 				if (disposed || ticket !== request || error.code === 'STALE_PROFILE') return;
@@ -347,7 +364,7 @@ function RootComponent() {
 		}
 		if (isLoading || !showContent) return;
 		if (hasAutoSyncedRef.current) return;
-		const autoMode = provider === 'steam' ? 'full' : 'pull';
+		const autoMode = provider === 'steam' || provider === 'server' ? 'full' : 'pull';
 		console.log('[sync] Auto sync after hydration', { provider, mode: autoMode });
 		hasAutoSyncedRef.current = true;
 		syncAllProjects({ mode: autoMode, trigger: 'auto-hydration' });
@@ -776,6 +793,11 @@ function RootComponent() {
 						showPromptControls
 						hideLoginPrompt={hideLoginPrompt}
 						onHideLoginPromptChange={setHideLoginPrompt}
+					/>
+					<SyncServerAuthDialog
+						open={authDialogOpen}
+						onOpenChange={setAuthDialogOpen}
+						onAuthenticated={() => { clearError(); void syncAllProjects({ mode: 'full', trigger: 'manual' }); }}
 					/>
 					<SyncPullDialog />
 					<SyncConflictPanel />

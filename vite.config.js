@@ -25,10 +25,10 @@ export default defineConfig(({ mode }) => ({
 	base: './',
 	// Electron's development profile lives in the repository so it can be
 	// inspected easily. Its transient Chromium files are often locked on
-	// Windows, so they must never be passed to Vite's file watcher.
+	// Windows, as are Playwright's recordings under tmp. Keep both out of the watcher.
 	server: {
 		watch: {
-			ignored: ['**/.mountea-user-data/**'],
+			ignored: ['**/.mountea-user-data/**', '**/tmp/**'],
 		},
 	},
 	build: {

@@ -807,6 +807,30 @@ export function buildLocalizedEntriesFromNodes({
 	}).entries;
 }
 
+/**
+ * References whose text exists nowhere: a key with no matching entry and no inline value to rebuild it from.
+ * Migrating them would invent blank strings, so callers decide whether that is acceptable.
+ */
+export function findUnrecoverableLocalizedRefs({ nodes = [], entries = [] }) {
+	const keys = new Set(entries.map((raw) => normalizeLocalizedStringEntry(raw).key).filter(Boolean));
+	const diagnostics = [];
+	const check = (node, field, key, hasValue, row = null) => {
+		const safeKey = String(key || '').trim();
+		if (!safeKey || hasValue || keys.has(safeKey)) return;
+		diagnostics.push({ type: 'unrecoverable_entry', key: safeKey, nodeId: String(node.id), rowId: String(row?.id || ''), field });
+	};
+	for (const node of nodes) {
+		if (node.type === 'placeholderNode') continue;
+		const data = node.data || {};
+		const fields = getLocalizedNodeFields(node);
+		for (const field of ['displayName', 'selectionTitle']) {
+			if (fields.has(field) || Object.prototype.hasOwnProperty.call(data, field) || Object.prototype.hasOwnProperty.call(data, `${field}Key`)) check(node, field, data[`${field}Key`], Object.prototype.hasOwnProperty.call(data, field));
+		}
+		for (const row of data.dialogueRows || []) check(node, 'rowText', row?.textKey, Object.prototype.hasOwnProperty.call(row || {}, 'text'), row);
+	}
+	return diagnostics;
+}
+
 export function validateLocalizedEntriesForDialogue({
 	nodes = [], entries = [], defaultLocale = DEFAULT_LOCALE,
 	projectId = '', dialogueId = '', dialogueSlug = '', projectEntries = [],

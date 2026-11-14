@@ -20,7 +20,7 @@ function requireString(value, max = 4096, optional = false) {
 	throw new Error('Invalid IPC string');
 }
 function validatePayload(channel, payload, status) {
-	if (['steam:get-status', 'credentials:status'].includes(channel)) { if (payload !== undefined) throw new Error('Unexpected IPC payload'); return; }
+	if (['steam:get-status', 'credentials:status', 'automation:get-status'].includes(channel)) { if (payload !== undefined) throw new Error('Unexpected IPC payload'); return; }
 	if (channel.startsWith('shell:')) { requireString(payload); return; }
 	requireObject(payload);
 	if (channel.startsWith('credentials:')) {
@@ -80,6 +80,17 @@ function validatePayload(channel, payload, status) {
 		requireObject(payload.entries);
 		if (Object.keys(payload.entries).length > 20) throw new Error('Too many presence entries');
 		for (const [key, value] of Object.entries(payload.entries)) { requireString(key, 64); if (value !== null) requireString(value, 256, true); }
+		return;
+	}
+	if (channel === 'automation:set-enabled') {
+		if (Object.keys(payload).some((key) => key !== 'enabled') || typeof payload.enabled !== 'boolean') throw new Error('Invalid automation setting');
+		return;
+	}
+	if (channel === 'automation:ready') { if (Object.keys(payload).length) throw new Error('Unexpected automation argument'); return; }
+	if (channel === 'automation:response') {
+		if (Object.keys(payload).some((key) => !['id', 'response'].includes(key)) || typeof payload.id !== 'string' || !/^[A-Za-z0-9-]{1,64}$/.test(payload.id)) throw new Error('Invalid automation response');
+		if (typeof payload.response !== 'object') throw new Error('Invalid automation response'); // object, array or null
+		if (JSON.stringify(payload.response).length > 64 * 1024 * 1024) throw new Error('IPC payload exceeds limit');
 		return;
 	}
 	if (['menu:set-context', 'sync:trace'].includes(channel)) {

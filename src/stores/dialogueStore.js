@@ -14,6 +14,7 @@ import {
 	DEFAULT_LOCALE,
 	allocateDialogueLocalizationSlug,
 	filterLocalizedEntriesByDialogue,
+	findUnrecoverableLocalizedRefs,
 	materializeLocalizedNodes,
 	normalizeLocaleTag,
 	normalizeProjectLocalizationConfig,
@@ -93,6 +94,33 @@ function assertLocalizedDialogue({ dialogue, nodes, entries, defaultLocale, proj
 		error.diagnostics = validation.errors;
 		throw error;
 	}
+}
+
+/**
+ * Moves one dialogue's text into its string table (localization v2), in place on a repository snapshot.
+ * A legacy dialogue whose keys point at text that exists nowhere is rejected for repair unless
+ * allowMissingTranslations is set, because migrating it would replace lost text with blank strings.
+ */
+function migrateDialogueLocalization(snapshot, { projectId, dialogueId, allowMissingTranslations = false }) {
+	const dialogue = snapshot.dialogues.find((row) => row.id === dialogueId);
+	const dialogueNodes = snapshot.nodes.filter((node) => node.dialogueId === dialogueId);
+	const dialogueEntries = snapshot.localizedStrings.filter((entry) => entry.dialogueId === dialogueId);
+	if (Number(dialogue.localizationVersion || 0) < 2 && !allowMissingTranslations) {
+		const unrecoverable = findUnrecoverableLocalizedRefs({ nodes: dialogueNodes, entries: dialogueEntries });
+		if (unrecoverable.length) {
+			const error = new Error(`Localization requires repair: ${summarizeLocalizationValidationErrors(unrecoverable)}`);
+			error.code = 'LOCALIZATION_REPAIR_REQUIRED';
+			error.diagnostics = unrecoverable;
+			throw error;
+		}
+	}
+	dialogue.localizationSlug = allocateDialogueLocalizationSlug(dialogue, snapshot.dialogues);
+	const defaultLocale = getProjectLocalizationState(snapshot.project).defaultLocale;
+	const prepared = prepareLocalizedNodesAndEntries({ projectId, dialogueId, dialogueSlug: dialogue.localizationSlug, nodes: dialogueNodes, locale: defaultLocale, existingEntries: dialogueEntries });
+	assertLocalizedDialogue({ dialogue, nodes: prepared.nodes, entries: prepared.entries, defaultLocale, projectEntries: snapshot.localizedStrings });
+	snapshot.nodes = snapshot.nodes.filter((node) => node.dialogueId !== dialogueId).concat(buildPersistedNodesWithoutLocalizedText(prepared.nodes, dialogueId));
+	snapshot.localizedStrings = snapshot.localizedStrings.filter((entry) => entry.dialogueId !== dialogueId).concat(prepared.entries);
+	dialogue.localizationVersion = 2;
 }
 
 const loadRequests = {};
@@ -356,16 +384,7 @@ export const useDialogueStore = create((set, get) => ({
 				return Number(dialogue.localizationVersion || 0) < 2 || dialogue.localizationSlug !== slug || !validation.valid;
 			};
 			if (needsMigration(state.snapshot)) {
-				const result = await mutateProject(initial.projectId, { context, transform: (snapshot) => {
-					const dialogue = snapshot.dialogues.find((row) => row.id === dialogueId);
-					dialogue.localizationSlug = allocateDialogueLocalizationSlug(dialogue, snapshot.dialogues);
-					const defaultLocale = getProjectLocalizationState(snapshot.project).defaultLocale;
-					const prepared = prepareLocalizedNodesAndEntries({ projectId: initial.projectId, dialogueId, dialogueSlug: dialogue.localizationSlug, nodes: snapshot.nodes.filter((node) => node.dialogueId === dialogueId), locale: defaultLocale, existingEntries: snapshot.localizedStrings.filter((entry) => entry.dialogueId === dialogueId) });
-					assertLocalizedDialogue({ dialogue, nodes: prepared.nodes, entries: prepared.entries, defaultLocale, projectEntries: snapshot.localizedStrings });
-					snapshot.nodes = snapshot.nodes.filter((node) => node.dialogueId !== dialogueId).concat(buildPersistedNodesWithoutLocalizedText(prepared.nodes, dialogueId));
-					snapshot.localizedStrings = snapshot.localizedStrings.filter((entry) => entry.dialogueId !== dialogueId).concat(prepared.entries);
-					dialogue.localizationVersion = 2;
-				} });
+				const result = await mutateProject(initial.projectId, { context, transform: (snapshot) => migrateDialogueLocalization(snapshot, { projectId: initial.projectId, dialogueId }) });
 				state = result; migrated = true;
 			}
 			const loaded = { nodes: state.snapshot.nodes.filter((node) => node.dialogueId === dialogueId), edges: state.snapshot.edges.filter((edge) => edge.dialogueId === dialogueId), entries: state.snapshot.localizedStrings.filter((entry) => entry.dialogueId === dialogueId), dialogue: state.snapshot.dialogues.find((row) => row.id === dialogueId), defaultLocale: getProjectLocalizationState(state.snapshot.project).defaultLocale, migrated };
@@ -390,6 +409,25 @@ export const useDialogueStore = create((set, get) => ({
 			}
 			throw error;
 		}
+	},
+
+	/**
+	 * Repair for a dialogue blocked by LOCALIZATION_REPAIR_REQUIRED: migrate it anyway, leaving texts that exist
+	 * nowhere blank, and resolve its recovery record in the same commit.
+	 */
+	repairMissingTranslations: async (dialogueId) => {
+		const context = await getRepositoryContext();
+		const dialogue = await context.db.dialogues.get(dialogueId);
+		context.assertCurrent();
+		if (!dialogue?.projectId) throw new Error('Dialogue not found');
+		const result = await mutateProject(dialogue.projectId, {
+			context,
+			transform: (snapshot) => migrateDialogueLocalization(snapshot, { projectId: dialogue.projectId, dialogueId, allowMissingTranslations: true }),
+			recoveryResolutions: [{ id: `localization:${dialogueId}` }],
+		});
+		context.assertCurrent();
+		useSyncStore.getState().schedulePush(dialogue.projectId);
+		return result;
 	},
 
 		/**

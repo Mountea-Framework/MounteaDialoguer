@@ -18,6 +18,7 @@ import { isMobileDevice } from '@/lib/deviceDetection';
 import { copyToClipboardWithToast } from '@/lib/clipboard';
 import { toast } from '@/components/ui/toaster';
 import { SimpleTooltip } from '@/components/ui/tooltip';
+import { DialogueContextMenu } from '@/components/projects/DialogueContextMenu';
 import { useSettingsCommandStore } from '@/stores/settingsCommandStore';
 import { calculateProjectSize } from '@/lib/storageUtils';
 
@@ -337,27 +338,28 @@ export function OverviewSection({
 								<>
 									<div className="divide-y divide-border">
 										{recentDialogues.map((dialogue) => (
-											<Link
-												key={dialogue.id}
-												to="/projects/$projectId/dialogue/$dialogueId"
-												params={{ projectId: project.id, dialogueId: dialogue.id }}
-												className="p-4 flex items-center justify-between group hover:bg-accent transition-colors cursor-pointer hover:rounded-lg rounded-lg"
-											>
-												<div className="flex items-center gap-4">
-													<div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-blue-500">
-														<MessageCircle className="h-5 w-5" />
+											<DialogueContextMenu key={dialogue.id} dialogue={dialogue}>
+												<Link
+													to="/projects/$projectId/dialogue/$dialogueId"
+													params={{ projectId: project.id, dialogueId: dialogue.id }}
+													className="p-4 flex items-center justify-between group hover:bg-accent transition-colors cursor-pointer hover:rounded-lg rounded-lg"
+												>
+													<div className="flex items-center gap-4">
+														<div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-blue-500">
+															<MessageCircle className="h-5 w-5" />
+														</div>
+														<div>
+															<h4 className="font-medium">{dialogue.name}</h4>
+															<p className="text-xs text-muted-foreground">
+																{formatDistanceToNow(dialogue.modifiedAt)} • {dialogue.nodeCount || 0} {t('dialogues.nodes')}
+															</p>
+														</div>
 													</div>
-													<div>
-														<h4 className="font-medium">{dialogue.name}</h4>
-														<p className="text-xs text-muted-foreground">
-															{formatDistanceToNow(dialogue.modifiedAt)} • {dialogue.nodeCount || 0} {t('dialogues.nodes')}
-														</p>
-													</div>
-												</div>
-												<button className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-card shadow-sm border border-border text-primary hover:bg-primary hover:text-primary-foreground transition-all">
-													<Edit3 className="h-4 w-4" />
-												</button>
-											</Link>
+													<button className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-card shadow-sm border border-border text-primary hover:bg-primary hover:text-primary-foreground transition-all">
+														<Edit3 className="h-4 w-4" />
+													</button>
+												</Link>
+											</DialogueContextMenu>
 										))}
 									</div>
 									<div className="bg-muted/50 px-4 py-3 border-t border-border text-center">

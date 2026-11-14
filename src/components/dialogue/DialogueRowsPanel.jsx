@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Trash2, Plus, Volume2, Play, Pause, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,15 @@ import {
 	validateAudioFile,
 	getAudioDuration,
 } from '@/lib/audioStorage';
+import {
+	ROW_DURATION_MODES,
+	ROW_EXECUTION_BEHAVIOURS,
+	DEFAULT_ROW_DURATION_MODE,
+	DEFAULT_ROW_EXECUTION_BEHAVIOUR,
+	getRowDurationMode,
+	getRowExecutionBehaviour,
+	resolveRowDuration,
+} from '@/lib/rowTiming';
 
 /**
  * DialogueRowsPanel Component
@@ -27,6 +37,7 @@ export function DialogueRowsPanel({
 	isLocalizable = false,
 }) {
 	const { toast } = useToast();
+	const { t } = useTranslation();
 	const [expandedRows, setExpandedRows] = useState(new Set([0])); // First row expanded by default
 	const [playingAudio, setPlayingAudio] = useState(null); // Track which row ID is playing audio
 	const audioRefs = useRef({}); // Store audio element references by row ID
@@ -211,6 +222,20 @@ export function DialogueRowsPanel({
 			i === index ? { ...row, ...updates } : row
 		);
 		onChange(newRows);
+	};
+
+	const TIMING_DEFAULTS = {
+		executionBehaviour: DEFAULT_ROW_EXECUTION_BEHAVIOUR,
+		durationMode: DEFAULT_ROW_DURATION_MODE,
+		durationOverride: 0,
+	};
+	// Defaults are removed instead of stored so untouched rows serialize exactly as before.
+	const updateTiming = (index, field, value) => {
+		const targetRow = dialogueRows[index];
+		if (!targetRow) return;
+		const next = { ...targetRow, [field]: value };
+		if (value === TIMING_DEFAULTS[field]) delete next[field];
+		onChange(dialogueRows.map((row, i) => (i === index ? next : row)));
 	};
 
 	// Participant token insertion state
@@ -470,6 +495,8 @@ export function DialogueRowsPanel({
 								? row.text.substring(0, 40) + '...'
 								: row.text
 							: 'Empty dialogue...';
+						const durationMode = getRowDurationMode(row);
+						const executionBehaviour = getRowExecutionBehaviour(row);
 
 						return (
 							<div
@@ -628,7 +655,7 @@ export function DialogueRowsPanel({
 													Duration (seconds)
 												</Label>
 												<span className="text-sm font-medium">
-													{row.duration.toFixed(1)}s
+													{(durationMode === 'duration' ? row.duration : resolveRowDuration(row)).toFixed(1)}s
 												</span>
 											</div>
 											<Slider
@@ -640,8 +667,63 @@ export function DialogueRowsPanel({
 												min={0.5}
 												max={30}
 												step={0.1}
+												disabled={durationMode === 'override' || durationMode === 'calculate'}
 												className="w-full"
 											/>
+										</div>
+
+										{/* Duration mode + override */}
+										<div className="space-y-2">
+											<Label htmlFor={`duration-mode-${row.id}`}>
+												{t('editor.rows.durationMode.label')}
+											</Label>
+											<NativeSelect
+												id={`duration-mode-${row.id}`}
+												value={durationMode}
+												onChange={(e) => updateTiming(index, 'durationMode', e.target.value)}
+											>
+												{ROW_DURATION_MODES.map((mode) => (
+													<option key={mode} value={mode}>
+														{t(`editor.rows.durationMode.${mode}`)}
+													</option>
+												))}
+											</NativeSelect>
+											{(durationMode === 'override' || durationMode === 'add') && (
+												<div className="space-y-1">
+													<Label htmlFor={`duration-override-${row.id}`} className="text-xs text-muted-foreground">
+														{t('editor.rows.durationOverride')}
+													</Label>
+													<Input
+														id={`duration-override-${row.id}`}
+														type="number"
+														min={0}
+														step={0.1}
+														value={row.durationOverride ?? 0}
+														onChange={(e) => {
+															const value = Number(e.target.value);
+															updateTiming(index, 'durationOverride', Number.isFinite(value) && value > 0 ? value : 0);
+														}}
+													/>
+												</div>
+											)}
+										</div>
+
+										{/* Execution behaviour */}
+										<div className="space-y-2">
+											<Label htmlFor={`execution-${row.id}`}>
+												{t('editor.rows.executionBehaviour.label')}
+											</Label>
+											<NativeSelect
+												id={`execution-${row.id}`}
+												value={executionBehaviour}
+												onChange={(e) => updateTiming(index, 'executionBehaviour', e.target.value)}
+											>
+												{ROW_EXECUTION_BEHAVIOURS.map((behaviour) => (
+													<option key={behaviour} value={behaviour}>
+														{t(`editor.rows.executionBehaviour.${behaviour}`)}
+													</option>
+												))}
+											</NativeSelect>
 										</div>
 									</div>
 								)}

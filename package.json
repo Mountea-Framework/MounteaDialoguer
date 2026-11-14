@@ -1,9 +1,9 @@
 {
 	"name": "mountea-dialoguer",
 	"productName": "Mountea Dialoguer",
-	"version": "0.2.0",
+	"version": "1.1.0",
 	"description": "A dialogue graph editor for designing and organizing branching conversations.",
-	"author": "Dominik Pavlicek",
+	"author": "Dominik Morse",
 	"type": "module",
 	"main": "electron/main.cjs",
 	"private": true,
@@ -22,8 +22,14 @@
 		"electron:dist": "node scripts/run-electron-builder.mjs --public-release",
 		"electron:dist:steam": "cross-env VITE_DIST_CHANNEL=steam STEAM_APP_ID=4509320 node scripts/run-electron-builder.mjs --public-release --config.extraMetadata.mounteaDistChannel=steam --config.extraMetadata.mounteaSteamAppId=4509320",
 		"steam:upload:mac": "node scripts/steam-upload.mjs --platform macos",
-		"lint": "eslint src electron scripts tests *.config.js .eslintrc.cjs --ext js,jsx,cjs,mjs",
+		"lint": "eslint src electron scripts tests mcp server cli *.config.js .eslintrc.cjs --ext js,jsx,cjs,mjs",
 		"lint:ci": "npm run lint",
+		"start": "node server/index.mjs",
+		"mcp": "node --import ./mcp/register.mjs mcp/server.mjs",
+		"cli": "node cli/dialoguer.mjs",
+		"test:cli": "node scripts/check-electron-automation.mjs",
+		"test:mcp": "vitest run mcp",
+		"test:server": "vitest run server",
 		"test:e2e": "playwright test",
 		"test:e2e:smoke": "playwright test tests/e2e/smoke.spec.js",
 		"test:e2e:evidence": "npx playwright test tests/e2e/evidence.spec.js --reporter=list --workers=1",
@@ -55,6 +61,21 @@
 			"node_modules/steamworks.js/**/*",
 			"package.json",
 			"!dist/**/*.map"
+		],
+		"extraResources": [
+			{
+				"from": "cli",
+				"to": "cli",
+				"filter": [
+					"dialoguer.mjs",
+					"dialoguer.cmd",
+					"dialoguer"
+				]
+			},
+			{
+				"from": "tmp/cli-resources/userDataPaths.cjs",
+				"to": "cli/userDataPaths.cjs"
+			}
 		],
 		"win": {
 			"target": [
@@ -126,14 +147,14 @@
 		"@sentry/cli": "^2.58.6",
 		"@sentry/react": "^10.43.0",
 		"@tanstack/router-devtools": "^1.87.0",
-		"@tanstack/router-plugin": "^1.87.0",
+		"@tanstack/router-plugin": "^1.168.7",
 		"@types/react": "^18.3.18",
 		"@types/react-dom": "^18.3.5",
 		"@vitejs/plugin-react": "^4.3.4",
 		"autoprefixer": "^10.4.20",
-		"concurrently": "^9.2.1",
+		"concurrently": "^9.2.5",
 		"cross-env": "^10.1.0",
-		"electron": "^44.5.1",
+		"electron": "^44.9.1",
 		"electron-builder": "26.15.3",
 		"eslint": "^8.57.1",
 		"eslint-plugin-react": "^7.37.2",
@@ -144,7 +165,8 @@
 		"postcss-scss": "^4.0.9",
 		"tailwindcss": "^3.4.17",
 		"tailwindcss-animate": "^1.0.7",
-		"vite": "^6.0.5",
+		"vite": "^6.4.4",
+		"vitest": "^5.0.3",
 		"wait-on": "^9.0.1"
 	}
 }

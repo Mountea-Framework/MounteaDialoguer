@@ -5,6 +5,8 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
 	testDir: './tests/e2e',
+	// Built-artifact checks run against preview via playwright.production.config.js.
+	testIgnore: ['**/product-production.spec.js', '**/production-artifact.spec.js'],
 	timeout: 90 * 1000,
 	expect: {
 		timeout: 10 * 1000,

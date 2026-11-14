@@ -12,4 +12,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 	process.env.MOUNTEA_PACKAGED_EXECUTABLE ||= packagedExecutable(process.platform, process.arch);
 	process.env.MOUNTEA_NATIVE_EVIDENCE_PATH ||= `tmp/native-validation-${process.platform}-${process.arch}.json`;
 	await import('./check-electron-startup.mjs');
+	await import('./check-electron-automation.mjs');
 }

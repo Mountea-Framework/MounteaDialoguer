@@ -18,9 +18,10 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Audit shipped runtime and build dependencies
+        shell: bash
         run: |
           mkdir -p tmp
-          npm audit --audit-level=high --json > tmp/dependency-audit.json
+          npm audit --audit-level=high --json | tee tmp/dependency-audit.json
       - run: npx playwright install --with-deps chromium
       - run: npm run lint:ci
       - run: npm run test:regressions

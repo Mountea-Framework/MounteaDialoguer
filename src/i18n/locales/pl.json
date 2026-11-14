@@ -120,6 +120,7 @@
 		"deleteConfirm": "Czy na pewno chcesz usunąć ten projekt? Tej operacji nie można cofnąć."
 	},
 	"dialogues": {
+		"deleteConfirm": "Usunąć dialog „{{name}}”? Tej operacji nie można cofnąć.",
 		"title": "Dialogi",
 		"createNew": "Utwórz nowy dialog",
 		"createDescription": "Zacznij budować rozmowy",
@@ -136,6 +137,16 @@
 		"unsavedChanges": "Niezapisane zmiany"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Wklejono ze zmianami",
+			"description": "Przypisz ponownie usunięte odwołania: {{details}}.",
+			"conditions": "Reguły warunków: {{count}}",
+			"decorators": "Dekoratory: {{count}}",
+			"nodeSpeakers": "Mówcy węzłów: {{count}}",
+			"rowSpeakers": "Mówcy wierszy: {{count}}",
+			"returnTargets": "Cele powrotu: {{count}}",
+			"childTargets": "Cele dialogów podrzędnych: {{count}}"
+		},
 		"menu": {
 			"file": "Plik",
 			"edit": "Edycja",
@@ -181,6 +192,9 @@
 			"recenterTooltip": "Pokaż cały graf",
 			"startFocusTooltip": "Przejdź do węzła Start"
 		},
+		"preview": {
+			"startFromHere": "Podgląd od tego miejsca"
+		},
 		"nodes": {
 			"start": "Start",
 			"startDescription": "Punkt wejścia dialogu",
@@ -216,6 +230,11 @@
 		"speaker": "Mówca",
 		"dialogueText": "Tekst dialogu",
 		"audioClip": "Klip audio",
+		"rows": {
+			"executionBehaviour": { "label": "Wykonanie", "automatic": "Automatyczne", "awaitInput": "Czekaj na akcję", "stopping": "Zatrzymaj" },
+			"durationMode": { "label": "Tryb czasu trwania", "duration": "Czas trwania", "override": "Nadpisz", "add": "Dodaj czas", "calculate": "Oblicz" },
+			"durationOverride": "Nadpisanie czasu (sekundy)"
+		},
 		"decorators": "Dekoratory",
 		"addDecorator": "Dodaj dekorator",
 		"deleteCascadeTitle": "Usunąć węzeł i potomne?",
@@ -554,6 +573,7 @@
 		"failed": "Import nie powiódł się. Sprawdź archiwum i spróbuj ponownie."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Zostaw brakujące teksty puste i kontynuuj",
 		"title": "Odzyskiwanie projektu",
 		"description": "Popraw te odwołania przed eksportem lub synchronizacją. Oryginalne rekordy zostają zachowane. Brakujące teksty lub multimedia odzyskaj z kopii zapasowej; aplikacja nie może ich odtworzyć.",
 		"failed": "Odzyskiwanie nie powiodło się. Sprawdź szczegóły i spróbuj ponownie.",
@@ -578,7 +598,7 @@
 	},
 	"syncConflicts": {
 		"title": "Konflikty synchronizacji",
-		"description": "Obie wersje zostają zachowane. Wybierz wersję do zachowania.",
+		"description": "Zachowano wiele wersji. Wybierz wersję, którą chcesz zachować.",
 		"incomplete": "Część historii wersji jest niedostępna. Zsynchronizuj ponownie przed rozwiązaniem konfliktu.",
 		"keepLocal": "Zachowaj lokalną",
 		"keepRemote": "Zachowaj zdalną",
@@ -587,6 +607,34 @@
 		"selectRevision": "Konfliktowa wersja",
 		"revision": "Wersja {{id}}",
 		"deleted": "Usunięty projekt",
-		"resolveError": "Nie udało się rozwiązać tego konfliktu."
+		"resolveError": "Nie udało się rozwiązać tego konfliktu.",
+		"thisBrowser": "Ta przeglądarka",
+		"otherVersion": "Serwer / inne urządzenie",
+		"hint": "Porównaj wersje przed wyborem; nowsza lub większa nie zawsze jest właściwa. Zachowanie wszystkich wersji przechowuje dostępną zawartość w osobnych projektach. Niepotrzebne kopie możesz później usunąć.",
+		"versionLabel": "Wersja {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Szczegóły rewizji",
+		"unknownDate": "Nieznana data",
+		"keepAll": "Zachowaj wszystkie wersje",
+		"dialogueCount_one": "{{count}} dialog",
+		"dialogueCount_few": "{{count}} dialogi",
+		"dialogueCount_many": "{{count}} dialogów",
+		"dialogueCount_other": "{{count}} dialogu",
+		"nodeCount_one": "{{count}} węzeł",
+		"nodeCount_few": "{{count}} węzły",
+		"nodeCount_many": "{{count}} węzłów",
+		"nodeCount_other": "{{count}} węzła"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "Dostęp z CLI",
+			"running": "Włączony, port {{port}}",
+			"off": "Wyłączony",
+			"description": "Pozwala narzędziu wiersza poleceń Mountea Dialoguer na tym komputerze odczytywać i edytować twoje projekty."
+		},
+		"externalChange": {
+			"title": "Dialog zmieniony poza edytorem",
+			"unsaved": "CLI zmieniło ten dialog. Przeładuj, aby zobaczyć zmianę; utracisz niezapisane zmiany. Jeśli zamiast tego zapiszesz, zostanie twoja wersja.",
+			"reload": "Przeładuj"
+		}
 	}
 }

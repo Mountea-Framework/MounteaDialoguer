@@ -1,3 +1,4 @@
+import { syncRequestUrl } from './syncRequestUrl.js';
 import {
 	findAppDataFile as findGoogleAppDataFile,
 	listAppDataFiles as listGoogleAppDataFiles,
@@ -46,9 +47,95 @@ const steamStorageProvider = Object.freeze({
 	deleteFile: async (fileId) => await deleteSteamCloudFile(fileId),
 });
 
+const APP_BASE = import.meta.env.BASE_URL || '/';
+const AUTH_CODES = ['AUTH_REQUIRED', 'SETUP_REQUIRED'];
+
+async function request(path, options = {}) {
+	const url = syncRequestUrl(APP_BASE, window.location.href, 'sync', path);
+	const response = await fetch(url, { ...options, credentials: 'same-origin', redirect: 'error' });
+	if (response.status === 401) {
+		const body = await response.json().catch(() => null);
+		if (AUTH_CODES.includes(body?.code)) throw Object.assign(new Error(body.error || 'Sync sign-in required'), { code: body.code, status: 401 });
+	}
+	if (response.status === 404) return null;
+	if (!response.ok) {
+		throw Object.assign(new Error(`Server ${response.status} on ${path}`), { code: 'SERVER_ERROR', status: response.status });
+	}
+	return response;
+}
+
+async function authCall(path, body) {
+	const url = syncRequestUrl(APP_BASE, window.location.href, 'auth', path);
+	const response = await fetch(url, {
+		redirect: 'error',
+		method: body === undefined ? 'GET' : 'POST',
+		credentials: 'same-origin',
+		...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+	});
+	const data = await response.json().catch(() => null);
+	if (!response.ok) throw Object.assign(new Error(data?.error || `Server ${response.status}`), { code: data?.code || 'SERVER_ERROR', status: response.status });
+	return data;
+}
+
+export const getSyncAuthStatus = () => authCall('/status');
+export const setupSyncServer = ({ code, password }) => authCall('/setup', { code, password });
+export const loginSyncServer = ({ password }) => authCall('/login', { password });
+export const logoutSyncServer = () => authCall('/logout', {});
+
+// Revision and deletion files are immutable and content-addressed, so a downloaded file never has to be fetched twice.
+const downloadCache = new Map();
+const IMMUTABLE_PREFIXES = ['mountea-revision-v2--', 'mountea-deletion-v2--'];
+const isImmutable = (id) => IMMUTABLE_PREFIXES.some((prefix) => String(id).startsWith(prefix));
+
+/** Storage contract used by the revision protocol: files are {id, name}; the id is the file name. */
+const serverStorageProvider = Object.freeze({
+	id: 'server',
+	supportsCloudSync: true,
+	findFileByName: async (fileName) => {
+		const response = await request(`/files?name=${encodeURIComponent(fileName)}`);
+		const { files = [] } = response ? await response.json() : {};
+		return files[0] || null;
+	},
+	listFiles: async ({ namePrefix } = {}) => {
+		const response = await request(`/files${namePrefix ? `?prefix=${encodeURIComponent(namePrefix)}` : ''}`);
+		const { files = [] } = response ? await response.json() : {};
+		return files;
+	},
+	downloadFile: async (fileId) => {
+		if (downloadCache.has(fileId)) return downloadCache.get(fileId);
+		const response = await request(`/files/${encodeURIComponent(fileId)}`);
+		if (!response) throw Object.assign(new Error('Remote file not found'), { code: 'NOT_FOUND' });
+		const text = await response.text();
+		if (isImmutable(fileId)) downloadCache.set(fileId, text);
+		return text;
+	},
+	createFile: async ({ name, content }) => {
+		const response = await request('/files', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name, content }),
+		});
+		return response.json();
+	},
+	updateFile: async ({ fileId, content }) => {
+		const response = await request(`/files/${encodeURIComponent(fileId)}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ content }),
+		});
+		downloadCache.delete(fileId);
+		return response.json();
+	},
+	deleteFile: async (fileId) => {
+		await request(`/files/${encodeURIComponent(fileId)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+		downloadCache.delete(fileId);
+	},
+});
+
 const STORAGE_PROVIDERS = Object.freeze({
 	googleDrive: googleDriveStorageProvider,
 	steam: steamStorageProvider,
+	server: serverStorageProvider,
 });
 
 export function resolveSyncProviderId(providerId) {
@@ -71,4 +158,22 @@ export function assertCloudSyncStorageProvider(providerId = DEFAULT_SYNC_PROVIDE
 		throw createUnsupportedProviderError(resolved);
 	}
 	return provider;
+}
+
+/** True when the self-hosted sync server answers. */
+export async function isSyncServerReachable({ signal, timeoutMs = 5000 } = {}) {
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	const timer = setTimeout(abort, timeoutMs);
+	if (signal?.aborted) abort();
+	signal?.addEventListener('abort', abort, { once: true });
+	try {
+		const response = await fetch(`${import.meta.env.BASE_URL || '/'}api/health`.replace(/\/{2,}/g, '/'), { cache: 'no-store', signal: controller.signal });
+		return response.ok;
+	} catch {
+		return false;
+	} finally {
+		clearTimeout(timer);
+		signal?.removeEventListener('abort', abort);
+	}
 }

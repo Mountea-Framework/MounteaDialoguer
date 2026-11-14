@@ -15,7 +15,13 @@ export function isSteamChannel() {
 	return getDistributionChannel() === 'steam';
 }
 
+/** Build flag for the self-hosted web edition: sync goes to the bundled server (server/), with no login. */
+export function isSelfHostedSync() {
+	return readFlag(import.meta.env.VITE_SYNC_SERVER, false);
+}
+
 export function isGoogleSyncEnabled() {
+	if (isSelfHostedSync()) return false;
 	return readFlag(import.meta.env.VITE_ENABLE_GOOGLE_SYNC, true);
 }
 

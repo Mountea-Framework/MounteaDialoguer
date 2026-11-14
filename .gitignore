@@ -39,7 +39,9 @@ dist-ssr
 /TestingData/TestingExport_Broken/*
 *.kra~
 .tanstack
-/.claude
+/.claude/*
+!/.claude/skills/
+/data
 /.vscode
 /.jetbrains
 /.rider
@@ -58,3 +60,7 @@ dist-ssr
 
 # Video capture output
 tools/video-capture/out/
+
+# Local docs
+/docs/technical
+/brag-output

@@ -117,6 +117,7 @@
 		"deleteConfirm": "Möchten Sie dieses Projekt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
 	},
 	"dialogues": {
+		"deleteConfirm": "Dialog „{{name}}“ löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
 		"title": "Dialoge",
 		"createNew": "Neuen Dialog erstellen",
 		"createNewDescription": "Start from scratch or import",
@@ -134,6 +135,16 @@
 		"unsavedChanges": "Nicht gespeicherte Änderungen"
 	},
 	"editor": {
+		"clipboard": {
+			"title": "Mit Änderungen eingefügt",
+			"description": "Weise die entfernten Verknüpfungen neu zu: {{details}}.",
+			"conditions": "Bedingungsregeln: {{count}}",
+			"decorators": "Dekoratoren: {{count}}",
+			"nodeSpeakers": "Knotensprecher: {{count}}",
+			"rowSpeakers": "Zeilensprecher: {{count}}",
+			"returnTargets": "Rücksprungziele: {{count}}",
+			"childTargets": "Unterdialogziele: {{count}}"
+		},
 		"menu": {
 			"file": "Datei",
 			"edit": "Bearbeiten",
@@ -179,6 +190,9 @@
 			"recenterTooltip": "Gesamten Graph anzeigen",
 			"startFocusTooltip": "Startknoten fokussieren"
 		},
+		"preview": {
+			"startFromHere": "Vorschau ab hier"
+		},
 		"nodes": {
 			"start": "Start",
 			"startDescription": "Einstiegspunkt des Dialogs",
@@ -214,6 +228,11 @@
 		"speaker": "Sprecher",
 		"dialogueText": "Dialogtext",
 		"audioClip": "Audioclip",
+		"rows": {
+			"executionBehaviour": { "label": "Ausführung", "automatic": "Automatisch", "awaitInput": "Auf Eingabe warten", "stopping": "Anhalten" },
+			"durationMode": { "label": "Dauermodus", "duration": "Dauer", "override": "Überschreiben", "add": "Zeit addieren", "calculate": "Berechnen" },
+			"durationOverride": "Dauer überschreiben (Sekunden)"
+		},
 		"decorators": "Dekoratoren",
 		"addDecorator": "Dekorator hinzufügen",
 		"deleteCascadeTitle": "Knoten und Kinder löschen?",
@@ -522,6 +541,7 @@
 		"failed": "Import fehlgeschlagen. Prüfen Sie das Archiv und versuchen Sie es erneut."
 	},
 	"recovery": {
+		"leaveMissingBlank": "Fehlende Texte leer lassen und fortfahren",
 		"title": "Projektwiederherstellung",
 		"description": "Korrigieren Sie diese Verweise vor dem Export oder der Synchronisierung. Originaldatensätze bleiben erhalten. Fehlende Texte oder Medien müssen aus einer Sicherung wiederhergestellt werden; die App kann sie nicht rekonstruieren.",
 		"failed": "Wiederherstellung fehlgeschlagen. Prüfen Sie die Details und versuchen Sie es erneut.",
@@ -546,7 +566,7 @@
 	},
 	"syncConflicts": {
 		"title": "Synchronisierungskonflikte",
-		"description": "Beide Versionen bleiben erhalten. Wählen Sie die Version, die Sie behalten möchten.",
+		"description": "Mehrere Versionen sind erhalten. Wähle die Version, die du behalten möchtest.",
 		"incomplete": "Ein Teil des Versionsverlaufs ist nicht verfügbar. Synchronisieren Sie erneut, bevor Sie den Konflikt lösen.",
 		"keepLocal": "Lokale Version behalten",
 		"keepRemote": "Remoteversion behalten",
@@ -555,6 +575,30 @@
 		"selectRevision": "Konkurrierende Version",
 		"revision": "Version {{id}}",
 		"deleted": "Gelöschtes Projekt",
-		"resolveError": "Dieser Konflikt konnte nicht gelöst werden."
+		"resolveError": "Dieser Konflikt konnte nicht gelöst werden.",
+		"thisBrowser": "Dieser Browser",
+		"otherVersion": "Server / anderes Gerät",
+		"hint": "Vergleiche die Versionen vor der Auswahl; neuer oder größer ist nicht immer richtig. Wenn du alle Versionen behältst, bleiben die verfügbaren Inhalte in separaten Projekten erhalten. Unerwünschte Kopien kannst du später löschen.",
+		"versionLabel": "Version {{number}} · {{name}} · {{source}}",
+		"revisionDetails": "Details zur Revision",
+		"unknownDate": "Unbekanntes Datum",
+		"keepAll": "Alle Versionen behalten",
+		"dialogueCount_one": "{{count}} Dialog",
+		"dialogueCount_other": "{{count}} Dialoge",
+		"nodeCount_one": "{{count}} Knoten",
+		"nodeCount_other": "{{count}} Knoten"
+	},
+	"automation": {
+		"cliAccess": {
+			"label": "CLI-Zugriff",
+			"running": "An, Port {{port}}",
+			"off": "Aus",
+			"description": "Erlaubt dem Befehlszeilenwerkzeug von Mountea Dialoguer auf diesem Computer, Ihre Projekte zu lesen und zu bearbeiten."
+		},
+		"externalChange": {
+			"title": "Dialog außerhalb des Editors geändert",
+			"unsaved": "Die CLI hat diesen Dialog geändert. Neu laden zeigt die Änderung, verwirft aber Ihre ungespeicherten Änderungen. Wenn Sie stattdessen speichern, bleibt Ihre Version erhalten.",
+			"reload": "Neu laden"
+		}
 	}
 }

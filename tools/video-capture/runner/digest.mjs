@@ -13,8 +13,8 @@ async function* walk(dir) {
 
 /** Everything that can change what a captured frame looks like: the app source, its toolchain config and the sandbox. */
 export const DIGEST_ROOTS = [
-	'src', 'tailwind.config.js', 'package-lock.json',
-	'tools/video-capture/sandbox', 'tools/video-capture/shared', 'tools/video-capture/runner',
+	'src', 'tailwind.config.js', 'package-lock.json', 'vite.config.js', 'index.html', 'scripts/product-build.mjs',
+	'tools/video-capture/sandbox', 'tools/video-capture/sandbox-app', 'tools/video-capture/shared', 'tools/video-capture/runner',
 	'tools/video-capture/vite.config.js', 'tools/video-capture/tailwind.config.js', 'tools/video-capture/index.html',
 ];
 

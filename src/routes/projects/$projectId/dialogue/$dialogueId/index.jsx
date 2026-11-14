@@ -1,5 +1,6 @@
 import { toast } from '@/components/ui/toaster';
 import { errorToast } from '@/lib/errorPresentation';
+import { captureDialogueClipboard, pasteDialogueClipboard } from '@/lib/dialogueClipboard';
 import {
 	START_NODE_ID,
 	getNodeSize,
@@ -64,6 +65,7 @@ import { useParticipantStore } from '@/stores/participantStore';
 import { useDecoratorStore } from '@/stores/decoratorStore';
 import { useConditionStore } from '@/stores/conditionStore';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { externalChangesSince, useExternalChangeStore } from '@/stores/externalChangeStore';
 import { v4 as uuidv4 } from 'uuid';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -146,6 +148,9 @@ const initialEdges = [];
 
 const noop = () => {};
 
+// Copy/paste clipboard for nodes. Module level so it also works between dialogues.
+let nodeClipboard = null; // { projectId, nodes: [], edges: [], pasteCount: 0 }
+
 const NodeContextMenuContext = createContext({
 	onDeleteNode: noop,
 	onContextMenuAction: noop,
@@ -164,7 +169,7 @@ const NodeContextMenuProvider = ({ value, children }) => {
 const withNodeContextMenu = (NodeComponent) => {
 	const WrappedNode = (props) => {
 		const { t } = useTranslation();
-		const { onDeleteNode, onContextMenuAction } = useNodeContextMenu();
+		const { onDeleteNode, onContextMenuAction, onPreviewFromNode } = useNodeContextMenu();
 		const isPlaceholder = props.type === 'placeholderNode';
 		const canDelete = !isPlaceholder && props.id !== START_NODE_ID;
 
@@ -196,6 +201,17 @@ const withNodeContextMenu = (NodeComponent) => {
 						{t('common.delete')}
 						<ContextMenuShortcut>Del</ContextMenuShortcut>
 					</ContextMenuItem>
+					{props.id !== START_NODE_ID && (
+						<ContextMenuItem
+							onSelect={(event) => {
+								event.preventDefault();
+								onContextMenuAction?.();
+								onPreviewFromNode?.(props.id);
+							}}
+						>
+							{t('editor.preview.startFromHere')}
+						</ContextMenuItem>
+					)}
 				</ContextMenuContent>
 			</ContextMenu>
 		);
@@ -341,6 +357,7 @@ function DialogueEditorPage() {
 	const [isCascadeDeleteOpen, setIsCascadeDeleteOpen] = useState(false);
 	const [isEdgeCascadeDeleteOpen, setIsEdgeCascadeDeleteOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [previewStartNodeId, setPreviewStartNodeId] = useState('');
 	const [previewActiveNodeRef, setPreviewActiveNodeRef] = useState(null);
 	const previewOriginRef = useRef(null);
 	const graphLoadKeyRef = useRef('');
@@ -459,6 +476,7 @@ function DialogueEditorPage() {
 
 	// Load dialogue graph when dialogue changes
 	useEffect(() => {
+		let disposed = false;
 		const loadGraph = async () => {
 			if (dialogueId) {
 				const loadKey = `${dialogueId}:${contentLocale}`;
@@ -482,11 +500,11 @@ function DialogueEditorPage() {
 					const result = await loadDialogueGraph(dialogueId, {
 						activeLocale: contentLocale,
 					});
+					if (disposed) return;
 					const { nodes: loadedNodes, edges: loadedEdges, viewport: loadedViewport } = result;
 
-					if (loadedNodes.length > 0 || loadedEdges.length > 0) {
-						resetDraft(loadedNodes, loadedEdges);
-					}
+					// An empty destination must replace the previous dialogue's draft too.
+					resetDraft(loadedNodes.length ? loadedNodes : getInitialNodes(t), loadedEdges);
 
 					// Restore viewport if saved and ReactFlow instance is available
 					const shouldRestoreViewport = getDeviceType() !== 'mobile';
@@ -496,15 +514,57 @@ function DialogueEditorPage() {
 						setHasLoadedViewport(true);
 					}
 				} catch (error) {
+					if (disposed) return;
 					graphLoadKeyRef.current = '';
 					console.error('Failed to load dialogue graph:', error);
 				} finally {
-					setHasGraphInitialized(true);
+					if (!disposed) setHasGraphInitialized(true);
 				}
 			}
 		};
 		loadGraph();
-	}, [dialogueId, loadDialogueGraph, resetDraft, reactFlowInstance, contentLocale]);
+		return () => {
+			disposed = true;
+			graphLoadKeyRef.current = '';
+		};
+	}, [dialogueId, loadDialogueGraph, resetDraft, reactFlowInstance, contentLocale, t]);
+
+	// Desktop CLI edits (src/lib/automation) land in the database directly. Reload what this editor shows; an
+	// unsaved draft is never replaced without asking.
+	const externalChangeVersion = useExternalChangeStore((state) => state.version);
+	const externalChangeSeenRef = useRef(externalChangeVersion);
+	const reloadGraphAfterExternalChange = useCallback(async () => {
+		try {
+			const result = await loadDialogueGraph(dialogueId, { activeLocale: contentLocale });
+			hasPendingNodeDataEditsRef.current = false;
+			resetDraft(result.nodes.length ? result.nodes : getInitialNodes(t), result.edges);
+		} catch (error) {
+			console.error('Failed to reload dialogue graph:', error);
+		}
+	}, [dialogueId, contentLocale, loadDialogueGraph, resetDraft, t]);
+	useEffect(() => {
+		if (externalChangeVersion === externalChangeSeenRef.current) return;
+		const changes = externalChangesSince(externalChangeSeenRef.current, projectId);
+		externalChangeSeenRef.current = externalChangeVersion;
+		if (!changes.length) return;
+		loadProjects();
+		loadDialogues(projectId);
+		loadParticipants(projectId);
+		loadDecorators(projectId);
+		loadConditions(projectId);
+		loadCategories(projectId);
+		if (!changes.some((change) => change.dialogueIds.includes(dialogueId))) return;
+		if (!hasUnsavedChanges) {
+			void reloadGraphAfterExternalChange();
+			return;
+		}
+		toast({
+			title: t('automation.externalChange.title'),
+			description: t('automation.externalChange.unsaved'),
+			action: { label: t('automation.externalChange.reload'), onClick: () => { void reloadGraphAfterExternalChange(); } },
+			duration: 15000,
+		});
+	}, [externalChangeVersion, projectId, dialogueId, hasUnsavedChanges, reloadGraphAfterExternalChange, loadProjects, loadDialogues, loadParticipants, loadDecorators, loadConditions, loadCategories, t]);
 
 	const isMobileGraphLoading =
 		deviceType !== 'desktop' &&
@@ -1394,7 +1454,7 @@ function DialogueEditorPage() {
 		setPreviewActiveNodeRef(nodeRef);
 	}, [dialogueId]);
 
-	const handleStartPreview = useCallback(() => {
+	const handleStartPreview = useCallback((startFromNodeId) => {
 		if (deviceType !== 'desktop') return;
 
 		const missingRequiredNodes = getMissingRequiredNodes();
@@ -1449,6 +1509,8 @@ function DialogueEditorPage() {
 			dialogueId,
 			nodeId: START_NODE_ID,
 		};
+		// The toolbar button passes a click event; only a string id means "start from this node".
+		setPreviewStartNodeId(typeof startFromNodeId === 'string' ? startFromNodeId : '');
 		setIsPreviewOpen(true);
 	}, [deviceType, dialogueId, getMissingRequiredNodes, nodes, edges, t]);
 
@@ -2003,11 +2065,78 @@ function DialogueEditorPage() {
 		redo();
 	}, [redo]);
 
+	// Copy selected nodes (multi-select with Shift-drag) and the edges between them.
+	const handleCopyNodes = useCallback(() => {
+		const copied = captureDialogueClipboard({ projectId, dialogueId, nodes, edges, selectedNodeId });
+		if (!copied) return false;
+		nodeClipboard = copied;
+		return true;
+	}, [nodes, edges, selectedNodeId, projectId, dialogueId]);
+
+	const handlePasteNodes = useCallback(() => {
+		if (!nodeClipboard?.nodes.length) return false;
+		const { nodes: newNodes, edges: pastedEdges, cleared } = pasteDialogueClipboard(nodeClipboard, {
+			projectId, dialogueId, nodes, dialogues, participants, decorators, conditions, createId: uuidv4,
+		});
+		nodeClipboard.pasteCount += 1;
+		const newPlaceholders = [];
+		const newEdges = [...pastedEdges];
+		for (const node of newNodes) {
+			if (getNodeDefinition(node.type)?.canHaveOutputs ?? true) {
+				const placeholderId = uuidv4();
+				newPlaceholders.push({
+					id: placeholderId, type: 'placeholderNode',
+					data: { label: 'Add Node', onClick: handlePlaceholderClick, parentNodeId: node.id },
+					position: { x: node.position.x, y: node.position.y + 250 },
+				});
+				newEdges.push({
+					id: `${node.id}-${placeholderId}`, source: node.id, target: placeholderId, type: 'default',
+					style: { strokeWidth: 1, stroke: '#94a3b8', strokeDasharray: '5,5' }, data: { isPlaceholder: true },
+				});
+			}
+		}
+		const nextNodes = [...nodes.map((node) => ({ ...node, selected: false })), ...newNodes, ...newPlaceholders];
+		const nextEdges = [...edges, ...newEdges];
+		setNodes(nextNodes);
+		setEdges(nextEdges);
+		saveToHistory(nextNodes, nextEdges);
+		markUnsaved();
+		setSelectedEdge(null);
+		setSelectedNodeId(newNodes.length === 1 ? newNodes[0].id : null);
+		const details = Object.entries(cleared).filter(([, count]) => count > 0)
+			.map(([key, count]) => t(`editor.clipboard.${key}`, { count })).join(', ');
+		if (details) toastStandalone({ variant: 'warning', title: t('editor.clipboard.title'), description: t('editor.clipboard.description', { details }), duration: 8000 });
+		return true;
+	}, [nodes, edges, projectId, dialogueId, dialogues, participants, decorators, conditions, setNodes, setEdges, saveToHistory, markUnsaved, handlePlaceholderClick, t]);
+
 	// Handle keyboard events
 	useEffect(() => {
 		const handleKeyDown = (event) => {
 			if (isPreviewOpen) {
 				return;
+			}
+
+			// Copy / paste nodes (not while typing, so text copy keeps working)
+			if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+				const el = event.target;
+				const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
+				const hasTextSelection = !!window.getSelection()?.toString();
+				const key = event.key.toLowerCase();
+				if (!typing && key === 'c' && !hasTextSelection) {
+					if (handleCopyNodes()) event.preventDefault();
+					return;
+				}
+				if (!typing && key === 'v') {
+					if (handlePasteNodes()) event.preventDefault();
+					return;
+				}
+				if (!typing && key === 'd') {
+					if (handleCopyNodes()) {
+						event.preventDefault();
+						handlePasteNodes();
+					}
+					return;
+				}
 			}
 
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
@@ -2072,6 +2201,8 @@ function DialogueEditorPage() {
 		handleSave,
 		handleUndo,
 		handleRedo,
+		handleCopyNodes,
+		handlePasteNodes,
 		isPreviewOpen,
 	]);
 
@@ -2345,8 +2476,9 @@ function DialogueEditorPage() {
 		() => ({
 			onDeleteNode: deleteNodeById,
 			onContextMenuAction: () => { lastContextMenuActionRef.current = Date.now(); },
+			onPreviewFromNode: (nodeId) => handleStartPreview(String(nodeId)),
 		}),
-		[deleteNodeById]
+		[deleteNodeById, handleStartPreview]
 	);
 
 	if (!dialogue || !project) {
@@ -2499,6 +2631,7 @@ function DialogueEditorPage() {
 							edges={edges}
 							participants={participants}
 							rootDialogueId={dialogueId}
+							startNodeId={previewStartNodeId}
 							loadDialogueGraphForPreview={loadDialogueGraphForPreview}
 							onStop={handlePreviewStop}
 							onNodeFocus={handlePreviewNodeFocus}

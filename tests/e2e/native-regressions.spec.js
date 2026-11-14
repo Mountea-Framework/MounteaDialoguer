@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createRequire } from 'node:module';
 import fs from 'node:fs/promises';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
@@ -9,6 +10,22 @@ const { createCredentialVault } = require('../../electron/credentials.cjs');
 const { createSteamFileTransport } = require('../../electron/steam-files.cjs');
 const { appendDiagnostic } = require('../../electron/diagnostics.cjs');
 const { createOAuthSession } = require('../../electron/oauth-session.cjs');
+const { createAutomationHost, readAutomationSettings, writeAutomationSettings } = require('../../electron/automation.cjs');
+const { defaultUserDataDir, fallbackUserDataDirs, userDataCandidates } = require('../../electron/userDataPaths.cjs');
+
+// Raw HTTP so tests can send the Host and Origin headers a browser or a rebinding attack would.
+function rawRequest(port, { method = 'GET', pathname = '/', headers = {}, body } = {}) {
+	return new Promise((resolve, reject) => {
+		const request = http.request({ host: '127.0.0.1', port, method, path: pathname, headers: { Host: `127.0.0.1:${port}`, ...headers } }, (response) => {
+			const chunks = [];
+			response.on('data', (chunk) => chunks.push(chunk));
+			response.on('end', () => resolve({ status: response.statusCode, text: Buffer.concat(chunks).toString('utf8') }));
+		});
+		request.on('error', reject);
+		if (body !== undefined) request.write(body);
+		request.end();
+	});
+}
 
 test('ISS-023 native cancellation rejects late tokens and holds session until cleanup', async () => {
 	const session = createOAuthSession();
@@ -86,6 +103,87 @@ test('ISS-022 Steam revisions survive failed upload, retries, two clients and re
 		await expect(a.remove({ profileId: 'steam-123', fileId: first.id })).rejects.toThrow('history');
 		expect(files.size).toBe(2);
 	} finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+test('CLI-001 automation endpoint is opt-in, loopback-only, token-guarded and forwards to the renderer', async () => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'mountea-automation-'));
+	let host;
+	try {
+		expect(readAutomationSettings(directory)).toEqual({ enabled: false });
+		writeAutomationSettings(directory, { enabled: true });
+		expect(readAutomationSettings(directory)).toEqual({ enabled: true });
+
+		const forwarded = [];
+		let shutdowns = 0, headless = true;
+		host = createAutomationHost({
+			directory, version: '9.9.9', timeoutMs: 300, maxBodyBytes: 1024,
+			forward: (id, message) => {
+				forwarded.push(message);
+				if (message.method === 'ping') setImmediate(() => host.receive(id, { jsonrpc: '2.0', id: message.id, result: {} }));
+				if (message.method === 'notifications/initialized') setImmediate(() => host.receive(id, null));
+			},
+			canShutdown: () => headless, onShutdown: () => { shutdowns += 1; }, getMode: () => 'headless',
+		});
+		const { port } = await host.start();
+		const endpoint = JSON.parse(await fs.readFile(path.join(directory, 'automation.json'), 'utf8'));
+		expect(endpoint).toMatchObject({ port, pid: process.pid, version: '9.9.9', mode: 'headless' });
+		expect(endpoint.token.length).toBeGreaterThanOrEqual(40);
+		const auth = { Authorization: `Bearer ${endpoint.token}`, 'Content-Type': 'application/json' };
+		const ping = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' });
+
+		expect((await rawRequest(port, { pathname: '/health' })).text).toBe('{"ok":true,"ready":false}');
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: auth, body: ping })).status).toBe(503);
+		host.setReady(true);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', body: ping })).status).toBe(401);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: { ...auth, Authorization: 'Bearer wrong' }, body: ping })).status).toBe(401);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: { ...auth, Host: `evil.example:${port}` }, body: ping })).status).toBe(403);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: { ...auth, Origin: 'https://evil.example' }, body: ping })).status).toBe(403);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: auth, body: 'x'.repeat(2048) })).status).toBe(413);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: auth, body: '{not json' })).status).toBe(400);
+
+		const answered = await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: auth, body: ping });
+		expect(answered).toEqual({ status: 200, text: '{"jsonrpc":"2.0","id":1,"result":{}}' });
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: auth, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) })).status).toBe(202);
+		expect((await rawRequest(port, { method: 'POST', pathname: '/mcp', headers: auth, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }) })).status).toBe(504);
+		expect(forwarded.map((message) => message.method)).toEqual(['ping', 'notifications/initialized', 'tools/list']);
+
+		headless = false;
+		expect((await rawRequest(port, { method: 'POST', pathname: '/shutdown', headers: auth })).status).toBe(409);
+		headless = true;
+		expect((await rawRequest(port, { method: 'POST', pathname: '/shutdown', headers: auth })).status).toBe(200);
+		await new Promise((resolve) => setImmediate(resolve));
+		expect(shutdowns).toBe(1);
+
+		host.stop();
+		await expect(fs.access(path.join(directory, 'automation.json'))).rejects.toThrow();
+		await expect(rawRequest(port, { pathname: '/health' })).rejects.toThrow();
+	} finally {
+		host?.stop();
+		await fs.rm(directory, { recursive: true, force: true });
+	}
+});
+
+test('CLI-002 automation IPC accepts only well-formed payloads; CLI finds the app profile like the app does', async () => {
+	expect(() => validatePayload('automation:get-status', undefined)).not.toThrow();
+	expect(() => validatePayload('automation:get-status', {})).toThrow('Unexpected');
+	expect(() => validatePayload('automation:set-enabled', { enabled: true })).not.toThrow();
+	expect(() => validatePayload('automation:set-enabled', { enabled: 'yes' })).toThrow('setting');
+	expect(() => validatePayload('automation:set-enabled', { enabled: true, port: 1 })).toThrow('setting');
+	expect(() => validatePayload('automation:ready', {})).not.toThrow();
+	expect(() => validatePayload('automation:ready', { extra: 1 })).toThrow('argument');
+	expect(() => validatePayload('automation:response', { id: 'abc-123', response: null })).not.toThrow();
+	expect(() => validatePayload('automation:response', { id: 'abc-123', response: [{ jsonrpc: '2.0', id: 1, result: {} }] })).not.toThrow();
+	expect(() => validatePayload('automation:response', { id: '../x', response: null })).toThrow('response');
+	expect(() => validatePayload('automation:response', { id: 'abc', response: 'text' })).toThrow('response');
+	expect(() => validatePayload('automation:response', { id: 'abc', response: {}, extra: true })).toThrow('response');
+	expect(() => validatePayload('automation:request', {})).toThrow('Unknown');
+
+	const env = { APPDATA: 'C:\\Users\\u\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local', MOUNTEA_USER_DATA_DIR: 'D:\\profile' };
+	expect(defaultUserDataDir({ platform: 'win32', env, homedir: 'C:\\Users\\u' })).toBe(path.join(env.APPDATA, 'Mountea Dialoguer'));
+	expect(defaultUserDataDir({ platform: 'darwin', env: {}, homedir: '/Users/u' })).toBe(path.join('/Users/u', 'Library', 'Application Support', 'Mountea Dialoguer'));
+	expect(defaultUserDataDir({ platform: 'linux', env: {}, homedir: '/home/u' })).toBe(path.join('/home/u', '.config', 'Mountea Dialoguer'));
+	expect(fallbackUserDataDirs({ env, tempPath: 'C:\\Temp' })).toEqual(['D:\\profile', path.join(env.LOCALAPPDATA, 'Mountea Dialoguer'), path.join(env.LOCALAPPDATA, 'Mountea Dialoguer', 'user-data'), path.join('C:\\Temp', 'Mountea Dialoguer', 'user-data')]);
+	expect(userDataCandidates({ explicit: 'E:\\mine', platform: 'win32', env, homedir: 'C:\\Users\\u', tempPath: 'C:\\Temp' })[0]).toBe('E:\\mine');
 });
 
 test('ISS-041 diagnostics rotate at five MiB, keep three archives, redact arbitrary provider prose', async () => {

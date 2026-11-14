@@ -33,6 +33,7 @@ import { useTheme } from '@/contexts/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { formatShortcut, getPrimaryModifierKey } from '@/lib/keyboardShortcuts';
 import { isMobileDevice } from '@/lib/deviceDetection';
+import { CliAccessToggle } from '@/components/ui/CliAccessToggle';
 
 const SUPPORT_URL = 'https://discord.gg/hCjh8e3Y9r';
 const ISSUES_URL = 'https://github.com/Mountea-Framework/MounteaDialoguer/issues';
@@ -410,6 +411,9 @@ export function CommandPalette({ open, onOpenChange, actions: actionsProp, place
 				shortcut: 'Ctrl+Shift+S',
 				onSelect: () => dispatchMenuCommand('open-sync'),
 			});
+		}
+		if (typeof window !== 'undefined' && typeof window.electronAPI?.setAutomationEnabled === 'function') {
+			settingsItems.push({ key: 'cli-access', render: () => <CliAccessToggle /> });
 		}
 		groups.push({ group: 'Settings', items: settingsItems });
 

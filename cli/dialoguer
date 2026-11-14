@@ -1,0 +1,10 @@
+#!/bin/sh
+# Mountea Dialoguer CLI, run with the installed app's own runtime (no separate Node.js needed).
+# macOS: <App>.app/Contents/Resources/cli   Linux: <install folder>/resources/cli
+here="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$here/../../MacOS/Mountea Dialoguer" ]; then
+	app="$here/../../MacOS/Mountea Dialoguer"
+else
+	app="$here/../../mountea-dialoguer"
+fi
+ELECTRON_RUN_AS_NODE=1 exec "$app" "$here/dialoguer.mjs" "$@"
